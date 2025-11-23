@@ -1,9 +1,13 @@
+# Get current AWS account ID for unique bucket naming
+data "aws_caller_identity" "current" {}
+
 resource "aws_s3_bucket" "terraform_state" {
-  bucket        = "${var.prefix}-s3-tfstate"
+  # Include account ID in bucket name to ensure global uniqueness
+  bucket        = "${var.prefix}-${data.aws_caller_identity.current.account_id}-s3-tfstate"
   force_destroy = true
 
   tags = {
-    Name      = "${var.prefix}-s3-tfstate"
+    Name      = "${var.prefix}-${data.aws_caller_identity.current.account_id}-s3-tfstate"
     Env       = var.env
     Terraform = true
   }
