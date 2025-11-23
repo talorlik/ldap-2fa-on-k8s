@@ -159,10 +159,19 @@ This is the recommended approach as it handles state file upload automatically.
 
 For local development or testing:
 
-1. **Initialize Terraform**:
+0. **If previously run via GitHub Actions → Download the current state**:
 
    ```bash
    cd tf_backend_state
+   aws s3 cp s3://<bucket_name>/backend_state/terraform.tfstate ./terraform.tfstate
+   ```
+
+1. **Initialize Terraform**:
+
+   ```bash
+   # If not done in #0
+   cd tf_backend_state
+
    terraform init
    ```
 
