@@ -13,6 +13,8 @@ LDAP authentication with 2FA deployed on K8S
 
 1. Deploy the Terraform backend state infrastructure by running the `tfstate_infra_provisioning.yaml` workflow via the GitHub UI
 
+   > 📖 **For detailed setup instructions**, including required GitHub Secrets, Variables, and configuration, see the [Terraform Backend State README](tf_backend_state/README.md).
+
 > [!IMPORTANT] Make sure to alter the values in the variables.tfvars according to your setup and to commit and push them.
 
 ### Prod
