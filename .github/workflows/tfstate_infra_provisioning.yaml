@@ -51,6 +51,7 @@ jobs:
         env:
           BUCKET_NAME: ${{ env.BACKEND_BUCKET_NAME }}
         with:
+          github-token: ${{ secrets.GH_TOKEN }}
           script: |
             const bucketName = process.env.BUCKET_NAME;
             const repo = context.repo;
