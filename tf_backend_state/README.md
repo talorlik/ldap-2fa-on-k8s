@@ -73,7 +73,15 @@ Variables are non-sensitive values that can be accessed by workflows. Configure 
     - **Used for**: Setting the AWS region for all operations
     - **⚠️ Important**: This should match the region in your `variables.tfvars` file
 
-2. `BACKEND_BUCKET_NAME` (Auto-generated)
+2. `BACKEND_PREFIX`
+
+    - **Type**: Variable
+    - **Description**: The prefix that will be created once the state file is saved in the bucket
+    - **Example values**: `/backend_state/terraform.tfstate`
+    - **Used for**: Setting the bucket prefix for all operations
+    - **⚠️ Important**: Pay attention to the example given; the prefix must begin with a `/`
+
+3. `BACKEND_BUCKET_NAME` (Auto-generated)
 
     - **Type**: Variable
     - **Description**: The dynamically generated S3 bucket name
@@ -105,9 +113,7 @@ Configure these in `variables.tfvars` before running:
     - **Type**: `string`
     - **Description**: Prefix added to all resource names for identification
     - **Example**: `"mycompany-tf"`, `"project-name"`
-    - **Used for**:
-      - Creating unique bucket names: `{prefix}-{account-id}-s3-tfstate`
-      - Creating DynamoDB table names: `{prefix}-terraform-lock-table`
+    - **Used for**: Creating unique names for all resources
     - **⚠️ Important**: Choose a unique prefix to avoid naming conflicts
 
 4. `principal_arn`
@@ -115,9 +121,7 @@ Configure these in `variables.tfvars` before running:
     - **Type**: `string`
     - **Description**: AWS IAM principal (user or role) ARN that will have access to the resources
     - **Example**: `"arn:aws:iam::123456789012:user/myuser"` or `"arn:aws:iam::123456789012:role/myrole"`
-    - **Used for**:
-      - Granting S3 bucket access (read/write state files)
-      - Granting DynamoDB table access (acquire/release locks)
+    - **Used for**: Granting access to AWS to execute all needed operations.
     - **How to find it**:
       - For IAM User: AWS Console → IAM → Users → Your User → Summary → ARN
       - For IAM Role: AWS Console → IAM → Roles → Your Role → Summary → ARN
@@ -141,7 +145,7 @@ This is the recommended approach as it handles state file upload automatically.
    - The workflow will:
      - Validate Terraform configuration
      - Create the S3 bucket and DynamoDB table
-     - Save the bucket name as a repository variable
+     - Save the bucket and table names as repository variables
      - Upload the state file to S3
 
 #### Destroying (Remove Infrastructure)
@@ -163,7 +167,7 @@ For local development or testing:
 
    ```bash
    cd tf_backend_state
-   aws s3 cp s3://<bucket_name>/backend_state/terraform.tfstate ./terraform.tfstate
+   aws s3 cp s3://<bucket_name>/<prefix> ./terraform.tfstate
    ```
 
 1. **Initialize Terraform**:
@@ -233,13 +237,14 @@ For local development or testing:
 
 ### After Provisioning
 
-- The state file is automatically uploaded to: `s3://{bucket-name}/backend_state/terraform.tfstate`
+- The state file is automatically uploaded to: `s3://{bucket-name}/{prefix}`
 - The bucket name is saved as `BACKEND_BUCKET_NAME` repository variable
-- This variable is accessible to all workflows via `${{ vars.BACKEND_BUCKET_NAME }}`
+- The table name is saved as `BACKEND_DYNAMODB_TABLE_NAME` repository variable
+- Both variablea are accessible to all workflows via `${{ vars.BACKEND_BUCKET_NAME }}` and `${{ vars.BACKEND_DYNAMODB_TABLE_NAME }}` respectively.
 
 ### State File Location
 
-- **Path in S3**: `backend_state/terraform.tfstate`
+- **Path in S3**: `{prefix}`
 - **Versioning**: Enabled, so you can recover previous versions if needed
 
 ## Troubleshooting
