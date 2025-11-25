@@ -82,3 +82,24 @@ module "vpc" {
 
   tags = local.tags
 }
+
+module "eks" {
+  source = "terraform-aws-modules/eks/aws"
+  version = "21.9.0"
+
+  name                   = local.cluster_name
+  kubernetes_version     = var.k8s_version
+  endpoint_public_access = true
+
+  enable_cluster_creator_admin_permissions = true
+
+  compute_config = {
+    enabled    = true
+    node_pools = ["general-purpose"]
+  }
+
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnets
+
+  tags = local.tags
+}
