@@ -76,9 +76,8 @@ Variables are non-sensitive values that can be accessed by workflows. Configure 
 
     - **Type**: Variable
     - **Description**: The prefix that will be created once the state file is saved in the bucket
-    - **Example values**: `/backend_state/terraform.tfstate`
+    - **Example values**: `backend_state/terraform.tfstate`
     - **Used for**: Setting the bucket prefix for all operations
-    - **⚠️ Important**: Pay attention to the example given; the prefix must begin with a `/`
 
 3. `BACKEND_BUCKET_NAME` (Auto-generated)
 

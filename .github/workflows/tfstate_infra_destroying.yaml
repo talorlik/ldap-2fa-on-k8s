@@ -32,7 +32,7 @@ jobs:
       - name: Download backend state file from S3
         run: |
           aws s3 cp \
-            s3://${{ vars.BACKEND_BUCKET_NAME }}${{ vars.BACKEND_PREFIX }} \
+            s3://${{ vars.BACKEND_BUCKET_NAME }}/${{ vars.BACKEND_PREFIX }} \
             terraform.tfstate
 
       - name: Terraform init

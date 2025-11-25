@@ -73,7 +73,7 @@ jobs:
             exit 0
           fi
 
-          S3_PATH="s3://${BUCKET_NAME}${BACKEND_PREFIX}"
+          S3_PATH="s3://${BUCKET_NAME}/${BACKEND_PREFIX}"
           echo "Attempting to download state file from: ${S3_PATH}"
 
           if aws s3 ls "$S3_PATH" > /dev/null 2>&1; then
@@ -154,4 +154,4 @@ jobs:
 
       - name: Upload backend state file to S3
         run: |
-          aws s3 cp terraform.tfstate s3://${{ env.BACKEND_BUCKET_NAME }}${{ vars.BACKEND_PREFIX }}
+          aws s3 cp terraform.tfstate s3://${{ env.BACKEND_BUCKET_NAME }}/${{ vars.BACKEND_PREFIX }}
