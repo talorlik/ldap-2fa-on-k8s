@@ -45,3 +45,6 @@ terraform.rc
 .vscode/
 # Snyk Security Extension - AI Rules (auto-generated)
 .cursor/rules/snyk_rules.mdc
+
+# Generated backend configuration (created from tfstate-backend-values-template.hcl)
+backend_infra/backend.hcl

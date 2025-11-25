@@ -1,0 +1,97 @@
+name: Backend Infra Provisioning
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'Select AWS Region'
+        required: true
+        type: choice
+        default: 'us-east-1: N. Virginia'
+        options:
+          - 'us-east-1: N. Virginia'
+          - 'us-east-2: Ohio'
+      environment:
+        description: 'Select Environment'
+        required: true
+        type: choice
+        default: prod
+        options:
+          - prod
+          - dev
+
+jobs:
+  SetRegion:
+    runs-on: ubuntu-latest
+    outputs:
+      region_code: ${{ steps.set_region.outputs.region_code }}
+    steps:
+      - name: Set Region
+        id: set_region
+        run: |
+          SELECTED_REGION="${{ inputs.region }}"
+          echo "region_code=${SELECTED_REGION%%:*}" >> $GITHUB_OUTPUT
+
+  InfraProvision:
+    runs-on: ubuntu-latest
+    needs:
+      - SetRegion
+    permissions:
+      contents: write
+      actions: write
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ needs.SetRegion.outputs.region_code }}
+    defaults:
+      run:
+        working-directory: ./backend_infra
+    steps:
+      - name: Checkout the repo code
+        uses: actions/checkout@v2
+
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create backend.hcl from placeholder
+        run: |
+          cp tfstate-backend-values-template.hcl backend.hcl
+          sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
+                 -e "s|<BACKEND_PREFIX>|${{ vars.BACKEND_PREFIX }}|g" \
+                 -e "s|<AWS_REGION>|${{ needs.SetRegion.outputs.region_code }}|g" \
+                 backend.hcl
+          echo "Created backend.hcl:"
+          cat backend.hcl
+
+      - name: Update variables.tfvars
+        run: |
+          sed -i "s|^env[[:space:]]*=.*|env = \"${{ inputs.environment }}\"|" variables.tfvars
+          sed -i "s|^region[[:space:]]*=.*|region = \"${{ needs.SetRegion.outputs.region_code }}\"|" variables.tfvars
+          echo "Updated variables.tfvars:"
+          cat variables.tfvars
+
+      - name: Terraform init
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform workspace
+        run: |
+          WORKSPACE="${{ needs.SetRegion.outputs.region_code }}-${{ inputs.environment }}"
+          terraform workspace select $WORKSPACE || terraform workspace new $WORKSPACE
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -var-file="variables.tfvars" -out plan.tfplan
+
+      - name: Provision backend infrastructure
+        run: terraform apply -auto-approve plan.tfplan

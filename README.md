@@ -17,17 +17,58 @@ LDAP authentication with 2FA deployed on K8S
 
 > [!IMPORTANT] Make sure to alter the values in the variables.tfvars according to your setup and to commit and push them.
 
-### Prod
+### Local Development Setup
+
+Before running Terraform locally, you need to generate the `backend.hcl` file and update `variables.tfvars` with your selected region and environment. The repository includes `tfstate-backend-values-template.hcl` as a template showing what values need to be configured.
+
+#### Option 1: Using GitHub CLI (Recommended)
+
+If you have the GitHub CLI (`gh`) installed and authenticated:
 
 ```bash
-terraform init
+cd backend_infra
+./setup-backend.sh
+```
 
-terraform workspace select us-east-1-prod || terraform workspace new us-east-1-prod
+This script will:
+- Prompt you to select an AWS region (us-east-1 or us-east-2)
+- Prompt you to select an environment (prod or dev)
+- Retrieve repository variables from GitHub
+- Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the actual values
+- Update `variables.tfvars` with the selected region and environment
 
-terraform plan -var-file="region.us-east-1.prod.tfvars" -out "region.us-east-1.prod.tfplan"
+#### Option 2: Using GitHub API Directly
+
+If you don't have GitHub CLI installed, you can use the API version:
+
+```bash
+cd backend_infra
+export GITHUB_TOKEN=your_github_token
+./setup-backend-api.sh
+```
+
+You can create a GitHub token at: https://github.com/settings/tokens
+Required scope: `repo` (for private repos) or `public_repo` (for public repos)
+
+> **Note:** The generated `backend.hcl` file is automatically ignored by git (see `.gitignore`). Only the placeholder template (`tfstate-backend-values-template.hcl`) is committed to the repository.
+
+### Running Terraform
+
+After setting up the backend configuration:
+
+```bash
+cd backend_infra
+
+terraform init -backend-config="backend.hcl"
+
+# Workspace name is dynamic based on region and environment
+# For example: us-east-1-prod, us-east-2-dev, etc.
+terraform workspace select <region>-<environment> || terraform workspace new <region>-<environment>
+
+terraform plan -var-file="variables.tfvars" -out "plan.tfplan"
 
 # To destroy all the resources that were created
-terraform plan -var-file="region.us-east-1.prod.tfvars" -destroy -out "region.us-east-1.prod.tfplan"
+terraform plan -var-file="variables.tfvars" -destroy -out "plan.tfplan"
 
-terraform apply -auto-approve "region.us-east-1.prod.tfplan"
+terraform apply -auto-approve "plan.tfplan"
 ```
