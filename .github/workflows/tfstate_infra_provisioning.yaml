@@ -97,30 +97,22 @@ jobs:
         run: |
           terraform apply -auto-approve terraform.tfplan
           echo "BACKEND_BUCKET_NAME=$(terraform output -raw bucket_name)" >> $GITHUB_ENV
-          echo "BACKEND_DYNAMODB_TABLE_NAME=$(terraform output -raw dynamodb_table_name)" >> $GITHUB_ENV
 
       - name: Save bucket name to GitHub repository variable
         uses: actions/github-script@v7
         env:
           BUCKET_NAME: ${{ env.BACKEND_BUCKET_NAME }}
-          TABLE_NAME: ${{ env.BACKEND_DYNAMODB_TABLE_NAME }}
         with:
           github-token: ${{ secrets.GH_TOKEN }}
           script: |
             const bucketName = process.env.BUCKET_NAME;
-            const tableName = process.env.TABLE_NAME;
             const repo = context.repo;
 
             if (!bucketName) {
               throw new Error('BUCKET_NAME environment variable is not set');
             }
 
-            if (!tableName) {
-              throw new Error('TABLE_NAME environment variable is not set');
-            }
-
             console.log(`Saving bucket name: ${bucketName}`);
-            console.log(`Saving table name: ${tableName}`);
 
             try {
               // Try to get existing bucket name variable
@@ -149,36 +141,6 @@ jobs:
                     value: bucketName
                   });
                   console.log('Created repository variable BACKEND_BUCKET_NAME');
-                } else {
-                  throw error;
-                }
-              }
-              // Try to get existing table name variable
-              try {
-                await github.rest.actions.getRepoVariable({
-                  owner: repo.owner,
-                  repo: repo.repo,
-                  name: 'BACKEND_DYNAMODB_TABLE_NAME'
-                });
-
-                // Update existing variable
-                await github.rest.actions.updateRepoVariable({
-                  owner: repo.owner,
-                  repo: repo.repo,
-                  name: 'BACKEND_DYNAMODB_TABLE_NAME',
-                  value: tableName
-                });
-                console.log('Updated repository variable BACKEND_DYNAMODB_TABLE_NAME');
-              } catch (error) {
-                if (error.status === 404) {
-                  // Variable doesn't exist, create it
-                  await github.rest.actions.createRepoVariable({
-                    owner: repo.owner,
-                    repo: repo.repo,
-                    name: 'BACKEND_DYNAMODB_TABLE_NAME',
-                    value: tableName
-                  });
-                  console.log('Created repository variable BACKEND_DYNAMODB_TABLE_NAME');
                 } else {
                   throw error;
                 }

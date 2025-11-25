@@ -1,13 +1,12 @@
 # Terraform Backend State Infrastructure
 
-This directory contains Terraform configuration to provision the AWS infrastructure needed to store Terraform state files remotely. This includes an S3 bucket for state storage and a DynamoDB table for state locking.
+This directory contains Terraform configuration to provision the AWS infrastructure needed to store Terraform state files remotely. This includes an S3 bucket for state storage with file-based locking.
 
 ## Overview
 
 This infrastructure creates:
 
-- **S3 Bucket**: Stores Terraform state files with versioning enabled
-- **DynamoDB Table**: Provides state locking to prevent concurrent modifications
+- **S3 Bucket**: Stores Terraform state files with versioning enabled and file-based locking
 - **Security**: Encrypted storage, private access, and IAM-based access control
 
 The bucket name is dynamically generated based on your prefix and AWS account ID to ensure global uniqueness.
@@ -144,8 +143,8 @@ This is the recommended approach as it handles state file upload automatically.
    - Click "Run workflow" → "Run workflow"
    - The workflow will:
      - Validate Terraform configuration
-     - Create the S3 bucket and DynamoDB table
-     - Save the bucket and table names as repository variables
+     - Create the S3 bucket
+     - Save the bucket name as a repository variable
      - Upload the state file to S3
 
 #### Destroying (Remove Infrastructure)
@@ -157,7 +156,7 @@ This is the recommended approach as it handles state file upload automatically.
    - The workflow will:
      - Download the state file from S3
      - Destroy all resources
-     - ⚠️ **Warning**: This permanently deletes the S3 bucket and DynamoDB table
+     - ⚠️ **Warning**: This permanently deletes the S3 bucket
 
 ### Option 2: Local Execution
 
@@ -217,19 +216,15 @@ For local development or testing:
   - IAM-based access control
   - Force destroy enabled (allows bucket deletion even if not empty)
 
-### DynamoDB Table
+### State Locking
 
-- **Name**: `{prefix}-terraform-lock-table`
-- **Features**:
-  - Pay-per-request billing mode
-  - Hash key: `LockID` (string)
-  - IAM-based access control
-  - Used for Terraform state locking
+- **Method**: File-based locking using `use_lockfile = true` in the backend configuration
+- **Location**: Lock file is stored in the same S3 bucket as the state file
+- **Benefits**: Simpler setup, no additional DynamoDB table required, lower cost
 
 ### Security Features
 
 - **S3 Bucket Policy**: Grants access only to the specified IAM principal
-- **DynamoDB Resource Policy**: Grants access only to the specified IAM principal
 - **Public Access Block**: Prevents any public access to the S3 bucket
 - **Encryption**: All data encrypted at rest
 
@@ -239,8 +234,7 @@ For local development or testing:
 
 - The state file is automatically uploaded to: `s3://{bucket-name}/{prefix}`
 - The bucket name is saved as `BACKEND_BUCKET_NAME` repository variable
-- The table name is saved as `BACKEND_DYNAMODB_TABLE_NAME` repository variable
-- Both variablea are accessible to all workflows via `${{ vars.BACKEND_BUCKET_NAME }}` and `${{ vars.BACKEND_DYNAMODB_TABLE_NAME }}` respectively.
+- The variable is accessible to all workflows via `${{ vars.BACKEND_BUCKET_NAME }}`
 
 ### State File Location
 
@@ -277,7 +271,7 @@ For local development or testing:
 
 3. **Costs**:
    - S3: Minimal cost for storage (typically < $1/month for small projects)
-   - DynamoDB: Pay-per-request, very low cost for occasional Terraform operations
+   - No additional costs for state locking (uses file-based locking in S3)
 
 4. **Backup**: State file versioning is enabled, so you can recover previous versions from the S3 console if needed.
 
