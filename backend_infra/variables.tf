@@ -18,11 +18,6 @@ variable "principal_arn" {
   type        = string
 }
 
-variable "deploy_account_profile" {
-  description = "The profile that is associated with the account to deploy to"
-  type        = string
-}
-
 ###################### VPC #########################
 
 variable "vpc_name" {
