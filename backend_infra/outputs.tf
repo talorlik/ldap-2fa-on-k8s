@@ -50,3 +50,13 @@ output "cluster_name" {
   description = "The Name of Kubernetes Cluster"
   value       = local.cluster_name
 }
+
+output "cluster_endpoint" {
+  description = "EKS Cluster API Endpoint"
+  value       = module.eks.cluster_endpoint
+}
+
+output "cluster_arn" {
+  description = "EKS Cluster ARN"
+  value       = module.eks.cluster_arn
+}

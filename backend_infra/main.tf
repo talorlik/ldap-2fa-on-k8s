@@ -104,5 +104,44 @@ module "eks" {
   enabled_log_types           = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
   create_cloudwatch_log_group = true
 
+  node_iam_role_additional_policies = {
+    "AmazonSSMManagedInstanceCore" = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  }
+
   tags = local.tags
+}
+
+module "endpoints" {
+  source                 = "./modules/endpoints"
+  env                    = var.env
+  region                 = var.region
+  prefix                 = var.prefix
+  vpc_id                 = module.vpc.vpc_id
+  private_subnets        = module.vpc.private_subnets
+  endpoint_sg_name       = var.endpoint_sg_name
+  node_security_group_id = module.eks.node_security_group_id
+  tags                   = local.tags
+}
+
+module "ebs" {
+  source         = "./modules/ebs"
+  env            = var.env
+  region         = var.region
+  prefix         = var.prefix
+  ebs_name       = var.ebs_name
+  ebs_claim_name = var.ebs_claim_name
+
+  # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
+  depends_on = [module.eks]
+}
+
+module "ecr" {
+  source               = "./modules/ecr"
+  env                  = var.env
+  region               = var.region
+  prefix               = var.prefix
+  ecr_name             = var.ecr_name
+  image_tag_mutability = var.image_tag_mutability
+  policy               = jsonencode(var.ecr_lifecycle_policy)
+  tags                 = local.tags
 }

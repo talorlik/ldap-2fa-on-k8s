@@ -6,16 +6,23 @@ LDAP authentication with 2FA deployed on K8S
 
 - AWS Account
 - GitHub Account
-- Fork the repository: https://github.com/talorlik/ldap-2fa-on-k8s.git
+- Fork the repository: [ldap-2fa-on-k8s](https://github.com/talorlik/ldap-2fa-on-k8s.git)
 - Set your own AWS KEY and SECRET (see the workflow yaml for the correct names for your secrets)
 
 ## Terraform Deployment
 
 1. Deploy the Terraform backend state infrastructure by running the `tfstate_infra_provisioning.yaml` workflow via the GitHub UI
 
+   > [!INFO]
    > 📖 **For detailed setup instructions**, including required GitHub Secrets, Variables, and configuration, see the [Terraform Backend State README](tf_backend_state/README.md).
 
-> [!IMPORTANT] Make sure to alter the values in the variables.tfvars according to your setup and to commit and push them.
+   > [!IMPORTANT]
+   > Make sure to alter the values in the variables.tfvars according to your setup and to commit and push them.
+
+2. Deploy the main backend infrastructure
+
+   > [!INFO]
+   > 📖 **For detailed information about the backend infrastructure**, including architecture, components, and module documentation, see the [Backend Infrastructure README](backend_infra/README.md).
 
 ### Local Development Setup
 
@@ -31,6 +38,7 @@ cd backend_infra
 ```
 
 This script will:
+
 - Prompt you to select an AWS region (us-east-1 or us-east-2)
 - Prompt you to select an environment (prod or dev)
 - Retrieve repository variables from GitHub
@@ -47,7 +55,7 @@ export GITHUB_TOKEN=your_github_token
 ./setup-backend-api.sh
 ```
 
-You can create a GitHub token at: https://github.com/settings/tokens
+You can create a GitHub token at: <https://github.com/settings/tokens>
 Required scope: `repo` (for private repos) or `public_repo` (for public repos)
 
 > **Note:** The generated `backend.hcl` file is automatically ignored by git (see `.gitignore`). Only the placeholder template (`tfstate-backend-values-template.hcl`) is committed to the repository.

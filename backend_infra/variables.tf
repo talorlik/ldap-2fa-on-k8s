@@ -56,3 +56,36 @@ variable "cluster_name" {
   description = "The Name of Kubernetes Cluster"
   type        = string
 }
+
+##################### Endpoints ##########################
+
+variable "endpoint_sg_name" {
+  description = "The name of the endpoint security group"
+  type        = string
+}
+
+##################### EBS ##########################
+
+variable "ebs_name" {
+  description = "The name of the EBS"
+  type        = string
+}
+
+variable "ebs_claim_name" {
+  description = "The name of the EBS claim"
+  type        = string
+}
+
+##################### ECR ##########################
+
+variable "ecr_name" {
+  description = "The name of the ECR"
+  type        = string
+}
+
+variable "image_tag_mutability" {
+  description = "The value that determines if the image is overridable"
+  type        = string
+}
+
+variable "ecr_lifecycle_policy" {}
