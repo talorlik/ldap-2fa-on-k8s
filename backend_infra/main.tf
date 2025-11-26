@@ -84,7 +84,7 @@ module "vpc" {
 }
 
 module "eks" {
-  source = "terraform-aws-modules/eks/aws"
+  source  = "terraform-aws-modules/eks/aws"
   version = "21.9.0"
 
   name                   = local.cluster_name
@@ -100,6 +100,9 @@ module "eks" {
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
+
+  enabled_log_types           = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+  create_cloudwatch_log_group = true
 
   tags = local.tags
 }
