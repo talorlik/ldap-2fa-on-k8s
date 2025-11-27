@@ -60,3 +60,8 @@ output "cluster_arn" {
   description = "EKS Cluster ARN"
   value       = module.eks.cluster_arn
 }
+
+##################### EBS ##########################
+output "ebs_pvc_name" {
+  value = module.ebs.ebs_pvc_name
+}

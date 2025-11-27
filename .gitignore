@@ -48,3 +48,4 @@ terraform.rc
 
 # Generated backend configuration (created from tfstate-backend-values-template.hcl)
 backend_infra/backend.hcl
+application/backend.hcl
