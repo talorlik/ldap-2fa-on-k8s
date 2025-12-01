@@ -73,10 +73,10 @@ terraform init -backend-config="backend.hcl"
 # For example: us-east-1-prod, us-east-2-dev, etc.
 terraform workspace select <region>-<environment> || terraform workspace new <region>-<environment>
 
-terraform plan -var-file="variables.tfvars" -out "plan.tfplan"
+terraform plan -var-file="variables.tfvars" -out "terraform.tfplan"
 
 # To destroy all the resources that were created
-terraform plan -var-file="variables.tfvars" -destroy -out "plan.tfplan"
+terraform plan -var-file="variables.tfvars" -destroy -out "terraform.tfplan"
 
-terraform apply -auto-approve "plan.tfplan"
+terraform apply -auto-approve "terraform.tfplan"
 ```

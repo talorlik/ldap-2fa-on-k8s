@@ -91,7 +91,7 @@ jobs:
         run: terraform validate
 
       - name: Terraform plan
-        run: terraform plan -var-file="variables.tfvars" -out plan.tfplan
+        run: terraform plan -var-file="variables.tfvars" -out terraform.tfplan
 
       - name: Provision backend infrastructure
-        run: terraform apply -auto-approve plan.tfplan
+        run: terraform apply -auto-approve terraform.tfplan
