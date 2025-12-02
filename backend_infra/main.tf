@@ -123,17 +123,17 @@ module "endpoints" {
   tags                   = local.tags
 }
 
-module "ebs" {
-  source         = "./modules/ebs"
-  env            = var.env
-  region         = var.region
-  prefix         = var.prefix
-  ebs_name       = var.ebs_name
-  ebs_claim_name = var.ebs_claim_name
-
-  # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
-  depends_on = [module.eks]
-}
+# module "ebs" {
+#   source         = "./modules/ebs"
+#   env            = var.env
+#   region         = var.region
+#   prefix         = var.prefix
+#   ebs_name       = var.ebs_name
+#   ebs_claim_name = var.ebs_claim_name
+#
+#   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
+#   depends_on = [module.eks]
+# }
 
 module "ecr" {
   source               = "./modules/ecr"

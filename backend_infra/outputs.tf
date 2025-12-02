@@ -62,6 +62,10 @@ output "cluster_arn" {
 }
 
 ##################### EBS ##########################
-output "ebs_pvc_name" {
-  value = module.ebs.ebs_pvc_name
-}
+# output "ebs_pvc_name" {
+#   value = module.ebs.ebs_pvc_name
+# }
+#
+# output "ebs_storage_class_name" {
+#   value = module.ebs.ebs_storage_class_name
+# }
