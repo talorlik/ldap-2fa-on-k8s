@@ -1,0 +1,86 @@
+# Single replica deployment since we're using one ReadWriteOnce PVC
+replicaCount: 3
+
+# Disable replication only if using a single replica setup (replicaCount: 1)
+replication:
+  enabled: true
+
+# Override default image (chart uses non-existent bitnami/openldap)
+image:
+  repository: osixia/openldap
+  tag: "1.5.0"
+  pullPolicy: IfNotPresent
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: "${storage_class_name}"
+  ldapDomain: "${openldap_ldap_domain}"
+  adminPassword:  "${openldap_admin_password}"
+  configPassword: "${openldap_config_password}"
+  ldapPort: 389
+  sslLdapPort: 636
+
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 8Gi
+
+service:
+  annotations: {}
+  externalIPs: []
+  type: ClusterIP
+  sessionAffinity: None
+
+ltb-passwd:
+  enabled: true
+  image:
+    tag: 5.2.3
+  podLabels:
+    app: "${app_name}"
+  ingress:
+    enabled: true
+    ingressClassName: "${ingress_class_name}"
+    annotations:
+      # IngressGroup - share one ALB (required for multiple Ingresses)
+      alb.ingress.kubernetes.io/group.name: "${alb_group_name}"
+      alb.ingress.kubernetes.io/group.order: "10"
+      # ALB name (only on lowest order Ingress in group)
+      alb.ingress.kubernetes.io/load-balancer-name: "${alb_group_name}"
+      # ALB properties - scheme is inherited from IngressClassParams, but target-type is per-Ingress
+      alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
+      # TLS with ACM on 443 + redirect from 80 → 443 (per-Ingress configuration)
+      alb.ingress.kubernetes.io/certificate-arn: "${acm_cert_arn}"
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/ssl-policy: "${alb_ssl_policy}"
+    path: /
+    pathType: Prefix
+    hosts:
+      - "${ltb_passwd_host}"
+  ldap:
+    bindPWKey: LDAP_ADMIN_PASSWORD
+
+phpldapadmin:
+  enabled: true
+  podLabels:
+    app: "${app_name}"
+  ingress:
+    enabled: true
+    ingressClassName: "${ingress_class_name}"
+    annotations:
+      # Same IngressGroup → same ALB (required for multiple Ingresses)
+      alb.ingress.kubernetes.io/group.name: "${alb_group_name}"
+      alb.ingress.kubernetes.io/group.order: "20"
+      # ALB properties - scheme is inherited from IngressClassParams, but target-type is per-Ingress
+      alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
+      # TLS with ACM on 443 + redirect from 80 → 443 (per-Ingress configuration)
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/certificate-arn: "${acm_cert_arn}"
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/ssl-policy: "${alb_ssl_policy}"
+    path: /
+    pathType: Prefix
+    hosts:
+      - "${phpldapadmin_host}"
