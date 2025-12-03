@@ -64,7 +64,7 @@ jobs:
           cp tfstate-backend-values-template.hcl backend.hcl
           sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
                  -e "s|<BACKEND_PREFIX>|${{ vars.BACKEND_PREFIX }}|g" \
-                 -e "s|<AWS_REGION>|${{ needs.SetRegion.outputs.region_code }}|g" \
+                 -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
                  backend.hcl
           echo "Created backend.hcl:"
           cat backend.hcl
@@ -74,7 +74,7 @@ jobs:
 
       - name: Terraform workspace
         run: |
-          WORKSPACE="${{ needs.SetRegion.outputs.region_code }}-${{ inputs.environment }}"
+          WORKSPACE="${{ env.AWS_REGION }}-${{ inputs.environment }}"
           terraform workspace select $WORKSPACE || terraform workspace new $WORKSPACE
 
       - name: Terraform validate
