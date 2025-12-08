@@ -219,7 +219,7 @@ For local development or testing:
 
 - **Method**: File-based locking using `use_lockfile = true` in the backend configuration
 - **Location**: Lock file is stored in the same S3 bucket as the state file
-- **Benefits**: Simpler setup, no additional DynamoDB table required, lower cost
+- **Benefits**: Simpler setup, lower cost, lock file stored alongside state in S3
 
 ### Security Features
 

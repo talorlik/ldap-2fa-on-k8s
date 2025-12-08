@@ -25,7 +25,7 @@ This project deploys a complete LDAP authentication solution with self-service p
 
 ```text
 ldap-2fa-on-k8s/
-├── tf_backend_state/      # Terraform state backend infrastructure (S3, DynamoDB)
+├── tf_backend_state/      # Terraform state backend infrastructure (S3)
 ├── backend_infra/         # Core AWS infrastructure (VPC, EKS cluster)
 ├── application/          # Application infrastructure (OpenLDAP, ALB, Route53)
 └── .github/workflows/    # GitHub Actions workflows for CI/CD

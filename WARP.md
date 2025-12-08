@@ -212,7 +212,7 @@ docker push <ecr_url>:<tag>
 - **Never commit** `backend.hcl` or `terraform.tfstate` files (in `.gitignore`)
 - Always use remote state backend after initial provisioning
 - Use workspace naming convention: `${region}-${env}`
-- State is stored in S3 with file-based locking (no DynamoDB table needed)
+- State is stored in S3 with file-based locking
 
 ### Security Considerations
 
@@ -343,7 +343,7 @@ Deployment order matters:
    ```bash
    # Check environment variables are set
    kubectl exec -n ldap openldap-stack-ha-0 -- env | grep LDAP_DOMAIN
-   
+
    # Test authentication
    kubectl exec -n ldap openldap-stack-ha-0 -- ldapsearch -x -LLL -H ldap://localhost:389 \
      -D "cn=admin,dc=ldap,dc=talorlik,dc=internal" -w "<password>" \
@@ -362,13 +362,13 @@ Deployment order matters:
    aws elbv2 describe-load-balancers --region us-east-1 \
      --query 'LoadBalancers[?contains(LoadBalancerName, `ldap`)].LoadBalancerArn' \
      --output text | xargs -n1 aws elbv2 delete-load-balancer --region us-east-1 --load-balancer-arn
-   
+
    # Delete Ingresses
    kubectl delete ingress -n ldap --all
-   
+
    # Wait for cleanup (60 seconds)
    sleep 60
-   
+
    # Recreate Helm release
    terraform apply -replace="helm_release.openldap" -var-file="variables.tfvars" -auto-approve
    ```
@@ -377,7 +377,7 @@ Deployment order matters:
    ```bash
    # Both Ingresses should show same ALB address
    kubectl get ingress -n ldap
-   
+
    # Test both sites return 200 OK
    curl -I https://phpldapadmin.talorlik.com
    curl -I https://passwd.talorlik.com
@@ -392,7 +392,7 @@ Deployment order matters:
    ```bash
    # Remove from Terraform state
    terraform state rm aws_route53_record.phpldapadmin aws_route53_record.ltb_passwd
-   
+
    # Delete from AWS (create delete batch)
    cat > /tmp/delete-records.json << 'EOF'
    {
@@ -425,7 +425,7 @@ Deployment order matters:
    }
    EOF
    aws route53 change-resource-record-sets --hosted-zone-id <zone-id> --change-batch file:///tmp/delete-records.json
-   
+
    # Apply Terraform to recreate records
    terraform apply -auto-approve -var-file="variables.tfvars"
    ```
