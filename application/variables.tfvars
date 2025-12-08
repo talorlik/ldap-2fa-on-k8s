@@ -5,8 +5,8 @@ principal_arn               = "arn:aws:iam::395323424870:user/taladmin"
 
 ##################### OpenLDAP ##########################
 # OpenLDAP passwords - MUST be set via environment variables:
-#   TF_VAR_openldap_admin_password
-#   TF_VAR_openldap_config_password
+#   TF_VAR_OPENLDAP_ADMIN_PASSWORD
+#   TF_VAR_OPENLDAP_CONFIG_PASSWORD
 # Or via .env file (see README for details)
 # Do NOT set passwords here in this file
 

@@ -56,13 +56,13 @@ global:
   imagePullSecrets: []
   storageClass: ""              # leave empty, use persistence.storageClass instead
   ldapDomain: "ldap.talorlik.internal"   # or whatever LDAP base you want
-  adminPassword:  "${OPENLDAP_ADMIN_PASSWORD}"
-  configPassword: "${OPENLDAP_CONFIG_PASSWORD}"
+  adminPassword:  "${TF_VAR_OPENLDAP_ADMIN_PASSWORD}"
+  configPassword: "${TF_VAR_OPENLDAP_CONFIG_PASSWORD}"
   ldapPort: 389                 # standard LDAP
   sslLdapPort: 636              # standard LDAPS
 ```
 
-In Terraform you will not literally hardcode `${OPENLDAP_ADMIN_PASSWORD}`; you will template these from variables or inject via `global.existingSecret`. The important part is:
+In Terraform you will not literally hardcode `${TF_VAR_OPENLDAP_ADMIN_PASSWORD}`; you will template these from variables or inject via `global.existingSecret`. The important part is:
 
 * Do not keep `Not@SecurePassw0rd`.
 * Set `ldapDomain` to the real domain you will use for DNs. ([GitHub][1])

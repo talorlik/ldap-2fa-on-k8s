@@ -40,8 +40,8 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ needs.SetRegion.outputs.region_code }}
-      TF_VAR_openldap_admin_password: ${{ secrets.OPENLDAP_ADMIN_PASSWORD }}
-      TF_VAR_openldap_config_password: ${{ secrets.OPENLDAP_CONFIG_PASSWORD }}
+      TF_VAR_OPENLDAP_ADMIN_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
+      TF_VAR_OPENLDAP_CONFIG_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
     defaults:
       run:
         working-directory: ./application
@@ -66,7 +66,7 @@ jobs:
           cp tfstate-backend-values-template.hcl backend.hcl
           sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
                  -e "s|<APPLICATION_PREFIX>|${{ vars.APPLICATION_PREFIX }}|g" \
-                 -e "s|<AWS_REGION>|${{ needs.SetRegion.outputs.region_code }}|g" \
+                 -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
                  backend.hcl
           echo "Created backend.hcl:"
           cat backend.hcl
@@ -76,7 +76,7 @@ jobs:
 
       - name: Terraform workspace
         run: |
-          WORKSPACE="${{ needs.SetRegion.outputs.region_code }}-${{ inputs.environment }}"
+          WORKSPACE="${{ env.AWS_REGION }}-${{ inputs.environment }}"
           terraform workspace select $WORKSPACE || terraform workspace new $WORKSPACE
 
       - name: Terraform validate

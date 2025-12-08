@@ -31,14 +31,14 @@ variable "openldap_ldap_domain" {
 }
 
 variable "openldap_admin_password" {
-  description = "OpenLDAP admin password. MUST be set via TF_VAR_openldap_admin_password environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
+  description = "OpenLDAP admin password. MUST be set via TF_VAR_OPENLDAP_ADMIN_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
   type        = string
   sensitive   = true
   # No default - must be provided via environment variable or .env file
 }
 
 variable "openldap_config_password" {
-  description = "OpenLDAP config password. MUST be set via TF_VAR_openldap_config_password environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
+  description = "OpenLDAP config password. MUST be set via TF_VAR_OPENLDAP_CONFIG_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
   type        = string
   sensitive   = true
   # No default - must be provided via environment variable or .env file

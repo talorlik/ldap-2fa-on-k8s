@@ -21,6 +21,24 @@ global:
   ldapPort: 389
   sslLdapPort: 636
 
+# Enable TLS with auto-generated certificates for osixia/openldap image
+# osixia/openldap uses different environment variable names than Bitnami
+env:
+  LDAP_DOMAIN: "${openldap_ldap_domain}"
+  LDAP_ADMIN_PASSWORD: "${openldap_admin_password}"
+  LDAP_CONFIG_PASSWORD: "${openldap_config_password}"
+  # Enable TLS (osixia/openldap will auto-generate certificates if they don't exist)
+  LDAP_TLS: "true"
+  # Don't enforce TLS (allows both LDAP and LDAPS connections)
+  LDAP_TLS_ENFORCE: "false"
+  # Don't require client certificates
+  LDAP_TLS_VERIFY_CLIENT: "never"
+  # Certificate filenames (not full paths) - osixia/openldap expects these in /container/service/slapd/assets/certs/
+  # If certificates don't exist, osixia/openldap will auto-generate them
+  LDAP_TLS_CRT_FILENAME: "ldap.crt"
+  LDAP_TLS_KEY_FILENAME: "ldap.key"
+  LDAP_TLS_CA_CRT_FILENAME: "ca.crt"
+
 persistence:
   enabled: true
   accessModes:
@@ -39,6 +57,9 @@ ltb-passwd:
     tag: 5.2.3
   podLabels:
     app: "${app_name}"
+  # Allow TLS but don't verify certificates (accept self-signed)
+  env:
+    LDAPTLS_REQCERT: "allow"
   ingress:
     enabled: true
     ingressClassName: "${ingress_class_name}"
@@ -64,6 +85,9 @@ ltb-passwd:
 
 phpldapadmin:
   enabled: true
+  # Allow StartTLS but don't verify certificates (accept self-signed)
+  env:
+    PHPLDAPADMIN_LDAP_CLIENT_TLS_REQCERT: "allow"
   podLabels:
     app: "${app_name}"
   ingress:
@@ -75,7 +99,9 @@ phpldapadmin:
       alb.ingress.kubernetes.io/group.order: "20"
       # ALB properties - scheme is inherited from IngressClassParams, but target-type is per-Ingress
       alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
-      # TLS with ACM on 443 + redirect from 80 → 443 (per-Ingress configuration)
+      # TLS with ACM on 443 + redirect from 80 → 443
+      # Note: Some AWS Load Balancer Controller versions require TLS annotations on all Ingresses in a group
+      # If TLS inheritance works in your version, these can be removed
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
       alb.ingress.kubernetes.io/certificate-arn: "${acm_cert_arn}"
       alb.ingress.kubernetes.io/ssl-redirect: "443"

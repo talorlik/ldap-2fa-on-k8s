@@ -216,8 +216,8 @@ cluster_name = "talo-tf-us-east-1-kc-prod"
 Create a `.env` file in the `application` directory:
 
 ```bash
-export TF_VAR_openldap_admin_password="YourSecurePassword123!"
-export TF_VAR_openldap_config_password="YourSecurePassword123!"
+export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
+export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
 ```
 
 Then source it before running Terraform:
@@ -231,15 +231,15 @@ terraform plan -var-file="variables.tfvars"
 
 Set these as GitHub Secrets:
 
-- `OPENLDAP_ADMIN_PASSWORD`
-- `OPENLDAP_CONFIG_PASSWORD`
+- `TF_VAR_OPENLDAP_ADMIN_PASSWORD`
+- `TF_VAR_OPENLDAP_CONFIG_PASSWORD`
 
 Then in your workflow, export them as Terraform variables:
 
 ```yaml
 env:
-  TF_VAR_openldap_admin_password: ${{ secrets.OPENLDAP_ADMIN_PASSWORD }}
-  TF_VAR_openldap_config_password: ${{ secrets.OPENLDAP_CONFIG_PASSWORD }}
+  TF_VAR_OPENLDAP_ADMIN_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
+  TF_VAR_OPENLDAP_CONFIG_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
 ```
 
 #### Route53 and Domain Variables
@@ -291,8 +291,8 @@ domain_name                 = "talorlik.com"
 **.env file (local development):**
 
 ```bash
-export TF_VAR_openldap_admin_password="YourSecurePassword123!"
-export TF_VAR_openldap_config_password="YourSecurePassword123!"
+export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
+export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
 ```
 
 ## Deployment
@@ -311,8 +311,8 @@ export TF_VAR_openldap_config_password="YourSecurePassword123!"
    ```bash
    # Create .env file
    cat > .env << EOF
-   export TF_VAR_openldap_admin_password="YourSecurePassword123!"
-   export TF_VAR_openldap_config_password="YourSecurePassword123!"
+   export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
+   export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
    EOF
 
    # Source it
@@ -321,7 +321,7 @@ export TF_VAR_openldap_config_password="YourSecurePassword123!"
 
    **GitHub Actions:**
 
-   - Add `OPENLDAP_ADMIN_PASSWORD` and `OPENLDAP_CONFIG_PASSWORD` as GitHub Secrets
+   - Add `TF_VAR_OPENLDAP_ADMIN_PASSWORD` and `TF_VAR_OPENLDAP_CONFIG_PASSWORD` as GitHub Secrets
    - Export them in your workflow as `TF_VAR_*` environment variables
 
 ### Step 2: Set Up Environment Variables
@@ -333,8 +333,8 @@ cd application
 
 # Create .env file with passwords
 cat > .env << EOF
-export TF_VAR_openldap_admin_password="YourSecurePassword123!"
-export TF_VAR_openldap_config_password="YourSecurePassword123!"
+export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
+export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
 EOF
 
 # Source the environment variables
@@ -347,8 +347,8 @@ Ensure your workflow exports the secrets as Terraform variables:
 
 ```yaml
 env:
-  TF_VAR_openldap_admin_password: ${{ secrets.OPENLDAP_ADMIN_PASSWORD }}
-  TF_VAR_openldap_config_password: ${{ secrets.OPENLDAP_CONFIG_PASSWORD }}
+  TF_VAR_OPENLDAP_ADMIN_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
+  TF_VAR_OPENLDAP_CONFIG_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
 ```
 
 ### Step 3: Set Up Backend Configuration

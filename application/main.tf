@@ -137,6 +137,10 @@ resource "helm_release" "openldap" {
   namespace        = "ldap"
   create_namespace = true
 
+  # Force recreation on configuration changes
+  recreate_pods = true
+  force_update  = true
+
   values = [local.openldap_values]
 
   depends_on = [
