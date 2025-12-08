@@ -64,18 +64,19 @@ ltb-passwd:
     enabled: true
     ingressClassName: "${ingress_class_name}"
     annotations:
-      # IngressGroup - share one ALB (required for multiple Ingresses)
+      # IngressGroup - REQUIRED on all Ingresses in the group
       alb.ingress.kubernetes.io/group.name: "${alb_group_name}"
-      alb.ingress.kubernetes.io/group.order: "10"
-      # ALB name (only on lowest order Ingress in group)
-      alb.ingress.kubernetes.io/load-balancer-name: "${alb_group_name}"
-      # ALB properties - scheme is inherited from IngressClassParams, but target-type is per-Ingress
+      alb.ingress.kubernetes.io/group.order: "10"  # Leader Ingress (lowest order)
+      # Leader Ingress annotations - group-wide ALB configuration
+      # These are treated as group-wide when building the ALB
+      # Note: load-balancer-name is the AWS ALB name (max 32 chars), while group.name is the Kubernetes group identifier (max 63 chars)
+      alb.ingress.kubernetes.io/load-balancer-name: "${alb_load_balancer_name}"
       alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
-      # TLS with ACM on 443 + redirect from 80 → 443 (per-Ingress configuration)
-      alb.ingress.kubernetes.io/certificate-arn: "${acm_cert_arn}"
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/certificate-arn: "${acm_cert_arn}"
       alb.ingress.kubernetes.io/ssl-redirect: "443"
       alb.ingress.kubernetes.io/ssl-policy: "${alb_ssl_policy}"
+      # Note: scheme and ipAddressType are inherited from IngressClassParams
     path: /
     pathType: Prefix
     hosts:
@@ -94,18 +95,12 @@ phpldapadmin:
     enabled: true
     ingressClassName: "${ingress_class_name}"
     annotations:
-      # Same IngressGroup → same ALB (required for multiple Ingresses)
+      # IngressGroup - REQUIRED on all Ingresses in the group
       alb.ingress.kubernetes.io/group.name: "${alb_group_name}"
-      alb.ingress.kubernetes.io/group.order: "20"
-      # ALB properties - scheme is inherited from IngressClassParams, but target-type is per-Ingress
-      alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
-      # TLS with ACM on 443 + redirect from 80 → 443
-      # Note: Some AWS Load Balancer Controller versions require TLS annotations on all Ingresses in a group
-      # If TLS inheritance works in your version, these can be removed
-      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
-      alb.ingress.kubernetes.io/certificate-arn: "${acm_cert_arn}"
-      alb.ingress.kubernetes.io/ssl-redirect: "443"
-      alb.ingress.kubernetes.io/ssl-policy: "${alb_ssl_policy}"
+      alb.ingress.kubernetes.io/group.order: "20"  # Secondary Ingress
+      # Note: Group-wide ALB settings (listen-ports, certificate-arn, ssl-redirect, etc.)
+      # are inherited from the leader Ingress (order 10). Only group.name and group.order
+      # are required on secondary Ingresses.
     path: /
     pathType: Prefix
     hosts:

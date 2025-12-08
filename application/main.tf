@@ -55,8 +55,27 @@ resource "kubernetes_storage_class_v1" "this" {
 locals {
   app_name = "${var.prefix}-${var.region}-${var.app_name}-${var.env}"
 
-  # ALB group name: use provided value or derive from app_name
-  alb_group_name = coalesce(var.alb_group_name, local.app_name)
+  # ALB group name: Kubernetes identifier (max 63 chars) used to group Ingresses
+  # If alb_group_name is set, concatenate with prefix, region, and env (truncate to 63 chars if needed)
+  # If not set, use app_name (truncate to 63 chars if needed)
+  alb_group_name = var.alb_group_name != null ? (
+    length("${var.prefix}-${var.region}-${var.alb_group_name}-${var.env}") > 63 ?
+    substr("${var.prefix}-${var.region}-${var.alb_group_name}-${var.env}", 0, 63) :
+    "${var.prefix}-${var.region}-${var.alb_group_name}-${var.env}"
+  ) : (
+    length(local.app_name) > 63 ? substr(local.app_name, 0, 63) : local.app_name
+  )
+
+  # ALB load balancer name: AWS resource name (max 32 chars per AWS constraints)
+  # If alb_load_balancer_name is set, concatenate with prefix, region, and env (truncate to 32 chars if needed)
+  # If not set, use alb_group_name (truncate to 32 chars if needed)
+  alb_load_balancer_name = var.alb_load_balancer_name != null ? (
+    length("${var.prefix}-${var.region}-${var.alb_load_balancer_name}-${var.env}") > 32 ?
+    substr("${var.prefix}-${var.region}-${var.alb_load_balancer_name}-${var.env}", 0, 32) :
+    "${var.prefix}-${var.region}-${var.alb_load_balancer_name}-${var.env}"
+  ) : (
+    length(local.alb_group_name) > 32 ? substr(local.alb_group_name, 0, 32) : local.alb_group_name
+  )
 
   # ALB zone_id mapping by region (for Route53 alias records)
   # These are the canonical hosted zone IDs for Application Load Balancers
@@ -96,6 +115,7 @@ locals {
       # ALB configuration - IngressClassParams handles scheme and ipAddressType
       ingress_class_name       = var.use_alb ? module.alb[0].ingress_class_name : "alb"
       alb_group_name           = local.alb_group_name
+      alb_load_balancer_name   = local.alb_load_balancer_name
       acm_cert_arn             = data.aws_acm_certificate.this.arn
       phpldapadmin_host        = var.phpldapadmin_host
       ltb_passwd_host          = var.ltb_passwd_host

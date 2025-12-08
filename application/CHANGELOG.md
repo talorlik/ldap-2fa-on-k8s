@@ -9,12 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Migrated from AWS Load Balancer Controller to EKS Auto Mode**
+  - Updated ALB controller from `alb.ingress.kubernetes.io` to `eks.amazonaws.com/alb`
+  - Changed IngressClassParams API group from `elbv2.k8s.aws` to `eks.amazonaws.com`
+  - EKS Auto Mode provides built-in load balancer driver (no separate controller installation needed)
+  - IAM permissions are automatically handled by EKS Auto Mode (no manual policy attachment required)
+  - Updated `modules/alb/main.tf` to use EKS Auto Mode controller and API group
+
+- **Improved ALB naming with separate group name and load balancer name**
+  - Added distinction between `alb_group_name` (Kubernetes identifier, max 63 chars) and `alb_load_balancer_name` (AWS resource name, max 32 chars)
+  - Added automatic truncation logic to ensure names don't exceed Kubernetes (63 chars) and AWS (32 chars) limits
+  - Updated `main.tf` to handle name concatenation with prefix, region, and env, with proper truncation
+  - Added `alb_load_balancer_name` variable to `variables.tf` with proper description
+  - Updated Helm values template to use `alb_load_balancer_name` for AWS ALB name annotation
+
+- **Optimized Ingress annotations to minimize duplication**
+  - Removed duplicate TLS annotations from secondary Ingress (phpldapadmin)
+  - Clarified annotation strategy: leader Ingress (lowest `group.order`) contains all group-wide ALB configuration
+  - Secondary Ingresses now only require `group.name` and `group.order` - all other settings are inherited from leader
+  - Updated comments in `helm/openldap-values.tpl.yaml` to document annotation inheritance pattern
+
 - Updated TLS environment variables in `helm/openldap-values.tpl.yaml` to match osixia/openldap image requirements
   - Changed `LDAP_TLS_CERT_FILE` → `LDAP_TLS_CRT_FILENAME` (filename only, not full path)
   - Changed `LDAP_TLS_KEY_FILE` → `LDAP_TLS_KEY_FILENAME` (filename only, not full path)
   - Changed `LDAP_TLS_CA_FILE` → `LDAP_TLS_CA_CRT_FILENAME` (filename only, not full path)
   - Added explicit `LDAP_TLS: "true"` to enable TLS
   - Updated comments to clarify osixia/openldap-specific behavior
+
+### Added
+
+- **New variable `alb_load_balancer_name`** for custom AWS ALB naming
+  - Allows separate control over Kubernetes group identifier vs AWS resource name
+  - Supports AWS naming constraints (max 32 characters)
+  - Defaults to `alb_group_name` (truncated to 32 chars if needed)
+
+- **Comprehensive documentation updates in `PRD-ALB.md`**
+  - Added detailed explanation of EKS Auto Mode vs AWS Load Balancer Controller differences
+  - Added comparison table highlighting key differences between the two approaches
+  - Documented IngressClassParams limitations (only `scheme` and `ipAddressType` supported in EKS Auto Mode)
+  - Clarified annotation strategy and inheritance patterns
+  - Added implementation details section explaining Terraform and Helm chart responsibilities
 
 ### Fixed
 
@@ -25,11 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Verified
 
-- Multi-ingress single ALB configuration is correctly implemented
+- Multi-ingress single ALB configuration is correctly implemented with EKS Auto Mode
   - Both Ingresses use the same `alb.ingress.kubernetes.io/group.name`
   - Different `group.order` values (10 for ltb-passwd, 20 for phpldapadmin)
-  - `load-balancer-name` annotation only on lowest order Ingress
-  - TLS annotations present on both Ingresses for compatibility across AWS Load Balancer Controller versions
+  - `load-balancer-name` annotation only on leader Ingress (lowest order)
+  - Group-wide ALB settings (TLS, ports, SSL policy) inherited from leader Ingress
+  - `scheme` and `ipAddressType` inherited from IngressClassParams (cluster-wide defaults)
 
 ## [2025-01-XX] - Initial Configuration
 

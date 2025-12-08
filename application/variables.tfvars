@@ -28,7 +28,14 @@ ingressclass_alb_name       = "ic-alb-ldap"
 ingressclassparams_alb_name = "icp-alb-ldap"
 
 # ALB group name for grouping multiple Ingress resources (defaults to app_name if not set)
-# alb_group_name = "talo-tf-us-east-1-talo-ldap-prod"
+# If set, will be concatenated as: ${prefix}-${region}-${alb_group_name}-${env} (truncated to 63 chars if needed)
+# This is an internal Kubernetes identifier (max 63 characters)
+# alb_group_name = "alb-group"
+
+# ALB load balancer name - AWS resource name (max 32 characters per AWS constraints)
+# If set, will be concatenated as: ${prefix}-${region}-${alb_load_balancer_name}-${env} (truncated to 32 chars if needed)
+# If not set, defaults to alb_group_name (truncated to 32 chars if needed)
+alb_load_balancer_name = "alb"
 
 # Hostnames for ingress resources (defaults to subdomain.domain_name if not set)
 phpldapadmin_host = "phpldapadmin.talorlik.com"

@@ -83,6 +83,8 @@ locals {
 #   }
 # }
 
+# IngressClass binds Ingress resources to EKS Auto Mode controller
+# and references IngressClassParams for cluster-wide ALB defaults
 resource "kubernetes_ingress_class_v1" "ingressclass_alb" {
   depends_on = [null_resource.apply_ingressclassparams_manifest]
   metadata {
@@ -96,12 +98,12 @@ resource "kubernetes_ingress_class_v1" "ingressclass_alb" {
   }
 
   spec {
-    # Configures the IngressClass to use EKS Auto Mode
+    # Configures the IngressClass to use EKS Auto Mode (built-in load balancer driver)
     controller = "eks.amazonaws.com/alb"
     parameters {
       api_group = "eks.amazonaws.com"
       kind      = "IngressClassParams"
-      # Use the name of the IngressClassParams
+      # References IngressClassParams which contains cluster-wide defaults (scheme, ipAddressType)
       name = local.ingressclassparams_alb_name
     }
   }
@@ -117,6 +119,13 @@ resource "kubernetes_ingress_class_v1" "ingressclass_alb" {
 #
 # Therefore, we go with the less elegant solution below
 # *** This requires the aws cli to be installed and configured with the correct AWS credentials.
+#
+# Annotation Strategy (cluster-wide defaults):
+# - IngressClassParams defines cluster-wide defaults that apply to all Ingresses using this IngressClass
+# - EKS Auto Mode IngressClassParams supports ONLY: scheme and ipAddressType
+# - Other ALB configuration (load-balancer-name, listen-ports, certificate-arn, ssl-redirect, ssl-policy, target-type)
+#   should be defined at the Ingress level, specifically on the Leader Ingress (lowest group.order)
+# - Secondary Ingresses inherit group-wide settings from the Leader Ingress
 
 resource "null_resource" "apply_ingressclassparams_manifest" {
   provisioner "local-exec" {
@@ -134,13 +143,16 @@ resource "null_resource" "apply_ingressclassparams_manifest" {
     fi
 
     # Apply IngressClassParams (kubectl apply is idempotent)
-    # EKS Auto Mode IngressClassParams supports scheme and ipAddressType
+    # EKS Auto Mode IngressClassParams supports ONLY scheme and ipAddressType (cluster-wide defaults)
+    # Note: Unlike AWS Load Balancer Controller, EKS Auto Mode does NOT support subnets, security groups, or tags in IngressClassParams
     kubectl apply -f - <<EOF
 apiVersion: eks.amazonaws.com/v1
 kind: IngressClassParams
 metadata:
   name: "${local.ingressclassparams_alb_name}"
 spec:
+  # Cluster-wide defaults: scheme (internet-facing/internal) and ipAddressType (ipv4/dualstack)
+  # These settings are inherited by all Ingresses that use this IngressClass
   scheme: ${var.alb_scheme}
   ipAddressType: ${var.alb_ip_address_type}
 EOF

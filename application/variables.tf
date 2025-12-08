@@ -116,9 +116,15 @@ variable "ingressclassparams_alb_name" {
 ##################### ALB Configuration ##########################
 
 variable "alb_group_name" {
-  description = "ALB group name for grouping multiple Ingress resources to share a single ALB"
+  description = "ALB group name for grouping multiple Ingress resources to share a single ALB. This is an internal Kubernetes identifier (max 63 characters)."
   type        = string
   default     = null # If null, will be derived from app_name
+}
+
+variable "alb_load_balancer_name" {
+  description = "Custom name for the AWS ALB (appears in AWS console). Must be ≤ 32 characters per AWS constraints. If null, defaults to alb_group_name (truncated to 32 chars if needed)."
+  type        = string
+  default     = null
 }
 
 variable "phpldapadmin_host" {
