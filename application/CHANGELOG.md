@@ -68,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2025-01-XX] - Initial Configuration
 
-### Added
+### Added to date
 
 - Initial OpenLDAP deployment using osixia/openldap:1.5.0 image
 - Helm chart from jp-gouin/helm-openldap (version 4.0.1)
@@ -191,27 +191,27 @@ To use custom certificates (e.g., from cert-manager or ACM):
 
 1. Create a Kubernetes Secret:
 
-```bash
-kubectl create secret generic openldap-tls-certs \
-  --from-file=ldap.crt=/path/to/cert.pem \
-  --from-file=ldap.key=/path/to/key.pem \
-  --from-file=ca.crt=/path/to/ca.pem \
-  -n ldap
-```
+    ```bash
+    kubectl create secret generic openldap-tls-certs \
+      --from-file=ldap.crt=/path/to/cert.pem \
+      --from-file=ldap.key=/path/to/key.pem \
+      --from-file=ca.crt=/path/to/ca.pem \
+      -n ldap
+    ```
 
 2. Add volume mounts to Helm values:
 
-```yaml
-extraVolumes:
-  - name: tls-certs
-    secret:
-      secretName: openldap-tls-certs
+    ```yaml
+    extraVolumes:
+      - name: tls-certs
+        secret:
+          secretName: openldap-tls-certs
 
-extraVolumeMounts:
-  - name: tls-certs
-    mountPath: /container/service/slapd/assets/certs
-    readOnly: true
-```
+    extraVolumeMounts:
+      - name: tls-certs
+        mountPath: /container/service/slapd/assets/certs
+        readOnly: true
+    ```
 
 ### Multi-Ingress Single ALB
 

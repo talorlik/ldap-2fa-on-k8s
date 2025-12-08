@@ -15,7 +15,7 @@ The application infrastructure provisions:
 
 ## Architecture
 
-```bash
+```ascii
 ┌─────────────────────────────────────────────────────────┐
 │                    EKS Cluster                          │
 │                                                         │
@@ -47,11 +47,11 @@ The application infrastructure provisions:
          │
          │
     ┌────▼──────────────────────┐
-    │  Internet-Facing ALB       │
-    │  (HTTPS)                   │
-    │  - phpldapadmin.domain     │
-    │  - passwd.domain           │
-    └────────────────────────────┘
+    │  Internet-Facing ALB      │
+    │  (HTTPS)                  │
+    │  - phpldapadmin.domain    │
+    │  - passwd.domain          │
+    └───────────────────────────┘
          │
          │
     ┌────▼────────┐
@@ -121,15 +121,41 @@ The ALB is automatically provisioned by EKS Auto Mode when Ingress resources are
 
 **ALB Configuration:**
 
-- Created via Kubernetes Ingress resources with AWS Load Balancer Controller annotations
+- Created via Kubernetes Ingress resources using EKS Auto Mode (not AWS Load Balancer Controller)
 - No manual AWS `aws_lb` resource required (handled by EKS Auto Mode)
-- Requires `elastic_load_balancing.enabled = true` in EKS cluster configuration
+- `elastic_load_balancing` capability is **enabled by default** when EKS Auto Mode is enabled (configured in backend_infra via `compute_config.enabled = true`)
+- Uses `eks.amazonaws.com/alb` controller (built into EKS Auto Mode)
 
 **ALB Module:**
 
 The `modules/alb/` module creates:
-- `IngressClass` resource for EKS Auto Mode
-- `IngressClassParams` resource with ALB configuration (scheme, IP address type)
+
+- `IngressClass` resource configured for EKS Auto Mode (`controller: eks.amazonaws.com/alb`)
+- `IngressClassParams` resource with cluster-wide ALB defaults:
+  - `scheme`: internet-facing or internal
+  - `ipAddressType`: ipv4 or dualstack
+- Note: EKS Auto Mode IngressClassParams only supports `scheme` and `ipAddressType` (not subnets, security groups, or tags)
+
+**ALB Naming:**
+
+The configuration supports separate naming for:
+
+- **ALB Group Name**: Kubernetes identifier (max 63 characters) - used to group multiple Ingresses
+- **ALB Load Balancer Name**: AWS resource name (max 32 characters) - appears in AWS console
+
+Both names are automatically constructed from prefix, region, and environment, with proper truncation to respect limits.
+
+**Ingress Annotation Strategy:**
+
+- Leader Ingress (lowest `group.order`) contains all group-wide ALB configuration:
+  - `load-balancer-name`: AWS ALB name
+  - `certificate-arn`: ACM certificate ARN
+  - `ssl-redirect`: HTTPS redirect
+  - `ssl-policy`: TLS policy
+  - `listen-ports`: HTTP/HTTPS ports
+  - `target-type`: IP or instance
+- Secondary Ingresses only need `group.name` and `group.order` - all other settings are inherited from the leader
+- Cluster-wide defaults (`scheme`, `ipAddressType`) are inherited from IngressClassParams
 
 The actual ALB is created automatically by EKS Auto Mode when the Helm chart creates Ingress resources that reference the IngressClass.
 
@@ -142,10 +168,24 @@ Creates a StorageClass and the Helm chart creates a new PVC using that StorageCl
   - Provisioner: `ebs.csi.eks.amazonaws.com`
   - Volume binding mode: `WaitForFirstConsumer`
   - Encryption: Configurable via `storage_class_encrypted` variable
+  - Volume type: Configurable via `storage_class_type` variable (gp2, gp3, io1, io2, etc.)
+  - Can be set as default StorageClass via `storage_class_is_default` variable
 - **PVC**: Created by the Helm chart using the StorageClass
   - **Storage Size**: 8Gi (configurable in Helm values)
   - **Access Mode**: ReadWriteOnce
   - The Helm chart creates a new PVC, it does not reuse an existing PVC from backend infrastructure
+
+### 5. Network Policies
+
+The `modules/network-policies/` module creates Kubernetes Network Policies to secure internal cluster communication:
+
+- **Namespace-wide Policy**: Applies to all pods in the `ldap` namespace
+- **Secure Ports Only**: Allows communication only on encrypted ports (443, 636, 8443)
+- **DNS Resolution**: Allows DNS queries for service discovery
+- **External Access**: Allows HTTPS/HTTP egress for external API calls (2FA providers, etc.)
+- **Implicit Deny**: All other ports are implicitly denied by default
+
+This ensures that even if a pod is compromised, it can only communicate on secure, encrypted ports within the cluster.
 
 ## Module Structure
 
@@ -163,10 +203,14 @@ application/
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
-│   └── alb/                  # ALB module - creates IngressClass and IngressClassParams for EKS Auto Mode
+│   ├── alb/                  # ALB module - creates IngressClass and IngressClassParams for EKS Auto Mode
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   └── network-policies/     # Network Policies module - secures pod-to-pod communication
 │       ├── main.tf
 │       ├── variables.tf
-│       └── outputs.tf
+│       └── README.md
 └── README.md                 # This file
 ```
 
@@ -257,13 +301,30 @@ env:
 
 - `openldap_ldap_domain`: LDAP domain (e.g., `ldap.talorlik.internal`)
 
-#### ALB Variables (Optional)
+#### ALB Variables
 
 - `use_alb`: Whether to create ALB resources (default: `true`)
-- `ingress_alb_name`: Name component for ingress ALB
-- `service_alb_name`: Name component for service ALB
-- `ingressclass_alb_name`: Name component for ingress class
-- `ingressclassparams_alb_name`: Name component for ingress class params
+- `ingressclass_alb_name`: Name component for ingress class (required if `use_alb` is true)
+- `ingressclassparams_alb_name`: Name component for ingress class params (required if `use_alb` is true)
+- `alb_group_name`: ALB group name for grouping multiple Ingresses (optional, defaults to `app_name`)
+  - Kubernetes identifier (max 63 characters)
+  - Used to group multiple Ingresses to share a single ALB
+- `alb_load_balancer_name`: Custom AWS ALB name (optional, defaults to `alb_group_name` truncated to 32 chars)
+  - AWS resource name (max 32 characters per AWS constraints)
+  - Appears in AWS console
+- `alb_scheme`: ALB scheme - `internet-facing` or `internal` (default: `internet-facing`)
+- `alb_ip_address_type`: ALB IP address type - `ipv4` or `dualstack` (default: `ipv4`)
+- `alb_target_type`: ALB target type - `ip` or `instance` (default: `ip`)
+- `alb_ssl_policy`: ALB SSL policy for HTTPS listeners (default: `ELBSecurityPolicy-TLS13-1-2-2021-06`)
+- `phpldapadmin_host`: Hostname for PhpLdapAdmin ingress (optional, defaults to `phpldapadmin.${domain_name}`)
+- `ltb_passwd_host`: Hostname for LTB-passwd ingress (optional, defaults to `passwd.${domain_name}`)
+
+#### Storage Variables
+
+- `storage_class_name`: Name component for the StorageClass (e.g., `gp3-ldap`)
+- `storage_class_type`: EBS volume type (gp2, gp3, io1, io2, etc.)
+- `storage_class_encrypted`: Whether to encrypt EBS volumes (default: `true`)
+- `storage_class_is_default`: Whether to mark StorageClass as default (default: `false`)
 
 ### Example Configuration
 
@@ -469,10 +530,12 @@ aws acm list-certificates --region us-east-1
 2. **HTTPS Only**: TLS termination at ALB with ACM certificate (automatically validated via Route53)
 3. **LDAP Internal**: LDAP service is ClusterIP only, not exposed externally
 4. **Sensitive Variables**: Passwords are marked as sensitive in Terraform and must be set via environment variables, never in `variables.tfvars`
-5. **Encrypted Storage**: EBS volumes are encrypted by default
+5. **Encrypted Storage**: EBS volumes are encrypted by default (configurable via `storage_class_encrypted`)
 6. **Network Isolation**: Services run in private subnets
-7. **Password Injection**: Passwords are injected at runtime via environment variables or GitHub Secrets, ensuring they never appear in version control
-8. **DNS Validation**: ACM certificate uses DNS validation via Route53, ensuring secure certificate provisioning
+7. **Network Policies**: Kubernetes Network Policies restrict pod-to-pod communication to secure ports only (443, 636, 8443)
+8. **Password Injection**: Passwords are injected at runtime via environment variables or GitHub Secrets, ensuring they never appear in version control
+9. **DNS Validation**: ACM certificate uses DNS validation via Route53, ensuring secure certificate provisioning
+10. **EKS Auto Mode Security**: IAM permissions are automatically handled by EKS Auto Mode (no manual policy attachment required)
 
 ## Customization
 
@@ -562,8 +625,9 @@ ldapsearch -x -H ldap://openldap-stack-ha:389 -b "dc=corp,dc=internal"
 
 The application provides outputs for:
 
-- `alb_dns_name`: DNS name of the ALB (if created)
 - `alb_dns_name`: DNS name of the ALB (extracted from Ingress resources created by Helm chart)
+  - Empty string if ALB is still provisioning or not created
+  - Retrieved from either phpldapadmin or ltb-passwd Ingress status
 - `route53_acm_cert_arn`: ACM certificate ARN (from data source, not module)
 - `route53_domain_name`: Root domain name (from variable)
 - `route53_zone_id`: Route53 hosted zone ID (from data source)
@@ -581,7 +645,8 @@ terraform output
 
 - [Helm OpenLDAP Chart](https://github.com/jp-gouin/helm-openldap)
 - [AWS EKS Auto Mode Documentation](https://docs.aws.amazon.com/eks/latest/userguide/eks-auto-mode.html)
-- [AWS Load Balancer Controller Ingress Annotations](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/)
+- [EKS Auto Mode IngressClassParams](https://docs.aws.amazon.com/eks/latest/userguide/eks-auto-mode-ingress.html)
+- [Kubernetes Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
 - [OpenLDAP Documentation](https://www.openldap.org/doc/)
 - [PhpLdapAdmin Documentation](https://www.phpldapadmin.org/)
 - [LTB-passwd Documentation](https://ltb-project.org/documentation/self-service-password)
@@ -591,6 +656,7 @@ terraform output
 ### Route53 A Records
 
 The Terraform configuration automatically creates Route53 A (alias) records for the subdomains:
+
 - `phpldapadmin.${domain_name}` → ALB DNS name
 - `passwd.${domain_name}` → ALB DNS name
 
@@ -619,6 +685,20 @@ The LDAP service uses ClusterIP (not LoadBalancer or NodePort) to:
 Using EKS Auto Mode provides:
 
 - Automatic ALB provisioning via Ingress annotations
-- No need to manually configure AWS Load Balancer Controller
-- Simplified IAM permissions (handled automatically)
+- No need to manually install or configure AWS Load Balancer Controller
+- Simplified IAM permissions (handled automatically by EKS)
 - Built-in EBS CSI driver (no manual installation needed)
+- IngressClassParams support for cluster-wide ALB defaults (scheme, ipAddressType)
+- Direct integration with EKS cluster (no separate controller pods)
+
+### Network Policies
+
+The Network Policies module enforces security at the pod level:
+
+- **Secure Ports Only**: Pods can only communicate on encrypted ports (443, 636, 8443)
+- **Namespace Isolation**: Policies apply to all pods in the `ldap` namespace
+- **DNS Required**: DNS resolution is allowed for service discovery
+- **External Access**: HTTPS/HTTP egress is allowed for external API calls
+- **Default Deny**: All other ports are implicitly denied
+
+This provides defense-in-depth security, ensuring that even if a pod is compromised, it can only communicate on secure, encrypted ports.
