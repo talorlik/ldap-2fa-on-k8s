@@ -53,10 +53,24 @@ variable "alb_scheme" {
   description = "ALB scheme: internet-facing or internal"
   type        = string
   default     = "internet-facing"
+  validation {
+    condition     = contains(["internet-facing", "internal"], var.alb_scheme)
+    error_message = "ALB scheme must be either 'internet-facing' or 'internal'"
+  }
 }
 
 variable "alb_ip_address_type" {
   description = "ALB IP address type: ipv4 or dualstack"
   type        = string
   default     = "ipv4"
+  validation {
+    condition     = contains(["ipv4", "dualstack"], var.alb_ip_address_type)
+    error_message = "ALB IP address type must be either 'ipv4' or 'dualstack'"
+  }
+}
+
+variable "alb_group_name" {
+  description = "ALB group name for grouping multiple Ingress resources to share a single ALB. This is an internal Kubernetes identifier (max 63 characters)."
+  type        = string
+  default     = null # If null, will be derived from app_name
 }

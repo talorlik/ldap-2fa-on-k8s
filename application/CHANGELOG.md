@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Moved certificate ARN and group name to IngressClassParams (cluster-wide configuration)**
+  - Certificate ARN (`certificateARNs`) is now configured in IngressClassParams instead of Ingress annotations
+  - ALB group name (`group.name`) is now configured in IngressClassParams instead of Ingress annotations
+  - This centralizes TLS and group configuration at the cluster level, reducing annotation duplication
+  - Updated `modules/alb/main.tf` to include `certificateARNs` and `group.name` in IngressClassParams
+  - Updated Helm values template to remove `group.name` and `certificate-arn` from Ingress annotations
+  - All Ingresses now use the same annotations (no leader/secondary distinction needed for group/certificate config)
+  - Updated documentation in `PRD-ALB.md` and `README.md` to reflect new annotation strategy
+
+### Changed (Previous)
+
 - **Migrated from AWS Load Balancer Controller to EKS Auto Mode**
   - Updated ALB controller from `alb.ingress.kubernetes.io` to `eks.amazonaws.com/alb`
   - Changed IngressClassParams API group from `elbv2.k8s.aws` to `eks.amazonaws.com`
@@ -23,11 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `alb_load_balancer_name` variable to `variables.tf` with proper description
   - Updated Helm values template to use `alb_load_balancer_name` for AWS ALB name annotation
 
-- **Optimized Ingress annotations to minimize duplication**
-  - Removed duplicate TLS annotations from secondary Ingress (phpldapadmin)
-  - Clarified annotation strategy: leader Ingress (lowest `group.order`) contains all group-wide ALB configuration
-  - Secondary Ingresses now only require `group.name` and `group.order` - all other settings are inherited from leader
-  - Updated comments in `helm/openldap-values.tpl.yaml` to document annotation inheritance pattern
+- **Optimized Ingress annotations to minimize duplication** (superseded by cluster-wide IngressClassParams configuration)
+  - Certificate ARN and group name moved to IngressClassParams (see latest changes above)
+  - Ingress annotations now only contain per-Ingress settings (load-balancer-name, target-type, listen-ports, ssl-redirect)
 
 - Updated TLS environment variables in `helm/openldap-values.tpl.yaml` to match osixia/openldap image requirements
   - Changed `LDAP_TLS_CERT_FILE` → `LDAP_TLS_CRT_FILENAME` (filename only, not full path)
@@ -60,11 +69,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Verified
 
 - Multi-ingress single ALB configuration is correctly implemented with EKS Auto Mode
-  - Both Ingresses use the same `alb.ingress.kubernetes.io/group.name`
-  - Different `group.order` values (10 for ltb-passwd, 20 for phpldapadmin)
-  - `load-balancer-name` annotation only on leader Ingress (lowest order)
-  - Group-wide ALB settings (TLS, ports, SSL policy) inherited from leader Ingress
-  - `scheme` and `ipAddressType` inherited from IngressClassParams (cluster-wide defaults)
+  - Both Ingresses share the same ALB via `group.name` configured in IngressClassParams
+  - Certificate ARN configured once in IngressClassParams (cluster-wide)
+  - `load-balancer-name` annotation on both Ingresses (per-Ingress setting)
+  - Per-Ingress settings (target-type, listen-ports, ssl-redirect) configured in Ingress annotations
+  - Cluster-wide defaults (`scheme`, `ipAddressType`, `group.name`, `certificateARNs`) inherited from IngressClassParams
 
 ## [2025-01-XX] - Initial Configuration
 
@@ -146,9 +155,9 @@ kubectl describe ingress -n ldap openldap-stack-ha-phpldapadmin
 
 Both Ingresses should:
 
-- Have the same `alb.ingress.kubernetes.io/group.name`
+- Use the same IngressClass (which references IngressClassParams with `group.name` and `certificateARNs`)
 - Point to the same ALB DNS name
-- Have different `group.order` values
+- Have the same `alb.ingress.kubernetes.io/load-balancer-name` annotation
 
 ### TLS Connection Testing
 
@@ -217,10 +226,10 @@ To use custom certificates (e.g., from cert-manager or ACM):
 
 The configuration implements a single ALB with multiple Ingresses:
 
-- ✅ Both Ingresses use the same `group.name`
-- ✅ Different `group.order` values (10 and 20)
-- ✅ `load-balancer-name` only on lowest order Ingress
-- ✅ TLS configuration on both Ingresses
+- ✅ Both Ingresses share the same `group.name` (configured in IngressClassParams)
+- ✅ Certificate ARN configured once in IngressClassParams (cluster-wide)
+- ✅ `load-balancer-name` annotation on both Ingresses (per-Ingress setting)
+- ✅ Per-Ingress settings (target-type, listen-ports, ssl-redirect) in Ingress annotations
 - ✅ Host-based routing (different hosts for each service)
 
 The ALB routes traffic based on the `Host` header:

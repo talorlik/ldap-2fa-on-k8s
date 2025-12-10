@@ -114,14 +114,14 @@ locals {
       app_name                 = local.app_name
       # ALB configuration - IngressClassParams handles scheme and ipAddressType
       ingress_class_name       = var.use_alb ? module.alb[0].ingress_class_name : "alb"
-      alb_group_name           = local.alb_group_name
+      # alb_group_name           = local.alb_group_name
       alb_load_balancer_name   = local.alb_load_balancer_name
       acm_cert_arn             = data.aws_acm_certificate.this.arn
       phpldapadmin_host        = var.phpldapadmin_host
       ltb_passwd_host          = var.ltb_passwd_host
       # Per-Ingress annotations still needed for grouping, TLS, ports, etc.
       alb_target_type          = var.alb_target_type
-      alb_ssl_policy           = var.alb_ssl_policy
+      # alb_ssl_policy           = var.alb_ssl_policy
     }
   )
 }
@@ -145,6 +145,7 @@ module "alb" {
   acm_certificate_arn         = try(data.aws_acm_certificate.this.arn, null)
   alb_scheme                  = var.alb_scheme
   alb_ip_address_type         = var.alb_ip_address_type
+  alb_group_name              = local.alb_group_name
 }
 
 # Helm release for OpenLDAP Stack HA

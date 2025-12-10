@@ -27,3 +27,40 @@ output "route53_name_servers" {
   description = "Route53 name servers (for registrar configuration)"
   value       = data.aws_route53_zone.this.name_servers
 }
+
+##################### ALB Module ##########################
+output "alb_ingress_class_name" {
+  description = "Name of the IngressClass for shared ALB"
+  value       = var.use_alb ? module.alb[0].ingress_class_name : null
+}
+
+output "alb_ingress_class_params_name" {
+  description = "Name of the IngressClassParams for ALB configuration"
+  value       = var.use_alb ? module.alb[0].ingress_class_params_name : null
+}
+
+output "alb_scheme" {
+  description = "ALB scheme configured in IngressClassParams"
+  value       = var.use_alb ? module.alb[0].alb_scheme : null
+}
+
+output "alb_ip_address_type" {
+  description = "ALB IP address type configured in IngressClassParams"
+  value       = var.use_alb ? module.alb[0].alb_ip_address_type : null
+}
+
+##################### Network Policies Module ##########################
+output "network_policy_name" {
+  description = "Name of the network policy for secure namespace communication"
+  value       = module.network_policies.network_policy_name
+}
+
+output "network_policy_namespace" {
+  description = "Namespace where the network policy is applied"
+  value       = module.network_policies.network_policy_namespace
+}
+
+output "network_policy_uid" {
+  description = "UID of the network policy resource"
+  value       = module.network_policies.network_policy_uid
+}

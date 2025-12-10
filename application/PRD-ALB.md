@@ -35,19 +35,13 @@ ltb-passwd:
     enabled: true
     ingressClassName: "${ingress_class_name}"
     annotations:
-      # IngressGroup - REQUIRED on all Ingresses in the group
-      alb.ingress.kubernetes.io/group.name: "${alb_group_name}"
-      alb.ingress.kubernetes.io/group.order: "10"  # Leader Ingress (lowest order)
-
-      # Leader Ingress annotations - group-wide ALB configuration
-      # These are treated as group-wide when building the ALB
-      alb.ingress.kubernetes.io/load-balancer-name: "${alb_group_name}"
+      # Note: group.name and certificate-arn are configured in IngressClassParams (cluster-wide)
+      # Only per-Ingress settings are specified here
+      alb.ingress.kubernetes.io/load-balancer-name: "${alb_load_balancer_name}"
       alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
-      alb.ingress.kubernetes.io/certificate-arn: "${acm_cert_arn}"
       alb.ingress.kubernetes.io/ssl-redirect: "443"
-      alb.ingress.kubernetes.io/ssl-policy: "${alb_ssl_policy}"
-      # Note: scheme and ipAddressType are inherited from IngressClassParams
+      # Note: scheme, ipAddressType, group.name, and certificateARNs are inherited from IngressClassParams
     path: /
     pathType: Prefix
     hosts:
@@ -61,12 +55,11 @@ phpldapadmin:
     enabled: true
     ingressClassName: "${ingress_class_name}"
     annotations:
-      # IngressGroup - REQUIRED on all Ingresses in the group
-      alb.ingress.kubernetes.io/group.name: "${alb_group_name}"
-      alb.ingress.kubernetes.io/group.order: "20"  # Secondary Ingress
-      # Note: Group-wide ALB settings (listen-ports, certificate-arn, ssl-redirect, etc.)
-      # are inherited from the leader Ingress (order 10). Only group.name and group.order
-      # are required on secondary Ingresses.
+      # Same annotations as ltb-passwd - group.name and certificate-arn are in IngressClassParams
+      alb.ingress.kubernetes.io/load-balancer-name: "${alb_load_balancer_name}"
+      alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
     path: /
     pathType: Prefix
     hosts:
@@ -76,29 +69,28 @@ phpldapadmin:
 What this does:
 
 **Annotation Strategy**:
-- **IngressClassParams** (cluster-wide defaults): `scheme` (internet-facing) and `ipAddressType` (ipv4) are defined once at the cluster level
-- **Leader Ingress** (order 10, ltb-passwd): Contains all group-wide ALB configuration:
-  - `alb.ingress.kubernetes.io/group.name` and `group.order` (required for group membership)
-  - `alb.ingress.kubernetes.io/load-balancer-name` (custom ALB name)
+- **IngressClassParams** (cluster-wide defaults): Configured once at the cluster level:
+  - `scheme` (internet-facing)
+  - `ipAddressType` (ipv4)
+  - `group.name` (ALB group name for grouping multiple Ingresses)
+  - `certificateARNs` (ACM certificate ARNs for TLS termination)
+- **Ingress annotations**: Each Ingress specifies per-Ingress settings:
+  - `alb.ingress.kubernetes.io/load-balancer-name` (custom ALB name, max 32 characters)
   - `alb.ingress.kubernetes.io/target-type` (ip vs instance)
   - `alb.ingress.kubernetes.io/listen-ports` (HTTP 80 and HTTPS 443)
-  - `alb.ingress.kubernetes.io/certificate-arn` (ACM certificate for TLS)
   - `alb.ingress.kubernetes.io/ssl-redirect` (redirect HTTP to HTTPS)
-  - `alb.ingress.kubernetes.io/ssl-policy` (TLS security policy)
-- **Secondary Ingress** (order 20, phpldapadmin): Only contains the absolute minimum required:
-  - `alb.ingress.kubernetes.io/group.name` and `group.order` (required for group membership)
-  - Group-wide settings are inherited from the leader Ingress
+  - Note: `group.name` and `certificate-arn` are configured in IngressClassParams, not in annotations
 
 **How it works**:
-- Both Ingresses share the same `group.name`, so the controller provisions a single ALB
-- The controller treats annotations on the leader Ingress (lowest order) as group-wide ALB configuration
-- Secondary Ingresses inherit these group-wide settings and only need to define their own routing rules (hosts, paths)
-- `scheme` and `ipAddressType` are inherited from IngressClassParams (cluster-wide defaults)
+- Both Ingresses use the same `group.name` (configured in IngressClassParams), so the controller provisions a single ALB
+- Certificate ARN is configured once in IngressClassParams and applies to all Ingresses using this IngressClass
+- All Ingresses share the same ALB configuration from IngressClassParams (scheme, ipAddressType, group.name, certificateARNs)
+- Each Ingress only needs to specify per-Ingress settings (load-balancer-name, target-type, listen-ports, ssl-redirect)
 - Route 53: create two A/AAAA alias records pointing to the same ALB:
   - `${phpldapadmin_host}` → this ALB
   - `${ltb_passwd_host}` → same ALB
 
-**Result**: A single internet-facing ALB with a custom name, TLS on 443, separate hostnames for each UI, with minimal annotation duplication.
+**Result**: A single internet-facing ALB with a custom name, TLS on 443, separate hostnames for each UI, with minimal annotation duplication and centralized certificate/group configuration.
 
 The Helm chart can create `Ingress` objects, but it cannot magically tell Kubernetes *which controller- should act on them or *what ALB defaults- to use. That’s exactly what `IngressClass` and `IngressClassParams` are for.
 
@@ -156,6 +148,8 @@ Breakdown:
    - **EKS Auto Mode IngressClassParams supports**:
      - `scheme` (internet-facing vs internal)
      - `ipAddressType` (ipv4 / dualstack)
+     - `group.name` (ALB group name for grouping multiple Ingresses)
+     - `certificateARNs` (ACM certificate ARNs for TLS termination)
    - **Note**: EKS Auto Mode IngressClassParams does NOT support subnets, security groups, or tags (unlike AWS Load Balancer Controller's IngressClassParams).
    - Roughly: Ingress = routing rules; IngressClassParams = ALB profile.
 
@@ -166,9 +160,13 @@ Breakdown:
    - per-Ingress settings like target-type (ip vs instance) are still configured via annotations
 
    **Annotation Strategy**:
-   - **IngressClassParams** (cluster-wide): Define `scheme` and `ipAddressType` once at the cluster level
-   - **Leader Ingress** (lowest `group.order`): Contains all group-wide ALB configuration (load-balancer-name, listen-ports, certificate-arn, ssl-redirect, ssl-policy, target-type)
-   - **Secondary Ingresses**: Only need `group.name` and `group.order` - they inherit group-wide settings from the leader
+   - **IngressClassParams** (cluster-wide): Define `scheme`, `ipAddressType`, `group.name`, and `certificateARNs` once at the cluster level
+   - **Ingress annotations**: Only need per-Ingress settings:
+     - `load-balancer-name`: AWS ALB name (max 32 characters)
+     - `target-type`: IP or instance mode
+     - `listen-ports`: HTTP/HTTPS ports
+     - `ssl-redirect`: HTTPS redirect configuration
+     - Note: `group.name` and `certificate-arn` are now configured in IngressClassParams, not in Ingress annotations
 
    IngressClassParams is where you define cluster-wide defaults once, and then every Ingress that uses that IngressClass inherits them automatically.
 
@@ -220,32 +218,33 @@ Breakdown:
 **Terraform creates**:
 - `IngressClass` resource using `kubernetes_ingress_class_v1` resource
 - `IngressClassParams` using `null_resource` with `kubectl apply` (because Terraform doesn't have native support for EKS Auto Mode's IngressClassParams CRD)
-  - Contains cluster-wide defaults: `scheme` (internet-facing/internal) and `ipAddressType` (ipv4/dualstack)
+  - Contains cluster-wide defaults:
+    - `scheme` (internet-facing/internal)
+    - `ipAddressType` (ipv4/dualstack)
+    - `group.name` (ALB group name for grouping multiple Ingresses)
+    - `certificateARNs` (ACM certificate ARNs for TLS termination)
 
 **Helm chart creates**:
 - `Ingress` objects with host/path/service rules
 - Uses `ingressClassName` to reference the IngressClass
 - **Annotation strategy**:
-  - **Leader Ingress** (lowest `group.order`): Contains all group-wide ALB configuration:
-    - Required: `group.name`, `group.order`
-    - Group-wide: `load-balancer-name`, `listen-ports`, `certificate-arn`, `ssl-redirect`, `ssl-policy`, `target-type`
-  - **Secondary Ingresses**: Only contain the absolute minimum:
-    - Required: `group.name`, `group.order`
-    - Group-wide settings are inherited from the leader Ingress
+  - All Ingresses use the same annotations (no leader/secondary distinction needed):
+    - `load-balancer-name`: AWS ALB name (max 32 characters)
+    - `target-type`: IP or instance mode
+    - `listen-ports`: HTTP/HTTPS ports (e.g., `[{"HTTP":80},{"HTTPS":443}]`)
+    - `ssl-redirect`: HTTPS redirect configuration
+  - Note: `group.name` and `certificate-arn` are configured in IngressClassParams (cluster-wide), not in Ingress annotations
 
 **IngressClass is set as default**:
 - Uses annotation `ingressclass.kubernetes.io/is-default-class: "true"`
 - Allows Ingresses to omit `ingressClassName` if desired
 
 **Why this strategy**:
-- Treats IngressClassParams as cluster-wide defaults (scheme, ipAddressType)
-- Treats leader Ingress annotations as group-wide ALB configuration (load-balancer-name, listen-ports, certificate-arn, ssl-redirect, ssl-policy, target-type)
+- Treats IngressClassParams as cluster-wide defaults (scheme, ipAddressType, group.name, certificateARNs)
 - Minimizes annotation duplication across multiple Ingresses in the same group
-- The AWS Load Balancer Controller merges IngressClassParams + Ingress annotations asymmetrically:
-  - IngressClassParams provide cluster-wide defaults
-  - Leader Ingress annotations (lowest `group.order`) are treated as group-wide ALB configuration
-  - Secondary Ingresses only need `group.name` and `group.order` to join the group
-  - Each Ingress still defines its own routing rules (hosts, paths) in the `spec.rules` section
+- Certificate ARN and group name are configured once in IngressClassParams, not repeated in each Ingress
+- Each Ingress only needs to specify per-Ingress settings (load-balancer-name, target-type, listen-ports, ssl-redirect)
+- Each Ingress still defines its own routing rules (hosts, paths) in the `spec.rules` section
 
 ## Key Differences: EKS Auto Mode vs AWS Load Balancer Controller
 

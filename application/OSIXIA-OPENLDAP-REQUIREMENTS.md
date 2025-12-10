@@ -113,51 +113,37 @@ extraVolumeMounts:
 
 ### 3. Multi-Ingress Single ALB Configuration
 
-Your current ALB configuration looks **mostly correct**, but verify these points:
+Your current ALB configuration is **correct** with the following setup:
 
 #### ✅ Correct Configuration:
 
-- Both Ingresses use the same `alb.ingress.kubernetes.io/group.name`
-- Different `group.order` values (10 and 20)
-- `alb.ingress.kubernetes.io/load-balancer-name` only on lowest order Ingress (ltb-passwd)
-- Both Ingresses have TLS annotations with ACM certificate
+- `group.name` and `certificateARNs` configured in IngressClassParams (cluster-wide)
+- Both Ingresses use the same IngressClass (which references IngressClassParams)
+- Both Ingresses have `alb.ingress.kubernetes.io/load-balancer-name` annotation
+- Per-Ingress settings (target-type, listen-ports, ssl-redirect) configured in Ingress annotations
+- `scheme` and `ipAddressType` inherited from IngressClassParams
 
-#### ⚠️ Potential Issues:
-
-1. **Duplicate TLS annotations**: Both Ingresses have identical TLS annotations. While this works, you can optimize by:
-   - Keeping TLS annotations only on the lowest order Ingress (order 10)
-   - Higher order Ingresses inherit TLS settings from the group
-
-2. **Scheme inheritance**: The `alb_scheme` is set in `IngressClassParams`, which is correct. However, ensure it's not overridden in Ingress annotations.
-
-**Recommended optimization:**
+**Current implementation:**
 
 ```yaml
 ltb-passwd:
   ingress:
     annotations:
-      # IngressGroup - share one ALB
-      alb.ingress.kubernetes.io/group.name: "${alb_group_name}"
-      alb.ingress.kubernetes.io/group.order: "10"
-      # ALB name (only on lowest order Ingress)
-      alb.ingress.kubernetes.io/load-balancer-name: "${alb_group_name}"
-      # TLS configuration (only on lowest order Ingress)
-      alb.ingress.kubernetes.io/certificate-arn: "${acm_cert_arn}"
+      # Note: group.name and certificate-arn are in IngressClassParams
+      alb.ingress.kubernetes.io/load-balancer-name: "${alb_load_balancer_name}"
+      alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
       alb.ingress.kubernetes.io/ssl-redirect: "443"
-      alb.ingress.kubernetes.io/ssl-policy: "${alb_ssl_policy}"
-      # ALB properties
-      alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
+      # scheme, ipAddressType, group.name, and certificateARNs inherited from IngressClassParams
 
 phpldapadmin:
   ingress:
     annotations:
-      # Same IngressGroup → same ALB
-      alb.ingress.kubernetes.io/group.name: "${alb_group_name}"
-      alb.ingress.kubernetes.io/group.order: "20"
-      # ALB properties (scheme inherited from IngressClassParams)
+      # Same annotations as ltb-passwd - group.name and certificate-arn are in IngressClassParams
+      alb.ingress.kubernetes.io/load-balancer-name: "${alb_load_balancer_name}"
       alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
-      # TLS settings inherited from group, but can be overridden if needed
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
 ```
 
 ## Summary of Required Changes

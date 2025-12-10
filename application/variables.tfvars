@@ -30,7 +30,7 @@ ingressclassparams_alb_name = "icp-alb-ldap"
 # ALB group name for grouping multiple Ingress resources (defaults to app_name if not set)
 # If set, will be concatenated as: ${prefix}-${region}-${alb_group_name}-${env} (truncated to 63 chars if needed)
 # This is an internal Kubernetes identifier (max 63 characters)
-# alb_group_name = "alb-group"
+alb_group_name = "alb-group"
 
 # ALB load balancer name - AWS resource name (max 32 characters per AWS constraints)
 # If set, will be concatenated as: ${prefix}-${region}-${alb_load_balancer_name}-${env} (truncated to 32 chars if needed)
@@ -42,16 +42,16 @@ phpldapadmin_host = "phpldapadmin.talorlik.com"
 ltb_passwd_host   = "passwd.talorlik.com"
 
 # ALB scheme: internet-facing or internal
-alb_scheme = "internet-facing"
+# alb_scheme = "internet-facing"
 
 # ALB target type: ip or instance
-alb_target_type = "ip"
+# alb_target_type = "ip"
 
 # ALB SSL policy for HTTPS listeners
 alb_ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 
 # ALB IP address type: ipv4 or dualstack
-alb_ip_address_type = "ipv4"
+# alb_ip_address_type = "ipv4"
 
 # EKS Cluster
 # Cluster name will be automatically retrieved from backend_infra remote state

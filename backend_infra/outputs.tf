@@ -61,6 +61,48 @@ output "cluster_arn" {
   value       = module.eks.cluster_arn
 }
 
+##################### VPC Endpoints ##########################
+output "vpc_endpoint_sg_id" {
+  description = "Security group ID for VPC endpoints"
+  value       = module.endpoints.vpc_endpoint_sg_id
+}
+
+output "vpc_endpoint_ssm_id" {
+  description = "VPC endpoint ID for SSM"
+  value       = module.endpoints.vpc_endpoint_ssm_id
+}
+
+output "vpc_endpoint_ssmmessages_id" {
+  description = "VPC endpoint ID for SSM Messages"
+  value       = module.endpoints.vpc_endpoint_ssmmessages_id
+}
+
+output "vpc_endpoint_ec2messages_id" {
+  description = "VPC endpoint ID for EC2 Messages"
+  value       = module.endpoints.vpc_endpoint_ec2messages_id
+}
+
+output "vpc_endpoint_ids" {
+  description = "List of all VPC endpoint IDs"
+  value       = module.endpoints.vpc_endpoint_ids
+}
+
+##################### ECR ##########################
+output "ecr_name" {
+  description = "ECR repository name"
+  value       = module.ecr.ecr_name
+}
+
+output "ecr_arn" {
+  description = "ECR repository ARN"
+  value       = module.ecr.ecr_arn
+}
+
+output "ecr_url" {
+  description = "ECR repository URL"
+  value       = module.ecr.ecr_url
+}
+
 ##################### EBS ##########################
 # output "ebs_pvc_name" {
 #   value = module.ebs.ebs_pvc_name

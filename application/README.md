@@ -134,7 +134,9 @@ The `modules/alb/` module creates:
 - `IngressClassParams` resource with cluster-wide ALB defaults:
   - `scheme`: internet-facing or internal
   - `ipAddressType`: ipv4 or dualstack
-- Note: EKS Auto Mode IngressClassParams only supports `scheme` and `ipAddressType` (not subnets, security groups, or tags)
+  - `group.name`: ALB group name for grouping multiple Ingresses (max 63 characters)
+  - `certificateARNs`: ACM certificate ARNs for TLS termination
+- Note: EKS Auto Mode IngressClassParams supports `scheme`, `ipAddressType`, `group.name`, and `certificateARNs` (not subnets, security groups, or tags)
 
 **ALB Naming:**
 
@@ -147,15 +149,17 @@ Both names are automatically constructed from prefix, region, and environment, w
 
 **Ingress Annotation Strategy:**
 
-- Leader Ingress (lowest `group.order`) contains all group-wide ALB configuration:
-  - `load-balancer-name`: AWS ALB name
-  - `certificate-arn`: ACM certificate ARN
-  - `ssl-redirect`: HTTPS redirect
-  - `ssl-policy`: TLS policy
-  - `listen-ports`: HTTP/HTTPS ports
+- IngressClassParams (cluster-wide) contains:
+  - `scheme`: internet-facing or internal
+  - `ipAddressType`: ipv4 or dualstack
+  - `group.name`: ALB group name for grouping multiple Ingresses
+  - `certificateARNs`: ACM certificate ARNs for TLS termination
+- Ingress annotations (per-Ingress) contain:
+  - `load-balancer-name`: AWS ALB name (max 32 characters)
   - `target-type`: IP or instance
-- Secondary Ingresses only need `group.name` and `group.order` - all other settings are inherited from the leader
-- Cluster-wide defaults (`scheme`, `ipAddressType`) are inherited from IngressClassParams
+  - `listen-ports`: HTTP/HTTPS ports
+  - `ssl-redirect`: HTTPS redirect
+- Note: `group.name` and `certificate-arn` are configured in IngressClassParams, not in Ingress annotations
 
 The actual ALB is created automatically by EKS Auto Mode when the Helm chart creates Ingress resources that reference the IngressClass.
 
@@ -309,9 +313,11 @@ env:
 - `alb_group_name`: ALB group name for grouping multiple Ingresses (optional, defaults to `app_name`)
   - Kubernetes identifier (max 63 characters)
   - Used to group multiple Ingresses to share a single ALB
+  - Configured in IngressClassParams (cluster-wide)
 - `alb_load_balancer_name`: Custom AWS ALB name (optional, defaults to `alb_group_name` truncated to 32 chars)
   - AWS resource name (max 32 characters per AWS constraints)
   - Appears in AWS console
+  - Configured in Ingress annotations (per-Ingress)
 - `alb_scheme`: ALB scheme - `internet-facing` or `internal` (default: `internet-facing`)
 - `alb_ip_address_type`: ALB IP address type - `ipv4` or `dualstack` (default: `ipv4`)
 - `alb_target_type`: ALB target type - `ip` or `instance` (default: `ip`)
