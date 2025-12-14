@@ -1,8 +1,6 @@
 env              = "prod"
 region           = "us-east-1"
 prefix           = "talo-tf"
-principal_arn    = "arn:aws:iam::395323424870:user/taladmin"
-provider_profile = "dev"
 ### VPC ###
 vpc_name         = "vpc"
 vpc_cidr         = "10.0.0.0/16"

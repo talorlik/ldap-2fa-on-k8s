@@ -47,7 +47,7 @@ jobs:
         working-directory: ./backend_infra
     steps:
       - name: Checkout the repo code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup terraform
         uses: hashicorp/setup-terraform@v3
@@ -65,9 +65,9 @@ jobs:
         run: |
           cp tfstate-backend-values-template.hcl backend.hcl
           sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
-                 -e "s|<BACKEND_PREFIX>|${{ vars.BACKEND_PREFIX }}|g" \
-                 -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
-                 backend.hcl
+          -e "s|<BACKEND_PREFIX>|${{ vars.BACKEND_PREFIX }}|g" \
+          -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
+          backend.hcl
           echo "Created backend.hcl:"
           cat backend.hcl
 
@@ -75,11 +75,12 @@ jobs:
         run: |
           sed -i "s|^env[[:space:]]*=.*|env = \"${{ inputs.environment }}\"|" variables.tfvars
           sed -i "s|^region[[:space:]]*=.*|region = \"${{ env.AWS_REGION }}\"|" variables.tfvars
-          # Add deployment account role ARN if not already present
+          # Set deployment account role ARN based on environment
+          DEPLOYMENT_ROLE_ARN="${{ inputs.environment == 'prod' && secrets.AWS_PRODUCTION_ACCOUNT_ROLE_ARN || secrets.AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN }}"
           if ! grep -q "^deployment_account_role_arn" variables.tfvars; then
-            echo "deployment_account_role_arn = \"${{ secrets.AWS_DEPLOYMENT_ACCOUNT_ROLE_ARN }}\"" >> variables.tfvars
+            echo "deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"" >> variables.tfvars
           else
-            sed -i "s|^deployment_account_role_arn[[:space:]]*=.*|deployment_account_role_arn = \"${{ secrets.AWS_DEPLOYMENT_ACCOUNT_ROLE_ARN }}\"|" variables.tfvars
+            sed -i "s|^deployment_account_role_arn[[:space:]]*=.*|deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"|" variables.tfvars
           fi
           echo "Updated variables.tfvars:"
           cat variables.tfvars

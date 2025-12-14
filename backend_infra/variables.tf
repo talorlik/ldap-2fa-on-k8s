@@ -13,21 +13,11 @@ variable "prefix" {
   type        = string
 }
 
-variable "principal_arn" {
-  description = "My ARN"
-  type        = string
-}
-
-variable "provider_profile" {
-  description = "The profile that is going to be used for deployment (for local development)"
-  type        = string
-  default     = null
-}
-
 variable "deployment_account_role_arn" {
   description = "ARN of the IAM role to assume in the deployment account (Account B). Required when using GitHub Actions with multi-account setup."
   type        = string
   default     = null
+  nullable    = true
 }
 
 ###################### VPC #########################

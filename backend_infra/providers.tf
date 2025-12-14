@@ -20,8 +20,7 @@ terraform {
 }
 
 provider "aws" {
-  region  = var.region
-  profile = var.provider_profile
+  region = var.region
 
   # Assume role in deployment account (Account B) if role ARN is provided
   # This allows GitHub Actions to authenticate with Account A (for state)

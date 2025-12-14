@@ -147,8 +147,17 @@ backend_infra/
 ## Prerequisites
 
 1. **Terraform Backend**: The Terraform state backend must be provisioned first (see [tf_backend_state/README.md](../tf_backend_state/README.md))
-2. **AWS Credentials**: Configured AWS credentials with appropriate permissions
-3. **Backend Configuration**: Generate `backend.hcl` using the setup scripts (see main [README.md](../README.md))
+2. **Multi-Account Setup**:
+   - **Account A (State Account)**: Stores Terraform state in S3
+     - GitHub Actions uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations
+   - **Account B (Production/Development Accounts)**: Contains infrastructure resources (VPC, EKS, etc.)
+     - Terraform provider assumes deployment account role via `assume_role` configuration
+     - Role selection based on environment:
+       - `prod` environment → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` (set in `deployment_account_role_arn` variable)
+       - `dev` environment → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` (set in `deployment_account_role_arn` variable)
+3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main [README.md](../README.md))
+4. **Backend Configuration**: Generate `backend.hcl` using the setup scripts (see main [README.md](../README.md))
+5. **GitHub Secrets**: Ensure `AWS_STATE_ACCOUNT_ROLE_ARN`, `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`, and `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` are configured in repository secrets
 
 ## Key Variables
 
@@ -159,6 +168,10 @@ backend_infra/
 - `prefix`: Prefix for all resource names
 - `vpc_cidr`: CIDR block for VPC
 - `k8s_version`: Kubernetes version for EKS cluster
+- `deployment_account_role_arn`: (Optional, for GitHub Actions) ARN of IAM role in Account B to assume for resource deployment
+  - Automatically injected by GitHub workflows
+  - Required when using multi-account setup
+  - Format: `arn:aws:iam::ACCOUNT_B_ID:role/github-actions-deployment-role`
 
 ### Important Configuration
 
