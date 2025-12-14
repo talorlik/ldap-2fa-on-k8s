@@ -221,12 +221,18 @@ application/
 ## Prerequisites
 
 1. **Backend Infrastructure**: The backend infrastructure must be deployed first (see [backend_infra/README.md](../backend_infra/README.md))
-2. **EKS Cluster**: The EKS cluster must be running with Auto Mode enabled
-3. **Route53 Hosted Zone**: Must already exist (the Route53 module is commented out, code uses data sources)
-4. **ACM Certificate**: Must already exist and be validated in the same region as the EKS cluster
-5. **Domain Registration**: The domain name must be registered (can be with any registrar)
-6. **DNS Configuration**: After deployment, point your domain registrar's NS records to the Route53 name servers (output from data source)
-7. **Environment Variables**: OpenLDAP passwords must be set via environment variables (see Configuration section)
+2. **Multi-Account Setup**:
+   - **Account A (State Account)**: Stores Terraform state in S3
+   - **Account B (Deployment Account)**: Contains application resources (ALB, Route53, etc.)
+   - GitHub Actions uses Account A role for backend access
+   - Terraform provider assumes Account B role for resource deployment
+3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main [README.md](../README.md))
+4. **EKS Cluster**: The EKS cluster must be running with Auto Mode enabled
+5. **Route53 Hosted Zone**: Must already exist (the Route53 module is commented out, code uses data sources)
+6. **ACM Certificate**: Must already exist and be validated in the same region as the EKS cluster
+7. **Domain Registration**: The domain name must be registered (can be with any registrar)
+8. **DNS Configuration**: After deployment, point your domain registrar's NS records to the Route53 name servers (output from data source)
+9. **Environment Variables**: OpenLDAP passwords must be set via environment variables (see Configuration section)
 
 ## Configuration
 
@@ -238,6 +244,10 @@ application/
 - `region`: AWS region (must match backend infrastructure)
 - `prefix`: Prefix for resource names (must match backend infrastructure)
 - `cluster_name`: **Automatically retrieved** from backend_infra remote state (see Cluster Name section below)
+- `deployment_account_role_arn`: (Optional, for GitHub Actions) ARN of IAM role in Account B to assume for resource deployment
+  - Automatically injected by GitHub workflows
+  - Required when using multi-account setup
+  - Format: `arn:aws:iam::ACCOUNT_B_ID:role/github-actions-deployment-role`
 
 #### Cluster Name Injection
 

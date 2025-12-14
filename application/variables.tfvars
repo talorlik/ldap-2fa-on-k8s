@@ -1,8 +1,6 @@
 env              = "prod"
 region           = "us-east-1"
 prefix           = "talo-tf"
-principal_arn    = "arn:aws:iam::395323424870:user/taladmin"
-provider_profile = "dev"
 
 ##################### OpenLDAP ##########################
 # OpenLDAP passwords - MUST be set via environment variables:
