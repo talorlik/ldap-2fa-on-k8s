@@ -4,11 +4,20 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 ## Project Overview
 
-This repository deploys LDAP authentication with 2FA on Kubernetes (EKS Auto Mode) using Terraform. The infrastructure is deployed on AWS and consists of three main layers:
+This repository deploys LDAP authentication with 2FA on Kubernetes (EKS Auto Mode) using Terraform. The infrastructure is deployed on AWS using a **multi-account architecture** and consists of three main layers:
 
-1. **Terraform Backend State** (`tf_backend_state/`) - S3 bucket for storing Terraform state files
-2. **Backend Infrastructure** (`backend_infra/`) - Core AWS infrastructure (VPC, EKS cluster, networking, EBS storage, ECR)
-3. **Application Layer** (`application/`) - OpenLDAP stack deployment with Helm, using existing Route53 zone and ACM certificate
+1. **Terraform Backend State** (`tf_backend_state/`) - S3 bucket for storing Terraform state files (Account A - State Account)
+2. **Backend Infrastructure** (`backend_infra/`) - Core AWS infrastructure (VPC, EKS cluster, networking, EBS storage, ECR) (Account B - Deployment Account)
+3. **Application Layer** (`application/`) - OpenLDAP stack deployment with Helm, using existing Route53 zone and ACM certificate (Account B - Deployment Account)
+
+**Multi-Account Architecture:**
+- **Account A (State Account)**: Stores Terraform state files in S3
+- **Account B (Deployment Accounts)**: Contains all infrastructure resources
+  - **Production Account**: Separate account for production infrastructure
+  - **Development Account**: Separate account for development infrastructure
+- GitHub Actions uses OIDC to assume Account A role for backend state operations
+- Terraform provider assumes Account B role (prod or dev) via `assume_role` for resource deployment
+- Environment-based role selection: workflows and scripts automatically select the appropriate deployment role ARN based on the selected environment (`prod` or `dev`)
 
 ## Architecture
 
@@ -55,6 +64,17 @@ Terraform workspaces are named: `${region}-${env}` (e.g., `us-east-1-prod`, `us-
 ```bash
 cd tf_backend_state
 
+# IMPORTANT: Assume the IAM role first (required for local deployment)
+# The bucket policy grants access to the role ARN, not your user ARN
+aws sts assume-role \
+  --role-arn "arn:aws:iam::STATE_ACCOUNT_ID:role/github-role" \
+  --role-session-name "local-deployment"
+
+# Export the temporary credentials from the assume-role output
+export AWS_ACCESS_KEY_ID=<temporary-access-key>
+export AWS_SECRET_ACCESS_KEY=<temporary-secret-key>
+export AWS_SESSION_TOKEN=<session-token>
+
 # If previously run via GitHub Actions, download state first:
 aws s3 cp s3://<bucket_name>/<prefix> ./terraform.tfstate
 
@@ -65,12 +85,19 @@ terraform apply -auto-approve terraform.tfplan
 
 ### Backend Infrastructure Setup
 
-**Configure Backend (Required before first run):**
+**Configure Backend and Deploy (Automated):**
 
 ```bash
 cd backend_infra
 
 # Option 1: Using GitHub CLI (requires gh and jq)
+# This script will:
+# - Prompt for region and environment selection
+# - Retrieve AWS_STATE_ACCOUNT_ROLE_ARN and assume it for backend operations
+# - Retrieve environment-specific deployment role ARN (prod or dev)
+# - Create backend.hcl from template if it doesn't exist
+# - Update variables.tfvars with selected values
+# - Run all Terraform commands automatically (init, workspace, validate, plan, apply)
 ./setup-backend.sh
 
 # Option 2: Using GitHub API with token
@@ -78,7 +105,7 @@ export GITHUB_TOKEN=your_github_token
 ./setup-backend-api.sh
 ```
 
-**Deploy Backend Infrastructure:**
+**Manual Deployment (if not using automated script):**
 
 ```bash
 cd backend_infra
@@ -129,7 +156,7 @@ source application/.env
 ```bash
 cd application
 
-# Configure backend (same as backend_infra)
+# Configure backend (retrieves repository variables and creates backend.hcl)
 ./setup-backend.sh
 
 # Initialize and select workspace
@@ -140,6 +167,8 @@ terraform workspace select us-east-1-prod || terraform workspace new us-east-1-p
 terraform plan -var-file="variables.tfvars" -out "terraform.tfplan"
 terraform apply -auto-approve "terraform.tfplan"
 ```
+
+> **Note**: The application `setup-backend.sh` script does NOT run Terraform commands automatically (unlike backend_infra). It only creates `backend.hcl` and updates `variables.tfvars`. You must run the Terraform commands manually.
 
 ### Kubernetes Operations
 
@@ -181,7 +210,7 @@ docker push <ecr_url>:<tag>
 
 ### Backend State
 
-- `tf_backend_state/variables.tfvars` - Configure `env`, `region`, `prefix`, `principal_arn`
+- `tf_backend_state/variables.tfvars` - Configure `env`, `region`, `prefix` (principal_arn is optional and auto-detected)
 - `tf_backend_state/README.md` - Detailed setup instructions for GitHub secrets/variables
 
 ### Backend Infrastructure Layer
@@ -304,11 +333,14 @@ Deployment order matters:
 
 ### Required GitHub Secrets
 
-- `AWS_ACCESS_KEY_ID` - AWS access key for API calls
-- `AWS_SECRET_ACCESS_KEY` - AWS secret access key
+- `AWS_STATE_ACCOUNT_ROLE_ARN` - ARN of IAM role in Account A (State Account) that trusts GitHub OIDC provider (used for all backend state operations)
+- `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` - ARN of IAM role in Production Account (Account B) that trusts Account A role (used when `prod` environment is selected)
+- `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` - ARN of IAM role in Development Account (Account B) that trusts Account A role (used when `dev` environment is selected)
 - `GH_TOKEN` - GitHub PAT with `repo` scope (for updating repository variables)
 - `TF_VAR_OPENLDAP_ADMIN_PASSWORD` - OpenLDAP admin password (for application workflows)
 - `TF_VAR_OPENLDAP_CONFIG_PASSWORD` - OpenLDAP config password (for application workflows)
+
+> **Note**: This project uses AWS SSO via GitHub OIDC instead of access keys. Workflows automatically select the appropriate deployment role ARN based on the selected environment. See main [README.md](README.md) for detailed IAM setup instructions.
 
 ### Required GitHub Variables
 
@@ -318,6 +350,26 @@ Deployment order matters:
 - `APPLICATION_PREFIX` - S3 prefix for application state files
 
 ## Recent Changes (December 2024)
+
+### Multi-Account Architecture and Role Management (Latest)
+
+- **Environment-based AWS role ARN selection**: Added support for separate deployment role ARNs for production and development environments
+  - New GitHub secrets: `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` and `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
+  - Workflows and scripts automatically select the appropriate role ARN based on selected environment (`prod` or `dev`)
+  - Backend state operations always use `AWS_STATE_ACCOUNT_ROLE_ARN` (Account A)
+  - Deployment operations use environment-specific role ARNs via Terraform provider `assume_role`
+- **Removed `provider_profile` variable**: No longer needed since role assumption is handled via setup scripts and workflows
+  - Removed from `backend_infra/variables.tf`, `backend_infra/variables.tfvars`, `backend_infra/providers.tf`
+  - Removed from `application/variables.tf`, `application/variables.tfvars`, `application/providers.tf`
+- **Automated Terraform execution in backend_infra setup script**:
+  - `backend_infra/setup-backend.sh` now automatically runs Terraform commands (init, workspace, validate, plan, apply)
+  - Eliminates the need for manual Terraform command execution after backend configuration
+  - Script handles workspace creation/selection automatically
+  - Script assumes `AWS_STATE_ACCOUNT_ROLE_ARN` for backend operations and retrieves environment-specific deployment role ARN
+- **Automated backend.hcl creation in backend_infra**:
+  - `setup-backend.sh` now automatically creates `backend.hcl` from template if it doesn't exist
+  - Skips creation if `backend.hcl` already exists (prevents overwriting existing configuration)
+- **Updated workflows**: All workflows now use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend operations and set `deployment_account_role_arn` variable based on selected environment
 
 ### ALB Annotation Strategy Improvements
 
@@ -330,7 +382,7 @@ Deployment order matters:
 
 - **Added comprehensive outputs**: Backend infrastructure outputs (VPC endpoints, ECR) and application outputs (ALB, Route53, network policies)
 - **cert-manager module**: Optional module for self-signed TLS certificates (exists but not actively used)
-- **CHANGELOG.md**: Detailed changelog tracking ALB configuration changes and TLS environment variable updates
+- **CHANGELOG.md**: Detailed changelog tracking ALB configuration changes, TLS environment variable updates, and multi-account architecture changes
 - **OSIXIA-OPENLDAP-REQUIREMENTS.md**: Documentation for osixia/openldap image requirements
 
 ## Development Workflow
@@ -339,10 +391,10 @@ Deployment order matters:
 
 1. Update `variables.tfvars` with desired changes
 2. For application layer, ensure passwords are set via environment variables (see Configuration section)
-3. Run `terraform plan` to review changes
-4. Apply changes with `terraform apply`
-5. For multi-region deployments, switch workspaces and repeat
-6. Review `application/CHANGELOG.md` for recent changes and verification steps
+3. For backend_infra, run `./setup-backend.sh` to automatically configure and deploy (includes Terraform init, workspace, validate, plan, apply)
+4. For application layer, run `./setup-backend.sh` to configure backend, then manually run Terraform commands
+5. For multi-region or multi-environment deployments, run setup scripts again with different selections
+6. Review `CHANGELOG.md` and `application/CHANGELOG.md` for recent changes and verification steps
 
 ### Adding New Kubernetes Resources
 
