@@ -11,6 +11,7 @@ This repository deploys LDAP authentication with 2FA on Kubernetes (EKS Auto Mod
 3. **Application Layer** (`application/`) - OpenLDAP stack deployment with Helm, using existing Route53 zone and ACM certificate (Account B - Deployment Account)
 
 **Multi-Account Architecture:**
+
 - **Account A (State Account)**: Stores Terraform state files in S3
 - **Account B (Deployment Accounts)**: Contains all infrastructure resources
   - **Production Account**: Separate account for production infrastructure
@@ -99,10 +100,6 @@ cd backend_infra
 # - Update variables.tfvars with selected values
 # - Run all Terraform commands automatically (init, workspace, validate, plan, apply)
 ./setup-backend.sh
-
-# Option 2: Using GitHub API with token
-export GITHUB_TOKEN=your_github_token
-./setup-backend-api.sh
 ```
 
 **Manual Deployment (if not using automated script):**
@@ -138,37 +135,31 @@ Ensure you have:
 - An existing Route53 hosted zone for your domain
 - A validated ACM certificate for your domain
 
-**Set Environment Variables (Required):**
-
-```bash
-# Create .env file with passwords
-cat > application/.env << EOF
-export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
-export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
-EOF
-
-# Source environment variables
-source application/.env
-```
-
 **Deploy OpenLDAP Application:**
 
 ```bash
 cd application
 
-# Configure backend (retrieves repository variables and creates backend.hcl)
-./setup-backend.sh
+# For local use: Export passwords as environment variables (script retrieves from GitHub secrets if available)
+export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
+export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
 
-# Initialize and select workspace
-terraform init -backend-config="backend.hcl"
-terraform workspace select us-east-1-prod || terraform workspace new us-east-1-prod
-
-# Deploy application
-terraform plan -var-file="variables.tfvars" -out "terraform.tfplan"
-terraform apply -auto-approve "terraform.tfplan"
+# Deploy application (handles all configuration and Terraform operations automatically)
+./setup-application.sh
 ```
 
-> **Note**: The application `setup-backend.sh` script does NOT run Terraform commands automatically (unlike backend_infra). It only creates `backend.hcl` and updates `variables.tfvars`. You must run the Terraform commands manually.
+This script will:
+
+- Prompt for region and environment selection
+- Retrieve AWS_STATE_ACCOUNT_ROLE_ARN and assume it for backend operations
+- Retrieve environment-specific deployment role ARN (prod or dev)
+- Retrieve OpenLDAP password secrets from repository secrets and export them as environment variables
+- Create backend.hcl from template if it doesn't exist
+- Update variables.tfvars with selected values
+- Set Kubernetes environment variables using set-k8s-env.sh
+- Run all Terraform commands automatically (init, workspace, validate, plan, apply)
+
+> **Note**: The script automatically retrieves OpenLDAP passwords from GitHub repository secrets. For local use, you need to export them as environment variables since GitHub CLI cannot read secret values directly.
 
 ### Kubernetes Operations
 
@@ -223,7 +214,7 @@ docker push <ecr_url>:<tag>
 
 ### Application Layer
 
-- `application/variables.tfvars` - Configure domain name, ALB settings, storage class (passwords via .env file)
+- `application/variables.tfvars` - Configure domain name, ALB settings, storage class (passwords retrieved automatically by setup-application.sh from GitHub secrets)
 - `application/helm/openldap-values.tpl.yaml` - Helm chart values template with osixia/openldap:1.5.0 image and Ingress annotations
 - `application/providers.tf` - Retrieves cluster name from backend_infra remote state (with fallback options)
 - `application/main.tf` - Creates StorageClass, Helm release, Route53 records, network policies, and ALB module
@@ -291,7 +282,8 @@ docker push <ecr_url>:<tag>
 - IngressClass created by ALB module references the IngressClassParams for cluster-wide ALB configuration
 - Certificate ARN configured once in IngressClassParams and inherited by all Ingresses using this IngressClass
 
-**CRITICAL: OpenLDAP Environment Variables**
+### CRITICAL: OpenLDAP Environment Variables**
+
 - The jp-gouin/helm-openldap chart does NOT properly pass `global.ldapDomain` to the osixia/openldap container
 - Must explicitly set these in the `env:` section of Helm values:
   - `LDAP_DOMAIN`: The LDAP domain (e.g., "ldap.talorlik.internal")
@@ -390,9 +382,9 @@ Deployment order matters:
 ### Making Infrastructure Changes
 
 1. Update `variables.tfvars` with desired changes
-2. For application layer, ensure passwords are set via environment variables (see Configuration section)
+2. For application layer, ensure OpenLDAP passwords are exported as environment variables (for local use) or available as GitHub secrets (the setup script handles retrieval automatically)
 3. For backend_infra, run `./setup-backend.sh` to automatically configure and deploy (includes Terraform init, workspace, validate, plan, apply)
-4. For application layer, run `./setup-backend.sh` to configure backend, then manually run Terraform commands
+4. For application layer, run `./setup-application.sh` to automatically configure and deploy (includes password secret retrieval, Terraform init, workspace, validate, plan, apply, and Kubernetes environment setup)
 5. For multi-region or multi-environment deployments, run setup scripts again with different selections
 6. Review `CHANGELOG.md` and `application/CHANGELOG.md` for recent changes and verification steps
 
@@ -408,16 +400,16 @@ Deployment order matters:
 
 - **PVC stuck in Pending**: Normal until a pod uses it (EBS Auto Mode behavior with WaitForFirstConsumer)
 - **Terraform workspace issues**: Ensure workspace exists before selecting (format: `region-env`, e.g. `us-east-1-prod`)
-- **Backend config errors**: Re-run `setup-backend.sh` to regenerate `backend.hcl`
+- **Backend config errors**: Re-run `setup-backend.sh` (backend_infra) or `setup-application.sh` (application) to regenerate `backend.hcl`
 - **SSM access denied**: Check VPC endpoint security groups and IAM policies
 - **Cluster name not found**: Ensure backend_infra is deployed first and `backend.hcl` is configured correctly, or provide `cluster_name` in variables.tfvars
-- **OpenLDAP password errors**: Verify passwords are set via environment variables (`TF_VAR_OPENLDAP_ADMIN_PASSWORD`, `TF_VAR_OPENLDAP_CONFIG_PASSWORD`)
+- **OpenLDAP password errors**: The setup script automatically retrieves passwords from GitHub secrets. For local use, ensure passwords are exported as environment variables (`TF_VAR_OPENLDAP_ADMIN_PASSWORD`, `TF_VAR_OPENLDAP_CONFIG_PASSWORD`) before running the script
 - **ALB not created**: Check Ingress resources have proper annotations, ACM certificate is validated, and IngressClass/IngressClassParams exist
 - **Route53 DNS not resolving**: Ensure Route53 A records point to ALB DNS name and NS records are configured at registrar
 - **IngressClass not found**: Ensure ALB module is deployed (via `use_alb = true` variable)
 - **Certificate not applied**: Certificate ARN is configured in IngressClassParams, not in Ingress annotations
 
-**OpenLDAP Authentication Issues (Error 49: Invalid Credentials)**
+### OpenLDAP Authentication Issues (Error 49: Invalid Credentials)**
 
 1. **Root Cause**: OpenLDAP was initialized without proper `LDAP_DOMAIN` environment variable
    - Symptoms: `ldap_bind: Invalid credentials (49)` even with correct password
@@ -425,6 +417,7 @@ Deployment order matters:
    - Must explicitly set `LDAP_DOMAIN`, `LDAP_ADMIN_PASSWORD`, and `LDAP_CONFIG_PASSWORD` in `env:` section
 
 2. **Fix**: Delete PVCs to force re-initialization with correct environment variables:
+
    ```bash
    kubectl delete pvc -n ldap --all
    kubectl delete pod -n ldap openldap-stack-ha-0 openldap-stack-ha-1 openldap-stack-ha-2
@@ -432,6 +425,7 @@ Deployment order matters:
    ```
 
 3. **Verify Fix**:
+
    ```bash
    # Check environment variables are set
    kubectl exec -n ldap openldap-stack-ha-0 -- env | grep LDAP_DOMAIN
@@ -442,13 +436,14 @@ Deployment order matters:
      -b "dc=ldap,dc=talorlik,dc=internal" "(objectClass=*)" dn
    ```
 
-**ALB Ingress Group Issues (Multiple ALBs Created)**
+### ALB Ingress Group Issues (Multiple ALBs Created)**
 
 1. **Root Cause**: AWS Load Balancer Controller creates separate ALBs when multiple Ingresses with same `group.name` are created simultaneously
    - Symptoms: Each Ingress shows different ALB address; one returns 404 while other works
    - Example: `phpldapadmin` on `k8s-ldap-openldap-xxx` and `passwd` on `talo-tf-us-east-1-talo-ldap-prod-xxx`
 
 2. **Fix**: Delete all ALBs and Ingresses, then recreate cleanly:
+
    ```bash
    # Delete all LDAP-related ALBs
    aws elbv2 describe-load-balancers --region us-east-1 \
@@ -466,6 +461,7 @@ Deployment order matters:
    ```
 
 3. **Verify Fix**:
+
    ```bash
    # Both Ingresses should show same ALB address
    kubectl get ingress -n ldap
@@ -475,12 +471,13 @@ Deployment order matters:
    curl -I https://passwd.talorlik.com
    ```
 
-**Route53 Record State Issues**
+### Route53 Record State Issues**
 
 1. **Root Cause**: Route53 records reference `local.alb_dns_name` which is empty when Ingresses don't exist
    - Symptoms: Terraform validation error "expected length of alias.0.name to be in the range (1 - 1024), got"
 
 2. **Fix**: Remove records from Terraform state and AWS, then recreate:
+
    ```bash
    # Remove from Terraform state
    terraform state rm aws_route53_record.phpldapadmin aws_route53_record.ltb_passwd

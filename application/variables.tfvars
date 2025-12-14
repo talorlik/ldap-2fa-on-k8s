@@ -54,7 +54,7 @@ alb_ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 
 # EKS Cluster
 # Cluster name will be automatically retrieved from backend_infra remote state
-# if backend.hcl exists (created via setup-backend.sh script).
+# if backend.hcl exists (created via setup-application.sh script).
 # Otherwise, provide cluster name directly:
 # cluster_name = "talo-tf-us-east-1-kc-prod"
 

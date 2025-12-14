@@ -11,7 +11,7 @@ echo "Fetching cluster name from backend_infra Terraform state..."
 
 # Check if backend.hcl exists
 if [ ! -f "backend.hcl" ]; then
-  echo "ERROR: backend.hcl not found. Run ./setup-backend.sh first."
+  echo "ERROR: backend.hcl not found. Run ./setup-application.sh first."
   exit 1
 fi
 

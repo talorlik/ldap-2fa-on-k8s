@@ -125,7 +125,6 @@ backend_infra/
 ├── providers.tf        # Provider configuration (AWS, Kubernetes)
 ├── backend.hcl         # Terraform backend configuration (generated)
 ├── setup-backend.sh    # Backend setup script (GitHub CLI)
-├── setup-backend-api.sh # Backend setup script (GitHub API)
 ├── tfstate-backend-values-template.hcl # Backend config template
 └── modules/
     ├── ebs/            # EBS storage resources (currently commented out in main.tf)

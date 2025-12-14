@@ -2,7 +2,7 @@
 
 # Script to configure backend.hcl and variables.tfvars with user-selected region and environment
 # and run Terraform commands
-# Usage: ./setup-backend.sh
+# Usage: ./setup-application.sh
 
 set -euo pipefail
 
@@ -214,6 +214,48 @@ if [ -z "$DEPLOYMENT_ROLE_ARN" ]; then
 fi
 print_success "Retrieved ${DEPLOYMENT_ROLE_ARN_SECRET_NAME}"
 
+# Retrieve OpenLDAP password secrets
+print_info "Retrieving OpenLDAP password secrets from repository secrets..."
+if ! check_repo_secret_exists "TF_VAR_OPENLDAP_ADMIN_PASSWORD"; then
+    print_error "TF_VAR_OPENLDAP_ADMIN_PASSWORD secret not found in repository secrets."
+    echo "Please ensure TF_VAR_OPENLDAP_ADMIN_PASSWORD is set in GitHub repository secrets."
+    exit 1
+fi
+
+if ! check_repo_secret_exists "TF_VAR_OPENLDAP_CONFIG_PASSWORD"; then
+    print_error "TF_VAR_OPENLDAP_CONFIG_PASSWORD secret not found in repository secrets."
+    echo "Please ensure TF_VAR_OPENLDAP_CONFIG_PASSWORD is set in GitHub repository secrets."
+    exit 1
+fi
+
+# Get OpenLDAP password values from environment variables
+# Note: GitHub CLI cannot read secret values directly, so we check environment variables
+# For local use, users should export these as environment variables before running the script
+TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE=$(get_repo_secret_value "TF_VAR_OPENLDAP_ADMIN_PASSWORD" || echo "")
+if [ -z "$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE" ]; then
+    print_error "Failed to retrieve TF_VAR_OPENLDAP_ADMIN_PASSWORD secret value."
+    echo "In GitHub Actions, secrets are automatically available as environment variables."
+    echo "For local use, ensure the secret is available as an environment variable:"
+    echo "  export TF_VAR_OPENLDAP_ADMIN_PASSWORD=\"your_password\""
+    exit 1
+fi
+
+TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE=$(get_repo_secret_value "TF_VAR_OPENLDAP_CONFIG_PASSWORD" || echo "")
+if [ -z "$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE" ]; then
+    print_error "Failed to retrieve TF_VAR_OPENLDAP_CONFIG_PASSWORD secret value."
+    echo "In GitHub Actions, secrets are automatically available as environment variables."
+    echo "For local use, ensure the secret is available as an environment variable:"
+    echo "  export TF_VAR_OPENLDAP_CONFIG_PASSWORD=\"your_password\""
+    exit 1
+fi
+
+# Export as environment variables for Terraform
+export TF_VAR_OPENLDAP_ADMIN_PASSWORD="$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE"
+export TF_VAR_OPENLDAP_CONFIG_PASSWORD="$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE"
+
+print_success "Retrieved and exported OpenLDAP password secrets"
+echo ""
+
 # Use STATE_ROLE_ARN for backend operations
 ROLE_ARN="$STATE_ROLE_ARN"
 
@@ -221,7 +263,7 @@ print_info "Assuming role: $ROLE_ARN"
 print_info "Region: $AWS_REGION"
 
 # Assume the role
-ROLE_SESSION_NAME="setup-backend-$(date +%s)"
+ROLE_SESSION_NAME="setup-application-$(date +%s)"
 
 # Assume role and capture output
 ASSUME_ROLE_OUTPUT=$(aws sts assume-role \
@@ -271,8 +313,8 @@ print_info "Retrieving repository variables..."
 BUCKET_NAME=$(get_repo_variable "BACKEND_BUCKET_NAME") || exit 1
 print_success "Retrieved BACKEND_BUCKET_NAME"
 
-BACKEND_PREFIX=$(get_repo_variable "BACKEND_PREFIX") || exit 1
-print_success "Retrieved BACKEND_PREFIX"
+APPLICATION_PREFIX=$(get_repo_variable "APPLICATION_PREFIX") || exit 1
+print_success "Retrieved APPLICATION_PREFIX"
 
 # Check if backend.hcl already exists
 if [ -f "$BACKEND_FILE" ]; then
@@ -294,12 +336,12 @@ else
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS sed requires -i '' for in-place editing
         sed -i '' "s|<BACKEND_BUCKET_NAME>|${BUCKET_NAME}|g" "$BACKEND_FILE"
-        sed -i '' "s|<BACKEND_PREFIX>|${BACKEND_PREFIX}|g" "$BACKEND_FILE"
+        sed -i '' "s|<APPLICATION_PREFIX>|${APPLICATION_PREFIX}|g" "$BACKEND_FILE"
         sed -i '' "s|<AWS_REGION>|${AWS_REGION}|g" "$BACKEND_FILE"
     else
         # Linux sed
         sed -i "s|<BACKEND_BUCKET_NAME>|${BUCKET_NAME}|g" "$BACKEND_FILE"
-        sed -i "s|<BACKEND_PREFIX>|${BACKEND_PREFIX}|g" "$BACKEND_FILE"
+        sed -i "s|<APPLICATION_PREFIX>|${APPLICATION_PREFIX}|g" "$BACKEND_FILE"
         sed -i "s|<AWS_REGION>|${AWS_REGION}|g" "$BACKEND_FILE"
     fi
 
@@ -343,7 +385,7 @@ print_success "Configuration files updated successfully!"
 echo ""
 print_info "Backend file: ${BACKEND_FILE}"
 print_info "  - bucket: ${BUCKET_NAME}"
-print_info "  - key: ${BACKEND_PREFIX}"
+print_info "  - key: ${APPLICATION_PREFIX}"
 print_info "  - region: ${AWS_REGION}"
 echo ""
 print_info "Variables file: ${VARIABLES_FILE}"
@@ -365,6 +407,29 @@ terraform workspace select "${WORKSPACE_NAME}" 2>/dev/null || terraform workspac
 # Terraform validate
 print_info "Running terraform validate..."
 terraform validate
+
+# Set Kubernetes environment variables
+print_info "Setting Kubernetes environment variables..."
+if [ ! -f "set-k8s-env.sh" ]; then
+    print_error "set-k8s-env.sh not found."
+    exit 1
+fi
+
+# Make sure the script is executable
+chmod +x ./set-k8s-env.sh
+
+# Source the script to set environment variables
+source ./set-k8s-env.sh
+
+if [ -z "$KUBERNETES_MASTER" ]; then
+    print_error "Failed to set KUBERNETES_MASTER environment variable."
+    exit 1
+fi
+
+print_success "Kubernetes environment variables set"
+print_info "  - KUBERNETES_MASTER: ${KUBERNETES_MASTER}"
+print_info "  - KUBE_CONFIG_PATH: ${KUBE_CONFIG_PATH}"
+echo ""
 
 # Terraform plan
 print_info "Running terraform plan..."

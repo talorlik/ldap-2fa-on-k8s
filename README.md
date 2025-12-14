@@ -95,17 +95,17 @@ Configure these secrets in your GitHub repository:
    - **Permissions needed**: Full permissions to create/manage EKS, VPC, ALB, Route53, etc.
    - **Note**: This role is assumed by the Terraform AWS provider via `assume_role` configuration
 
-3. **`TF_VAR_OPENLDAP_ADMIN_PASSWORD`** (Required for application deployment)
+4. **`TF_VAR_OPENLDAP_ADMIN_PASSWORD`** (Required for application deployment)
    - **Type**: Secret
    - **Description**: OpenLDAP admin password
    - **Used for**: OpenLDAP Helm chart deployment
 
-4. **`TF_VAR_OPENLDAP_CONFIG_PASSWORD`** (Required for application deployment)
+5. **`TF_VAR_OPENLDAP_CONFIG_PASSWORD`** (Required for application deployment)
    - **Type**: Secret
    - **Description**: OpenLDAP config password
    - **Used for**: OpenLDAP Helm chart deployment
 
-5. **`GH_TOKEN`** (Required for state backend provisioning)
+6. **`GH_TOKEN`** (Required for state backend provisioning)
    - **Type**: Secret
    - **Description**: GitHub Personal Access Token with `repo` scope
    - **Used for**: Creating/updating repository variables after state backend provisioning
@@ -230,7 +230,8 @@ For each deployment account (Production and Development), create separate IAM ro
 
 5. Copy the Development account role ARN → Set as `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` secret
 
-> **Note**:
+> [!NOTE]
+>
 > - The State Account role (`AWS_STATE_ACCOUNT_ROLE_ARN`) is used for backend state operations (S3)
 > - The Production/Development roles are used by the Terraform provider via `assume_role` for resource deployment
 > - The workflow automatically selects the appropriate deployment role ARN based on whether `prod` or `dev` environment is chosen
@@ -294,41 +295,46 @@ This script will:
 - Update `variables.tfvars` with the selected region, environment, and deployment account role ARN
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
-#### Option 2: Using GitHub API Directly
-
-If you don't have GitHub CLI installed, you can use the API version:
-
-```bash
-cd backend_infra
-export GITHUB_TOKEN=your_github_token
-./setup-backend-api.sh
-```
-
-You can create a GitHub token at: <https://github.com/settings/tokens>
-Required scope: `repo` (for private repos) or `public_repo` (for public repos)
-
-> **Note:** The generated `backend.hcl` file is automatically ignored by git (see `.gitignore`). Only the placeholder template (`tfstate-backend-values-template.hcl`) is committed to the repository.
+> [!NOTE] The generated `backend.hcl` file is automatically ignored by git (see `.gitignore`). Only the placeholder template (`tfstate-backend-values-template.hcl`) is committed to the repository.
 
 ### Application Infrastructure Setup
 
-The application infrastructure uses the same backend setup process:
+#### Using GitHub CLI (Recommended)
+
+If you have the GitHub CLI (`gh`) installed and authenticated:
 
 ```bash
 cd application
-./setup-backend.sh
-# or
-export GITHUB_TOKEN=your_github_token
-./setup-backend-api.sh
+./setup-application.sh
 ```
+
+This script will:
+
+- Prompt you to select an AWS region (us-east-1 or us-east-2)
+- Prompt you to select an environment (prod or dev)
+- Retrieve repository variables from GitHub
+- Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state operations
+- Retrieve the appropriate deployment account role ARN from GitHub secrets based on the selected environment:
+  - `prod` → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
+  - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
+- Retrieve OpenLDAP password secrets (`TF_VAR_OPENLDAP_ADMIN_PASSWORD` and `TF_VAR_OPENLDAP_CONFIG_PASSWORD`) from repository secrets and export them as environment variables
+- Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the actual values (if it doesn't exist)
+- Update `variables.tfvars` with the selected region, environment, and deployment account role ARN
+- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Run Terraform commands (init, workspace, validate, plan, apply) automatically
+
+> [!NOTE] The generated `backend.hcl` file is automatically ignored by git (see `.gitignore`). Only the placeholder template (`tfstate-backend-values-template.hcl`) is committed to the repository.
 
 **Important:** Before deploying the application infrastructure, you must:
 
-1. Set OpenLDAP passwords via environment variables (never in `variables.tfvars`):
+1. **For local use**: Export OpenLDAP passwords as environment variables (the script will retrieve them from these):
 
    ```bash
    export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
    export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
    ```
+
+   > [!NOTE] The script automatically retrieves these from GitHub repository secrets if available. For local use, you need to export them as environment variables since GitHub CLI cannot read secret values directly.
 
 2. Ensure Route53 hosted zone exists for your domain
 3. Ensure ACM certificate exists and is validated in the same region as your EKS cluster
@@ -358,23 +364,27 @@ terraform apply -auto-approve "terraform.tfplan"
 
 ### Application Infrastructure
 
-After backend infrastructure is deployed and backend configuration is set up:
+After backend infrastructure is deployed, use the automated setup script:
 
 ```bash
 cd application
 
-# Set passwords via environment variables
-source .env  # or export TF_VAR_OPENLDAP_* variables
+# For local use: Export passwords as environment variables (script retrieves from GitHub secrets if available)
+export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
+export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
 
-terraform init -backend-config="backend.hcl"
-
-# Use the same workspace as backend infrastructure
-terraform workspace select <region>-<environment> || terraform workspace new <region>-<environment>
-
-terraform plan -var-file="variables.tfvars" -out "terraform.tfplan"
-
-terraform apply -auto-approve "terraform.tfplan"
+# Run the setup script (handles all Terraform operations automatically)
+./setup-application.sh
 ```
+
+The script automatically handles:
+
+- Backend configuration setup
+- Retrieval of OpenLDAP password secrets from GitHub repository secrets
+- Terraform initialization
+- Workspace selection/creation
+- Kubernetes environment variable configuration
+- Terraform validation, planning, and application
 
 ## Architecture Overview
 

@@ -257,7 +257,7 @@ The cluster name is automatically retrieved using a fallback chain:
 2. **Second**: Uses `cluster_name` variable if provided in `variables.tfvars`
 3. **Third**: Calculates cluster name using pattern: `${prefix}-${region}-${cluster_name_component}-${env}`
 
-The backend configuration (bucket, key, region) is read from `backend.hcl` (created by `setup-backend.sh`).
+The backend configuration (bucket, key, region) is read from `backend.hcl` (created by `setup-application.sh`).
 
 If `backend.hcl` doesn't exist or remote state is not available, you can provide the cluster name directly in `variables.tfvars`:
 
@@ -269,20 +269,36 @@ cluster_name = "talo-tf-us-east-1-kc-prod"
 
 **IMPORTANT**: Passwords must be set via environment variables, NOT in `variables.tfvars`.
 
-**Local Development (.env file):**
+The `setup-application.sh` script automatically retrieves these passwords from GitHub repository secrets and exports them as environment variables for Terraform.
 
-Create a `.env` file in the `application` directory:
+**Using setup-application.sh (Recommended):**
+
+The script automatically:
+
+- Checks for `TF_VAR_OPENLDAP_ADMIN_PASSWORD` and `TF_VAR_OPENLDAP_CONFIG_PASSWORD` in repository secrets
+- Retrieves them from environment variables (GitHub CLI cannot read secret values directly)
+- Exports them as `TF_VAR_*` environment variables for Terraform
+
+**For Local Development:**
+
+Since GitHub CLI cannot read secret values directly, you need to export them as environment variables before running the script:
 
 ```bash
 export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
 export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
+./setup-application.sh
 ```
 
-Then source it before running Terraform:
+Alternatively, create a `.env` file:
 
 ```bash
+cat > .env << EOF
+export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
+export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
+EOF
+
 source .env
-terraform plan -var-file="variables.tfvars"
+./setup-application.sh
 ```
 
 **GitHub Actions:**
@@ -292,7 +308,7 @@ Set these as GitHub Secrets:
 - `TF_VAR_OPENLDAP_ADMIN_PASSWORD`
 - `TF_VAR_OPENLDAP_CONFIG_PASSWORD`
 
-Then in your workflow, export them as Terraform variables:
+The workflow automatically exports them as Terraform variables:
 
 ```yaml
 env:
@@ -381,60 +397,45 @@ export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
    - Set domain name (must match existing Route53 hosted zone)
    - Ensure ACM certificate exists and covers your domain/subdomains
 
-2. **Set passwords via environment variables:**
+### Step 2: Set Up OpenLDAP Passwords (For Local Development)
 
-   **Local Development:**
-
-   ```bash
-   # Create .env file
-   cat > .env << EOF
-   export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
-   export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
-   EOF
-
-   # Source it
-   source .env
-   ```
-
-   **GitHub Actions:**
-
-   - Add `TF_VAR_OPENLDAP_ADMIN_PASSWORD` and `TF_VAR_OPENLDAP_CONFIG_PASSWORD` as GitHub Secrets
-   - Export them in your workflow as `TF_VAR_*` environment variables
-
-### Step 2: Set Up Environment Variables
+**Note**: The `setup-application.sh` script automatically retrieves OpenLDAP passwords from GitHub repository secrets. For local use, you need to export them as environment variables since GitHub CLI cannot read secret values directly.
 
 **Local Development:**
 
 ```bash
 cd application
 
-# Create .env file with passwords
+# Export passwords as environment variables
+export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
+export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
+```
+
+Alternatively, create a `.env` file:
+
+```bash
 cat > .env << EOF
 export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
 export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
 EOF
 
-# Source the environment variables
 source .env
 ```
 
 **GitHub Actions:**
 
-Ensure your workflow exports the secrets as Terraform variables:
+The workflow automatically uses GitHub Secrets. Ensure these are set in your repository:
 
-```yaml
-env:
-  TF_VAR_OPENLDAP_ADMIN_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
-  TF_VAR_OPENLDAP_CONFIG_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
-```
+- `TF_VAR_OPENLDAP_ADMIN_PASSWORD`
+- `TF_VAR_OPENLDAP_CONFIG_PASSWORD`
 
-### Step 3: Set Up Backend Configuration
+### Step 3: Deploy Application Infrastructure
 
 #### Option 1: Using GitHub CLI (Recommended)
 
 ```bash
 cd application
-./setup-backend.sh
+./setup-application.sh
 ```
 
 This script will:
@@ -442,48 +443,19 @@ This script will:
 - Prompt you to select an AWS region (us-east-1 or us-east-2)
 - Prompt you to select an environment (prod or dev)
 - Retrieve repository variables from GitHub
-- Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the actual values
-- Update `variables.tfvars` with the selected region and environment
+- Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state operations
+- Retrieve the appropriate deployment account role ARN from GitHub secrets based on the selected environment:
+  - `prod` → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
+  - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
+- Retrieve OpenLDAP password secrets (`TF_VAR_OPENLDAP_ADMIN_PASSWORD` and `TF_VAR_OPENLDAP_CONFIG_PASSWORD`) from repository secrets and export them as environment variables
+- Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the actual values (if it doesn't exist)
+- Update `variables.tfvars` with the selected region, environment, and deployment account role ARN
+- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
-#### Option 2: Using GitHub API Directly
+> [!NOTE] The generated `backend.hcl` file is automatically ignored by git (see `.gitignore`). Only the placeholder template (`tfstate-backend-values-template.hcl`) is committed to the repository.
 
-If you don't have GitHub CLI installed:
-
-```bash
-cd application
-export GITHUB_TOKEN=your_token
-./setup-backend-api.sh
-```
-
-You can create a GitHub token at: <https://github.com/settings/tokens>
-Required scope: `repo` (for private repos) or `public_repo` (for public repos)
-
-> **Note:** The generated `backend.hcl` file is automatically ignored by git (see `.gitignore`). Only the placeholder template (`tfstate-backend-values-template.hcl`) is committed to the repository.
-
-### Step 4: Initialize Terraform
-
-```bash
-cd application
-
-terraform init -backend-config="backend.hcl"
-```
-
-### Step 5: Select Workspace
-
-```bash
-# Workspace name should match backend infrastructure
-terraform workspace select <region>-<environment> || terraform workspace new <region>-<environment>
-```
-
-### Step 6: Plan and Apply
-
-```bash
-terraform plan -var-file="variables.tfvars" -out="terraform.tfplan"
-
-terraform apply "terraform.tfplan"
-```
-
-### Step 7: Configure Domain Registrar
+### Step 4: Configure Domain Registrar
 
 After deployment, configure your domain registrar to use the Route53 name servers:
 
@@ -496,7 +468,7 @@ terraform output -json | jq -r '.route53_name_servers.value'
 
 Update your domain registrar's NS records to point to these Route53 name servers.
 
-### Step 8: Verify Deployment
+### Step 5: Verify Deployment
 
 ```bash
 # Check Helm release status
