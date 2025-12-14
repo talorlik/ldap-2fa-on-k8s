@@ -62,7 +62,7 @@ locals {
     length("${var.prefix}-${var.region}-${var.alb_group_name}-${var.env}") > 63 ?
     substr("${var.prefix}-${var.region}-${var.alb_group_name}-${var.env}", 0, 63) :
     "${var.prefix}-${var.region}-${var.alb_group_name}-${var.env}"
-  ) : (
+    ) : (
     length(local.app_name) > 63 ? substr(local.app_name, 0, 63) : local.app_name
   )
 
@@ -73,7 +73,7 @@ locals {
     length("${var.prefix}-${var.region}-${var.alb_load_balancer_name}-${var.env}") > 32 ?
     substr("${var.prefix}-${var.region}-${var.alb_load_balancer_name}-${var.env}", 0, 32) :
     "${var.prefix}-${var.region}-${var.alb_load_balancer_name}-${var.env}"
-  ) : (
+    ) : (
     length(local.alb_group_name) > 32 ? substr(local.alb_group_name, 0, 32) : local.alb_group_name
   )
 
@@ -113,14 +113,14 @@ locals {
       openldap_config_password = var.openldap_config_password
       app_name                 = local.app_name
       # ALB configuration - IngressClassParams handles scheme and ipAddressType
-      ingress_class_name       = var.use_alb ? module.alb[0].ingress_class_name : "alb"
+      ingress_class_name = var.use_alb ? module.alb[0].ingress_class_name : "alb"
       # alb_group_name           = local.alb_group_name
-      alb_load_balancer_name   = local.alb_load_balancer_name
-      acm_cert_arn             = data.aws_acm_certificate.this.arn
-      phpldapadmin_host        = var.phpldapadmin_host
-      ltb_passwd_host          = var.ltb_passwd_host
+      alb_load_balancer_name = local.alb_load_balancer_name
+      acm_cert_arn           = data.aws_acm_certificate.this.arn
+      phpldapadmin_host      = var.phpldapadmin_host
+      ltb_passwd_host        = var.ltb_passwd_host
       # Per-Ingress annotations still needed for grouping, TLS, ports, etc.
-      alb_target_type          = var.alb_target_type
+      alb_target_type = var.alb_target_type
       # alb_ssl_policy           = var.alb_ssl_policy
     }
   )
@@ -133,11 +133,11 @@ module "alb" {
 
   count = var.use_alb ? 1 : 0
 
-  env                         = var.env
-  region                      = var.region
-  prefix                      = var.prefix
-  app_name                    = local.app_name
-  cluster_name                = local.cluster_name
+  env          = var.env
+  region       = var.region
+  prefix       = var.prefix
+  app_name     = local.app_name
+  cluster_name = local.cluster_name
   # ingress_alb_name            = var.ingress_alb_name
   # service_alb_name            = var.service_alb_name
   ingressclass_alb_name       = var.ingressclass_alb_name

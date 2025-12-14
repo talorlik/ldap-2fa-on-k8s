@@ -39,9 +39,8 @@ jobs:
     permissions:
       contents: write
       actions: write
+      id-token: write
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ needs.SetRegion.outputs.region_code }}
     defaults:
       run:
@@ -55,11 +54,11 @@ jobs:
         with:
           terraform_version: 1.14.0
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (State Account)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_STATE_ACCOUNT_ROLE_ARN }}
+          role-session-name: GitHubActions-BackendInfraProvision
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Create backend.hcl from placeholder
@@ -76,6 +75,12 @@ jobs:
         run: |
           sed -i "s|^env[[:space:]]*=.*|env = \"${{ inputs.environment }}\"|" variables.tfvars
           sed -i "s|^region[[:space:]]*=.*|region = \"${{ env.AWS_REGION }}\"|" variables.tfvars
+          # Add deployment account role ARN if not already present
+          if ! grep -q "^deployment_account_role_arn" variables.tfvars; then
+            echo "deployment_account_role_arn = \"${{ secrets.AWS_DEPLOYMENT_ACCOUNT_ROLE_ARN }}\"" >> variables.tfvars
+          else
+            sed -i "s|^deployment_account_role_arn[[:space:]]*=.*|deployment_account_role_arn = \"${{ secrets.AWS_DEPLOYMENT_ACCOUNT_ROLE_ARN }}\"|" variables.tfvars
+          fi
           echo "Updated variables.tfvars:"
           cat variables.tfvars
 

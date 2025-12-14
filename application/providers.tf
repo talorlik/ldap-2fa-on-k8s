@@ -24,7 +24,18 @@ terraform {
 }
 
 provider "aws" {
-  region = var.region
+  region  = var.region
+  profile = var.provider_profile
+
+  # Assume role in deployment account (Account B) if role ARN is provided
+  # This allows GitHub Actions to authenticate with Account A (for state)
+  # while Terraform provider uses Account B (for resource deployment)
+  dynamic "assume_role" {
+    for_each = var.deployment_account_role_arn != null ? [1] : []
+    content {
+      role_arn = var.deployment_account_role_arn
+    }
+  }
 }
 
 # Read backend.hcl to get bucket and region for remote state

@@ -1,7 +1,8 @@
-env                         = "prod"
-region                      = "us-east-1"
-prefix                      = "talo-tf"
-principal_arn               = "arn:aws:iam::395323424870:user/taladmin"
+env              = "prod"
+region           = "us-east-1"
+prefix           = "talo-tf"
+principal_arn    = "arn:aws:iam::395323424870:user/taladmin"
+provider_profile = "dev"
 
 ##################### OpenLDAP ##########################
 # OpenLDAP passwords - MUST be set via environment variables:
@@ -21,7 +22,7 @@ storage_class_encrypted  = true
 storage_class_is_default = true
 
 ##################### ALB Configuration ##########################
-app_name                    = "talo-ldap"
+app_name = "talo-ldap"
 # ingress_alb_name            = "ingress-alb"
 # service_alb_name            = "service-alb"
 ingressclass_alb_name       = "ic-alb-ldap"

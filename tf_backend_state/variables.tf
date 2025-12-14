@@ -14,6 +14,7 @@ variable "prefix" {
 }
 
 variable "principal_arn" {
-  description = "My ARN"
+  description = "IAM principal ARN that will have access to the S3 bucket. If not provided, defaults to the current caller's ARN (automatically detected)."
   type        = string
+  default     = null
 }

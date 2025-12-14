@@ -1,5 +1,10 @@
-# Get current AWS account ID for unique bucket naming
+# Get current AWS account ID and caller identity for unique bucket naming and dynamic principal
 data "aws_caller_identity" "current" {}
+
+# Use provided principal_arn or default to current caller's ARN
+locals {
+  principal_arn = var.principal_arn != null ? var.principal_arn : data.aws_caller_identity.current.arn
+}
 
 resource "aws_s3_bucket" "terraform_state" {
   # Include account ID in bucket name to ensure global uniqueness
@@ -63,7 +68,7 @@ resource "aws_s3_bucket_policy" "terraform_state_policy" {
           "s3:DeleteObject"
         ]
         Principal = {
-          AWS = var.principal_arn
+          AWS = local.principal_arn
         }
         Resource = [
           "arn:aws:s3:::${aws_s3_bucket.terraform_state.bucket}",

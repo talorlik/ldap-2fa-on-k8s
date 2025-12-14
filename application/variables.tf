@@ -18,12 +18,23 @@ variable "principal_arn" {
   type        = string
 }
 
+variable "provider_profile" {
+  description = "The profile that is going to be used for deployment (for local development)"
+  type        = string
+  default     = null
+}
+
+variable "deployment_account_role_arn" {
+  description = "ARN of the IAM role to assume in the deployment account (Account B). Required when using GitHub Actions with multi-account setup."
+  type        = string
+  default     = null
+}
+
+##################### OpenLDAP ##########################
 variable "app_name" {
   description = "Application name"
   type        = string
 }
-
-##################### OpenLDAP ##########################
 
 variable "openldap_ldap_domain" {
   description = "OpenLDAP domain (e.g., ldap.talorlik.internal)"
