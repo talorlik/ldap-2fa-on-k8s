@@ -14,10 +14,12 @@ This project deploys a complete LDAP authentication solution with self-service p
 
 ## Prerequisites
 
-- AWS Account with appropriate permissions
+- AWS Account(s) with appropriate permissions
+  - **State Account (Account A)**: For Terraform state storage (S3)
+  - **Deployment Account (Account B)**: For infrastructure resources (EKS, ALB, Route53, etc.)
 - GitHub Account
 - Fork the repository: [ldap-2fa-on-k8s](https://github.com/talorlik/ldap-2fa-on-k8s.git)
-- Set your own AWS KEY and SECRET (see the workflow yaml for the correct names for your secrets)
+- AWS SSO/OIDC configured (see [GitHub Repository Configuration](#github-repository-configuration))
 - Route53 hosted zone must already exist (or create it manually)
 - ACM certificate must already exist and be validated in the same region as the EKS cluster
 
@@ -25,11 +27,214 @@ This project deploys a complete LDAP authentication solution with self-service p
 
 ```text
 ldap-2fa-on-k8s/
-├── tf_backend_state/      # Terraform state backend infrastructure (S3)
-├── backend_infra/         # Core AWS infrastructure (VPC, EKS cluster)
-├── application/          # Application infrastructure (OpenLDAP, ALB, Route53)
+├── tf_backend_state/      # Terraform state backend infrastructure (S3) - Account A
+├── backend_infra/         # Core AWS infrastructure (VPC, EKS cluster) - Account B
+├── application/          # Application infrastructure (OpenLDAP, ALB, Route53) - Account B
 └── .github/workflows/    # GitHub Actions workflows for CI/CD
 ```
+
+## Multi-Account Architecture
+
+This project uses a **multi-account architecture** for enhanced security:
+
+- **Account A (State Account)**: Stores Terraform state files in S3
+  - GitHub Actions authenticates with Account A for backend operations
+  - Provides isolation between state storage and resource deployment
+
+- **Account B (Deployment Account)**: Contains all infrastructure resources
+  - EKS cluster, VPC, ALB, Route53, and other AWS resources
+  - Terraform provider assumes Account B role via cross-account role assumption
+  - Provides isolation and separation of concerns
+
+### How It Works
+
+1. **GitHub Actions** assumes Account A role (via OIDC) for Terraform backend access
+2. **Terraform backend** uses Account A credentials to read/write state files
+3. **Terraform AWS provider** assumes Account B role (via `assume_role`) for resource deployment
+4. **Remote state** data sources use Account A credentials to read state from Account A
+
+This architecture ensures:
+
+- State files are isolated in a dedicated account
+- Resource deployment uses separate credentials
+- Enhanced security through account separation
+- Better compliance and audit capabilities
+
+## GitHub Repository Configuration
+
+### AWS SSO/OIDC Setup
+
+This project uses **AWS SSO via GitHub OIDC** instead of access keys for enhanced security.
+
+#### Required GitHub Secrets
+
+Configure these secrets in your GitHub repository:
+**Repository → Settings → Secrets and variables → Actions → Secrets**
+
+1. **`AWS_STATE_ACCOUNT_ROLE_ARN`** (Required)
+   - **Type**: Secret
+   - **Description**: ARN of the IAM role in the State Account (Account A) that trusts GitHub OIDC
+   - **Format**: `arn:aws:iam::STATE_ACCOUNT_ID:role/github-actions-state-role`
+   - **Used for**: Terraform backend operations (S3 state file read/write)
+   - **Permissions needed**: S3 access to state bucket
+   - **Note**: This role is used for all backend state operations regardless of environment
+
+2. **`AWS_PRODUCTION_ACCOUNT_ROLE_ARN`** (Required)
+   - **Type**: Secret
+   - **Description**: ARN of the IAM role in the Production Account (Account B) that trusts the State Account role
+   - **Format**: `arn:aws:iam::PROD_ACCOUNT_ID:role/github-actions-prod-role`
+   - **Used for**: Terraform provider operations (creating AWS resources) when `prod` environment is selected
+   - **Permissions needed**: Full permissions to create/manage EKS, VPC, ALB, Route53, etc.
+   - **Note**: This role is assumed by the Terraform AWS provider via `assume_role` configuration
+
+3. **`AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`** (Required)
+   - **Type**: Secret
+   - **Description**: ARN of the IAM role in the Development Account (Account B) that trusts the State Account role
+   - **Format**: `arn:aws:iam::DEV_ACCOUNT_ID:role/github-actions-dev-role`
+   - **Used for**: Terraform provider operations (creating AWS resources) when `dev` environment is selected
+   - **Permissions needed**: Full permissions to create/manage EKS, VPC, ALB, Route53, etc.
+   - **Note**: This role is assumed by the Terraform AWS provider via `assume_role` configuration
+
+3. **`TF_VAR_OPENLDAP_ADMIN_PASSWORD`** (Required for application deployment)
+   - **Type**: Secret
+   - **Description**: OpenLDAP admin password
+   - **Used for**: OpenLDAP Helm chart deployment
+
+4. **`TF_VAR_OPENLDAP_CONFIG_PASSWORD`** (Required for application deployment)
+   - **Type**: Secret
+   - **Description**: OpenLDAP config password
+   - **Used for**: OpenLDAP Helm chart deployment
+
+5. **`GH_TOKEN`** (Required for state backend provisioning)
+   - **Type**: Secret
+   - **Description**: GitHub Personal Access Token with `repo` scope
+   - **Used for**: Creating/updating repository variables after state backend provisioning
+
+#### AWS IAM Setup
+
+**Account A (State Account):**
+
+##### Step 1: Create OIDC Identity Provider
+
+The OIDC Identity Provider establishes trust between GitHub Actions and AWS, allowing GitHub to authenticate without access keys.
+
+1. **Navigate to IAM Console**:
+   - Go to AWS IAM Console → **Identity providers** (left sidebar)
+   - Click **Add provider**
+
+2. **Configure Provider**:
+   - Select **OpenID Connect**
+   - **Provider URL**: `https://token.actions.githubusercontent.com`
+   - Click **Get thumbprint** (AWS will automatically fetch GitHub's certificate thumbprint)
+   - **Audience**: `sts.amazonaws.com`
+   - Click **Add provider**
+
+3. **Verify Creation**:
+   - You should see the provider listed with ARN format: `arn:aws:iam::ACCOUNT_A_ID:oidc-provider/token.actions.githubusercontent.com`
+   - Note this ARN - you'll need it for the role trust policy
+
+##### Step 2: Create IAM Role and Assign to Identity Provider
+
+Now create an IAM Role that uses this Identity Provider for authentication.
+
+1. **Navigate to IAM Roles**:
+   - Go to AWS IAM Console → **Roles** (left sidebar)
+   - Click **Create role**
+
+2. **Select Trusted Entity Type**:
+   - Under **Trusted entity type**, select **Web identity**
+   - Under **Web identity**, select the Identity Provider you just created: `token.actions.githubusercontent.com`
+   - **Audience**: Select `sts.amazonaws.com` from the dropdown
+   - Click **Next**
+
+3. **Configure Trust Policy Conditions** (Optional but Recommended):
+   - Click **Add condition** to restrict which repositories can assume this role
+   - **Condition key**: `token.actions.githubusercontent.com:sub`
+   - **Operator**: `StringLike`
+   - **Value**: `repo:YOUR_ORG/YOUR_REPO:*` (replace `YOUR_ORG/YOUR_REPO` with your GitHub organization and repository name)
+     - Example: `repo:talorlik/ldap-2fa-on-k8s:*`
+   - This ensures only workflows from your specific repository can assume the role
+   - Click **Next**
+
+4. **Add Permissions**:
+   - Create or attach a policy with S3 permissions for the state bucket
+   - **Minimum required permissions**:
+
+     ```json
+     {
+       "Version": "2012-10-17",
+       "Statement": [
+         {
+           "Effect": "Allow",
+           "Action": [
+             "s3:GetObject",
+             "s3:PutObject",
+             "s3:DeleteObject",
+             "s3:ListBucket"
+           ],
+           "Resource": [
+             "arn:aws:s3:::your-state-bucket-name",
+             "arn:aws:s3:::your-state-bucket-name/*"
+           ]
+         }
+       ]
+     }
+     ```
+
+   - For initial setup, you can use a broader policy and restrict it later once you know the exact bucket name
+   - Click **Next**
+
+5. **Name and Create Role**:
+   - **Role name**: `github-actions-state-role` (or your preferred name)
+   - **Description**: "Role for GitHub Actions to access Terraform state bucket"
+   - Click **Create role**
+
+6. **Copy Role ARN**:
+   - After creation, click on the role name
+   - Copy the **Role ARN** (format: `arn:aws:iam::STATE_ACCOUNT_ID:role/github-actions-state-role`)
+   - Set this as the `AWS_STATE_ACCOUNT_ROLE_ARN` secret in GitHub
+
+**Important Notes:**
+
+- The Identity Provider must be created **before** the IAM Role
+- The IAM Role's trust policy automatically references the Identity Provider you selected
+- The condition on `token.actions.githubusercontent.com:sub` restricts access to your specific repository
+- You can update the trust policy later to add more repositories or adjust conditions
+
+**Account B (Production/Development Accounts):**
+
+For each deployment account (Production and Development), create separate IAM roles:
+
+1. **Production Account**: Create an IAM Role that trusts the State Account role:
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Principal": {
+           "AWS": "arn:aws:iam::STATE_ACCOUNT_ID:role/github-actions-state-role"
+         },
+         "Action": "sts:AssumeRole"
+       }
+     ]
+   }
+   ```
+
+2. Attach permissions policy with full resource deployment permissions
+
+3. Copy the role ARN → Set as `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` secret
+
+4. **Development Account**: Repeat steps 1-3 for the Development account
+
+5. Copy the Development account role ARN → Set as `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` secret
+
+> **Note**:
+> - The State Account role (`AWS_STATE_ACCOUNT_ROLE_ARN`) is used for backend state operations (S3)
+> - The Production/Development roles are used by the Terraform provider via `assume_role` for resource deployment
+> - The workflow automatically selects the appropriate deployment role ARN based on whether `prod` or `dev` environment is chosen
+> - For single-account setups, you can use the same role ARN for state and deployment, but multi-account is recommended for better security isolation
 
 ## Terraform Deployment
 
@@ -63,6 +268,8 @@ Deploy the application infrastructure (OpenLDAP stack, ALB, Route53 records).
 
 Before running Terraform locally, you need to generate the `backend.hcl` file and update `variables.tfvars` with your selected region and environment. The repository includes `tfstate-backend-values-template.hcl` as a template showing what values need to be configured.
 
+> **⚠️ IMPORTANT for Backend State Infrastructure**: For local deployment of `tf_backend_state`, use the provided automation scripts (`set-state.sh` and `get-state.sh`). These scripts automatically handle role assumption, Terraform operations, state file management, and repository variable updates. The scripts retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` from GitHub repository secrets and assume the role automatically. See [Terraform Backend State README](tf_backend_state/README.md#option-2-local-execution) for detailed instructions.
+
 ### Backend Infrastructure Setup
 
 #### Option 1: Using GitHub CLI (Recommended)
@@ -79,8 +286,13 @@ This script will:
 - Prompt you to select an AWS region (us-east-1 or us-east-2)
 - Prompt you to select an environment (prod or dev)
 - Retrieve repository variables from GitHub
+- Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state operations
+- Retrieve the appropriate deployment account role ARN from GitHub secrets based on the selected environment:
+  - `prod` → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
+  - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
 - Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the actual values
-- Update `variables.tfvars` with the selected region and environment
+- Update `variables.tfvars` with the selected region, environment, and deployment account role ARN
+- Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
 #### Option 2: Using GitHub API Directly
 

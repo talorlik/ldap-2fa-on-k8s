@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Updated AWS provider configuration for multi-account architecture**
+  - Removed `provider_profile` variable from `variables.tf` and `variables.tfvars`
+  - Removed `profile = var.provider_profile` from `providers.tf`
+  - Provider now uses role assumption via `deployment_account_role_arn` variable instead of AWS profiles
+  - Aligns with environment-based role selection (production/development accounts)
+  - Backend state operations use `AWS_STATE_ACCOUNT_ROLE_ARN` (configured in workflows/setup scripts)
+  - Deployment operations use environment-specific role ARNs via `assume_role` configuration
+
+- **Updated GitHub Actions workflows for application infrastructure**
+  - `application_infra_provisioning.yaml`: Now uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend operations
+  - `application_infra_destroying.yaml`: Now uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend operations
+  - Both workflows automatically set `deployment_account_role_arn` variable based on selected environment:
+    - `prod` environment → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
+    - `dev` environment → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
+  - Ensures proper separation between state account (S3) and deployment accounts (resource creation)
+
 - **Moved certificate ARN and group name to IngressClassParams (cluster-wide configuration)**
   - Certificate ARN (`certificateARNs`) is now configured in IngressClassParams instead of Ingress annotations
   - ALB group name (`group.name`) is now configured in IngressClassParams instead of Ingress annotations
