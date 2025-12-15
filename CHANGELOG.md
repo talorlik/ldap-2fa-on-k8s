@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OpenLDAP password management via GitHub repository secrets**
+  - `setup-application.sh` now automatically retrieves OpenLDAP passwords from GitHub repository secrets
+  - New GitHub secrets: `TF_VAR_OPENLDAP_ADMIN_PASSWORD` and `TF_VAR_OPENLDAP_CONFIG_PASSWORD`
+  - Script automatically exports passwords as environment variables for Terraform
+  - Supports both GitHub Actions (automatic) and local execution (requires exported environment variables)
+  - Eliminates need to manually manage password files or commit sensitive data
+
+- **Consolidated application setup script**
+  - New unified `setup-application.sh` script replaces `setup-backend.sh` and `setup-backend-api.sh`
+  - Handles complete application deployment workflow: role assumption, backend configuration, Terraform operations, and Kubernetes environment setup
+  - Automatically retrieves all required secrets and variables from GitHub
+  - Includes comprehensive error handling and user-friendly output
+
 - **Environment-based AWS role ARN selection**
   - Added support for separate role ARNs for production and development environments
   - New GitHub secrets: `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` and `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
@@ -26,6 +39,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Password management approach**
+  - OpenLDAP passwords are now managed exclusively through GitHub repository secrets
+  - Removed dependency on local password files or environment-specific configurations
+  - Setup scripts automatically retrieve passwords from GitHub secrets
+  - Updated documentation to reflect new password management workflow
+  - Improved security by eliminating password storage in local files
+
+- **Setup script consolidation**
+  - Replaced `setup-backend.sh` and `setup-backend-api.sh` with unified `setup-application.sh`
+  - New script provides complete end-to-end deployment automation
+  - Improved error messages and user guidance
+  - Better integration with GitHub repository secrets and variables
+
+- **Documentation updates**
+  - Updated `README.md` with comprehensive password management instructions and three-role architecture documentation
+  - Updated `WARP.md` with latest setup procedures and password handling
+  - Updated `application/README.md` to reflect new setup script workflow
+  - Updated `backend_infra/README.md` to reflect environment-based role selection
+  - Clarified local vs. GitHub Actions execution differences
+  - Clarified the separation between backend state operations and deployment operations
+  - Updated AWS IAM setup instructions to reflect the new role structure
+
 - **Multi-account architecture clarification**
   - Separated backend state operations from deployment operations
   - Backend state operations now use `AWS_STATE_ACCOUNT_ROLE_ARN` (State Account)
@@ -39,13 +74,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `application_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend, sets environment-based deployment role
   - `application_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend, sets environment-based deployment role
 
-- **Documentation updates**
-  - Updated `README.md` to document the three-role architecture (State, Production, Development)
-  - Updated `backend_infra/README.md` to reflect environment-based role selection
-  - Clarified the separation between backend state operations and deployment operations
-  - Updated AWS IAM setup instructions to reflect the new role structure
-
 ### Removed
+
+- **Removed legacy setup scripts**
+  - Removed `application/setup-backend.sh` (replaced by `setup-application.sh`)
+  - Removed `application/setup-backend-api.sh` (replaced by `setup-application.sh`)
+  - Consolidated functionality into single unified script for better maintainability
 
 - **Removed `provider_profile` variable**
   - Removed `provider_profile` variable from `backend_infra/variables.tf` and `application/variables.tf`

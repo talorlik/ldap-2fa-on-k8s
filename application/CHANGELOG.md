@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Automated OpenLDAP password retrieval from GitHub secrets**
+  - `setup-application.sh` now automatically retrieves OpenLDAP passwords from GitHub repository secrets
+  - Script checks for `TF_VAR_OPENLDAP_ADMIN_PASSWORD` and `TF_VAR_OPENLDAP_CONFIG_PASSWORD` secrets
+  - Automatically exports passwords as environment variables for Terraform
+  - Supports both GitHub Actions (secrets automatically available) and local execution (requires exported environment variables)
+  - Eliminates need for manual password file management
+
+- **Unified application setup script**
+  - New `setup-application.sh` script consolidates all application deployment steps
+  - Handles role assumption, backend configuration, Terraform operations, and Kubernetes environment setup
+  - Automatically retrieves all required secrets and variables from GitHub
+  - Replaces previous `setup-backend.sh` and `setup-backend-api.sh` scripts
+  - Includes comprehensive error handling and user guidance
+
 ### Changed
+
+- **Password management workflow**
+  - OpenLDAP passwords are now exclusively managed through GitHub repository secrets
+  - Removed dependency on local password files or manual environment variable setup
+  - Setup script automatically handles password retrieval and export
+  - Updated documentation to reflect new password management approach
 
 - **Updated AWS provider configuration for multi-account architecture**
   - Removed `provider_profile` variable from `variables.tf` and `variables.tfvars`
@@ -75,12 +97,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clarified annotation strategy and inheritance patterns
   - Added implementation details section explaining Terraform and Helm chart responsibilities
 
+### Removed
+
+- **Legacy setup scripts**
+  - Removed `setup-backend.sh` (replaced by unified `setup-application.sh`)
+  - Removed `setup-backend-api.sh` (replaced by unified `setup-application.sh`)
+  - Consolidated functionality improves maintainability and reduces complexity
+
 ### Fixed
 
 - Fixed TLS configuration compatibility issue between Helm chart (designed for Bitnami) and osixia/openldap image
   - osixia/openldap uses different environment variable names than Bitnami OpenLDAP
   - Certificates are now referenced by filename only (not full paths)
   - osixia/openldap will auto-generate self-signed certificates if they don't exist
+
+- Corrected documentation to reflect new password management via GitHub repository secrets
+  - Updated README.md with accurate password setup instructions
+  - Clarified local vs. GitHub Actions execution differences
 
 ### Verified
 
