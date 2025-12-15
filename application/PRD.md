@@ -1,4 +1,5 @@
-Below is a concrete way to wire this chart into your Terraform, including which values to change and how to get the ALB created by EKS Auto Mode via Ingress.
+Below is a concrete way to wire this chart into your Terraform, including which
+values to change and how to get the ALB created by EKS Auto Mode via Ingress.
 
 ---
 
@@ -13,11 +14,15 @@ Target state:
 
 The chart already supports:
 
-* Global LDAP config: `global.ldapDomain`, `adminPassword`, `configPassword`, ports. ([GitHub][1])
-* Built in PhpLdapAdmin and LTB-passwd, each with an `ingress` block you can customize. ([GitHub][1])
+* Global LDAP config: `global.ldapDomain`, `adminPassword`, `configPassword`,
+ports. ([GitHub][1])
+* Built in PhpLdapAdmin and LTB-passwd, each with an `ingress` block you can
+customize. ([GitHub][1])
 
-EKS Auto Mode already supports ALB if `elastic_load_balancing.enabled = true` in the cluster `kubernetes_network_config`. ([j-labs][2])
-ALB creation is driven by Kubernetes `Ingress` with AWS Load Balancer Controller annotations. ([Kubernetes SIGs][3])
+EKS Auto Mode already supports ALB if `elastic_load_balancing.enabled = true` in
+the cluster `kubernetes_network_config`. ([j-labs][2])
+ALB creation is driven by Kubernetes `Ingress` with AWS Load Balancer Controller
+annotations. ([Kubernetes SIGs][3])
 
 So you only need:
 
@@ -30,7 +35,8 @@ No separate AWS `aws_lb` resource is required.
 
 ## 2. Minimal values changes
 
-Key sections from your `values-openldap-stack-ha (1).yaml` that must be adjusted.
+Key sections from your `values-openldap-stack-ha (1).yaml` that must be
+adjusted.
 
 ### 2.1 Global LDAP and credentials
 
@@ -62,14 +68,18 @@ global:
   sslLdapPort: 636              # standard LDAPS
 ```
 
-In Terraform you will not literally hardcode `${TF_VAR_OPENLDAP_ADMIN_PASSWORD}`; you will template these from variables or inject via `global.existingSecret`. The important part is:
+In Terraform you will not literally hardcode
+`${TF_VAR_OPENLDAP_ADMIN_PASSWORD}`; you will template these from variables or
+inject via `global.existingSecret`. The important part is:
 
 * Do not keep `Not@SecurePassw0rd`.
 * Set `ldapDomain` to the real domain you will use for DNs. ([GitHub][1])
 
 If you prefer secrets instead of cleartext in values:
 
-* Use `global.existingSecret` (documented in the chart README) which expects keys `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_ADMIN_PASSWORD`, and remove `adminPassword` / `configPassword` from the file. ([GitHub][1])
+* Use `global.existingSecret` (documented in the chart README) which expects
+keys `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_ADMIN_PASSWORD`, and remove
+`adminPassword` / `configPassword` from the file. ([GitHub][1])
 
 ### 2.2 Persistence on your EBS StorageClass / PVC
 
@@ -85,7 +95,10 @@ persistence:
   size: 8Gi
 ```
 
-> **Note**: The current implementation uses pattern 2 (chart creates PVC with StorageClass). The code creates a StorageClass resource and the Helm chart creates a new PVC using that StorageClass. The `existingClaim` option (pattern 1) is not used in the current implementation.
+> **Note**: The current implementation uses pattern 2 (chart creates PVC with
+StorageClass). The code creates a StorageClass resource and the Helm chart
+creates a new PVC using that StorageClass. The `existingClaim` option (pattern
+1) is not used in the current implementation.
 
 You can use one of these two patterns:
 
@@ -111,7 +124,9 @@ persistence:
   size: 8Gi
 ```
 
-The current implementation uses pattern 2: a StorageClass is created by Terraform (`kubernetes_storage_class_v1` resource), and the Helm chart creates a new PVC using that StorageClass.
+The current implementation uses pattern 2: a StorageClass is created by
+Terraform (`kubernetes_storage_class_v1` resource), and the Helm chart creates a
+new PVC using that StorageClass.
 
 ### 2.3 Keep LDAP service internal
 
@@ -127,7 +142,8 @@ service:
   sessionAffinity: None
 ```
 
-Leave `type: ClusterIP`. Do not change to `LoadBalancer` or `NodePort`. This keeps LDAP itself strictly internal.
+Leave `type: ClusterIP`. Do not change to `LoadBalancer` or `NodePort`. This
+keeps LDAP itself strictly internal.
 
 ### 2.4 Externalize only the UIs via ALB
 
@@ -161,7 +177,9 @@ phpldapadmin:
     - phpldapadmin.example
 ```
 
-You want these two to be the only exposed pieces, via AWS ALB. For AWS Load Balancer Controller you add the ALB annotations on the Ingress. ([Kubernetes SIGs][3])
+You want these two to be the only exposed pieces, via AWS ALB. For AWS Load
+Balancer Controller you add the ALB annotations on the Ingress. ([Kubernetes
+SIGs][3])
 
 Example for private (internal) ALB, TLS terminated at ALB:
 
@@ -205,11 +223,15 @@ phpldapadmin:
 
 Points:
 
-* `scheme: internal` ensures ALB is only reachable inside the VPC. ([enterprise-k8s.arcgis.com][4])
-* `target-type: ip` is typical with CNI mode and avoids NodePort. ([Kubernetes SIGs][3])
-* `listen-ports` plus `certificate-arn` ensures HTTPS listener with ACM cert. ([Kubernetes SIGs][3])
+* `scheme: internal` ensures ALB is only reachable inside the VPC.
+([enterprise-k8s.arcgis.com][4])
+* `target-type: ip` is typical with CNI mode and avoids NodePort. ([Kubernetes
+SIGs][3])
+* `listen-ports` plus `certificate-arn` ensures HTTPS listener with ACM cert.
+([Kubernetes SIGs][3])
 
-LDAP service remains `ClusterIP`; only these UIs have Ingress, hence only these UIs are reachable via ALB.
+LDAP service remains `ClusterIP`; only these UIs have Ingress, hence only these
+UIs are reachable via ALB.
 
 ---
 
@@ -217,7 +239,8 @@ LDAP service remains `ClusterIP`; only these UIs have Ingress, hence only these 
 
 Assume:
 
-* You already have an `aws_eks_cluster` resource and `data "aws_eks_cluster_auth"` for the token.
+* You already have an `aws_eks_cluster` resource and `data
+"aws_eks_cluster_auth"` for the token.
 * You are running this inside `backend_infra`.
 
 ### 3.1 Providers
@@ -240,7 +263,8 @@ provider "helm" {
 }
 ```
 
-This matches the pattern used in EKS Auto Mode articles and Terraform examples. ([j-labs][2])
+This matches the pattern used in EKS Auto Mode articles and Terraform examples.
+([j-labs][2])
 
 ### 3.2 Variables for sensitive bits
 
@@ -278,7 +302,8 @@ Values go into `variables.tfvars` or GitHub Actions env/vars.
 
 ### 3.3 Template the values file
 
-Create `backend_infra/helm/openldap-values.tpl.yaml` and move your adjusted YAML there, replacing literal values with interpolation placeholders:
+Create `backend_infra/helm/openldap-values.tpl.yaml` and move your adjusted YAML
+there, replacing literal values with interpolation placeholders:
 
 ```yaml
 global:
@@ -379,22 +404,36 @@ resource "helm_release" "openldap" {
 
 Execution order:
 
-1. EKS cluster and its EKS Auto Mode settings applied (`elastic_load_balancing.enabled = true`). ([j-labs][2])
+1. EKS cluster and its EKS Auto Mode settings applied
+(`elastic_load_balancing.enabled = true`). ([j-labs][2])
 2. StorageClass / PVC resources applied.
 3. `helm_release.openldap` applied.
 
 On apply:
 
-* Helm installs OpenLDAP StatefulSet, Service, and the two UI Deployments plus Services.
-* The two Ingress resources for `phpldapadmin` and `ltb-passwd` are created with ALB annotations.
-* AWS Load Balancer Controller in EKS Auto Mode detects these Ingresses and provisions an internal ALB with HTTPS, ACM cert, and targets pointing at the pods. ([Kubernetes SIGs][3])
+* Helm installs OpenLDAP StatefulSet, Service, and the two UI Deployments plus
+Services.
+* The two Ingress resources for `phpldapadmin` and `ltb-passwd` are created with
+ALB annotations.
+* AWS Load Balancer Controller in EKS Auto Mode detects these Ingresses and
+provisions an internal ALB with HTTPS, ACM cert, and targets pointing at the
+pods. ([Kubernetes SIGs][3])
 
 You now have:
 
 * LDAP reachable only inside the cluster via ClusterIP service.
-* Two GUIs reachable via ALB on the hostnames you specified, for manual management and self service.
+* Two GUIs reachable via ALB on the hostnames you specified, for manual
+management and self service.
 
-[1]: https://github.com/jp-gouin/helm-openldap "GitHub - jp-gouin/helm-openldap: Helm chart of Openldap in High availability with multi-master replication and PhpLdapAdmin and Ltb-Passwd"
-[2]: https://www.j-labs.pl/en/tech-blog/aws-eks-auto-mode/?utm_source=chatgpt.com "AWS EKS Auto Mode with Terraform. Guidebook"
-[3]: https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/?utm_source=chatgpt.com "Ingress annotations - AWS Load Balancer Controller"
-[4]: https://enterprise-k8s.arcgis.com/en/latest/deploy/use-a-cluster-level-ingress-controller-with-eks.htm?utm_source=chatgpt.com "Use application load balancing on Amazon Elastic ..."
+[1]: https://github.com/jp-gouin/helm-openldap "GitHub - jp-gouin/helm-openldap:
+Helm chart of Openldap in High availability with multi-master replication and
+PhpLdapAdmin and Ltb-Passwd"
+[2]:
+https://www.j-labs.pl/en/tech-blog/aws-eks-auto-mode/?utm_source=chatgpt.com
+"AWS EKS Auto Mode with Terraform. Guidebook"
+[3]:
+https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/?utm_source=chatgpt.com
+"Ingress annotations - AWS Load Balancer Controller"
+[4]:
+https://enterprise-k8s.arcgis.com/en/latest/deploy/use-a-cluster-level-ingress-controller-with-eks.htm?utm_source=chatgpt.com
+"Use application load balancing on Amazon Elastic ..."

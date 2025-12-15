@@ -1,6 +1,11 @@
 # DOMAIN SETUP AND LINKING TO ALB AND LDAP
 
-> **Note**: This document describes creating Route53 hosted zone and ACM certificate resources via Terraform. However, the current implementation in `main.tf` uses **data sources** to reference existing resources instead of creating them. The Route53 module (`modules/route53/`) exists but is commented out. If you want to create these resources via Terraform, uncomment the module and update the code accordingly.
+> **Note**: This document describes creating Route53 hosted zone and ACM
+certificate resources via Terraform. However, the current implementation in
+`main.tf` uses **data sources** to reference existing resources instead of
+creating them. The Route53 module (`modules/route53/`) exists but is commented
+out. If you want to create these resources via Terraform, uncomment the module
+and update the code accordingly.
 
 There are three separate pieces:
 
@@ -22,7 +27,8 @@ resource "aws_route53_zone" "talo_ldap" {
 }
 ```
 
-If the domain is registered elsewhere, point the registrar’s NS records at `aws_route53_zone.talo_ldap.name_servers`.
+If the domain is registered elsewhere, point the registrar’s NS records at
+`aws_route53_zone.talo_ldap.name_servers`.
 
 ---
 
@@ -83,7 +89,8 @@ resource "aws_acm_certificate_validation" "talo_ldap" {
 }
 ```
 
-After this, `aws_acm_certificate_validation.talo_ldap.certificate_arn` is the “ready” cert ARN for ALB.
+After this, `aws_acm_certificate_validation.talo_ldap.certificate_arn` is the
+“ready” cert ARN for ALB.
 
 ---
 
@@ -114,7 +121,8 @@ These are what you feed into Helm templates or other modules.
 
 ## 6. Use outputs inside the same module for Helm values
 
-If Helm is deployed from `backend_infra` itself, you can use the outputs as locals directly (no extra wiring):
+If Helm is deployed from `backend_infra` itself, you can use the outputs as
+locals directly (no extra wiring):
 
 ```hcl
 locals {
@@ -137,7 +145,8 @@ locals {
 }
 ```
 
-If Helm is in another module, pass outputs `acm_cert_arn` and `domain_name` into that module as variables and derive the hosts there.
+If Helm is in another module, pass outputs `acm_cert_arn` and `domain_name` into
+that module as variables and derive the hosts there.
 
 ---
 
@@ -205,7 +214,8 @@ phpldapadmin:
       - "${phpldapadmin_host}"
 ```
 
-LDAP service itself stays `ClusterIP`, so only the GUI Ingresses are exposed via ALB using that ACM certificate.
+LDAP service itself stays `ClusterIP`, so only the GUI Ingresses are exposed via
+ALB using that ACM certificate.
 
 ---
 
@@ -233,7 +243,8 @@ resource "helm_release" "openldap" {
 }
 ```
 
-EKS Auto Mode with AWS Load Balancer Controller will see the Ingresses and provision an internal ALB with HTTPS listeners using `acm_cert_arn`.
+EKS Auto Mode with AWS Load Balancer Controller will see the Ingresses and
+provision an internal ALB with HTTPS listeners using `acm_cert_arn`.
 
 ---
 
@@ -241,7 +252,8 @@ EKS Auto Mode with AWS Load Balancer Controller will see the Ingresses and provi
 
 Once the ALB exists, you either:
 
-* Let AWS Load Balancer Controller create Route53 records via external-dns (if you add it), or
+* Let AWS Load Balancer Controller create Route53 records via external-dns (if
+you add it), or
 * Create `A` records pointing to the ALB.
 
 Manual Terraform example using the ALB DNS name:
@@ -280,5 +292,7 @@ resource "aws_route53_record" "passwd" {
 Now:
 
 * `output.acm_cert_arn` is the ACM cert used by the ALB for HTTPS.
-* `output.domain_name` is `talorlik.com`, from which you derive `phpldapadmin.talorlik.com`, `passwd.talorlik.com`, and later app endpoints.
-* LDAP stays internal (`ClusterIP`), while the admin/password GUIs and app endpoints are exposed via ALB with TLS terminated using that ACM certificate.
+* `output.domain_name` is `talorlik.com`, from which you derive
+`phpldapadmin.talorlik.com`, `passwd.talorlik.com`, and later app endpoints.
+* LDAP stays internal (`ClusterIP`), while the admin/password GUIs and app
+endpoints are exposed via ALB with TLS terminated using that ACM certificate.

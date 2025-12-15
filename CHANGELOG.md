@@ -3,95 +3,132 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic
+Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 ### Added
 
 - **OpenLDAP password management via GitHub repository secrets**
-  - `setup-application.sh` now automatically retrieves OpenLDAP passwords from GitHub repository secrets
-  - New GitHub secrets: `TF_VAR_OPENLDAP_ADMIN_PASSWORD` and `TF_VAR_OPENLDAP_CONFIG_PASSWORD`
-  - Script automatically exports passwords as environment variables for Terraform
-  - Supports both GitHub Actions (automatic) and local execution (requires exported environment variables)
+  - `setup-application.sh` now automatically retrieves OpenLDAP passwords from
+  GitHub repository secrets
+  - New GitHub secrets: `TF_VAR_OPENLDAP_ADMIN_PASSWORD` and
+  `TF_VAR_OPENLDAP_CONFIG_PASSWORD`
+  - Script automatically exports passwords as environment variables for
+  Terraform
+  - Supports both GitHub Actions (automatic) and local execution (requires
+  exported environment variables)
   - Eliminates need to manually manage password files or commit sensitive data
 
 - **Consolidated application setup script**
-  - New unified `setup-application.sh` script replaces `setup-backend.sh` and `setup-backend-api.sh`
-  - Handles complete application deployment workflow: role assumption, backend configuration, Terraform operations, and Kubernetes environment setup
+  - New unified `setup-application.sh` script replaces `setup-backend.sh` and
+  `setup-backend-api.sh`
+  - Handles complete application deployment workflow: role assumption, backend
+  configuration, Terraform operations, and Kubernetes environment setup
   - Automatically retrieves all required secrets and variables from GitHub
   - Includes comprehensive error handling and user-friendly output
 
 - **Environment-based AWS role ARN selection**
-  - Added support for separate role ARNs for production and development environments
-  - New GitHub secrets: `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` and `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
-  - Workflows and scripts automatically select the appropriate role ARN based on selected environment (`prod` or `dev`)
-  - `setup-backend.sh` script now retrieves and uses environment-specific deployment account role ARNs
+  - Added support for separate role ARNs for production and development
+  environments
+  - New GitHub secrets: `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` and
+  `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
+  - Workflows and scripts automatically select the appropriate role ARN based on
+  selected environment (`prod` or `dev`)
+  - `setup-backend.sh` script now retrieves and uses environment-specific
+  deployment account role ARNs
 
 - **Automated Terraform execution in setup scripts**
-  - `setup-backend.sh` now automatically runs Terraform commands (init, workspace, validate, plan, apply)
-  - Eliminates the need for manual Terraform command execution after backend configuration
+  - `setup-backend.sh` now automatically runs Terraform commands (init,
+  workspace, validate, plan, apply)
+  - Eliminates the need for manual Terraform command execution after backend
+  configuration
   - Script handles workspace creation/selection automatically
 
 - **Automated backend.hcl creation**
-  - `setup-backend.sh` now automatically creates `backend.hcl` from template if it doesn't exist
-  - Skips creation if `backend.hcl` already exists (prevents overwriting existing configuration)
+  - `setup-backend.sh` now automatically creates `backend.hcl` from template if
+  it doesn't exist
+  - Skips creation if `backend.hcl` already exists (prevents overwriting
+  existing configuration)
 
 ### Changed
 
 - **Password management approach**
-  - OpenLDAP passwords are now managed exclusively through GitHub repository secrets
-  - Removed dependency on local password files or environment-specific configurations
+  - OpenLDAP passwords are now managed exclusively through GitHub repository
+  secrets
+  - Removed dependency on local password files or environment-specific
+  configurations
   - Setup scripts automatically retrieve passwords from GitHub secrets
   - Updated documentation to reflect new password management workflow
   - Improved security by eliminating password storage in local files
 
 - **Setup script consolidation**
-  - Replaced `setup-backend.sh` and `setup-backend-api.sh` with unified `setup-application.sh`
+  - Replaced `setup-backend.sh` and `setup-backend-api.sh` with unified
+  `setup-application.sh`
   - New script provides complete end-to-end deployment automation
   - Improved error messages and user guidance
   - Better integration with GitHub repository secrets and variables
 
 - **Documentation updates**
-  - Updated `README.md` with comprehensive password management instructions and three-role architecture documentation
+  - Updated `README.md` with comprehensive password management instructions and
+  three-role architecture documentation
   - Updated `WARP.md` with latest setup procedures and password handling
   - Updated `application/README.md` to reflect new setup script workflow
-  - Updated `backend_infra/README.md` to reflect environment-based role selection
+  - Updated `backend_infra/README.md` to reflect environment-based role
+  selection
   - Clarified local vs. GitHub Actions execution differences
-  - Clarified the separation between backend state operations and deployment operations
+  - Clarified the separation between backend state operations and deployment
+  operations
   - Updated AWS IAM setup instructions to reflect the new role structure
 
 - **Multi-account architecture clarification**
   - Separated backend state operations from deployment operations
-  - Backend state operations now use `AWS_STATE_ACCOUNT_ROLE_ARN` (State Account)
-  - Deployment operations use environment-specific role ARNs (`AWS_PRODUCTION_ACCOUNT_ROLE_ARN` or `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`)
-  - Updated all workflows to use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend operations
-  - Updated workflows to set `deployment_account_role_arn` variable based on selected environment
+  - Backend state operations now use `AWS_STATE_ACCOUNT_ROLE_ARN` (State
+  Account)
+  - Deployment operations use environment-specific role ARNs
+  (`AWS_PRODUCTION_ACCOUNT_ROLE_ARN` or `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`)
+  - Updated all workflows to use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend
+  operations
+  - Updated workflows to set `deployment_account_role_arn` variable based on
+  selected environment
 
 - **Workflow updates**
-  - `backend_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend, sets environment-based deployment role
-  - `backend_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend, sets environment-based deployment role
-  - `application_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend, sets environment-based deployment role
-  - `application_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend, sets environment-based deployment role
+  - `backend_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
+  backend, sets environment-based deployment role
+  - `backend_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
+  backend, sets environment-based deployment role
+  - `application_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
+  backend, sets environment-based deployment role
+  - `application_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
+  backend, sets environment-based deployment role
 
 ### Removed
 
 - **Removed legacy setup scripts**
   - Removed `application/setup-backend.sh` (replaced by `setup-application.sh`)
-  - Removed `application/setup-backend-api.sh` (replaced by `setup-application.sh`)
-  - Consolidated functionality into single unified script for better maintainability
+  - Removed `application/setup-backend-api.sh` (replaced by
+  `setup-application.sh`)
+  - Consolidated functionality into single unified script for better
+  maintainability
 
 - **Removed `provider_profile` variable**
-  - Removed `provider_profile` variable from `backend_infra/variables.tf` and `application/variables.tf`
-  - Removed `provider_profile` from `backend_infra/variables.tfvars` and `application/variables.tfvars`
-  - Removed `profile = var.provider_profile` from `backend_infra/providers.tf` and `application/providers.tf`
-  - No longer needed since role assumption is handled via setup scripts and workflows
+  - Removed `provider_profile` variable from `backend_infra/variables.tf` and
+  `application/variables.tf`
+  - Removed `provider_profile` from `backend_infra/variables.tfvars` and
+  `application/variables.tfvars`
+  - Removed `profile = var.provider_profile` from `backend_infra/providers.tf`
+  and `application/providers.tf`
+  - No longer needed since role assumption is handled via setup scripts and
+  workflows
 
 ### Fixed
 
 - **Corrected role ARN usage in workflows**
-  - Fixed workflows to use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations
-  - Fixed workflows to use environment-based role ARNs for deployment operations via `deployment_account_role_arn` variable
+  - Fixed workflows to use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state
+  operations
+  - Fixed workflows to use environment-based role ARNs for deployment operations
+  via `deployment_account_role_arn` variable
 
 ---
 
@@ -114,7 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Corrected attributes across IngressClass, IngressClassParams, and the two Ingresses
+- Corrected attributes across IngressClass, IngressClassParams, and the two
+Ingresses
 - Updated documentation to reflect changes
 
 ---
@@ -128,12 +166,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Latest updates to resolve ALB and TLS issues (ALB issue still under investigation)
+- Latest updates to resolve ALB and TLS issues (ALB issue still under
+investigation)
 - Updated documentation
 
 ### Removed
 
-- Removed any mention of DynamoDB as that functionality is deprecated in managing TF state
+- Removed any mention of DynamoDB as that functionality is deprecated in
+managing TF state
 
 ---
 
@@ -153,7 +193,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Commented out the use of the EBS module because OpenLDAP creates one per pod already
+- Commented out the use of the EBS module because OpenLDAP creates one per pod
+already
 
 ---
 
@@ -174,7 +215,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added outputs for the EBS module to get the name of the PVC for later use in the application
+- Added outputs for the EBS module to get the name of the PVC for later use in
+the application
 
 ---
 
@@ -207,7 +249,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed bucket prefix issue: the prefix cannot start with '/' when defining the 'key' attribute for the backend state
+- Fixed bucket prefix issue: the prefix cannot start with '/' when defining the
+'key' attribute for the backend state
 
 ---
 
@@ -221,7 +264,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Updated provisioning workflow to pre-check for an already existing state to prevent errors
+- Updated provisioning workflow to pre-check for an already existing state to
+prevent errors
 
 ---
 
@@ -234,7 +278,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a README to the backend state that explains everything
 - Added a link to backend state README in the main README
 - Added missing GitHub Token
-- Added a way to manage the backend state's state without having to commit it to the repository
+- Added a way to manage the backend state's state without having to commit it to
+the repository
 - Added a way to transfer the backend bucket name after its creation
 - Added account number to bucket name to make it unique
 
@@ -254,8 +299,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This project uses a multi-account architecture:
 
 - **State Account (Account A)**: Stores Terraform state files in S3
-- **Production Account (Account B)**: Contains production infrastructure resources
-- **Development Account (Account B)**: Contains development infrastructure resources
+- **Production Account (Account B)**: Contains production infrastructure
+resources
+- **Development Account (Account B)**: Contains development infrastructure
+resources
 
 ### Key Components
 
@@ -270,7 +317,8 @@ This project uses a multi-account architecture:
 
 ### Role ARN Selection Logic
 
-The system automatically selects the appropriate role ARN based on the environment:
+The system automatically selects the appropriate role ARN based on the
+environment:
 
 - **Backend State Operations**: Always uses `AWS_STATE_ACCOUNT_ROLE_ARN`
 - **Deployment Operations**:
@@ -282,10 +330,13 @@ The system automatically selects the appropriate role ARN based on the environme
 The `setup-backend.sh` script:
 
 1. Assumes `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations
-2. Retrieves the appropriate deployment account role ARN based on selected environment
+2. Retrieves the appropriate deployment account role ARN based on selected
+environment
 3. Creates `backend.hcl` if it doesn't exist
-4. Updates `variables.tfvars` with region, environment, and deployment account role ARN
-5. Runs Terraform commands automatically (init, workspace, validate, plan, apply)
+4. Updates `variables.tfvars` with region, environment, and deployment account
+role ARN
+5. Runs Terraform commands automatically (init, workspace, validate, plan,
+apply)
 
 ### Terraform State Management
 

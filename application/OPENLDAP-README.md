@@ -1,10 +1,13 @@
 # OPENLDAP
 
- > The `openldap-stack-ha` chart deploys an OpenLDAP multi-master cluster plus optional phpLDAPadmin and LTB self-service password UIs. Below is a breakdown of what it creates and how all the values control it.
+ > The `openldap-stack-ha` chart deploys an OpenLDAP multi-master cluster plus
+ optional phpLDAPadmin and LTB self-service password UIs. Below is a breakdown
+ of what it creates and how all the values control it.
 
 ## 1. What the chart deploys
 
-The chart's current image targets Bitnami’s OpenLDAP image and supports Bitnami OpenLDAP 2.x.([GitHub][1])
+The chart's current image targets Bitnami’s OpenLDAP image and supports Bitnami
+OpenLDAP 2.x.([GitHub][1])
 
 > [!NOTE]
 > I had to override it in the code because it couldn't access that image.
@@ -18,13 +21,15 @@ From the chart README and a static analysis of rendered manifests:([GitHub][1])
    - Kind: `StatefulSet`
    - Name pattern: `<release-name>-openldap`
    - Default `replicaCount` is 3, using multi-master replication.
-   - Holds the main OpenLDAP containers plus any configured sidecars or initContainers.
+   - Holds the main OpenLDAP containers plus any configured sidecars or
+   initContainers.
 
 2. ConfigMaps
 
    - `release-name-openldap-env`
 
-     - Holds environment configuration for the Bitnami OpenLDAP container.([Datree][2])
+     - Holds environment configuration for the Bitnami OpenLDAP
+     container.([Datree][2])
    - Additional ConfigMaps are used when you set:
 
      - `customLdifFiles` (inline LDIF definitions, rendered into a ConfigMap).
@@ -33,13 +38,18 @@ From the chart README and a static analysis of rendered manifests:([GitHub][1])
 
 3. Secrets
 
-   - One Secret for OpenLDAP credentials when `global.existingSecret` is not set.
+   - One Secret for OpenLDAP credentials when `global.existingSecret` is not
+   set.
 
-     - Expected keys if you use your own Secret: `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_ADMIN_PASSWORD`.([GitHub][1])
-   - One Secret for TLS if you enable `initTLSSecret.tls_enabled` and point `initTLSSecret.secret` at an existing Secret that has `tls.crt`, `tls.key`, `ca.crt`.([GitHub][1])
+     - Expected keys if you use your own Secret: `LDAP_ADMIN_PASSWORD` and
+     `LDAP_CONFIG_ADMIN_PASSWORD`.([GitHub][1])
+   - One Secret for TLS if you enable `initTLSSecret.tls_enabled` and point
+   `initTLSSecret.secret` at an existing Secret that has `tls.crt`,
+   `tls.key`, `ca.crt`.([GitHub][1])
 
 4. Services
-   The presence and shape of services are controlled by the `service.*` and `serviceReadOnly.*` values.([GitHub][1])
+   The presence and shape of services are controlled by the `service.*` and
+   `serviceReadOnly.*` values.([GitHub][1])
 
    - Primary Service for the RW cluster:
 
@@ -47,8 +57,10 @@ From the chart README and a static analysis of rendered manifests:([GitHub][1])
      - Type: `ClusterIP` by default (`service.type`).
      - Ports:
 
-       - LDAP: `global.ldapPort` (default 389) if `service.enableLdapPort = true`.
-       - LDAPS: `global.sslLdapPort` (default 636) if `service.enableSslLdapPort = true`.
+       - LDAP: `global.ldapPort` (default 389) if `service.enableLdapPort =
+       true`.
+       - LDAPS: `global.sslLdapPort` (default 636) if `service.enableSslLdapPort
+       = true`.
      - Optional fields:
 
        - `service.clusterIP`, `service.loadBalancerIP`,
@@ -58,11 +70,13 @@ From the chart README and a static analysis of rendered manifests:([GitHub][1])
        - `service.externalTrafficPolicy`.
    - Headless Service:
 
-     - Exists because the values mention “service and headless service” for port toggles.([GitHub][1])
+     - Exists because the values mention “service and headless service” for port
+     toggles.([GitHub][1])
      - Used by the StatefulSet for stable DNS identities.
    - Read-only Service:
 
-     - Controlled by `serviceReadOnly.*` values and exists when you have read-only replicas.([GitHub][1])
+     - Controlled by `serviceReadOnly.*` values and exists when you have
+     read-only replicas.([GitHub][1])
 
 5. PersistentVolumeClaims (conditionally)
 
@@ -83,7 +97,8 @@ From the chart README and a static analysis of rendered manifests:([GitHub][1])
      - `pdb.maxUnavailable`.
 
 7. Misc pod-level constructs
-   Applied to the StatefulSet pod template when you set the corresponding values:([GitHub][1])
+   Applied to the StatefulSet pod template when you set the corresponding
+   values:([GitHub][1])
 
    - Affinity / anti-affinity:
 
@@ -113,7 +128,8 @@ From the chart README and a static analysis of rendered manifests:([GitHub][1])
 
 8. Extra objects
 
-   - `extraDeploy` allows you to inject arbitrary Kubernetes manifests that will be deployed along with the chart.([GitHub][1])
+   - `extraDeploy` allows you to inject arbitrary Kubernetes manifests that will
+   be deployed along with the chart.([GitHub][1])
 
 ### 1.2 phpLDAPadmin subchart
 
@@ -131,11 +147,14 @@ If `phpldapadmin.enabled = true` (default is true):
    - Type: usually `ClusterIP`, with a port 80 HTTP endpoint.
 3. ConfigMap
 
-   - Holds phpLDAPadmin configuration. Datree shows `kind: ConfigMap` for `release-name-phpldapadmin`.([Datree][2])
+   - Holds phpLDAPadmin configuration. Datree shows `kind: ConfigMap` for
+   `release-name-phpldapadmin`.([Datree][2])
 4. Ingress (conditionally)
 
    - Kind: `Ingress`
-   - Created if you set `phpldapadmin.ingress.enabled = true`, with host/path from `phpldapadmin.ingress.hosts`, `phpldapadmin.ingress.path` etc.([GitHub][1])
+   - Created if you set `phpldapadmin.ingress.enabled = true`, with host/path
+   from `phpldapadmin.ingress.hosts`, `phpldapadmin.ingress.path`
+   etc.([GitHub][1])
 
 ### 1.3 LTB self-service password subchart (`ltb-passwd`)
 
@@ -151,15 +170,18 @@ If `ltb-passwd.enabled = true` (default true):([GitHub][1])
    - Type: `ClusterIP`, port 80 for the web UI.
 3. ConfigMap
 
-   - Holds app-level configuration (as seen in the vendored README snippet that includes `ldap.server`, `ldap.searchBase`, etc.).([OpenCloud Forge][3])
+   - Holds app-level configuration (as seen in the vendored README snippet that
+   includes `ldap.server`, `ldap.searchBase`, etc.).([OpenCloud Forge][3])
 4. Ingress (conditionally)
 
    - Kind: `Ingress`
-   - Created if `ltb-passwd.ingress.enabled = true`. Datree shows two Ingresses for ltb-passwd and phpLDAPadmin.([Datree][2])
+   - Created if `ltb-passwd.ingress.enabled = true`. Datree shows two Ingresses
+   for ltb-passwd and phpLDAPadmin.([Datree][2])
 
 ## 2. Value space and behavior
 
-The README lists the core values. I will walk through them by category and map them to behavior.([GitHub][1])
+The README lists the core values. I will walk through them by category and map
+them to behavior.([GitHub][1])
 
 ### 2.1 Global section
 
@@ -196,7 +218,8 @@ Global values mostly affect credentials, ports and image sources.
 5. `global.adminUser` / `global.adminPassword`
 
    - Admin user and password for the LDAP directory.
-   - Passed to the Bitnami OpenLDAP container as env vars and/or referenced from Secret.
+   - Passed to the Bitnami OpenLDAP container as env vars and/or referenced from
+   Secret.
 
 6. `global.configUser` / `global.configPassword`
 
@@ -206,11 +229,13 @@ Global values mostly affect credentials, ports and image sources.
 7. `global.ldapPort` / `global.sslLdapPort`
 
    - TCP ports used internally on the Service for LDAP and LDAPS.
-   - Combined with `service.enableLdapPort` and `service.enableSslLdapPort` to expose them.
+   - Combined with `service.enableLdapPort` and `service.enableSslLdapPort` to
+   expose them.
 
 ### 2.2 Application parameters (OpenLDAP core)
 
-All of these apply to the OpenLDAP StatefulSet and its configuration.([GitHub][1])
+All of these apply to the OpenLDAP StatefulSet and its
+configuration.([GitHub][1])
 
 1. `replicaCount`
 
@@ -222,19 +247,25 @@ All of these apply to the OpenLDAP StatefulSet and its configuration.([GitHub][1
 
    - Number of read-only replicas.
    - Default 0.
-   - When greater than 0, additional read-only pods are created and traffic can be routed to them via `serviceReadOnly.*` configuration.
+   - When greater than 0, additional read-only pods are created and traffic can
+   be routed to them via `serviceReadOnly.*` configuration.
 
 3. `users`, `userPasswords`, `group`
 
-   - Used for simple user/group bootstrap when you do not want to supply your own LDIF.
-   - `users` and `userPasswords` are comma separated lists; the index pairing maps user to password.
+   - Used for simple user/group bootstrap when you do not want to supply your
+   own LDIF.
+   - `users` and `userPasswords` are comma separated lists; the index pairing
+   maps user to password.
    - `group` defines a group that the created users will belong to.
    - Cannot be used together with `customLdifFiles`.
 
 4. `env`
 
-   - Free-form list of key/value pairs mapped to environment variables on the OpenLDAP container.
-   - Used to pass Bitnami-specific flags like `LDAP_SKIP_DEFAULT_TREE`, to control whether Bitnami creates its default demo tree, and so on.([GitHub][1])
+   - Free-form list of key/value pairs mapped to environment variables on the
+   OpenLDAP container.
+   - Used to pass Bitnami-specific flags like `LDAP_SKIP_DEFAULT_TREE`, to
+   control whether Bitnami creates its default demo tree, and so
+   on.([GitHub][1])
 
 5. `initTLSSecret.tls_enabled` / `initTLSSecret.secret`
 
@@ -244,7 +275,8 @@ All of these apply to the OpenLDAP StatefulSet and its configuration.([GitHub][1
    - `initTLSSecret.secret`:
 
      - Name of the Secret that must contain `tls.key`, `tls.crt`, `ca.crt`.
-   - When enabled, the pod init phase loads the certificate and configures OpenLDAP for LDAPS.
+   - When enabled, the pod init phase loads the certificate and configures
+   OpenLDAP for LDAPS.
 
 6. `initialSchema`
 
@@ -262,7 +294,8 @@ All of these apply to the OpenLDAP StatefulSet and its configuration.([GitHub][1
 
    - Inline LDIF content used to bootstrap the directory tree.
    - Keys are filenames, values are LDIF contents.([HackMD][4])
-   - If set, they override the default bootstrap LDIF shipped by Bitnami and the simple `users`/`group` bootstrap logic.
+   - If set, they override the default bootstrap LDIF shipped by Bitnami and the
+   simple `users`/`group` bootstrap logic.
 
 9. `customLdifCm`
 
@@ -279,7 +312,9 @@ All of these apply to the OpenLDAP StatefulSet and its configuration.([GitHub][1
     - `replication.enabled`
 
       - Enables multi-master replication. Default `true`.
-      - Disabling this effectively turns the cluster into a set of non-replicating pods with shared configuration, not a proper HA directory.
+      - Disabling this effectively turns the cluster into a set of
+      non-replicating pods with shared configuration, not a proper HA
+      directory.
     - `replication.retry`
 
       - Retry period in seconds for replication operations, default `60`.
@@ -292,10 +327,12 @@ All of these apply to the OpenLDAP StatefulSet and its configuration.([GitHub][1
     - `replication.tls_reqcert`
 
       - Overrides `tls_reqcert` parameter.
-      - Default `never` and becomes more strict (for example `demand`) when TLS is enabled.
+      - Default `never` and becomes more strict (for example `demand`) when TLS
+      is enabled.
     - `replication.tls_cacert`
 
-      - Overrides the path to the CA cert used by replication when TLS is enabled.
+      - Overrides the path to the CA cert used by replication when TLS is
+      enabled.
     - `replication.interval`
 
       - Interval string for replication scheduling, default `00:00:00:10`.
@@ -305,7 +342,8 @@ All of these apply to the OpenLDAP StatefulSet and its configuration.([GitHub][1
 
 ### 2.3 phpLDAPadmin configuration
 
-These values control the separate phpLDAPadmin deployment that provides a web UI.([GitHub][1])
+These values control the separate phpLDAPadmin deployment that provides a web
+UI.([GitHub][1])
 
 1. `phpldapadmin.enabled`
 
@@ -337,7 +375,8 @@ These values control the separate phpLDAPadmin deployment that provides a web UI
 
      - `PHPLDAPADMIN_LDAP_CLIENT_TLS_REQCERT: "never"`
    - You extend this to set LDAP host, base DN, bind DN etc.
-   - LDAP host must match `namespace.Appfullname` of the OpenLDAP Service according to the README.([GitHub][1])
+   - LDAP host must match `namespace.Appfullname` of the OpenLDAP Service
+   according to the README.([GitHub][1])
 
 ### 2.4 LTB self-service password configuration (`ltb-passwd`)
 
@@ -350,7 +389,8 @@ Values for the password self-service UI.([GitHub][1])
 
 2. `ltb-passwd.ingress`
 
-   - Struct controlling Ingress for the self-service password UI, similar shape to phpLDAPadmin’s ingress config:
+   - Struct controlling Ingress for the self-service password UI, similar shape
+   to phpLDAPadmin’s ingress config:
 
      - `enabled`
      - `annotations`
@@ -358,22 +398,26 @@ Values for the password self-service UI.([GitHub][1])
      - `path`
      - `tls`
 
-3. Additional subchart values (from the vendored README snippet):([OpenCloud Forge][3])
+3. Additional subchart values (from the vendored README snippet):([OpenCloud
+Forge][3])
 
    - `replicaCount`
    - `image.repository`, `image.tag`, `image.pullPolicy`
    - `service.type`, `service.port`
    - `ingress.enabled`, `ingress.host`, `ingress.tls`
-   - `ldap.server`, `ldap.searchBase`, `ldap.bindDN`, `ldap.bindPWKey`, `ldap.existingSecret`
+   - `ldap.server`, `ldap.searchBase`, `ldap.bindDN`, `ldap.bindPWKey`,
+   `ldap.existingSecret`
    - `env` list, for example:
 
      - `SECRETEKEY`
      - `LDAP_LOGIN_ATTRIBUTE`
-       These values bind the web app to the OpenLDAP server and define how users authenticate to change their own passwords.
+       These values bind the web app to the OpenLDAP server and define how users
+       authenticate to change their own passwords.
 
 ### 2.5 Kubernetes level parameters
 
-These values shape how the core OpenLDAP pods and services behave on the cluster.([GitHub][1])
+These values shape how the core OpenLDAP pods and services behave on the
+cluster.([GitHub][1])
 
 1. `updateStrategy`
 
@@ -383,7 +427,8 @@ These values shape how the core OpenLDAP pods and services behave on the cluster
 2. `kubeVersion`
 
    - Explicit Kubernetes version override for Helm’s capabilities logic.
-   - Useful when Helm cannot detect the server version (for example in certain CI contexts).
+   - Useful when Helm cannot detect the server version (for example in certain
+   CI contexts).
 
 3. `nameOverride`, `fullnameOverride`
 
@@ -404,7 +449,8 @@ These values shape how the core OpenLDAP pods and services behave on the cluster
 6. `extraDeploy`
 
    - Raw YAML snippets that Helm applies along with the chart.
-   - Enables you to attach extra objects (for example NetworkPolicy, ServiceMonitor) without forking the chart.
+   - Enables you to attach extra objects (for example NetworkPolicy,
+   ServiceMonitor) without forking the chart.
 
 7. `service.*` and `serviceReadOnly.*`
    Both sets have similar keys:([GitHub][1])
@@ -420,7 +466,8 @@ These values shape how the core OpenLDAP pods and services behave on the cluster
    - `type`
    - `ipFamilyPolicy`
    - `externalTrafficPolicy`
-     They directly control how the Services for the main and read-only LDAP endpoints are exposed.
+     They directly control how the Services for the main and read-only LDAP
+     endpoints are exposed.
 
 8. Persistence block
 
@@ -435,7 +482,8 @@ These values shape how the core OpenLDAP pods and services behave on the cluster
 
    - `customReadinessProbe`, `customLivenessProbe`, `customStartupProbe`
 
-     - When set, these fully replace the default probe configs in the StatefulSet.
+     - When set, these fully replace the default probe configs in the
+     StatefulSet.
    - `command`, `args`
 
      - Override the container entrypoint and arguments.
@@ -456,7 +504,8 @@ These values shape how the core OpenLDAP pods and services behave on the cluster
     - `priorityClassName`
     - `sidecars`, `initContainers`
     - `volumePermissions`
-      These do not create new resource kinds but alter how the pods inside the existing StatefulSet behave and where they schedule.
+      These do not create new resource kinds but alter how the pods inside the
+      existing StatefulSet behave and where they schedule.
 
 ## 3. Net effect on a default install
 
@@ -471,15 +520,28 @@ with the default values, the chart will:([GitHub][1])
 
 1. Create a StatefulSet with 3 OpenLDAP pods with multi-master replication.
 2. Create at least one ConfigMap for OpenLDAP env configuration.
-3. Create at least one Secret for credentials (unless you point to an existing one).
-4. Create internal Services for LDAP and LDAPS, plus a headless Service for the StatefulSet.
+3. Create at least one Secret for credentials (unless you point to an existing
+one).
+4. Create internal Services for LDAP and LDAPS, plus a headless Service for the
+StatefulSet.
 5. Not create any PVCs, because `persistence.enabled` defaults to `false`.
-6. Create a Deployment, Service, ConfigMap and (if enabled) an Ingress for phpLDAPadmin.
-7. Create a Deployment, Service, ConfigMap and (if enabled) an Ingress for ltb-passwd.
+6. Create a Deployment, Service, ConfigMap and (if enabled) an Ingress for
+phpLDAPadmin.
+7. Create a Deployment, Service, ConfigMap and (if enabled) an Ingress for
+ltb-passwd.
 
-All other values progressively refine this baseline: toggling TLS, controlling replication, deciding whether the UIs exist, and tuning how the pods are scheduled and exposed.
+All other values progressively refine this baseline: toggling TLS, controlling
+replication, deciding whether the UIs exist, and tuning how the pods are
+scheduled and exposed.
 
-[1]: https://github.com/jp-gouin/helm-openldap "GitHub - jp-gouin/helm-openldap: Helm chart of Openldap in High availability with multi-master replication and PhpLdapAdmin and Ltb-Passwd"
-[2]: https://www.datree.io/helm-chart/openldap-jp-gouin "Openldap Helm Chart | Datree"
-[3]: https://www.o-forge.io/core/oc-k8s/commit/ba9a971964794bb0f930c7caba69aa4dc73f4d7f.diff?utm_source=chatgpt.com "https://www.o-forge.io/core/oc-k8s/commit/ba9a9719..."
-[4]: https://hackmd.io/%40tsungjung411/r1Yg3rE9lx?utm_medium=rec&utm_source=chatgpt.com "在Kubernetes 上部署OpenLDAP 的詳細教學"
+[1]: https://github.com/jp-gouin/helm-openldap "GitHub - jp-gouin/helm-openldap:
+Helm chart of Openldap in High availability with multi-master replication and
+PhpLdapAdmin and Ltb-Passwd"
+[2]: https://www.datree.io/helm-chart/openldap-jp-gouin "Openldap Helm Chart |
+Datree"
+[3]:
+https://www.o-forge.io/core/oc-k8s/commit/ba9a971964794bb0f930c7caba69aa4dc73f4d7f.diff?utm_source=chatgpt.com
+"https://www.o-forge.io/core/oc-k8s/commit/ba9a9719..."
+[4]:
+https://hackmd.io/%40tsungjung411/r1Yg3rE9lx?utm_medium=rec&utm_source=chatgpt.com
+"在Kubernetes 上部署OpenLDAP 的詳細教學"

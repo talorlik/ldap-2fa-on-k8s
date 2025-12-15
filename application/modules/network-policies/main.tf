@@ -49,6 +49,39 @@ resource "kubernetes_network_policy_v1" "namespace_secure_communication" {
       }
     }
 
+    # Ingress: Allow traffic from any pod in other namespaces on secure ports
+    # This enables cross-namespace communication for LDAP service access
+    ingress {
+      # Allow from any pod in any namespace
+      from {
+        namespace_selector {}
+      }
+      ports {
+        port     = "443"
+        protocol = "TCP"
+      }
+    }
+
+    ingress {
+      from {
+        namespace_selector {}
+      }
+      ports {
+        port     = "636"
+        protocol = "TCP"
+      }
+    }
+
+    ingress {
+      from {
+        namespace_selector {}
+      }
+      ports {
+        port     = "8443"
+        protocol = "TCP"
+      }
+    }
+
     # Egress: Allow traffic to any pod in the same namespace on secure ports
     egress {
       # Allow to any pod in the same namespace

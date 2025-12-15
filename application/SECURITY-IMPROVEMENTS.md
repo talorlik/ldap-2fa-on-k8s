@@ -1,6 +1,8 @@
 # Security Improvements Summary
 
-This document outlines the security enhancements made to ensure fully secured communication both from the internet (HTTPS on port 443) and internally within the Kubernetes cluster.
+This document outlines the security enhancements made to ensure fully secured
+communication both from the internet (HTTPS on port 443) and internally within
+the Kubernetes cluster.
 
 ## Changes Made
 
@@ -8,54 +10,76 @@ This document outlines the security enhancements made to ensure fully secured co
 
 #### ✅ HTTP to HTTPS Redirect
 
-- **Added**: HTTP (port 80) to HTTPS (port 443) redirect on all ALB ingress resources
+- **Added**: HTTP (port 80) to HTTPS (port 443) redirect on all ALB ingress
+resources
 - **Location**: `application/helm/openldap-values.tpl.yaml`
 - **Implementation**:
-  - Added `alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'` to listen on both ports
-  - Added `alb.ingress.kubernetes.io/ssl-redirect: "443"` to automatically redirect HTTP to HTTPS
-  - Added `alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"` for modern TLS security
+  - Added `alb.ingress.kubernetes.io/listen-ports:
+  '[{"HTTP":80},{"HTTPS":443}]'` to listen on both ports
+  - Added `alb.ingress.kubernetes.io/ssl-redirect: "443"` to automatically
+  redirect HTTP to HTTPS
+  - Added `alb.ingress.kubernetes.io/ssl-policy:
+  "ELBSecurityPolicy-TLS13-1-2-2021-06"` for modern TLS security
 
 #### ✅ ALB Module HTTPS Configuration
 
-- **Updated**: `application/modules/alb/main.tf` to support optional HTTPS configuration
+- **Updated**: `application/modules/alb/main.tf` to support optional HTTPS
+configuration
 - **Added**:
   - Certificate ARN parameter support
   - Listen-ports configuration for HTTP and HTTPS
   - SSL redirect annotation
   - SSL policy annotation
-- **New Variable**: `acm_certificate_arn` in `application/modules/alb/variables.tf`
+- **New Variable**: `acm_certificate_arn` in
+`application/modules/alb/variables.tf`
 
-**Result**: All external traffic is now forced to use HTTPS on port 443, with automatic redirection from HTTP to HTTPS.
+**Result**: All external traffic is now forced to use HTTPS on port 443, with
+automatic redirection from HTTP to HTTPS.
 
 ### 2. Internal Cluster Security
 
 #### ✅ Network Policies for Pod-to-Pod Communication
 
-- **Created**: New module `application/modules/network-policies/` with generic, service-agnostic network policies
-- **Generic Approach**: Any service can communicate with any service, but only on secure ports
+- **Created**: New module `application/modules/network-policies/` with generic,
+service-agnostic network policies
+- **Generic Approach**: Any service can communicate with any service, but only
+on secure ports
+- **Cross-Namespace Communication**: Services in other namespaces can access the
+LDAP service on secure ports
 - **Policies Created**:
-  1. **Namespace Secure Communication Policy**: Applies to ALL pods, allows secure inter-service communication
-     - Allows HTTPS (port 443) between any services
-     - Allows LDAPS (port 636) between any services
-     - Allows alternative HTTPS (port 8443) between any services
+  1. **Namespace Secure Communication Policy**: Applies to ALL pods, allows
+  secure inter-service communication
+     - Allows HTTPS (port 443) between any services (same namespace and
+     cross-namespace)
+     - Allows LDAPS (port 636) between any services (same namespace and
+     cross-namespace)
+     - Allows alternative HTTPS (port 8443) between any services (same namespace
+     and cross-namespace)
      - Allows DNS resolution (port 53)
      - Allows external HTTPS/HTTP for API calls (2FA providers, etc.)
 
 **Key Security Features**:
 
-- **Generic and Future-Proof**: Works with any service (PhpLdapAdmin, LTB-passwd, 2FA website, future services) without policy changes
-- **Encrypted Internal Communication**: Only secure ports (HTTPS 443, LDAPS 636) are allowed
-- **Service-Agnostic**: No need to create new policies when adding services like your 2FA website
+- **Generic and Future-Proof**: Works with any service (PhpLdapAdmin,
+LTB-passwd, 2FA website, future services) without policy changes
+- **Encrypted Internal Communication**: Only secure ports (HTTPS 443, LDAPS 636)
+are allowed
+- **Cross-Namespace Access**: Services in other namespaces can securely access
+the LDAP service using LDAPS (port 636)
+- **Service-Agnostic**: No need to create new policies when adding services like
+your 2FA website
 - **Secure by Default**: Unencrypted ports (LDAP 389, HTTP 80) are blocked
 
 ### 3. TLS Security Policy
 
 #### ✅ Modern TLS Configuration
 
-- **SSL Policy**: `ELBSecurityPolicy-TLS13-1-2-2021-06` - Supports TLS 1.2 and TLS 1.3
+- **SSL Policy**: `ELBSecurityPolicy-TLS13-1-2-2021-06` - Supports TLS 1.2 and
+TLS 1.3
 - **Applied to**: All ALB ingress resources (PhpLdapAdmin and LTB-passwd)
 
-**Result**: Only modern, secure TLS protocols are used for external communication.
+**Result**: Only modern, secure TLS protocols are used for external
+communication.
 
 ## Security Architecture
 
@@ -85,10 +109,20 @@ Any Service Pod (OpenLDAP, APIs, etc.)
 External APIs (HTTPS 443) - 2FA providers, etc.
 ```
 
+**Cross-Namespace Communication Flow**:
+
+```bash
+Service Pod (Other Namespace, e.g., production)
+    ↓ LDAPS (636) ✅ Allowed by Network Policy
+LDAP Service (ldap namespace)
+```
+
 **Key Points**:
 
-- Any service can communicate with any service
+- Any service can communicate with any service (same namespace or
+cross-namespace)
 - Only secure/encrypted ports are allowed (443, 636, 8443)
+- Cross-namespace communication is enabled for LDAP service access
 - Your 2FA website will work automatically without policy changes
 
 ## Files Modified
@@ -134,14 +168,17 @@ External APIs (HTTPS 443) - 2FA providers, etc.
 
 ### Prerequisites
 
-- EKS cluster must support Network Policies (CNI plugin must support Network Policies)
+- EKS cluster must support Network Policies (CNI plugin must support Network
+Policies)
 - Helm chart must create pods with labels matching the network policy selectors
 
 ### Important Considerations
 
-1. **Generic Policy Approach**: The network policies are **service-agnostic** and apply to ALL pods in the namespace:
+1. **Generic Policy Approach**: The network policies are **service-agnostic**
+and apply to ALL pods in the namespace:
 
    - No label selectors needed - works with any service
+   - Cross-namespace communication enabled for LDAP service access
    - Your 2FA website will work automatically
    - Future services will work without policy changes
 
@@ -159,7 +196,9 @@ External APIs (HTTPS 443) - 2FA providers, etc.
    - Your 2FA website must use HTTPS for internal APIs
    - All inter-service communication must use secure ports
 
-4. **Network Policy Enforcement**: Network policies are enforced by the CNI plugin. If your cluster uses a CNI that doesn't support Network Policies (e.g., older versions of Flannel), the policies will be ignored.
+4. **Network Policy Enforcement**: Network policies are enforced by the CNI
+plugin. If your cluster uses a CNI that doesn't support Network Policies (e.g.,
+older versions of Flannel), the policies will be ignored.
 
 ## Testing
 
@@ -204,19 +243,25 @@ After deployment, verify:
 These changes ensure:
 
 ✅ **End-to-End Encryption**: All external traffic uses HTTPS (TLS 1.2/1.3)
-✅ **Internal Encryption**: All internal LDAP communication uses LDAPS (encrypted)
-✅ **Network Segmentation**: Services can only communicate with explicitly allowed services
+✅ **Internal Encryption**: All internal LDAP communication uses LDAPS
+(encrypted)
+✅ **Network Segmentation**: Services can only communicate with explicitly
+allowed services
 ✅ **Default Deny**: All traffic is denied by default, with explicit allow rules
-✅ **Principle of Least Privilege**: Each service has minimal required network access
+✅ **Principle of Least Privilege**: Each service has minimal required network
+access
 ✅ **Modern TLS**: Only secure TLS protocols are used
 
 ## Next Steps (Optional Enhancements)
 
-1. **Service Mesh**: Consider implementing a service mesh (Istio, Linkerd) for mTLS between all services
-2. **Certificate Rotation**: Implement automated certificate rotation for ACM certificates
+1. **Service Mesh**: Consider implementing a service mesh (Istio, Linkerd) for
+mTLS between all services
+2. **Certificate Rotation**: Implement automated certificate rotation for ACM
+certificates
 3. **Monitoring**: Set up monitoring and alerting for security events
 4. **Audit Logging**: Enable Kubernetes audit logging for security compliance
-5. **Pod Security Standards**: Implement Pod Security Standards for additional security
+5. **Pod Security Standards**: Implement Pod Security Standards for additional
+security
 
 ## References
 

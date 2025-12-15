@@ -1,23 +1,29 @@
 # Changelog
 
-All notable changes to the backend infrastructure will be documented in this file.
+All notable changes to the backend infrastructure will be documented in this
+file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic
+Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 ### Changed
 
 - **Removed provider_profile variable dependency**
-  - Removed `provider_profile` variable from `variables.tf` and `variables.tfvars`
+  - Removed `provider_profile` variable from `variables.tf` and
+  `variables.tfvars`
   - Removed `profile = var.provider_profile` from `providers.tf`
-  - Provider now uses role assumption via `deployment_account_role_arn` variable instead of AWS profiles
+  - Provider now uses role assumption via `deployment_account_role_arn` variable
+  instead of AWS profiles
   - Aligns with multi-account architecture and environment-based role selection
 
 - **Updated setup script for multi-account architecture**
-  - `setup-backend.sh` now retrieves deployment account role ARN from GitHub repository secrets
-  - Script automatically selects appropriate role ARN based on environment (`prod` or `dev`)
+  - `setup-backend.sh` now retrieves deployment account role ARN from GitHub
+  repository secrets
+  - Script automatically selects appropriate role ARN based on environment
+  (`prod` or `dev`)
   - Removed dependency on AWS profiles for role assumption
   - Improved error handling and user guidance
 
@@ -35,27 +41,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Multi-account role assumption support**
-  - Added `deployment_account_role_arn` variable to support role assumption in deployment accounts
-  - Variable automatically injected by GitHub Actions workflows based on environment
+  - Added `deployment_account_role_arn` variable to support role assumption in
+  deployment accounts
+  - Variable automatically injected by GitHub Actions workflows based on
+  environment
   - Supports separate production and development account deployments
-  - Provider configuration updated to use `assume_role` when `deployment_account_role_arn` is provided
+  - Provider configuration updated to use `assume_role` when
+  `deployment_account_role_arn` is provided
 
 - **Enhanced setup script automation**
-  - `setup-backend.sh` now automatically retrieves deployment account role ARN from GitHub secrets
-  - Script handles environment-based role selection (`AWS_PRODUCTION_ACCOUNT_ROLE_ARN` or `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`)
+  - `setup-backend.sh` now automatically retrieves deployment account role ARN
+  from GitHub secrets
+  - Script handles environment-based role selection
+  (`AWS_PRODUCTION_ACCOUNT_ROLE_ARN` or `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`)
   - Improved error messages and validation
   - Better integration with GitHub repository secrets and variables
 
 ### Changed
 
 - **Provider configuration for multi-account support**
-  - Updated `providers.tf` to conditionally use `assume_role` when `deployment_account_role_arn` is provided
+  - Updated `providers.tf` to conditionally use `assume_role` when
+  `deployment_account_role_arn` is provided
   - Maintains backward compatibility for single-account deployments
   - Supports both local execution and GitHub Actions workflows
 
 - **Setup script consolidation**
   - Enhanced `setup-backend.sh` with comprehensive role assumption logic
-  - Removed `setup-backend-api.sh` (functionality merged into `setup-backend.sh`)
+  - Removed `setup-backend-api.sh` (functionality merged into
+  `setup-backend.sh`)
   - Improved script structure and error handling
   - Better user feedback and guidance
 
@@ -78,18 +91,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Automated Terraform state management**
-  - Setup script now automatically handles Terraform workspace creation/selection
+  - Setup script now automatically handles Terraform workspace
+  creation/selection
   - Automatic Terraform initialization with backend configuration
   - Automated validation, planning, and application of infrastructure changes
   - Eliminates need for manual Terraform command execution
 
 - **Backend configuration automation**
-  - `setup-backend.sh` automatically creates `backend.hcl` from template if it doesn't exist
+  - `setup-backend.sh` automatically creates `backend.hcl` from template if it
+  doesn't exist
   - Script retrieves backend state information from GitHub repository variables
   - Prevents overwriting existing backend configuration
 
 - **Environment-based workspace management**
-  - Workspaces automatically created/selected based on `${region}-${env}` pattern
+  - Workspaces automatically created/selected based on `${region}-${env}`
+  pattern
   - Ensures proper state isolation between environments and regions
 
 ### Changed
@@ -124,7 +140,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `ecr_url`: ECR repository URL for Docker image push/pull operations
 
 - **Enhanced module outputs**
-  - VPC endpoints module now exports all endpoint IDs and security group information
+  - VPC endpoints module now exports all endpoint IDs and security group
+  information
   - Improved output organization and documentation
 
 ### Changed
@@ -193,7 +210,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **EBS module outputs**
-  - Added `ebs_pvc_name` output to get the name of the PVC for later use in the application
+  - Added `ebs_pvc_name` output to get the name of the PVC for later use in the
+  application
   - Added `ebs_storage_class_name` output
   - Enables application infrastructure to reference EBS resources
 
@@ -324,19 +342,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **VPC infrastructure**
   - Created VPC with public and private subnets across two availability zones
   - Internet Gateway for public subnet internet access
-  - NAT Gateway for private subnet internet access (single NAT for cost optimization)
+  - NAT Gateway for private subnet internet access (single NAT for cost
+  optimization)
   - Proper route table configuration
   - DNS support and DHCP options configured
   - Kubernetes-specific subnet tagging for EKS integration
 
 - **Terraform configuration**
-  - Main Terraform configuration files (`main.tf`, `variables.tf`, `outputs.tf`, `providers.tf`)
+  - Main Terraform configuration files (`main.tf`, `variables.tf`, `outputs.tf`,
+  `providers.tf`)
   - Variable definitions and default values
   - Comprehensive output definitions
   - Provider configuration for AWS
 
 - **Setup scripts**
-  - `setup-backend.sh`: Local setup script with interactive region and environment selection
+  - `setup-backend.sh`: Local setup script with interactive region and
+  environment selection
   - `setup-backend-api.sh`: API-based setup script (later removed)
   - Both scripts support interactive region and environment selection
   - Backend configuration template (`tfstate-backend-values-template.hcl`)
@@ -353,7 +374,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Configuration Details
 
 - **VPC Module**: Uses `terraform-aws-modules/vpc/aws` module (version 6.5.1)
-- **Naming Convention**: Resources follow `${prefix}-${region}-${name}-${env}` pattern
+- **Naming Convention**: Resources follow `${prefix}-${region}-${name}-${env}`
+pattern
 - **Workspace Management**: Uses Terraform workspaces named `${region}-${env}`
 - **Subnet Configuration**:
   - Public subnets tagged with `kubernetes.io/role/elb = 1`
@@ -364,7 +386,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Architecture Overview
 
-The backend infrastructure provides the foundational AWS resources for deploying containerized applications on Kubernetes:
+The backend infrastructure provides the foundational AWS resources for deploying
+containerized applications on Kubernetes:
 
 - **VPC**: Network isolation and segmentation
 - **EKS Cluster**: Kubernetes orchestration platform
@@ -406,13 +429,15 @@ The backend infrastructure provides the foundational AWS resources for deploying
 The backend infrastructure supports multi-account deployments:
 
 - **State Account (Account A)**: Stores Terraform state in S3
-- **Deployment Accounts (Account B)**: Contains infrastructure resources (VPC, EKS, etc.)
+- **Deployment Accounts (Account B)**: Contains infrastructure resources (VPC,
+EKS, etc.)
   - Production environment: Uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
   - Development environment: Uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
 
 ### Role Assumption
 
-The provider uses role assumption when `deployment_account_role_arn` is provided:
+The provider uses role assumption when `deployment_account_role_arn` is
+provided:
 
 - Automatically injected by GitHub Actions workflows
 - Can be set manually for local execution
@@ -423,10 +448,13 @@ The provider uses role assumption when `deployment_account_role_arn` is provided
 The `setup-backend.sh` script:
 
 1. Retrieves backend state information from GitHub repository variables
-2. Retrieves deployment account role ARN from GitHub secrets based on environment
+2. Retrieves deployment account role ARN from GitHub secrets based on
+environment
 3. Creates `backend.hcl` if it doesn't exist
-4. Updates `variables.tfvars` with region, environment, and deployment account role ARN
-5. Runs Terraform commands automatically (init, workspace, validate, plan, apply)
+4. Updates `variables.tfvars` with region, environment, and deployment account
+role ARN
+5. Runs Terraform commands automatically (init, workspace, validate, plan,
+apply)
 
 ### EBS Module Status
 

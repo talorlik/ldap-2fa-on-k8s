@@ -1,18 +1,23 @@
 # ECR Module
 
-This module creates an Amazon Elastic Container Registry (ECR) repository for storing Docker container images.
+This module creates an Amazon Elastic Container Registry (ECR) repository for
+storing Docker container images.
 
 ## Purpose
 
-The ECR module provides a private Docker registry where container images can be pushed, stored, and pulled for deployment to the EKS cluster.
+The ECR module provides a private Docker registry where container images can be
+pushed, stored, and pulled for deployment to the EKS cluster.
 
 ## Key Features
 
 ### Repository Configuration
 
-- **Image Tag Mutability**: Configurable to allow or prevent image tag overwrites
-- **Force Delete**: Enabled to allow repository deletion even when it contains images
-- **Lifecycle Policy**: Configurable policy for automatic image cleanup (e.g., keeping only the last N images)
+- **Image Tag Mutability**: Configurable to allow or prevent image tag
+overwrites
+- **Force Delete**: Enabled to allow repository deletion even when it contains
+images
+- **Lifecycle Policy**: Configurable policy for automatic image cleanup (e.g.,
+keeping only the last N images)
 
 ### Resource Naming
 
@@ -27,7 +32,8 @@ Resources are named using the pattern: `${prefix}-${region}-${ecr_name}-${env}`
 
 ### Lifecycle Policy
 
-The lifecycle policy is configured via the `policy` variable and should be a JSON-encoded string. This policy controls:
+The lifecycle policy is configured via the `policy` variable and should be a
+JSON-encoded string. This policy controls:
 
 - How many images to retain
 - Which images to expire based on age or count

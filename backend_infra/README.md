@@ -1,6 +1,7 @@
 # Backend Infrastructure
 
-This Terraform configuration creates the core AWS infrastructure required for deploying the LDAP 2FA application on Kubernetes.
+This Terraform configuration creates the core AWS infrastructure required for
+deploying the LDAP 2FA application on Kubernetes.
 
 ## Overview
 
@@ -11,7 +12,8 @@ The backend infrastructure provisions:
 - **VPC Endpoints** for secure SSM access to nodes
 - **ECR Repository** for container image storage
 
-> **Note**: The EBS module exists but is currently commented out in `main.tf`. Storage classes and PVCs are created by the application infrastructure instead.
+> **Note**: The EBS module exists but is currently commented out in `main.tf`.
+Storage classes and PVCs are created by the application infrastructure instead.
 
 ## Architecture
 
@@ -49,11 +51,14 @@ Creates a Virtual Private Cloud with:
 - **Public Subnets**: For internet-facing resources (Load Balancers)
   - Tagged with `kubernetes.io/role/elb = 1` for ALB placement
 - **Private Subnets**: For EKS nodes and application workloads
-  - Tagged with `kubernetes.io/role/internal-elb = 1` for internal load balancers
-- **NAT Gateway**: Single NAT gateway for cost optimization (private subnet internet access)
+  - Tagged with `kubernetes.io/role/internal-elb = 1` for internal load
+  balancers
+- **NAT Gateway**: Single NAT gateway for cost optimization (private subnet
+internet access)
 - **Internet Gateway**: For public subnet internet access
 - **Route Tables**: Properly configured for public and private subnets
-- **DNS Support**: Enabled for service discovery (`enable_dns_hostnames = true`, `enable_dns_support = true`)
+- **DNS Support**: Enabled for service discovery (`enable_dns_hostnames = true`,
+`enable_dns_support = true`)
 - **DHCP Options**: Configured with domain name `ec2.internal`
 
 **Key Configuration:**
@@ -64,7 +69,8 @@ Creates a Virtual Private Cloud with:
   - `kubernetes.io/role/elb = 1` on public subnets
   - `kubernetes.io/role/internal-elb = 1` on private subnets
 - Two availability zones for high availability
-- Subnets automatically named: `${vpc_name}-public-subnet-{1,2}` and `${vpc_name}-private-subnet-{1,2}`
+- Subnets automatically named: `${vpc_name}-public-subnet-{1,2}` and
+`${vpc_name}-private-subnet-{1,2}`
 
 ### 2. EKS Cluster
 
@@ -74,23 +80,27 @@ Deploys an Amazon EKS cluster in Auto Mode:
   - Enabled via `compute_config.enabled = true`
   - Uses "general-purpose" node pool
 - **Elastic Load Balancing**: Automatically enabled by default with Auto Mode
-  - No explicit configuration needed - `elastic_load_balancing` capability is enabled by default
+  - No explicit configuration needed - `elastic_load_balancing` capability is
+  enabled by default
   - Supports ALB provisioning via EKS Auto Mode Ingress
-- **Public Endpoint**: API server accessible from internet (`endpoint_public_access = true` for kubectl access)
+- **Public Endpoint**: API server accessible from internet
+(`endpoint_public_access = true` for kubectl access)
 - **Logging**: CloudWatch logging enabled for:
   - API server
   - Audit logs
   - Authenticator
   - Controller manager
   - Scheduler
-- **Node IAM Policies**: Includes SSM access for Session Manager (`AmazonSSMManagedInstanceCore`)
+- **Node IAM Policies**: Includes SSM access for Session Manager
+(`AmazonSSMManagedInstanceCore`)
 
 **Key Configuration:**
 
 - Uses `terraform-aws-modules/eks/aws` module (version 21.9.0)
 - Kubernetes version specified via `k8s_version` variable
 - Compute config with "general-purpose" node pool
-- Cluster creator has admin permissions (`enable_cluster_creator_admin_permissions = true`)
+- Cluster creator has admin permissions
+(`enable_cluster_creator_admin_permissions = true`)
 - Nodes deployed in private subnets
 - CloudWatch log group created automatically
 
@@ -145,18 +155,28 @@ backend_infra/
 
 ## Prerequisites
 
-1. **Terraform Backend**: The Terraform state backend must be provisioned first (see [tf_backend_state/README.md](../tf_backend_state/README.md))
+1. **Terraform Backend**: The Terraform state backend must be provisioned first
+(see [tf_backend_state/README.md](../tf_backend_state/README.md))
 2. **Multi-Account Setup**:
    - **Account A (State Account)**: Stores Terraform state in S3
-     - GitHub Actions uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations
-   - **Account B (Production/Development Accounts)**: Contains infrastructure resources (VPC, EKS, etc.)
-     - Terraform provider assumes deployment account role via `assume_role` configuration
+     - GitHub Actions uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state
+     operations
+   - **Account B (Production/Development Accounts)**: Contains infrastructure
+   resources (VPC, EKS, etc.)
+     - Terraform provider assumes deployment account role via `assume_role`
+     configuration
      - Role selection based on environment:
-       - `prod` environment → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` (set in `deployment_account_role_arn` variable)
-       - `dev` environment → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` (set in `deployment_account_role_arn` variable)
-3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main [README.md](../README.md))
-4. **Backend Configuration**: Generate `backend.hcl` using the setup scripts (see main [README.md](../README.md))
-5. **GitHub Secrets**: Ensure `AWS_STATE_ACCOUNT_ROLE_ARN`, `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`, and `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` are configured in repository secrets
+       - `prod` environment → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` (set in
+       `deployment_account_role_arn` variable)
+       - `dev` environment → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` (set in
+       `deployment_account_role_arn` variable)
+3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main
+[README.md](../README.md))
+4. **Backend Configuration**: Generate `backend.hcl` using the setup scripts
+(see main [README.md](../README.md))
+5. **GitHub Secrets**: Ensure `AWS_STATE_ACCOUNT_ROLE_ARN`,
+`AWS_PRODUCTION_ACCOUNT_ROLE_ARN`, and `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` are
+configured in repository secrets
 
 ## Key Variables
 
@@ -167,16 +187,19 @@ backend_infra/
 - `prefix`: Prefix for all resource names
 - `vpc_cidr`: CIDR block for VPC
 - `k8s_version`: Kubernetes version for EKS cluster
-- `deployment_account_role_arn`: (Optional, for GitHub Actions) ARN of IAM role in Account B to assume for resource deployment
+- `deployment_account_role_arn`: (Optional, for GitHub Actions) ARN of IAM role
+in Account B to assume for resource deployment
   - Automatically injected by GitHub workflows
   - Required when using multi-account setup
   - Format: `arn:aws:iam::ACCOUNT_B_ID:role/github-actions-deployment-role`
 
 ### Important Configuration
 
-- **Naming Convention**: All resources follow the pattern `${prefix}-${region}-${name}-${env}`
+- **Naming Convention**: All resources follow the pattern
+`${prefix}-${region}-${name}-${env}`
 - **Workspace-based State**: Uses Terraform workspaces named `${region}-${env}`
-- **Single NAT Gateway**: Configured for cost optimization (can be changed to `false` for HA)
+- **Single NAT Gateway**: Configured for cost optimization (can be changed to
+`false` for HA)
 
 ## Outputs
 
@@ -199,29 +222,35 @@ The infrastructure provides outputs for:
 
 **EKS Cluster:**
 
-- `cluster_name`: EKS cluster name (format: `${prefix}-${region}-${cluster_name}-${env}`)
+- `cluster_name`: EKS cluster name (format:
+`${prefix}-${region}-${cluster_name}-${env}`)
 - `cluster_endpoint`: EKS Cluster API endpoint
 - `cluster_arn`: EKS Cluster ARN
 
-> **Note**: EBS outputs are commented out since the EBS module is not currently active.
+> **Note**: EBS outputs are commented out since the EBS module is not currently
+active.
 
 Use `terraform output` to view all available outputs.
 
 ## Security Considerations
 
-1. **Private Subnets**: EKS nodes are deployed in private subnets (no public IPs)
+1. **Private Subnets**: EKS nodes are deployed in private subnets (no public
+IPs)
 2. **VPC Endpoints**: Enable secure SSM access without internet exposure
-3. **Public API Endpoint**: EKS API server is publicly accessible (required for kubectl access)
+3. **Public API Endpoint**: EKS API server is publicly accessible (required for
+kubectl access)
 4. **IAM Permissions**:
    - Cluster creator has admin permissions
    - Nodes have SSM access via `AmazonSSMManagedInstanceCore` policy
 5. **Network Isolation**: Proper security group rules restrict access
 6. **Kubernetes Tags**: Subnets are properly tagged for Kubernetes integration
-7. **CloudWatch Logging**: Comprehensive logging enabled for audit and security monitoring
+7. **CloudWatch Logging**: Comprehensive logging enabled for audit and security
+monitoring
 
 ## Cost Optimization
 
-- **Single NAT Gateway**: Reduces NAT gateway costs (trade-off: single point of failure)
+- **Single NAT Gateway**: Reduces NAT gateway costs (trade-off: single point of
+failure)
 - **EKS Auto Mode**: Simplified and cost-effective node management
 - **Lifecycle Policies**: ECR lifecycle policies help manage storage costs
 
@@ -229,10 +258,14 @@ Use `terraform output` to view all available outputs.
 
 ### Common Issues
 
-1. **Cluster Not Accessible**: Ensure `backend.hcl` is configured correctly and remote state is accessible
-2. **SSM Access**: Ensure VPC endpoints are fully created and security groups allow traffic
-3. **Node Access**: Use `aws ssm start-session` instead of SSH for private nodes (no public IPs)
-4. **Kubectl Connection**: Ensure kubeconfig is updated: `aws eks update-kubeconfig --name <cluster-name> --region <region>`
+1. **Cluster Not Accessible**: Ensure `backend.hcl` is configured correctly and
+remote state is accessible
+2. **SSM Access**: Ensure VPC endpoints are fully created and security groups
+allow traffic
+3. **Node Access**: Use `aws ssm start-session` instead of SSH for private nodes
+(no public IPs)
+4. **Kubectl Connection**: Ensure kubeconfig is updated: `aws eks
+update-kubeconfig --name <cluster-name> --region <region>`
 
 ### Useful Commands
 

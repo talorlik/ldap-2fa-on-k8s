@@ -1,6 +1,7 @@
 # Application Infrastructure
 
-This Terraform configuration deploys the OpenLDAP stack with PhpLdapAdmin and LTB-passwd UIs on the EKS cluster created by the backend infrastructure.
+This Terraform configuration deploys the OpenLDAP stack with PhpLdapAdmin and
+LTB-passwd UIs on the EKS cluster created by the backend infrastructure.
 
 ## Overview
 
@@ -64,19 +65,25 @@ The application infrastructure provisions:
 
 ### 1. Route53 Hosted Zone and ACM Certificate
 
-> **Note**: The Route53 module (`modules/route53/`) exists but is currently **commented out** in `main.tf`. The code uses **data sources** to reference existing Route53 hosted zone and ACM certificate resources that must already exist.
+> **Note**: The Route53 module (`modules/route53/`) exists but is currently
+**commented out** in `main.tf`. The code uses **data sources** to reference
+existing Route53 hosted zone and ACM certificate resources that must already
+exist.
 
 **Current Implementation (Data Sources):**
 
 The code references existing resources using data sources:
 
-- **Route53 Hosted Zone**: Must already exist (referenced via `data.aws_route53_zone`)
-- **ACM Certificate**: Must already exist and be validated (referenced via `data.aws_acm_certificate`)
+- **Route53 Hosted Zone**: Must already exist (referenced via
+`data.aws_route53_zone`)
+- **ACM Certificate**: Must already exist and be validated (referenced via
+`data.aws_acm_certificate`)
 - The certificate must be in the same region as the EKS cluster
 
 **Prerequisites:**
 
-- Route53 hosted zone must be created beforehand (manually or via another Terraform configuration)
+- Route53 hosted zone must be created beforehand (manually or via another
+Terraform configuration)
 - ACM certificate must be created and validated beforehand
 - Certificate must be in `ISSUED` status
 
@@ -87,15 +94,19 @@ Outputs come from data sources (not module outputs):
 - `route53_acm_cert_arn`: ACM certificate ARN from data source (used by ALB)
 - `route53_domain_name`: Root domain name from variable
 - `route53_zone_id`: Route53 hosted zone ID from data source
-- `route53_name_servers`: Route53 name servers from data source (for registrar configuration)
+- `route53_name_servers`: Route53 name servers from data source (for registrar
+configuration)
 
 **Alternative Approach:**
 
-If you want to create Route53 zone and ACM certificate via Terraform, uncomment the Route53 module in `main.tf` (lines 43-53) and update the code to use module outputs instead of data sources.
+If you want to create Route53 zone and ACM certificate via Terraform, uncomment
+the Route53 module in `main.tf` (lines 43-53) and update the code to use module
+outputs instead of data sources.
 
 ### 2. OpenLDAP Stack HA Helm Release
 
-Deploys the complete OpenLDAP stack using the [helm-openldap](https://github.com/jp-gouin/helm-openldap) Helm chart:
+Deploys the complete OpenLDAP stack using the
+[helm-openldap](https://github.com/jp-gouin/helm-openldap) Helm chart:
 
 - **OpenLDAP StatefulSet**: Core LDAP server with EBS-backed persistent storage
 - **PhpLdapAdmin**: Web-based LDAP administration interface
@@ -107,45 +118,58 @@ Deploys the complete OpenLDAP stack using the [helm-openldap](https://github.com
 - Chart: `openldap-stack-ha` version `4.0.1`
 - Repository: `https://jp-gouin.github.io/helm-openldap`
 - Namespace: `ldap` (created automatically)
-- Storage: Creates a new PVC using a StorageClass created by this Terraform configuration (see Storage Configuration section below)
+- Storage: Creates a new PVC using a StorageClass created by this Terraform
+configuration (see Storage Configuration section below)
 - LDAP Ports: Standard ports (389 for LDAP, 636 for LDAPS)
 
 ### 3. Application Load Balancer (ALB)
 
-The ALB is automatically provisioned by EKS Auto Mode when Ingress resources are created with the appropriate annotations:
+The ALB is automatically provisioned by EKS Auto Mode when Ingress resources are
+created with the appropriate annotations:
 
-- **Internet-Facing ALB**: Accessible from the internet (`scheme: internet-facing`)
+- **Internet-Facing ALB**: Accessible from the internet (`scheme:
+internet-facing`)
 - **HTTPS Only**: TLS termination at ALB using ACM certificate
 - **Target Type**: IP mode (direct pod targeting)
-- **Two Hostnames**: Single ALB handles both PhpLdapAdmin and LTB-passwd via host-based routing
+- **Two Hostnames**: Single ALB handles both PhpLdapAdmin and LTB-passwd via
+host-based routing
 
 **ALB Configuration:**
 
-- Created via Kubernetes Ingress resources using EKS Auto Mode (not AWS Load Balancer Controller)
+- Created via Kubernetes Ingress resources using EKS Auto Mode (not AWS Load
+Balancer Controller)
 - No manual AWS `aws_lb` resource required (handled by EKS Auto Mode)
-- `elastic_load_balancing` capability is **enabled by default** when EKS Auto Mode is enabled (configured in backend_infra via `compute_config.enabled = true`)
+- `elastic_load_balancing` capability is **enabled by default** when EKS Auto
+Mode is enabled (configured in backend_infra via `compute_config.enabled =
+true`)
 - Uses `eks.amazonaws.com/alb` controller (built into EKS Auto Mode)
 
 **ALB Module:**
 
 The `modules/alb/` module creates:
 
-- `IngressClass` resource configured for EKS Auto Mode (`controller: eks.amazonaws.com/alb`)
+- `IngressClass` resource configured for EKS Auto Mode (`controller:
+eks.amazonaws.com/alb`)
 - `IngressClassParams` resource with cluster-wide ALB defaults:
   - `scheme`: internet-facing or internal
   - `ipAddressType`: ipv4 or dualstack
-  - `group.name`: ALB group name for grouping multiple Ingresses (max 63 characters)
+  - `group.name`: ALB group name for grouping multiple Ingresses (max 63
+  characters)
   - `certificateARNs`: ACM certificate ARNs for TLS termination
-- Note: EKS Auto Mode IngressClassParams supports `scheme`, `ipAddressType`, `group.name`, and `certificateARNs` (not subnets, security groups, or tags)
+- Note: EKS Auto Mode IngressClassParams supports `scheme`, `ipAddressType`,
+`group.name`, and `certificateARNs` (not subnets, security groups, or tags)
 
 **ALB Naming:**
 
 The configuration supports separate naming for:
 
-- **ALB Group Name**: Kubernetes identifier (max 63 characters) - used to group multiple Ingresses
-- **ALB Load Balancer Name**: AWS resource name (max 32 characters) - appears in AWS console
+- **ALB Group Name**: Kubernetes identifier (max 63 characters) - used to group
+multiple Ingresses
+- **ALB Load Balancer Name**: AWS resource name (max 32 characters) - appears in
+AWS console
 
-Both names are automatically constructed from prefix, region, and environment, with proper truncation to respect limits.
+Both names are automatically constructed from prefix, region, and environment,
+with proper truncation to respect limits.
 
 **Ingress Annotation Strategy:**
 
@@ -159,37 +183,51 @@ Both names are automatically constructed from prefix, region, and environment, w
   - `target-type`: IP or instance
   - `listen-ports`: HTTP/HTTPS ports
   - `ssl-redirect`: HTTPS redirect
-- Note: `group.name` and `certificate-arn` are configured in IngressClassParams, not in Ingress annotations
+- Note: `group.name` and `certificate-arn` are configured in IngressClassParams,
+not in Ingress annotations
 
-The actual ALB is created automatically by EKS Auto Mode when the Helm chart creates Ingress resources that reference the IngressClass.
+The actual ALB is created automatically by EKS Auto Mode when the Helm chart
+creates Ingress resources that reference the IngressClass.
 
 ### 4. Storage Configuration
 
-Creates a StorageClass and the Helm chart creates a new PVC using that StorageClass:
+Creates a StorageClass and the Helm chart creates a new PVC using that
+StorageClass:
 
-- **StorageClass**: Created by this Terraform configuration (`kubernetes_storage_class_v1` resource)
+- **StorageClass**: Created by this Terraform configuration
+(`kubernetes_storage_class_v1` resource)
   - Name: `${prefix}-${region}-${storage_class_name}-${env}`
   - Provisioner: `ebs.csi.eks.amazonaws.com`
   - Volume binding mode: `WaitForFirstConsumer`
   - Encryption: Configurable via `storage_class_encrypted` variable
-  - Volume type: Configurable via `storage_class_type` variable (gp2, gp3, io1, io2, etc.)
+  - Volume type: Configurable via `storage_class_type` variable (gp2, gp3, io1,
+  io2, etc.)
   - Can be set as default StorageClass via `storage_class_is_default` variable
 - **PVC**: Created by the Helm chart using the StorageClass
   - **Storage Size**: 8Gi (configurable in Helm values)
   - **Access Mode**: ReadWriteOnce
-  - The Helm chart creates a new PVC, it does not reuse an existing PVC from backend infrastructure
+  - The Helm chart creates a new PVC, it does not reuse an existing PVC from
+  backend infrastructure
 
 ### 5. Network Policies
 
-The `modules/network-policies/` module creates Kubernetes Network Policies to secure internal cluster communication:
+The `modules/network-policies/` module creates Kubernetes Network Policies to
+secure internal cluster communication:
 
 - **Namespace-wide Policy**: Applies to all pods in the `ldap` namespace
-- **Secure Ports Only**: Allows communication only on encrypted ports (443, 636, 8443)
+- **Secure Ports Only**: Allows communication only on encrypted ports (443, 636,
+8443)
+- **Cross-Namespace Communication**: Services in other namespaces can access the
+LDAP service on secure ports
 - **DNS Resolution**: Allows DNS queries for service discovery
-- **External Access**: Allows HTTPS/HTTP egress for external API calls (2FA providers, etc.)
+- **External Access**: Allows HTTPS/HTTP egress for external API calls (2FA
+providers, etc.)
 - **Implicit Deny**: All other ports are implicitly denied by default
 
-This ensures that even if a pod is compromised, it can only communicate on secure, encrypted ports within the cluster.
+This ensures that even if a pod is compromised, it can only communicate on
+secure, encrypted ports within the cluster. Cross-namespace communication is
+enabled to allow services in other namespaces to securely access the LDAP
+service using LDAPS (port 636).
 
 ## Module Structure
 
@@ -220,19 +258,27 @@ application/
 
 ## Prerequisites
 
-1. **Backend Infrastructure**: The backend infrastructure must be deployed first (see [backend_infra/README.md](../backend_infra/README.md))
+1. **Backend Infrastructure**: The backend infrastructure must be deployed first
+(see [backend_infra/README.md](../backend_infra/README.md))
 2. **Multi-Account Setup**:
    - **Account A (State Account)**: Stores Terraform state in S3
-   - **Account B (Deployment Account)**: Contains application resources (ALB, Route53, etc.)
+   - **Account B (Deployment Account)**: Contains application resources (ALB,
+   Route53, etc.)
    - GitHub Actions uses Account A role for backend access
    - Terraform provider assumes Account B role for resource deployment
-3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main [README.md](../README.md))
+3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main
+[README.md](../README.md))
 4. **EKS Cluster**: The EKS cluster must be running with Auto Mode enabled
-5. **Route53 Hosted Zone**: Must already exist (the Route53 module is commented out, code uses data sources)
-6. **ACM Certificate**: Must already exist and be validated in the same region as the EKS cluster
-7. **Domain Registration**: The domain name must be registered (can be with any registrar)
-8. **DNS Configuration**: After deployment, point your domain registrar's NS records to the Route53 name servers (output from data source)
-9. **Environment Variables**: OpenLDAP passwords must be set via environment variables (see Configuration section)
+5. **Route53 Hosted Zone**: Must already exist (the Route53 module is commented
+out, code uses data sources)
+6. **ACM Certificate**: Must already exist and be validated in the same region
+as the EKS cluster
+7. **Domain Registration**: The domain name must be registered (can be with any
+registrar)
+8. **DNS Configuration**: After deployment, point your domain registrar's NS
+records to the Route53 name servers (output from data source)
+9. **Environment Variables**: OpenLDAP passwords must be set via environment
+variables (see Configuration section)
 
 ## Configuration
 
@@ -243,8 +289,10 @@ application/
 - `env`: Deployment environment (prod, dev)
 - `region`: AWS region (must match backend infrastructure)
 - `prefix`: Prefix for resource names (must match backend infrastructure)
-- `cluster_name`: **Automatically retrieved** from backend_infra remote state (see Cluster Name section below)
-- `deployment_account_role_arn`: (Optional, for GitHub Actions) ARN of IAM role in Account B to assume for resource deployment
+- `cluster_name`: **Automatically retrieved** from backend_infra remote state
+(see Cluster Name section below)
+- `deployment_account_role_arn`: (Optional, for GitHub Actions) ARN of IAM role
+in Account B to assume for resource deployment
   - Automatically injected by GitHub workflows
   - Required when using multi-account setup
   - Format: `arn:aws:iam::ACCOUNT_B_ID:role/github-actions-deployment-role`
@@ -253,13 +301,17 @@ application/
 
 The cluster name is automatically retrieved using a fallback chain:
 
-1. **First**: Attempts to retrieve from `backend_infra` Terraform remote state (if `backend.hcl` exists)
+1. **First**: Attempts to retrieve from `backend_infra` Terraform remote state
+(if `backend.hcl` exists)
 2. **Second**: Uses `cluster_name` variable if provided in `variables.tfvars`
-3. **Third**: Calculates cluster name using pattern: `${prefix}-${region}-${cluster_name_component}-${env}`
+3. **Third**: Calculates cluster name using pattern:
+`${prefix}-${region}-${cluster_name_component}-${env}`
 
-The backend configuration (bucket, key, region) is read from `backend.hcl` (created by `setup-application.sh`).
+The backend configuration (bucket, key, region) is read from `backend.hcl`
+(created by `setup-application.sh`).
 
-If `backend.hcl` doesn't exist or remote state is not available, you can provide the cluster name directly in `variables.tfvars`:
+If `backend.hcl` doesn't exist or remote state is not available, you can provide
+the cluster name directly in `variables.tfvars`:
 
 ```hcl
 cluster_name = "talo-tf-us-east-1-kc-prod"
@@ -267,21 +319,27 @@ cluster_name = "talo-tf-us-east-1-kc-prod"
 
 #### OpenLDAP Passwords (Environment Variables)
 
-**IMPORTANT**: Passwords must be set via environment variables, NOT in `variables.tfvars`.
+**IMPORTANT**: Passwords must be set via environment variables, NOT in
+`variables.tfvars`.
 
-The `setup-application.sh` script automatically retrieves these passwords from GitHub repository secrets and exports them as environment variables for Terraform.
+The `setup-application.sh` script automatically retrieves these passwords from
+GitHub repository secrets and exports them as environment variables for
+Terraform.
 
 **Using setup-application.sh (Recommended):**
 
 The script automatically:
 
-- Checks for `TF_VAR_OPENLDAP_ADMIN_PASSWORD` and `TF_VAR_OPENLDAP_CONFIG_PASSWORD` in repository secrets
-- Retrieves them from environment variables (GitHub CLI cannot read secret values directly)
+- Checks for `TF_VAR_OPENLDAP_ADMIN_PASSWORD` and
+`TF_VAR_OPENLDAP_CONFIG_PASSWORD` in repository secrets
+- Retrieves them from environment variables (GitHub CLI cannot read secret
+values directly)
 - Exports them as `TF_VAR_*` environment variables for Terraform
 
 **For Local Development:**
 
-Since GitHub CLI cannot read secret values directly, you need to export them as environment variables before running the script:
+Since GitHub CLI cannot read secret values directly, you need to export them as
+environment variables before running the script:
 
 ```bash
 export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
@@ -318,13 +376,18 @@ env:
 
 #### Route53 and Domain Variables
 
-- `domain_name`: Root domain name for Route53 hosted zone and ACM certificate (e.g., `talorlik.com`)
-  - The Route53 hosted zone and ACM certificate must already exist (code uses data sources)
-  - The ACM certificate should cover the domain and any subdomains you plan to use
+- `domain_name`: Root domain name for Route53 hosted zone and ACM certificate
+(e.g., `talorlik.com`)
+  - The Route53 hosted zone and ACM certificate must already exist (code uses
+  data sources)
+  - The ACM certificate should cover the domain and any subdomains you plan to
+  use
 
-**Note**: Hostnames for PhpLdapAdmin and LTB-passwd can be configured via variables or are automatically derived:
+**Note**: Hostnames for PhpLdapAdmin and LTB-passwd can be configured via
+variables or are automatically derived:
 
-- PhpLdapAdmin: `phpldapadmin.${domain_name}` (or set `phpldapadmin_host` variable)
+- PhpLdapAdmin: `phpldapadmin.${domain_name}` (or set `phpldapadmin_host`
+variable)
 - LTB-passwd: `passwd.${domain_name}` (or set `ltb_passwd_host` variable)
 
 #### Other OpenLDAP Variables
@@ -334,29 +397,39 @@ env:
 #### ALB Variables
 
 - `use_alb`: Whether to create ALB resources (default: `true`)
-- `ingressclass_alb_name`: Name component for ingress class (required if `use_alb` is true)
-- `ingressclassparams_alb_name`: Name component for ingress class params (required if `use_alb` is true)
-- `alb_group_name`: ALB group name for grouping multiple Ingresses (optional, defaults to `app_name`)
+- `ingressclass_alb_name`: Name component for ingress class (required if
+`use_alb` is true)
+- `ingressclassparams_alb_name`: Name component for ingress class params
+(required if `use_alb` is true)
+- `alb_group_name`: ALB group name for grouping multiple Ingresses (optional,
+defaults to `app_name`)
   - Kubernetes identifier (max 63 characters)
   - Used to group multiple Ingresses to share a single ALB
   - Configured in IngressClassParams (cluster-wide)
-- `alb_load_balancer_name`: Custom AWS ALB name (optional, defaults to `alb_group_name` truncated to 32 chars)
+- `alb_load_balancer_name`: Custom AWS ALB name (optional, defaults to
+`alb_group_name` truncated to 32 chars)
   - AWS resource name (max 32 characters per AWS constraints)
   - Appears in AWS console
   - Configured in Ingress annotations (per-Ingress)
-- `alb_scheme`: ALB scheme - `internet-facing` or `internal` (default: `internet-facing`)
-- `alb_ip_address_type`: ALB IP address type - `ipv4` or `dualstack` (default: `ipv4`)
+- `alb_scheme`: ALB scheme - `internet-facing` or `internal` (default:
+`internet-facing`)
+- `alb_ip_address_type`: ALB IP address type - `ipv4` or `dualstack` (default:
+`ipv4`)
 - `alb_target_type`: ALB target type - `ip` or `instance` (default: `ip`)
-- `alb_ssl_policy`: ALB SSL policy for HTTPS listeners (default: `ELBSecurityPolicy-TLS13-1-2-2021-06`)
-- `phpldapadmin_host`: Hostname for PhpLdapAdmin ingress (optional, defaults to `phpldapadmin.${domain_name}`)
-- `ltb_passwd_host`: Hostname for LTB-passwd ingress (optional, defaults to `passwd.${domain_name}`)
+- `alb_ssl_policy`: ALB SSL policy for HTTPS listeners (default:
+`ELBSecurityPolicy-TLS13-1-2-2021-06`)
+- `phpldapadmin_host`: Hostname for PhpLdapAdmin ingress (optional, defaults to
+`phpldapadmin.${domain_name}`)
+- `ltb_passwd_host`: Hostname for LTB-passwd ingress (optional, defaults to
+`passwd.${domain_name}`)
 
 #### Storage Variables
 
 - `storage_class_name`: Name component for the StorageClass (e.g., `gp3-ldap`)
 - `storage_class_type`: EBS volume type (gp2, gp3, io1, io2, etc.)
 - `storage_class_encrypted`: Whether to encrypt EBS volumes (default: `true`)
-- `storage_class_is_default`: Whether to mark StorageClass as default (default: `false`)
+- `storage_class_is_default`: Whether to mark StorageClass as default (default:
+`false`)
 
 ### Example Configuration
 
@@ -399,7 +472,9 @@ export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
 
 ### Step 2: Set Up OpenLDAP Passwords (For Local Development)
 
-**Note**: The `setup-application.sh` script automatically retrieves OpenLDAP passwords from GitHub repository secrets. For local use, you need to export them as environment variables since GitHub CLI cannot read secret values directly.
+**Note**: The `setup-application.sh` script automatically retrieves OpenLDAP
+passwords from GitHub repository secrets. For local use, you need to export them
+as environment variables since GitHub CLI cannot read secret values directly.
 
 **Local Development:**
 
@@ -424,7 +499,8 @@ source .env
 
 **GitHub Actions:**
 
-The workflow automatically uses GitHub Secrets. Ensure these are set in your repository:
+The workflow automatically uses GitHub Secrets. Ensure these are set in your
+repository:
 
 - `TF_VAR_OPENLDAP_ADMIN_PASSWORD`
 - `TF_VAR_OPENLDAP_CONFIG_PASSWORD`
@@ -443,21 +519,30 @@ This script will:
 - Prompt you to select an AWS region (us-east-1 or us-east-2)
 - Prompt you to select an environment (prod or dev)
 - Retrieve repository variables from GitHub
-- Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state operations
-- Retrieve the appropriate deployment account role ARN from GitHub secrets based on the selected environment:
+- Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state
+operations
+- Retrieve the appropriate deployment account role ARN from GitHub secrets based
+on the selected environment:
   - `prod` → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
   - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
-- Retrieve OpenLDAP password secrets (`TF_VAR_OPENLDAP_ADMIN_PASSWORD` and `TF_VAR_OPENLDAP_CONFIG_PASSWORD`) from repository secrets and export them as environment variables
-- Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the actual values (if it doesn't exist)
-- Update `variables.tfvars` with the selected region, environment, and deployment account role ARN
+- Retrieve OpenLDAP password secrets (`TF_VAR_OPENLDAP_ADMIN_PASSWORD` and
+`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) from repository secrets and export them as
+environment variables
+- Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the
+actual values (if it doesn't exist)
+- Update `variables.tfvars` with the selected region, environment, and
+deployment account role ARN
 - Set Kubernetes environment variables using `set-k8s-env.sh`
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
-> [!NOTE] The generated `backend.hcl` file is automatically ignored by git (see `.gitignore`). Only the placeholder template (`tfstate-backend-values-template.hcl`) is committed to the repository.
+> [!NOTE] The generated `backend.hcl` file is automatically ignored by git (see
+`.gitignore`). Only the placeholder template
+(`tfstate-backend-values-template.hcl`) is committed to the repository.
 
 ### Step 4: Configure Domain Registrar
 
-After deployment, configure your domain registrar to use the Route53 name servers:
+After deployment, configure your domain registrar to use the Route53 name
+servers:
 
 ```bash
 # Get Route53 name servers
@@ -466,7 +551,8 @@ terraform output -json | jq -r '.route53_name_servers.value'
 # Or view in AWS Console: Route53 > Hosted zones > Your domain > NS record
 ```
 
-Update your domain registrar's NS records to point to these Route53 name servers.
+Update your domain registrar's NS records to point to these Route53 name
+servers.
 
 ### Step 5: Verify Deployment
 
@@ -494,7 +580,8 @@ aws acm list-certificates --region us-east-1
 
 ### PhpLdapAdmin
 
-- **URL**: `https://phpldapadmin.${domain_name}` (e.g., `https://phpldapadmin.talorlik.com`)
+- **URL**: `https://phpldapadmin.${domain_name}` (e.g.,
+`https://phpldapadmin.talorlik.com`)
 - **Access**: Internet-facing (via internet-facing ALB)
 - **Login**: Use OpenLDAP admin credentials
 - **Note**: Ensure DNS is properly configured at your registrar
@@ -514,16 +601,26 @@ aws acm list-certificates --region us-east-1
 
 ## Security Considerations
 
-1. **Internet-Facing ALB**: Both UIs are accessible from the internet via a single ALB with host-based routing (ensure proper security measures are in place)
-2. **HTTPS Only**: TLS termination at ALB with ACM certificate (automatically validated via Route53)
+1. **Internet-Facing ALB**: Both UIs are accessible from the internet via a
+single ALB with host-based routing (ensure proper security measures are in
+place)
+2. **HTTPS Only**: TLS termination at ALB with ACM certificate (automatically
+validated via Route53)
 3. **LDAP Internal**: LDAP service is ClusterIP only, not exposed externally
-4. **Sensitive Variables**: Passwords are marked as sensitive in Terraform and must be set via environment variables, never in `variables.tfvars`
-5. **Encrypted Storage**: EBS volumes are encrypted by default (configurable via `storage_class_encrypted`)
+4. **Sensitive Variables**: Passwords are marked as sensitive in Terraform and
+must be set via environment variables, never in `variables.tfvars`
+5. **Encrypted Storage**: EBS volumes are encrypted by default (configurable via
+`storage_class_encrypted`)
 6. **Network Isolation**: Services run in private subnets
-7. **Network Policies**: Kubernetes Network Policies restrict pod-to-pod communication to secure ports only (443, 636, 8443)
-8. **Password Injection**: Passwords are injected at runtime via environment variables or GitHub Secrets, ensuring they never appear in version control
-9. **DNS Validation**: ACM certificate uses DNS validation via Route53, ensuring secure certificate provisioning
-10. **EKS Auto Mode Security**: IAM permissions are automatically handled by EKS Auto Mode (no manual policy attachment required)
+7. **Network Policies**: Kubernetes Network Policies restrict pod-to-pod
+communication to secure ports only (443, 636, 8443), with cross-namespace access
+enabled for LDAP service access
+8. **Password Injection**: Passwords are injected at runtime via environment
+variables or GitHub Secrets, ensuring they never appear in version control
+9. **DNS Validation**: ACM certificate uses DNS validation via Route53, ensuring
+secure certificate provisioning
+10. **EKS Auto Mode Security**: IAM permissions are automatically handled by EKS
+Auto Mode (no manual policy attachment required)
 
 ## Customization
 
@@ -543,7 +640,8 @@ After modifying the template, run `terraform plan` and `terraform apply`.
 
 To use Kubernetes secrets instead of plain text passwords:
 
-1. Create a Kubernetes secret with keys `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_ADMIN_PASSWORD`
+1. Create a Kubernetes secret with keys `LDAP_ADMIN_PASSWORD` and
+`LDAP_CONFIG_ADMIN_PASSWORD`
 2. Update the Helm values template to use `global.existingSecret`
 3. Remove `adminPassword` and `configPassword` from the template
 
@@ -567,7 +665,8 @@ global:
 2. **ALB Not Created**
    - Ensure EKS Auto Mode has `elastic_load_balancing.enabled = true`
    - Check Ingress annotations are correct
-   - Verify ACM certificate validation completed (check Route53 validation records)
+   - Verify ACM certificate validation completed (check Route53 validation
+   records)
    - Ensure certificate is in the same region as the EKS cluster
 
 3. **PVC Not Found**
@@ -577,11 +676,13 @@ global:
 
 4. **Cannot Access UIs**
    - Verify ALB is created: `aws elbv2 describe-load-balancers`
-   - Check DNS resolution: `dig phpldapadmin.${domain_name}` or `nslookup phpldapadmin.${domain_name}`
+   - Check DNS resolution: `dig phpldapadmin.${domain_name}` or `nslookup
+   phpldapadmin.${domain_name}`
    - Verify domain registrar NS records point to Route53 name servers
    - Verify security groups allow HTTPS traffic
    - Check Ingress status: `kubectl describe ingress -n ldap`
-   - Verify ACM certificate is validated: `aws acm describe-certificate --certificate-arn <arn>`
+   - Verify ACM certificate is validated: `aws acm describe-certificate
+   --certificate-arn <arn>`
 
 ### Useful Commands
 
@@ -613,13 +714,15 @@ ldapsearch -x -H ldap://openldap-stack-ha:389 -b "dc=corp,dc=internal"
 
 The application provides outputs for:
 
-- `alb_dns_name`: DNS name of the ALB (extracted from Ingress resources created by Helm chart)
+- `alb_dns_name`: DNS name of the ALB (extracted from Ingress resources created
+by Helm chart)
   - Empty string if ALB is still provisioning or not created
   - Retrieved from either phpldapadmin or ltb-passwd Ingress status
 - `route53_acm_cert_arn`: ACM certificate ARN (from data source, not module)
 - `route53_domain_name`: Root domain name (from variable)
 - `route53_zone_id`: Route53 hosted zone ID (from data source)
-- `route53_name_servers`: Route53 name servers (from data source, for registrar configuration)
+- `route53_name_servers`: Route53 name servers (from data source, for registrar
+configuration)
 
 View all outputs:
 
@@ -627,7 +730,8 @@ View all outputs:
 terraform output
 ```
 
-**Important**: After deployment, update your domain registrar's NS records to point to the Route53 name servers shown in the `route53_name_servers` output.
+**Important**: After deployment, update your domain registrar's NS records to
+point to the Route53 name servers shown in the `route53_name_servers` output.
 
 ## References
 
@@ -643,12 +747,14 @@ terraform output
 
 ### Route53 A Records
 
-The Terraform configuration automatically creates Route53 A (alias) records for the subdomains:
+The Terraform configuration automatically creates Route53 A (alias) records for
+the subdomains:
 
 - `phpldapadmin.${domain_name}` → ALB DNS name
 - `passwd.${domain_name}` → ALB DNS name
 
-These records are created after the Helm release and Ingress resources are provisioned, ensuring the ALB DNS name is available.
+These records are created after the Helm release and Ingress resources are
+provisioned, ensuring the ALB DNS name is available.
 
 ### Internet-Facing ALB Configuration
 
@@ -676,17 +782,24 @@ Using EKS Auto Mode provides:
 - No need to manually install or configure AWS Load Balancer Controller
 - Simplified IAM permissions (handled automatically by EKS)
 - Built-in EBS CSI driver (no manual installation needed)
-- IngressClassParams support for cluster-wide ALB defaults (scheme, ipAddressType)
+- IngressClassParams support for cluster-wide ALB defaults (scheme,
+ipAddressType)
 - Direct integration with EKS cluster (no separate controller pods)
 
 ### Network Policies
 
 The Network Policies module enforces security at the pod level:
 
-- **Secure Ports Only**: Pods can only communicate on encrypted ports (443, 636, 8443)
+- **Secure Ports Only**: Pods can only communicate on encrypted ports (443, 636,
+8443)
 - **Namespace Isolation**: Policies apply to all pods in the `ldap` namespace
+- **Cross-Namespace Access**: Services in other namespaces can access the LDAP
+service on secure ports (443, 636, 8443)
 - **DNS Required**: DNS resolution is allowed for service discovery
 - **External Access**: HTTPS/HTTP egress is allowed for external API calls
 - **Default Deny**: All other ports are implicitly denied
 
-This provides defense-in-depth security, ensuring that even if a pod is compromised, it can only communicate on secure, encrypted ports.
+This provides defense-in-depth security, ensuring that even if a pod is
+compromised, it can only communicate on secure, encrypted ports. Cross-namespace
+communication enables microservices in different namespaces to securely access
+the centralized LDAP service.

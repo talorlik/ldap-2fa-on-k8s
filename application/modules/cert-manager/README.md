@@ -1,10 +1,12 @@
 # cert-manager Module
 
-This module installs cert-manager and creates a self-signed TLS certificate for OpenLDAP internal communication.
+This module installs cert-manager and creates a self-signed TLS certificate for
+OpenLDAP internal communication.
 
 ## Purpose
 
-cert-manager automatically generates and manages TLS certificates for OpenLDAP to enable secure LDAP connections (StartTLS/LDAPS).
+cert-manager automatically generates and manages TLS certificates for OpenLDAP
+to enable secure LDAP connections (StartTLS/LDAPS).
 
 ## What it Creates
 
@@ -25,6 +27,7 @@ cert-manager automatically generates and manages TLS certificates for OpenLDAP t
 ## Certificate DNS Names
 
 The certificate includes the following DNS names:
+
 - `openldap-stack-ha`
 - `openldap-stack-ha.ldap`
 - `openldap-stack-ha.ldap.svc`
@@ -65,7 +68,7 @@ module "cert_manager" {
 
 | Name | Description |
 |------|-------------|
-| certificate_secret_name | Name of the Kubernetes secret containing the TLS certificate (always `openldap-tls`) |
+| certificate_secret_name | Kubernetes secret name for TLS cert (always `openldap-tls`) |
 
 ## How OpenLDAP Uses the Certificate
 
@@ -102,6 +105,7 @@ kubectl get secret -n ldap openldap-tls
 
 ## Notes
 
-- Uses `null_resource` with `local-exec` provisioners because cert-manager CRDs are not natively supported by Terraform Kubernetes provider
+- Uses `null_resource` with `local-exec` provisioners because cert-manager CRDs
+are not natively supported by Terraform Kubernetes provider
 - Requires `kubectl` to be configured with access to the EKS cluster
 - cert-manager version: v1.13.2

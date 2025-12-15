@@ -2,7 +2,10 @@
 
 ## Overview
 
-You are using the **osixia/openldap:1.5.0** Docker image with the **jp-gouin/helm-openldap** Helm chart. The chart is designed for Bitnami OpenLDAP, which has different environment variables and TLS configuration than osixia/openldap.
+You are using the **osixia/openldap:1.5.0** Docker image with the
+**jp-gouin/helm-openldap** Helm chart. The chart is designed for Bitnami
+OpenLDAP, which has different environment variables and TLS configuration than
+osixia/openldap.
 
 ## Key Differences: osixia/openldap vs Bitnami OpenLDAP
 
@@ -25,11 +28,13 @@ You are using the **osixia/openldap:1.5.0** Docker image with the **jp-gouin/hel
 
 - Certificates mounted at `/container/service/slapd/assets/certs/`
 - Certificate filenames specified via environment variables (not paths)
-- Auto-generation of self-signed certificates if certificates don't exist (when `LDAP_TLS=true`)
+- Auto-generation of self-signed certificates if certificates don't exist (when
+`LDAP_TLS=true`)
 
 **Bitnami** (chart default):
 
-- Uses `initTLSSecret.tls_enabled` and `initTLSSecret.secret` to mount certificates
+- Uses `initTLSSecret.tls_enabled` and `initTLSSecret.secret` to mount
+certificates
 - Different certificate paths and initialization process
 
 ## Required Changes
@@ -59,11 +64,14 @@ env:
 
 ### 2. Certificate Mounting Strategy
 
-Since the helm chart's `initTLSSecret` feature is designed for Bitnami, you have two options:
+Since the helm chart's `initTLSSecret` feature is designed for Bitnami, you have
+two options:
 
 #### Option A: Use Auto-Generated Certificates (Simplest)
 
-osixia/openldap will auto-generate self-signed certificates if they don't exist. This works for internal cluster communication but certificates won't be trusted by external clients.
+osixia/openldap will auto-generate self-signed certificates if they don't exist.
+This works for internal cluster communication but certificates won't be trusted
+by external clients.
 
 **Configuration:**
 
@@ -77,7 +85,8 @@ env:
 
 #### Option B: Mount Custom Certificates via Volume
 
-Mount certificates from a Kubernetes Secret using `extraVolumes` and `extraVolumeMounts`:
+Mount certificates from a Kubernetes Secret using `extraVolumes` and
+`extraVolumeMounts`:
 
 **1. Create a Secret with certificates:**
 
@@ -117,10 +126,12 @@ Your current ALB configuration is **correct** with the following setup:
 
 #### ✅ Correct Configuration:
 
-- `group.name` and `certificateARNs` configured in IngressClassParams (cluster-wide)
+- `group.name` and `certificateARNs` configured in IngressClassParams
+(cluster-wide)
 - Both Ingresses use the same IngressClass (which references IngressClassParams)
 - Both Ingresses have `alb.ingress.kubernetes.io/load-balancer-name` annotation
-- Per-Ingress settings (target-type, listen-ports, ssl-redirect) configured in Ingress annotations
+- Per-Ingress settings (target-type, listen-ports, ssl-redirect) configured in
+Ingress annotations
 - `scheme` and `ipAddressType` inherited from IngressClassParams
 
 **Current implementation:**

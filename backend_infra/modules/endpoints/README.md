@@ -1,10 +1,13 @@
 # VPC Endpoints Module
 
-This module creates VPC endpoints (PrivateLink) to enable secure access to AWS Systems Manager (SSM) services from EKS nodes without requiring internet gateway access.
+This module creates VPC endpoints (PrivateLink) to enable secure access to AWS
+Systems Manager (SSM) services from EKS nodes without requiring internet gateway
+access.
 
 ## Purpose
 
-The endpoints module enables secure, private communication between EKS nodes and AWS SSM services, allowing:
+The endpoints module enables secure, private communication between EKS nodes and
+AWS SSM services, allowing:
 
 - **SSM Session Manager** access to nodes without public IPs
 - **Secure shell access** to private nodes via SSM
@@ -28,7 +31,8 @@ The module creates three VPC endpoints for complete SSM functionality:
 ### Security Configuration
 
 - **Security Group**: Dedicated security group for VPC endpoints
-- **Ingress Rules**: Allows HTTPS (port 443) traffic from EKS node security group
+- **Ingress Rules**: Allows HTTPS (port 443) traffic from EKS node security
+group
 - **Egress Rules**: Allows all outbound traffic
 - **Private DNS**: Enabled for seamless service discovery
 
@@ -36,13 +40,15 @@ The module creates three VPC endpoints for complete SSM functionality:
 
 - **Endpoint Type**: Interface endpoints (PrivateLink)
 - **Subnet Placement**: Deployed in private subnets
-- **High Availability**: Endpoints are created across multiple availability zones
+- **High Availability**: Endpoints are created across multiple availability
+zones
 
 ## Important Notes
 
 ### Security Group Rules
 
-The security group allows inbound HTTPS traffic (port 443) from the EKS node security group. This ensures:
+The security group allows inbound HTTPS traffic (port 443) from the EKS node
+security group. This ensures:
 
 - Only EKS nodes can access the VPC endpoints
 - Traffic is encrypted via HTTPS
@@ -60,7 +66,8 @@ Private DNS is enabled, which means:
 
 - Interface endpoints incur hourly charges per endpoint per availability zone
 - Data transfer charges apply for data processed through endpoints
-- Consider using a single NAT gateway if cost is a concern (though this reduces security)
+- Consider using a single NAT gateway if cost is a concern (though this reduces
+security)
 
 ## Variables
 
@@ -91,7 +98,8 @@ module "endpoints" {
 
 ## Accessing Nodes via SSM
 
-After deployment, you can access EKS nodes using AWS Systems Manager Session Manager:
+After deployment, you can access EKS nodes using AWS Systems Manager Session
+Manager:
 
 ```bash
 aws ssm start-session --target <instance-id>
