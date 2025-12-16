@@ -1,6 +1,6 @@
-env              = "prod"
-region           = "us-east-1"
-prefix           = "talo-tf"
+env    = "prod"
+region = "us-east-1"
+prefix = "talo-tf"
 
 ##################### OpenLDAP ##########################
 # OpenLDAP passwords - MUST be set via environment variables:
@@ -65,3 +65,60 @@ domain_name = "talorlik.com"
 # subject_alternative_names = ["*.talorlik.com"]
 # Whether to use an existing Route53 zone
 # use_existing_route53_zone = false
+
+##################### ArgoCD ##########################
+# Enable ArgoCD capability deployment
+enable_argocd = true
+
+# ArgoCD configuration
+# argocd_role_name_component       = "argocd-role"
+# argocd_capability_name_component = "argocd"
+# argocd_namespace                 = "argocd"
+# argocd_project_name              = "default"
+
+# AWS Identity Center configuration (required if enable_argocd = true)
+idc_instance_arn = "arn:aws:sso:::instance/ssoins-72238050a762e47d"
+idc_region       = "us-east-1"
+
+# RBAC role mappings for Identity Center groups/users
+# Example: Map an Identity Center group to ArgoCD ADMIN role
+argocd_rbac_role_mappings = [
+  {
+    role = "ADMIN"
+    identities = [
+      {
+        id   = "b4e89458-f011-7074-5aa3-969ffe349784" # Identity Center group ID
+        type = "SSO_GROUP"
+      }
+    ]
+  }
+]
+
+# Optional: VPC endpoint IDs for private access to Argo CD
+# argocd_vpce_ids = []
+
+# Delete propagation policy (RETAIN or DELETE)
+# argocd_delete_propagation_policy = "RETAIN"
+
+##################### ArgoCD Applications ##########################
+# Enable ArgoCD Application deployments
+# enable_argocd_apps = false
+
+# Git repository configuration (required if enable_argocd_apps = true)
+argocd_app_repo_url        = "https://github.com/talorlik/ldap-2fa-on-k8s.git"
+argocd_app_target_revision = "main"
+
+# Backend App Configuration
+# argocd_app_backend_name      = "2fa-backend"
+# argocd_app_backend_path      = "apps/backend"
+# argocd_app_backend_namespace = "2fa-backend"
+
+# Frontend App Configuration
+# argocd_app_frontend_name      = "2fa-frontend"
+# argocd_app_frontend_path      = "apps/frontend"
+# argocd_app_frontend_namespace = "2fa-frontend"
+
+# Sync policy configuration
+# argocd_app_sync_policy_automated = true
+# argocd_app_sync_policy_prune     = true
+# argocd_app_sync_policy_self_heal  = true

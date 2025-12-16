@@ -236,3 +236,88 @@ resource "aws_route53_record" "ltb_passwd" {
     data.kubernetes_ingress_v1.ltb_passwd,
   ]
 }
+
+##################### ArgoCD ##########################
+
+# ArgoCD Capability Module
+module "argocd" {
+  source = "./modules/argocd"
+
+  count = var.enable_argocd ? 1 : 0
+
+  env    = var.env
+  region = var.region
+  prefix = var.prefix
+
+  cluster_name = local.cluster_name
+
+  argocd_role_name_component       = var.argocd_role_name_component
+  argocd_capability_name_component = var.argocd_capability_name_component
+  argocd_namespace                 = var.argocd_namespace
+  argocd_project_name              = var.argocd_project_name
+
+  idc_instance_arn = var.idc_instance_arn
+  idc_region       = var.idc_region
+
+  rbac_role_mappings        = var.argocd_rbac_role_mappings
+  argocd_vpce_ids           = var.argocd_vpce_ids
+  delete_propagation_policy = var.argocd_delete_propagation_policy
+}
+
+# ArgoCD Application - Backend
+module "argocd_app_backend" {
+  source = "./modules/argocd_app"
+
+  count = var.enable_argocd_apps && var.enable_argocd && var.argocd_app_repo_url != null && var.argocd_app_backend_path != null ? 1 : 0
+
+  app_name              = var.argocd_app_backend_name
+  argocd_namespace      = var.argocd_namespace
+  argocd_project_name   = var.argocd_project_name
+  cluster_name_in_argo  = module.argocd[0].local_cluster_secret_name
+  repo_url              = var.argocd_app_repo_url
+  target_revision       = var.argocd_app_target_revision
+  repo_path             = var.argocd_app_backend_path
+  destination_namespace = var.argocd_app_backend_namespace
+
+  sync_policy = var.argocd_app_sync_policy_automated ? {
+    automated = {
+      prune       = var.argocd_app_sync_policy_prune
+      self_heal   = var.argocd_app_sync_policy_self_heal
+      allow_empty = false
+    }
+    sync_options = ["CreateNamespace=true"]
+  } : null
+
+  depends_on_resources = [
+    module.argocd[0].argocd_capability_name
+  ]
+}
+
+# ArgoCD Application - Frontend
+module "argocd_app_frontend" {
+  source = "./modules/argocd_app"
+
+  count = var.enable_argocd_apps && var.enable_argocd && var.argocd_app_repo_url != null && var.argocd_app_frontend_path != null ? 1 : 0
+
+  app_name              = var.argocd_app_frontend_name
+  argocd_namespace      = var.argocd_namespace
+  argocd_project_name   = var.argocd_project_name
+  cluster_name_in_argo  = module.argocd[0].local_cluster_secret_name
+  repo_url              = var.argocd_app_repo_url
+  target_revision       = var.argocd_app_target_revision
+  repo_path             = var.argocd_app_frontend_path
+  destination_namespace = var.argocd_app_frontend_namespace
+
+  sync_policy = var.argocd_app_sync_policy_automated ? {
+    automated = {
+      prune       = var.argocd_app_sync_policy_prune
+      self_heal   = var.argocd_app_sync_policy_self_heal
+      allow_empty = false
+    }
+    sync_options = ["CreateNamespace=true"]
+  } : null
+
+  depends_on_resources = [
+    module.argocd[0].argocd_capability_name
+  ]
+}

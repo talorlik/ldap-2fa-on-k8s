@@ -187,3 +187,156 @@ variable "cluster_name_component" {
   type        = string
   default     = "kc"
 }
+
+##################### ArgoCD ##########################
+
+variable "enable_argocd" {
+  description = "Whether to enable ArgoCD capability deployment"
+  type        = bool
+  default     = false
+}
+
+variable "argocd_role_name_component" {
+  description = "Name component for ArgoCD IAM role (between prefix and env)"
+  type        = string
+  default     = "argocd-role"
+}
+
+variable "argocd_capability_name_component" {
+  description = "Name component for ArgoCD capability (between prefix and env)"
+  type        = string
+  default     = "argocd"
+}
+
+variable "argocd_namespace" {
+  description = "Kubernetes namespace for ArgoCD resources"
+  type        = string
+  default     = "argocd"
+}
+
+variable "argocd_project_name" {
+  description = "ArgoCD project name for cluster registration"
+  type        = string
+  default     = "default"
+}
+
+variable "idc_instance_arn" {
+  description = "ARN of the AWS Identity Center instance used for Argo CD auth"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "idc_region" {
+  description = "Region of the Identity Center instance"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "argocd_rbac_role_mappings" {
+  description = "List of RBAC role mappings for Identity Center groups/users"
+  type = list(object({
+    role = string
+    identities = list(object({
+      id   = string
+      type = string # SSO_GROUP or SSO_USER
+    }))
+  }))
+  default = []
+}
+
+variable "argocd_vpce_ids" {
+  description = "Optional list of VPC endpoint IDs for private access to Argo CD"
+  type        = list(string)
+  default     = []
+}
+
+variable "argocd_delete_propagation_policy" {
+  description = "Delete propagation policy for ArgoCD capability (RETAIN or DELETE)"
+  type        = string
+  default     = "RETAIN"
+  validation {
+    condition     = contains(["RETAIN", "DELETE"], var.argocd_delete_propagation_policy)
+    error_message = "Delete propagation policy must be either 'RETAIN' or 'DELETE'"
+  }
+}
+
+##################### ArgoCD Applications ##########################
+
+variable "enable_argocd_apps" {
+  description = "Whether to enable ArgoCD Application deployments"
+  type        = bool
+  default     = false
+}
+
+variable "argocd_app_repo_url" {
+  description = "Git repository URL containing application manifests. Supports both HTTPS (https://github.com/user/repo.git) and SSH (git@github.com:user/repo.git) URLs. SSH URLs require SSH key credentials to be configured via a Kubernetes Secret with label 'argocd.argoproj.io/secret-type: repository'"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "argocd_app_target_revision" {
+  description = "Git branch, tag, or commit to sync (default: HEAD)"
+  type        = string
+  default     = "HEAD"
+}
+
+# Backend App Configuration
+variable "argocd_app_backend_name" {
+  description = "Name of the ArgoCD Application for backend"
+  type        = string
+  default     = "2fa-backend"
+}
+
+variable "argocd_app_backend_path" {
+  description = "Path within the repository to the backend application manifests"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "argocd_app_backend_namespace" {
+  description = "Target Kubernetes namespace for the backend application"
+  type        = string
+  default     = "2fa-backend"
+}
+
+# Frontend App Configuration
+variable "argocd_app_frontend_name" {
+  description = "Name of the ArgoCD Application for frontend"
+  type        = string
+  default     = "2fa-frontend"
+}
+
+variable "argocd_app_frontend_path" {
+  description = "Path within the repository to the frontend application manifests"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "argocd_app_frontend_namespace" {
+  description = "Target Kubernetes namespace for the frontend application"
+  type        = string
+  default     = "2fa-frontend"
+}
+
+variable "argocd_app_sync_policy_automated" {
+  description = "Enable automated sync policy for ArgoCD Applications"
+  type        = bool
+  default     = true
+}
+
+variable "argocd_app_sync_policy_prune" {
+  description = "Enable prune for automated sync (delete resources not in Git)"
+  type        = bool
+  default     = true
+}
+
+variable "argocd_app_sync_policy_self_heal" {
+  description = "Enable self-heal for automated sync (auto-sync on drift detection)"
+  type        = bool
+  default     = true
+}
