@@ -51,3 +51,5 @@ backend_infra/backend.hcl
 application/backend.hcl
 
 .env
+
+.DS_Store

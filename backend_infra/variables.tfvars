@@ -1,6 +1,6 @@
-env              = "prod"
-region           = "us-east-1"
-prefix           = "talo-tf"
+env    = "prod"
+region = "us-east-1"
+prefix = "talo-tf"
 ### VPC ###
 vpc_name         = "vpc"
 vpc_cidr         = "10.0.0.0/16"
