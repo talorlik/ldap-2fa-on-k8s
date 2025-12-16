@@ -1,22 +1,19 @@
-Below is a concrete way to wire this chart into your Terraform, including which
-values to change and how to get the ALB created by EKS Auto Mode via Ingress.
-
----
+# Application Requirements
 
 ## 1. What you want the chart to do
 
 Target state:
 
-* `openldap` StatefulSet with EBS backed PVC inside the cluster only.
-* PhpLdapAdmin UI exposed via ALB.
-* LTB-passwd UI exposed via ALB (self-service password).
-* No external exposure of the LDAP ports themselves.
+- `openldap` StatefulSet with EBS backed PVC inside the cluster only.
+- PhpLdapAdmin UI exposed via ALB.
+- LTB-passwd UI exposed via ALB (self-service password).
+- No external exposure of the LDAP ports themselves.
 
 The chart already supports:
 
-* Global LDAP config: `global.ldapDomain`, `adminPassword`, `configPassword`,
+- Global LDAP config: `global.ldapDomain`, `adminPassword`, `configPassword`,
 ports. ([GitHub][1])
-* Built in PhpLdapAdmin and LTB-passwd, each with an `ingress` block you can
+- Built in PhpLdapAdmin and LTB-passwd, each with an `ingress` block you can
 customize. ([GitHub][1])
 
 EKS Auto Mode already supports ALB if `elastic_load_balancing.enabled = true` in
@@ -26,12 +23,10 @@ annotations. ([Kubernetes SIGs][3])
 
 So you only need:
 
-* Correct `values.yaml` overrides.
-* A `helm_release` in Terraform that applies those values.
+- Correct `values.yaml` overrides.
+- A `helm_release` in Terraform that applies those values.
 
 No separate AWS `aws_lb` resource is required.
-
----
 
 ## 2. Minimal values changes
 
@@ -72,12 +67,12 @@ In Terraform you will not literally hardcode
 `${TF_VAR_OPENLDAP_ADMIN_PASSWORD}`; you will template these from variables or
 inject via `global.existingSecret`. The important part is:
 
-* Do not keep `Not@SecurePassw0rd`.
-* Set `ldapDomain` to the real domain you will use for DNs. ([GitHub][1])
+- Do not keep `Not@SecurePassw0rd`.
+- Set `ldapDomain` to the real domain you will use for DNs. ([GitHub][1])
 
 If you prefer secrets instead of cleartext in values:
 
-* Use `global.existingSecret` (documented in the chart README) which expects
+- Use `global.existingSecret` (documented in the chart README) which expects
 keys `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_ADMIN_PASSWORD`, and remove
 `adminPassword` / `configPassword` from the file. ([GitHub][1])
 
@@ -223,25 +218,23 @@ phpldapadmin:
 
 Points:
 
-* `scheme: internal` ensures ALB is only reachable inside the VPC.
+- `scheme: internal` ensures ALB is only reachable inside the VPC.
 ([enterprise-k8s.arcgis.com][4])
-* `target-type: ip` is typical with CNI mode and avoids NodePort. ([Kubernetes
+- `target-type: ip` is typical with CNI mode and avoids NodePort. ([Kubernetes
 SIGs][3])
-* `listen-ports` plus `certificate-arn` ensures HTTPS listener with ACM cert.
+- `listen-ports` plus `certificate-arn` ensures HTTPS listener with ACM cert.
 ([Kubernetes SIGs][3])
 
 LDAP service remains `ClusterIP`; only these UIs have Ingress, hence only these
 UIs are reachable via ALB.
 
----
-
 ## 3. Helm from Terraform
 
 Assume:
 
-* You already have an `aws_eks_cluster` resource and `data
+- You already have an `aws_eks_cluster` resource and `data
 "aws_eks_cluster_auth"` for the token.
-* You are running this inside `backend_infra`.
+- You are running this inside `backend_infra`.
 
 ### 3.1 Providers
 
@@ -411,18 +404,18 @@ Execution order:
 
 On apply:
 
-* Helm installs OpenLDAP StatefulSet, Service, and the two UI Deployments plus
+- Helm installs OpenLDAP StatefulSet, Service, and the two UI Deployments plus
 Services.
-* The two Ingress resources for `phpldapadmin` and `ltb-passwd` are created with
+- The two Ingress resources for `phpldapadmin` and `ltb-passwd` are created with
 ALB annotations.
-* AWS Load Balancer Controller in EKS Auto Mode detects these Ingresses and
+- AWS Load Balancer Controller in EKS Auto Mode detects these Ingresses and
 provisions an internal ALB with HTTPS, ACM cert, and targets pointing at the
 pods. ([Kubernetes SIGs][3])
 
 You now have:
 
-* LDAP reachable only inside the cluster via ClusterIP service.
-* Two GUIs reachable via ALB on the hostnames you specified, for manual
+- LDAP reachable only inside the cluster via ClusterIP service.
+- Two GUIs reachable via ALB on the hostnames you specified, for manual
 management and self service.
 
 [1]: https://github.com/jp-gouin/helm-openldap "GitHub - jp-gouin/helm-openldap:

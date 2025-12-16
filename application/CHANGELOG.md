@@ -225,8 +225,6 @@ Bitnami) and osixia/openldap image
 - **TLS**: Auto-generated certificates for internal communication, ACM
 certificates for ALB
 
----
-
 ## Planned Changes
 
 ### [Future] - Custom Certificate Support
@@ -252,8 +250,6 @@ certificates for ALB
 - [ ] Evaluate read-only replica configuration
 - [ ] Implement backup automation for LDAP data
 - [ ] Add disaster recovery procedures
-
----
 
 ## Verification Steps
 
@@ -308,8 +304,6 @@ Expected:
 
 - HTTP listener on port 80 (redirecting to HTTPS)
 - HTTPS listener on port 443 with ACM certificate
-
----
 
 ## Notes
 
@@ -368,8 +362,6 @@ The ALB routes traffic based on the `Host` header:
 
 - `phpldapadmin.talorlik.com` → phpLDAPadmin service
 - `passwd.talorlik.com` → ltb-passwd service
-
----
 
 ## References
 

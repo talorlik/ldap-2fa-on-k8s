@@ -130,8 +130,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Fixed workflows to use environment-based role ARNs for deployment operations
   via `deployment_account_role_arn` variable
 
----
-
 ## [2025-12-14] - Deployment Versatility and Security Improvements
 
 ### Changed
@@ -139,8 +137,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 - Made the deployment more versatile and secure
 - Improved Terraform state deployment automation
 - Updated documentation
-
----
 
 ## [2025-12-10] - Output and Ingress Configuration Updates
 
@@ -154,8 +150,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 - Corrected attributes across IngressClass, IngressClassParams, and the two
 Ingresses
 - Updated documentation to reflect changes
-
----
 
 ## [2025-12-08] - ALB, TLS, and Documentation Updates
 
@@ -175,15 +169,11 @@ investigation)
 - Removed any mention of DynamoDB as that functionality is deprecated in
 managing TF state
 
----
-
 ## [2025-12-03] - Backend Infrastructure Workflow Updates
 
 ### Changed
 
 - Updated backend infrastructure workflows
-
----
 
 ## [2025-12-02] - Application Infrastructure and Storage
 
@@ -194,9 +184,7 @@ managing TF state
 ### Changed
 
 - Commented out the use of the EBS module because OpenLDAP creates one per pod
-already
-
----
+already.
 
 ## [2025-12-01] - Circular Dependency Resolution and Documentation
 
@@ -209,16 +197,12 @@ already
 - Updated names in code and documentation
 - Added WARP.md file which works with the Warp Terminal Agent
 
----
-
 ## [2025-11-27] - EBS Module Outputs
 
 ### Added
 
 - Added outputs for the EBS module to get the name of the PVC for later use in
 the application
-
----
 
 ## [2025-11-26] - VPC Endpoints, Storage, and ECR
 
@@ -230,8 +214,6 @@ the application
 - Added CloudWatch logs
 - Upgraded Kubernetes version to 1.34
 - Updated documentation with all the latest changes
-
----
 
 ## [2025-11-25] - EKS Cluster and Backend Infrastructure
 
@@ -252,8 +234,6 @@ the application
 - Fixed bucket prefix issue: the prefix cannot start with '/' when defining the
 'key' attribute for the backend state
 
----
-
 ## [2025-11-24] - Backend State Management Improvements
 
 ### Added
@@ -266,8 +246,6 @@ the application
 
 - Updated provisioning workflow to pre-check for an already existing state to
 prevent errors
-
----
 
 ## [2025-11-23] - Backend State Infrastructure
 
@@ -283,16 +261,12 @@ the repository
 - Added a way to transfer the backend bucket name after its creation
 - Added account number to bucket name to make it unique
 
----
-
 ## [2025-11-22] - Initial Project Setup
 
 ### Added
 
 - Initial commit
 - Added Terraform backend state and GitHub Actions to deploy and destroy it
-
----
 
 ## Architecture Overview
 
@@ -310,8 +284,6 @@ resources
 - Backend infrastructure (VPC, EKS cluster) (`backend_infra/`)
 - Application infrastructure (OpenLDAP, ALB, Route53) (`application/`)
 - GitHub Actions workflows for CI/CD (`.github/workflows/`)
-
----
 
 ## Notes
 
@@ -343,8 +315,6 @@ apply)
 - The use of DynamoDB for Terraform state locking has been deprecated
 - Native S3 handling is now in use for state locking
 - All references to DynamoDB have been removed from code and documentation
-
----
 
 ## References
 

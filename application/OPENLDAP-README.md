@@ -6,7 +6,7 @@
 
 ## 1. What the chart deploys
 
-The chart's current image targets Bitnami’s OpenLDAP image and supports Bitnami
+The chart's current image targets Bitnami's OpenLDAP image and supports Bitnami
 OpenLDAP 2.x.([GitHub][1])
 
 > [!NOTE]
@@ -70,7 +70,7 @@ From the chart README and a static analysis of rendered manifests:([GitHub][1])
        - `service.externalTrafficPolicy`.
    - Headless Service:
 
-     - Exists because the values mention “service and headless service” for port
+     - Exists because the values mention "service and headless service" for port
      toggles.([GitHub][1])
      - Used by the StatefulSet for stable DNS identities.
    - Read-only Service:
@@ -390,7 +390,7 @@ Values for the password self-service UI.([GitHub][1])
 2. `ltb-passwd.ingress`
 
    - Struct controlling Ingress for the self-service password UI, similar shape
-   to phpLDAPadmin’s ingress config:
+   to phpLDAPadmin's ingress config:
 
      - `enabled`
      - `annotations`
@@ -426,14 +426,14 @@ cluster.([GitHub][1])
 
 2. `kubeVersion`
 
-   - Explicit Kubernetes version override for Helm’s capabilities logic.
+   - Explicit Kubernetes version override for Helm's capabilities logic.
    - Useful when Helm cannot detect the server version (for example in certain
    CI contexts).
 
 3. `nameOverride`, `fullnameOverride`
 
    - Control how the base resource name is constructed.
-   - `nameOverride` partially overrides the chart’s name.
+   - `nameOverride` partially overrides the chart's name.
    - `fullnameOverride` fully overrides the computed release name.
 
 4. `commonLabels`

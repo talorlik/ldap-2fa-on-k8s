@@ -108,14 +108,14 @@ centralized certificate/group configuration.
 
 The Helm chart can create `Ingress` objects, but it cannot magically tell
 Kubernetes *which controller- should act on them or *what ALB defaults- to use.
-That’s exactly what `IngressClass` and `IngressClassParams` are for.
+That's exactly what `IngressClass` and `IngressClassParams` are for.
 
 Breakdown:
 
 1. What the Ingress actually is
 
-   - An `Ingress` is just a generic API object: “for host X and path Y, send
-   traffic to Service Z”.
+   - An `Ingress` is just a generic API object: "for host X and path Y, send
+   traffic to Service Z".
    - It does not say:
 
      - which controller should implement it, or
@@ -154,7 +154,7 @@ Breakdown:
      ```
 
    - This is the piece that tells EKS Auto Mode:
-     “You are responsible for this Ingress. Create/manage an ALB for it.”
+     "You are responsible for this Ingress. Create/manage an ALB for it."
 
    Without an IngressClass, either:
 
@@ -178,7 +178,7 @@ Breakdown:
    IngressClassParams).
    - Roughly: Ingress = routing rules; IngressClassParams = ALB profile.
 
-   Helm charts like `openldap-stack-ha` only deal with routing rules. They don’t
+   Helm charts like `openldap-stack-ha` only deal with routing rules. They don't
    know:
 
    - whether the ALB is internet-facing or internal
@@ -200,11 +200,11 @@ Breakdown:
    IngressClassParams is where you define cluster-wide defaults once, and then
    every Ingress that uses that IngressClass inherits them automatically.
 
-4. Why you still “need” them even though ALB is auto-provisioned
+4. Why you still "need" them even though ALB is auto-provisioned
 
-   - “ALB is auto-provisioned” = EKS Auto Mode automatically creates an ALB
+   - "ALB is auto-provisioned" = EKS Auto Mode automatically creates an ALB
    *when it sees an Ingress that belongs to it*.
-   - How does it know the Ingress “belongs to it”? Through:
+   - How does it know the Ingress "belongs to it"? Through:
 
      - `spec.ingressClassName` that references an `IngressClass` with
      `controller: eks.amazonaws.com/alb`.
@@ -228,8 +228,8 @@ Breakdown:
    - If you skip IngressClass and IngressClassParams and rely only on
    annotations:
 
-     - You’re using deprecated/legacy patterns.
-     - It’s ambiguous which controller should act if you ever introduce more
+     - You're using deprecated/legacy patterns.
+     - It's ambiguous which controller should act if you ever introduce more
      than one.
      - You repeat provider-specific config on every Ingress (in every chart).
    - With them:
@@ -240,10 +240,10 @@ Breakdown:
 
 6. In Helm chart terms
 
-   - The OpenLDAP Helm chart’s job:
+   - The OpenLDAP Helm chart's job:
 
      - Create `Ingress` objects with host/path/service rules.
-   - Your cluster’s job:
+   - Your cluster's job:
 
      - Provide an `IngressClass` (e.g., `ic-alb-ldap`) with `controller:
      eks.amazonaws.com/alb`.
@@ -252,7 +252,7 @@ Breakdown:
      ipAddressType).
 
    That separation is why you still need IngressClass and IngressClassParams
-   even though the ALB provisioning is “automatic”. The automation needs a
+   even though the ALB provisioning is "automatic". The automation needs a
    target profile and a controller binding, and those are exactly those two
    objects.
 

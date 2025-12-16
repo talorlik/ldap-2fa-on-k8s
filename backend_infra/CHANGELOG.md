@@ -34,8 +34,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Eliminated duplicate script maintenance
   - Improved script organization and maintainability
 
----
-
 ## [2025-12-14] - Deployment Versatility and Security Improvements
 
 ### Added
@@ -84,8 +82,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Reduces script maintenance overhead
   - Simplifies deployment workflow
 
----
-
 ## [2025-12-14] - Terraform State Deployment Automation
 
 ### Added
@@ -120,8 +116,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Improved variable descriptions and documentation
   - Better default value handling
 
----
-
 ## [2025-12-10] - Output Enhancements
 
 ### Added
@@ -151,8 +145,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Added consistent descriptions to all outputs
   - Improved output naming conventions
 
----
-
 ## [2025-12-08] - Documentation Updates
 
 ### Changed
@@ -165,8 +157,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Improved troubleshooting guide with useful commands
   - Added module structure documentation
   - Clarified prerequisites and setup requirements
-
----
 
 ## [2025-12-02] - EBS Module Deprecation
 
@@ -185,8 +175,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Added `ebs_storage_class_name` output (commented)
   - Preserved for potential future reactivation
 
----
-
 ## [2025-12-01] - Circular Dependency Resolution
 
 ### Fixed
@@ -203,8 +191,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Improved provider initialization sequence
   - Updated setup scripts to reflect provider changes
 
----
-
 ## [2025-11-27] - EBS Module Outputs
 
 ### Added
@@ -214,8 +200,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   application
   - Added `ebs_storage_class_name` output
   - Enables application infrastructure to reference EBS resources
-
----
 
 ## [2025-11-26] - VPC Endpoints, Storage, and ECR
 
@@ -262,8 +246,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Updated main README with module information
   - Added architecture diagrams and usage examples
 
----
-
 ## [2025-11-26] - CloudWatch Logging and Kubernetes Upgrade
 
 ### Added
@@ -290,8 +272,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Updated EKS module version
   - Improved compatibility and feature support
 
----
-
 ## [2025-11-25] - EKS Auto Mode Cluster
 
 ### Added
@@ -314,8 +294,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Added `AmazonSSMManagedInstanceCore` policy for SSM access
   - Enables Session Manager access to nodes without public IPs
 
----
-
 ## [2025-11-25] - Provider Profile Removal
 
 ### Removed
@@ -332,8 +310,6 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Moved from AWS profile-based authentication to role assumption
   - Improved security and multi-account support
   - Better alignment with CI/CD workflows
-
----
 
 ## [2025-11-25] - Initial Backend Infrastructure
 
@@ -382,8 +358,6 @@ pattern
   - Private subnets tagged with `kubernetes.io/role/internal-elb = 1`
   - All subnets tagged with `kubernetes.io/cluster/${cluster_name} = "shared"`
 
----
-
 ## Architecture Overview
 
 The backend infrastructure provides the foundational AWS resources for deploying
@@ -419,8 +393,6 @@ containerized applications on Kubernetes:
 5. **EBS Module** (`modules/ebs/`) - Currently commented out
    - StorageClass and PersistentVolumeClaim
    - gp3 storage configuration
-
----
 
 ## Notes
 
@@ -463,8 +435,6 @@ The EBS module is currently commented out in `main.tf` because:
 - OpenLDAP creates EBS volumes per pod automatically
 - Storage classes and PVCs are managed by the application infrastructure
 - Module definition remains for potential future use
-
----
 
 ## References
 

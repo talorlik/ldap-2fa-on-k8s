@@ -15,8 +15,6 @@ There are three separate pieces:
 
 Below is a linear Terraform-centric setup.
 
----
-
 ## 1. Route53 hosted zone for `talorlik.com`
 
 In `backend_infra`:
@@ -27,10 +25,8 @@ resource "aws_route53_zone" "talo_ldap" {
 }
 ```
 
-If the domain is registered elsewhere, point the registrar’s NS records at
+If the domain is registered elsewhere, point the registrar's NS records at
 `aws_route53_zone.talo_ldap.name_servers`.
-
----
 
 ## 2. ACM certificate with DNS validation
 
@@ -47,8 +43,6 @@ resource "aws_acm_certificate" "talo_ldap" {
   }
 }
 ```
-
----
 
 ## 3. DNS validation records in Route53
 
@@ -73,8 +67,6 @@ resource "aws_route53_record" "talo_ldap_cert_validation" {
 }
 ```
 
----
-
 ## 4. Finalize ACM certificate
 
 Bind the certificate to its DNS validation records:
@@ -90,9 +82,7 @@ resource "aws_acm_certificate_validation" "talo_ldap" {
 ```
 
 After this, `aws_acm_certificate_validation.talo_ldap.certificate_arn` is the
-“ready” cert ARN for ALB.
-
----
+"ready" cert ARN for ALB.
 
 ## 5. Terraform outputs: `acm_cert_arn` and `domain_name`
 
@@ -112,12 +102,10 @@ output "domain_name" {
 
 If `backend_infra` is called as a module, the root module will see:
 
-* `module.backend_infra.acm_cert_arn`
-* `module.backend_infra.domain_name`
+- `module.backend_infra.acm_cert_arn`
+- `module.backend_infra.domain_name`
 
 These are what you feed into Helm templates or other modules.
-
----
 
 ## 6. Use outputs inside the same module for Helm values
 
@@ -147,8 +135,6 @@ locals {
 
 If Helm is in another module, pass outputs `acm_cert_arn` and `domain_name` into
 that module as variables and derive the hosts there.
-
----
 
 ## 7. Values template for `openldap-stack-ha` (using ACM ARN and domain)
 
@@ -217,8 +203,6 @@ phpldapadmin:
 LDAP service itself stays `ClusterIP`, so only the GUI Ingresses are exposed via
 ALB using that ACM certificate.
 
----
-
 ## 8. Helm release for OpenLDAP from Terraform
 
 In `backend_infra`:
@@ -246,15 +230,13 @@ resource "helm_release" "openldap" {
 EKS Auto Mode with AWS Load Balancer Controller will see the Ingresses and
 provision an internal ALB with HTTPS listeners using `acm_cert_arn`.
 
----
-
 ## 9. Route53 records for application and GUIs
 
 Once the ALB exists, you either:
 
-* Let AWS Load Balancer Controller create Route53 records via external-dns (if
+- Let AWS Load Balancer Controller create Route53 records via external-dns (if
 you add it), or
-* Create `A` records pointing to the ALB.
+- Create `A` records pointing to the ALB.
 
 Manual Terraform example using the ALB DNS name:
 
@@ -291,8 +273,8 @@ resource "aws_route53_record" "passwd" {
 
 Now:
 
-* `output.acm_cert_arn` is the ACM cert used by the ALB for HTTPS.
-* `output.domain_name` is `talorlik.com`, from which you derive
+- `output.acm_cert_arn` is the ACM cert used by the ALB for HTTPS.
+- `output.domain_name` is `talorlik.com`, from which you derive
 `phpldapadmin.talorlik.com`, `passwd.talorlik.com`, and later app endpoints.
-* LDAP stays internal (`ClusterIP`), while the admin/password GUIs and app
+- LDAP stays internal (`ClusterIP`), while the admin/password GUIs and app
 endpoints are exposed via ALB with TLS terminated using that ACM certificate.
