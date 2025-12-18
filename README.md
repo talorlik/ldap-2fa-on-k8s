@@ -326,7 +326,7 @@ The deployment follows a three-tier approach:
 Deploy the Terraform backend state infrastructure by running the
 `tfstate_infra_provisioning.yaml` workflow via the GitHub UI.
 
-> [!INFO]
+> [!NOTE]
 >
 > 📖 **For detailed setup instructions**, including required GitHub Secrets,
 Variables, and configuration, see the [Terraform Backend State
@@ -350,7 +350,7 @@ This creates the foundational infrastructure including:
 - VPC endpoints (SSM, STS, and optionally SNS for SMS 2FA)
 - ECR repository for container images
 
-> [!INFO]
+> [!NOTE]
 >
 > 📖 **For detailed information about the backend infrastructure**, including
 > architecture, components, and module documentation, see the [Backend
@@ -371,7 +371,7 @@ This deploys:
 - ArgoCD for GitOps (optional)
 - SNS resources for SMS 2FA (optional)
 
-> [!INFO]
+> [!NOTE]
 >
 > 📖 **For detailed information about the application infrastructure**, including
 > OpenLDAP configuration, 2FA app setup, ALB configuration, and deployment steps,
