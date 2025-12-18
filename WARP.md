@@ -12,9 +12,10 @@ Mode) using Terraform. The infrastructure is deployed on AWS using a
 1. **Terraform Backend State** (`tf_backend_state/`) - S3 bucket for storing
 Terraform state files (Account A - State Account)
 2. **Backend Infrastructure** (`backend_infra/`) - Core AWS infrastructure (VPC,
-EKS cluster, networking, EBS storage, ECR) (Account B - Deployment Account)
-3. **Application Layer** (`application/`) - OpenLDAP stack deployment with Helm,
-using existing Route53 zone and ACM certificate (Account B - Deployment Account)
+EKS cluster with IRSA, VPC endpoints, ECR) (Account B - Deployment Account)
+3. **Application Layer** (`application/`) - OpenLDAP stack, 2FA application
+(backend + frontend), ArgoCD, SNS for SMS 2FA, using existing Route53 zone and
+ACM certificate (Account B - Deployment Account)
 
 **Multi-Account Architecture:**
 
@@ -45,8 +46,10 @@ records, network policies) on top of the EKS cluster
 - **VPC**: Custom VPC with public/private subnets across 2 availability zones
 - **EKS Auto Mode**: Simplified cluster management with automatic node
 provisioning and built-in EBS CSI driver (Kubernetes 1.34)
+- **IRSA (IAM Roles for Service Accounts)**: Enabled via OIDC provider for
+secure pod-to-AWS-service authentication
 - **Networking**: Single NAT gateway (cost optimization), IGW, VPC endpoints for
-SSM access
+SSM, STS (IRSA), and SNS (SMS 2FA) access
 - **Storage**: StorageClass created in application layer (gp3, encrypted), PVCs
 created by Helm chart
 - **Container Registry**: ECR repository for Docker images with lifecycle
@@ -54,13 +57,17 @@ policies (immutable tags)
 - **DNS & Certificates**: Uses existing Route53 hosted zone and validated ACM
 certificate (via data sources)
 - **Load Balancer**: AWS ALB automatically created via Ingress resources for
-exposing OpenLDAP web UIs (phpLdapAdmin and LTB-passwd)
+exposing web UIs (phpLdapAdmin, LTB-passwd, and 2FA application)
 - **IngressClass/IngressClassParams**: Created by ALB module to configure EKS
-Auto Mode ALB behavior (scheme, IP address type)
+Auto Mode ALB behavior (scheme, IP address type, certificate ARN, group name)
 - **Network Policies**: Kubernetes NetworkPolicies for secure internal cluster
-communication
+communication with cross-namespace access for LDAP service
 - **OpenLDAP Image**: osixia/openldap:1.5.0 (overriding chart's default bitnami
 image which doesn't exist)
+- **2FA Application**: Full-stack application with Python FastAPI backend and
+static HTML/JS/CSS frontend, supporting TOTP and SMS MFA methods
+- **ArgoCD**: AWS EKS managed ArgoCD service for GitOps deployments (optional)
+- **SNS Integration**: AWS SNS for SMS-based 2FA verification codes (optional)
 
 ### Naming Convention
 
@@ -70,6 +77,42 @@ All resources follow the pattern: `${prefix}-${region}-${name}-${env}`
 
 Terraform workspaces are named: `${region}-${env}` (e.g., `us-east-1-prod`,
 `us-east-2-dev`)
+
+## Project Directory Structure
+
+```text
+ldap-2fa-on-k8s/
+├── tf_backend_state/           # Terraform state backend (S3) - Account A
+├── backend_infra/              # Core AWS infrastructure - Account B
+│   └── modules/
+│       ├── ebs/                # EBS storage (commented out)
+│       ├── ecr/                # Container registry
+│       └── endpoints/          # VPC endpoints (SSM, STS, SNS)
+├── application/                # Application infrastructure - Account B
+│   ├── backend/                # 2FA Backend (Python FastAPI)
+│   │   ├── src/                # Source code
+│   │   ├── helm/               # Helm chart
+│   │   └── Dockerfile
+│   ├── frontend/               # 2FA Frontend (HTML/JS/CSS)
+│   │   ├── src/                # Source code
+│   │   ├── helm/               # Helm chart
+│   │   ├── Dockerfile
+│   │   └── nginx.conf
+│   ├── helm/                   # OpenLDAP Helm values
+│   └── modules/                # Terraform modules
+│       ├── alb/                # IngressClass and IngressClassParams
+│       ├── argocd/             # ArgoCD capability (AWS managed)
+│       ├── argocd_app/         # ArgoCD Application CRD
+│       ├── cert-manager/       # TLS certificate management
+│       ├── network-policies/   # Kubernetes NetworkPolicies
+│       └── sns/                # SNS for SMS 2FA
+└── .github/workflows/          # CI/CD workflows
+    ├── tfstate_infra_*.yaml
+    ├── backend_infra_*.yaml
+    ├── application_infra_*.yaml
+    ├── backend_build_push.yaml
+    └── frontend_build_push.yaml
+```
 
 ## Common Commands
 
@@ -237,41 +280,70 @@ secrets/variables
 ### Backend Infrastructure Layer
 
 - `backend_infra/variables.tfvars` - Configure VPC CIDR, K8s version (1.34),
-resource names, ECR lifecycle policies
+resource names, ECR lifecycle policies, VPC endpoints (enable_sts_endpoint,
+enable_sns_endpoint)
 - `backend_infra/backend.hcl` - Generated file (do not commit) with S3 backend
 config
 - `backend_infra/tfstate-backend-values-template.hcl` - Template for backend.hcl
-- `backend_infra/modules/` - Reusable modules for ECR and VPC endpoints (EBS
-module commented out)
-- `backend_infra/main.tf` - Creates VPC, EKS cluster with Auto Mode, VPC
-endpoints, ECR
+- `backend_infra/modules/` - Reusable modules:
+  - `ecr/` - Container registry with lifecycle policies
+  - `endpoints/` - VPC endpoints for SSM, STS (IRSA), and SNS (SMS 2FA)
+  - `ebs/` - EBS storage (commented out in main.tf)
+- `backend_infra/main.tf` - Creates VPC, EKS cluster with Auto Mode and IRSA,
+VPC endpoints, ECR
+- `backend_infra/setup-backend.sh` - Automated setup script with role assumption
+and Terraform execution
 
 ### Application Layer
 
-- `application/variables.tfvars` - Configure domain name, ALB settings, storage
-class (passwords retrieved automatically by setup-application.sh from GitHub
-secrets)
+- `application/variables.tfvars` - Configure:
+  - Domain name, ALB settings, storage class
+  - ArgoCD configuration (enable_argocd, Identity Center settings)
+  - SNS/SMS 2FA configuration (enable_sms_2fa)
+  - Passwords retrieved automatically by setup-application.sh from GitHub secrets
+- `application/setup-application.sh` - Unified setup script for application
+deployment (replaces previous setup-backend.sh and setup-backend-api.sh)
+- `application/set-k8s-env.sh` - Kubernetes environment variable configuration
 - `application/helm/openldap-values.tpl.yaml` - Helm chart values template with
 osixia/openldap:1.5.0 image and Ingress annotations
 - `application/providers.tf` - Retrieves cluster name from backend_infra remote
 state (with fallback options)
-- `application/main.tf` - Creates StorageClass, Helm release, Route53 records,
-network policies, and ALB module
-- `application/modules/alb/` - Creates IngressClass and IngressClassParams for
-EKS Auto Mode ALB with centralized certificate and group configuration
-- `application/modules/cert-manager/` - cert-manager module for self-signed TLS
-certificates (optional, not actively used)
-- `application/modules/network-policies/` - Network policies for secure internal
-cluster communication
-- `application/.env` - Local file for OpenLDAP passwords (not committed to git)
-- `application/CHANGELOG.md` - Detailed changelog documenting ALB annotation
-strategy changes and TLS configuration updates
+- `application/main.tf` - Creates:
+  - StorageClass for persistent storage
+  - OpenLDAP Helm release
+  - 2FA backend Helm release (if ArgoCD not used)
+  - 2FA frontend Helm release (if ArgoCD not used)
+  - Route53 records for all subdomains
+  - ALB module (IngressClass and IngressClassParams)
+  - Network policies
+  - SNS module (if SMS 2FA enabled)
+  - ArgoCD capability (if enabled)
+  - ArgoCD Applications (if enabled)
+- `application/modules/` - Terraform modules:
+  - `alb/` - IngressClass and IngressClassParams for EKS Auto Mode ALB
+  - `argocd/` - AWS EKS managed ArgoCD capability
+  - `argocd_app/` - ArgoCD Application CRD for GitOps
+  - `cert-manager/` - TLS certificate management (optional)
+  - `network-policies/` - Kubernetes NetworkPolicies with cross-namespace access
+  - `sns/` - SNS resources for SMS 2FA with IRSA
+- `application/backend/` - 2FA backend application:
+  - `src/` - Python FastAPI source code
+  - `helm/` - Helm chart with Ingress for `/api/*`
+  - `Dockerfile` - Container image definition
+- `application/frontend/` - 2FA frontend application:
+  - `src/` - Static HTML/JS/CSS files
+  - `helm/` - Helm chart with Ingress for `/`
+  - `Dockerfile` - Container image definition (nginx)
+  - `nginx.conf` - nginx configuration
+- `application/CHANGELOG.md` - Detailed changelog documenting all application
+changes
+- `application/PRD-2FA-APP.md` - Product requirements document for 2FA
+application
+- `application/PRD-ALB.md` - Comprehensive ALB implementation guide
+- `application/OPENLDAP-README.md` - OpenLDAP configuration and TLS setup
 - `application/OSIXIA-OPENLDAP-REQUIREMENTS.md` - OpenLDAP image requirements
-and environment variable documentation
-- `application/PRD-ALB.md` - Comprehensive ALB implementation guide with EKS
-Auto Mode vs AWS Load Balancer Controller comparison
-- `application/README.md` - Comprehensive application layer documentation
-- `application/.env` - Local file for OpenLDAP passwords (not committed to git)
+- `application/SECURITY-IMPROVEMENTS.md` - Security enhancements and best
+practices
 
 ## Outputs
 
@@ -279,9 +351,12 @@ Auto Mode vs AWS Load Balancer Controller comparison
 
 - **VPC**: `vpc_id`, `public_subnets`, `private_subnets`,
 `default_security_group_id`, `igw_id`
-- **EKS**: `cluster_name`, `cluster_endpoint`, `cluster_arn`
+- **EKS**: `cluster_name`, `cluster_endpoint`, `cluster_arn`, `oidc_provider_arn`
+(for IRSA)
 - **VPC Endpoints**: `vpc_endpoint_sg_id`, `vpc_endpoint_ssm_id`,
-`vpc_endpoint_ssmmessages_id`, `vpc_endpoint_ec2messages_id`, `vpc_endpoint_ids`
+`vpc_endpoint_ssmmessages_id`, `vpc_endpoint_ec2messages_id`,
+`vpc_endpoint_sts_id` (if enabled), `vpc_endpoint_sns_id` (if enabled),
+`vpc_endpoint_ids`
 - **ECR**: `ecr_name`, `ecr_arn`, `ecr_url`
 - **General**: `aws_account`, `region`, `env`, `prefix`
 
@@ -293,6 +368,10 @@ Auto Mode vs AWS Load Balancer Controller comparison
 `route53_name_servers`
 - **Network Policies**: `network_policy_name`, `network_policy_namespace`,
 `network_policy_uid`
+- **ArgoCD** (if enabled): `argocd_capability_arn`, `argocd_capability_id`,
+`argocd_server_url`
+- **SNS** (if enabled): `sns_topic_arn`, `sns_topic_name`, `sns_iam_role_arn`,
+`sns_iam_role_name`
 
 ## Important Patterns
 
@@ -311,32 +390,57 @@ Auto Mode vs AWS Load Balancer Controller comparison
 - Secrets should use `sensitive = true` in Terraform variables
 - OpenLDAP admin/config passwords should never be committed in plaintext
 
-### EKS Auto Mode Specifics
+### EKS Auto Mode and IRSA
 
-- Built-in EBS CSI driver - no manual installation needed
-- Automatic IAM permissions for CSI driver
-- Compute config uses "general-purpose" node pool
-- ALB creation driven by Kubernetes Ingress with annotations (no separate AWS
-ALB resource)
+- **EKS Auto Mode**:
+  - Built-in EBS CSI driver - no manual installation needed
+  - Automatic IAM permissions for CSI driver
+  - Compute config uses "general-purpose" node pool
+  - ALB creation driven by Kubernetes Ingress with annotations (no separate AWS
+  ALB resource)
+- **IRSA (IAM Roles for Service Accounts)**:
+  - Enabled via `enable_irsa = true` in backend_infra
+  - Creates OIDC provider for the EKS cluster
+  - Allows pods to assume IAM roles for AWS service access
+  - Required for SMS 2FA (SNS access)
+  - No hardcoded AWS credentials needed in pods
 
-### Helm Chart Integration
+### Application Deployments
 
+**OpenLDAP Stack (Helm Chart):**
 - OpenLDAP chart version: 4.0.1 from `https://jp-gouin.github.io/helm-openldap`
 - Uses osixia/openldap:1.5.0 Docker image (chart's default bitnami image doesn't
 exist)
-- Two web UIs exposed via ALB: phpLdapAdmin and LTB-passwd
+- Three web UIs exposed via ALB: phpLdapAdmin, LTB-passwd, and 2FA app
 - LDAP service itself remains ClusterIP (internal only)
-- ALB configuration uses EKS Auto Mode (`eks.amazonaws.com/alb` controller)
-instead of AWS Load Balancer Controller
+- Hostnames configurable via variables:
+  - `phpldapadmin_host` (default: `phpldapadmin.talorlik.com`)
+  - `ltb_passwd_host` (default: `passwd.talorlik.com`)
+  - `twofa_app_host` (default: `app.talorlik.com`)
+
+**2FA Application (Helm Charts or ArgoCD):**
+- Backend: Python FastAPI with LDAP authentication and MFA support
+  - Supports TOTP (authenticator apps) and SMS (AWS SNS) MFA methods
+  - Exposed at `/api/*` path on `app.<domain>`
+  - Uses IRSA for SNS access (no hardcoded credentials)
+  - Helm chart includes: Deployment, Service, Ingress, ConfigMap, Secret,
+  ServiceAccount
+- Frontend: Static HTML/JS/CSS served by nginx
+  - Exposed at `/` path on `app.<domain>`
+  - Helm chart includes: Deployment, Service, Ingress
+- Deployment method:
+  - Direct Helm deployment via Terraform (default)
+  - Or via ArgoCD GitOps (if `enable_argocd = true`)
+
+**ALB Configuration:**
+- Uses EKS Auto Mode (`eks.amazonaws.com/alb` controller) instead of AWS Load
+Balancer Controller
 - IngressClassParams (cluster-wide) contains: `scheme`, `ipAddressType`,
 `group.name`, and `certificateARNs`
 - Ingress annotations (per-Ingress) contain: `load-balancer-name`,
 `target-type`, `listen-ports`, `ssl-redirect`
-- Both Ingress resources use the same ALB with host-based routing via shared
+- All Ingress resources use the same ALB with host-based routing via shared
 `group.name` in IngressClassParams
-- Hostnames configurable via variables: `phpldapadmin_host` (default:
-`phpldapadmin.talorlik.com`) and `ltb_passwd_host` (default:
-`passwd.talorlik.com`)
 - IngressClass created by ALB module references the IngressClassParams for
 cluster-wide ALB configuration
 - Certificate ARN configured once in IngressClassParams and inherited by all
@@ -366,14 +470,18 @@ ALB module → Helm release → Route53 A records → Network policies)
 
 ### Module Structure
 
-- `backend_infra/modules/` - Reusable infrastructure modules (ecr, endpoints)
+- `backend_infra/modules/` - Reusable infrastructure modules:
   - `ecr/` - ECR repository with lifecycle policies
-  - `endpoints/` - VPC endpoints for SSM access
-- `application/modules/` - Application-specific modules (alb, cert-manager,
-network-policies)
+  - `endpoints/` - VPC endpoints for SSM, STS (IRSA), and SNS (SMS 2FA)
+  - `ebs/` - EBS storage (commented out in main.tf)
+- `application/modules/` - Application-specific modules:
   - `alb/` - IngressClass and IngressClassParams for EKS Auto Mode ALB
+  - `argocd/` - AWS EKS managed ArgoCD capability for GitOps
+  - `argocd_app/` - ArgoCD Application CRD for GitOps deployments
   - `cert-manager/` - Optional cert-manager for self-signed TLS certificates
   - `network-policies/` - Kubernetes NetworkPolicies for secure communication
+  with cross-namespace access
+  - `sns/` - SNS resources for SMS-based 2FA with IRSA
 - Each module has its own README.md with detailed documentation
 - Route53 and ACM certificate resources use data sources to reference existing
 resources
@@ -382,15 +490,22 @@ resources
 
 ### Available Workflows
 
+**Infrastructure Workflows:**
 - `tfstate_infra_provisioning.yaml` - Create Terraform backend state
 - `tfstate_infra_destroying.yaml` - Destroy Terraform backend state
 - `backend_infra_provisioning.yaml` - Create backend infrastructure
 - `backend_infra_destroying.yaml` - Destroy backend infrastructure
-- `application_infra_provisioning.yaml` - Deploy OpenLDAP application
-- `application_infra_destroying.yaml` - Destroy OpenLDAP application
+- `application_infra_provisioning.yaml` - Deploy application infrastructure
+(OpenLDAP, 2FA app, ArgoCD, SNS)
+- `application_infra_destroying.yaml` - Destroy application infrastructure
+
+**Application CI/CD Workflows:**
+- `backend_build_push.yaml` - Build and push 2FA backend Docker image to ECR
+- `frontend_build_push.yaml` - Build and push 2FA frontend Docker image to ECR
 
 ### Required GitHub Secrets
 
+**AWS Authentication:**
 - `AWS_STATE_ACCOUNT_ROLE_ARN` - ARN of IAM role in Account A (State Account)
 that trusts GitHub OIDC provider (used for all backend state operations)
 - `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` - ARN of IAM role in Production Account
@@ -398,7 +513,11 @@ that trusts GitHub OIDC provider (used for all backend state operations)
 selected)
 - `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` - ARN of IAM role in Development Account
 (Account B) that trusts Account A role (used when `dev` environment is selected)
+
+**Terraform Automation:**
 - `GH_TOKEN` - GitHub PAT with `repo` scope (for updating repository variables)
+
+**OpenLDAP Credentials:**
 - `TF_VAR_OPENLDAP_ADMIN_PASSWORD` - OpenLDAP admin password (for application
 workflows)
 - `TF_VAR_OPENLDAP_CONFIG_PASSWORD` - OpenLDAP config password (for application
@@ -419,6 +538,76 @@ workflows)
 - `APPLICATION_PREFIX` - S3 prefix for application state files
 
 ## Recent Changes (December 2024)
+
+### 2FA Application and SMS Integration (December 18, 2024)
+
+- **Full-stack 2FA application deployed**:
+  - Python FastAPI backend with LDAP authentication integration
+  - Static HTML/JS/CSS frontend with modern, responsive UI
+  - Support for **two MFA methods**: TOTP (authenticator apps) and SMS (AWS SNS)
+  - Single domain routing (`app.<domain>`) with path-based routing (`/` for
+  frontend, `/api/*` for backend)
+  - Kubernetes resources: Deployments, Services, Ingresses, ConfigMaps, Secrets,
+  ServiceAccounts, HPA
+  - Complete Helm charts for both backend and frontend
+  - Dockerfiles for containerized deployment
+- **SNS module for SMS-based 2FA verification**:
+  - SNS Topic for centralized SMS notifications
+  - IAM Role configured for IRSA (IAM Roles for Service Accounts)
+  - Direct SMS support for sending verification codes to phone numbers
+  - E.164 phone number format support
+  - Transactional SMS type for higher delivery priority
+  - Cost control via monthly spend limits
+- **GitHub Actions CI/CD workflows**:
+  - `backend_build_push.yaml` - Builds and pushes backend Docker image to ECR
+  - `frontend_build_push.yaml` - Builds and pushes frontend Docker image to ECR
+  - Triggered on changes to `application/backend/**` and
+  `application/frontend/**` paths
+- **Product Requirements Document**: Comprehensive PRD-2FA-APP.md documenting
+architecture, API specs, and frontend components
+
+### ArgoCD GitOps Integration (December 16, 2024)
+
+- **ArgoCD capability module**:
+  - Deploys AWS EKS managed ArgoCD service (runs in EKS control plane)
+  - Creates IAM role and policies for ArgoCD capability
+  - Configures AWS Identity Center (IdC) authentication
+  - Registers local EKS cluster with ArgoCD
+  - Sets up RBAC mappings for Identity Center groups/users
+  - Optional VPC endpoint configuration for private access
+- **ArgoCD Application module**:
+  - Creates ArgoCD Application CRD for GitOps deployments
+  - Supports multiple deployment types (Kubernetes manifests, Helm charts,
+  Kustomize)
+  - Configurable sync policies (automated/manual)
+  - Retry policies with backoff configuration
+  - Ignore differences for externally managed fields
+
+### Documentation and Linting Improvements (December 15, 2024)
+
+- **Markdown lint compliance**:
+  - Corrected row length issues across all documentation files
+  - Added `.markdownlint.json` for consistent formatting
+  - Updated all README files, CHANGELOGs, and PRD documents
+
+### Deployment Versatility and Security Improvements (December 14, 2024)
+
+- **Cross-namespace LDAP access**:
+  - Updated network policies to allow services in other namespaces to access
+  LDAP service on secure ports (443, 636, 8443)
+  - Enables microservices in different namespaces to securely access centralized
+  LDAP service
+- **Password management via GitHub Secrets**:
+  - OpenLDAP passwords now exclusively managed through GitHub repository secrets
+  - Setup scripts automatically retrieve and export passwords
+  - Removed dependency on local password files
+- **Unified application setup script**:
+  - New `setup-application.sh` consolidates all application deployment steps
+  - Handles role assumption, backend configuration, Terraform operations, and
+  Kubernetes environment setup
+  - Replaces previous `setup-backend.sh` and `setup-backend-api.sh` scripts
+
+## Earlier Changes (December 2024)
 
 ### Multi-Account Architecture and Role Management (Latest)
 
@@ -450,9 +639,11 @@ assumption is handled via setup scripts and workflows
   it doesn't exist
   - Skips creation if `backend.hcl` already exists (prevents overwriting
   existing configuration)
-- **Updated workflows**: All workflows now use `AWS_STATE_ACCOUNT_ROLE_ARN` for
-backend operations and set `deployment_account_role_arn` variable based on
-selected environment
+- **Updated workflows**: All infrastructure and application workflows now use
+`AWS_STATE_ACCOUNT_ROLE_ARN` for backend operations and set
+`deployment_account_role_arn` variable based on selected environment
+- **CI/CD workflows**: New workflows for building and pushing 2FA application
+Docker images to ECR
 
 ### ALB Annotation Strategy Improvements
 
@@ -491,8 +682,32 @@ configure and deploy (includes password secret retrieval, Terraform init,
 workspace, validate, plan, apply, and Kubernetes environment setup)
 5. For multi-region or multi-environment deployments, run setup scripts again
 with different selections
-6. Review `CHANGELOG.md` and `application/CHANGELOG.md` for recent changes and
-verification steps
+6. Review `CHANGELOG.md`, `backend_infra/CHANGELOG.md`, and
+`application/CHANGELOG.md` for recent changes and verification steps
+
+### Developing 2FA Application
+
+1. **Backend Changes** (`application/backend/`):
+   - Make changes to Python code in `src/`
+   - Test locally if possible
+   - Commit and push changes to `application/backend/**`
+   - GitHub Actions workflow `backend_build_push.yaml` automatically:
+     - Builds Docker image
+     - Tags with commit SHA
+     - Pushes to ECR
+     - If using ArgoCD: ArgoCD detects change and syncs
+     - If using direct Helm: Update image tag in Helm values and re-apply
+2. **Frontend Changes** (`application/frontend/`):
+   - Make changes to HTML/JS/CSS in `src/`
+   - Test locally with a simple HTTP server
+   - Commit and push changes to `application/frontend/**`
+   - GitHub Actions workflow `frontend_build_push.yaml` automatically handles
+   build and push
+   - Deployment follows same pattern as backend
+3. **Terraform Module Changes** (`application/modules/`):
+   - Update module code and test
+   - Run `./setup-application.sh` to apply changes
+   - Review outputs and verify resources
 
 ### Adding New Kubernetes Resources
 
@@ -501,9 +716,14 @@ verification steps
 2. Update Helm values template if needed
 (`application/helm/openldap-values.tpl.yaml`)
 3. Ensure proper `depends_on` relationships (e.g., Helm release, data sources)
-4. Plan and apply changes
-5. For Ingress changes, ALB will be automatically updated via Kubernetes
+4. For IRSA-enabled resources:
+   - Create IAM role with trust policy for EKS OIDC provider
+   - Attach necessary permissions
+   - Add annotation to ServiceAccount: `eks.amazonaws.com/role-arn`
+5. Plan and apply changes using `./setup-application.sh`
+6. For Ingress changes, ALB will be automatically updated via Kubernetes
 controller
+7. If using ArgoCD, commit manifests to Git and let ArgoCD sync
 
 ### Troubleshooting
 
@@ -651,6 +871,25 @@ when Ingresses don't exist
 
 ## Important Notes
 
+### MFA Methods
+
+The 2FA application supports two multi-factor authentication methods:
+
+| Method | Description | Infrastructure Required |
+|--------|-------------|------------------------|
+| **TOTP** | Time-based One-Time Password using authenticator apps (Google Authenticator, Authy, etc.) | None (codes generated locally) |
+| **SMS** | Verification codes sent via AWS SNS to user's phone | SNS VPC endpoint, IRSA role, SNS module |
+
+**Enabling SMS 2FA:**
+1. Set `enable_sts_endpoint = true` in `backend_infra/variables.tfvars` (for
+IRSA)
+2. Set `enable_sns_endpoint = true` in `backend_infra/variables.tfvars` (for
+SNS access)
+3. Deploy backend_infra with VPC endpoints
+4. Set `enable_sms_2fa = true` in `application/variables.tfvars`
+5. Deploy application infrastructure with SNS module
+6. Backend automatically detects SNS configuration and enables SMS MFA method
+
 ### TLS Configuration
 
 - **Internal LDAP TLS**: osixia/openldap auto-generates self-signed certificates
@@ -697,8 +936,13 @@ controller) with automatic IAM permissions
   - `alb_load_balancer_name`: AWS resource name (max 32 characters)
 - **Certificate Management**: ACM certificate ARN configured once in
 IngressClassParams and inherited by all Ingresses
-- **Single ALB**: Both Ingresses share the same ALB via `group.name` in
-IngressClassParams with host-based routing
+- **Single ALB**: All Ingresses (OpenLDAP web UIs + 2FA app) share the same ALB
+via `group.name` in IngressClassParams with host-based routing
+- **Routing**:
+  - `phpldapadmin.<domain>` → phpLDAPadmin service
+  - `passwd.<domain>` → LTB-passwd service
+  - `app.<domain>/` → 2FA frontend service
+  - `app.<domain>/api/*` → 2FA backend service
 
 ## Security Best Practices
 
@@ -708,6 +952,22 @@ IngressClassParams with host-based routing
 - Repeat until no new issues are found
 - Never commit OpenLDAP passwords to version control - always use environment
 variables or GitHub Secrets
+- **IRSA (IAM Roles for Service Accounts)**:
+  - Pods assume IAM roles via OIDC—no long-lived AWS credentials
+  - IAM roles scoped to specific service accounts and namespaces
+  - Required for SMS 2FA (SNS access)
+- **VPC Endpoints**:
+  - AWS service access (SSM, STS, SNS) goes through private endpoints—no public
+  internet exposure
+  - STS endpoint required for IRSA
+  - SNS endpoint required for SMS 2FA
+- **Network Policies**:
+  - Pod-to-pod communication restricted to encrypted ports (443, 636, 8443)
+  - Cross-namespace access enabled only for LDAP service on secure ports
 - EBS volumes are encrypted by default
 - LDAP service is ClusterIP only (not exposed externally)
 - ALB uses HTTPS with ACM certificates (TLS 1.2/1.3 only)
+- 2FA application uses constant-time comparison for code verification
+- SMS codes expire after configurable timeout (default: 5 minutes)
+- Phone numbers validated in E.164 format
+- Phone numbers masked in API responses and logs
