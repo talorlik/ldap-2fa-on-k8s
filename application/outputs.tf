@@ -64,3 +64,46 @@ output "network_policy_uid" {
   description = "UID of the network policy resource"
   value       = module.network_policies.network_policy_uid
 }
+
+##################### SNS SMS 2FA ##########################
+output "sns_topic_arn" {
+  description = "ARN of the SNS topic for SMS 2FA"
+  value       = var.enable_sms_2fa ? module.sns[0].sns_topic_arn : null
+}
+
+output "sns_topic_name" {
+  description = "Name of the SNS topic"
+  value       = var.enable_sms_2fa ? module.sns[0].sns_topic_name : null
+}
+
+output "sns_iam_role_arn" {
+  description = "ARN of the IAM role for SNS publishing (for IRSA)"
+  value       = var.enable_sms_2fa ? module.sns[0].iam_role_arn : null
+}
+
+output "sns_service_account_annotation" {
+  description = "Annotation to add to Kubernetes service account for IRSA"
+  value       = var.enable_sms_2fa ? module.sns[0].service_account_annotation : null
+}
+
+##################### 2FA Application ##########################
+output "twofa_app_url" {
+  description = "URL for the 2FA application (frontend)"
+  value       = var.twofa_app_host != null ? "https://${var.twofa_app_host}" : null
+}
+
+output "twofa_api_url" {
+  description = "URL for the 2FA API (backend)"
+  value       = var.twofa_app_host != null ? "https://${var.twofa_app_host}/api" : null
+}
+
+##################### ArgoCD Applications ##########################
+output "argocd_backend_app_name" {
+  description = "Name of the ArgoCD Application for backend"
+  value       = var.enable_argocd_apps ? var.argocd_app_backend_name : null
+}
+
+output "argocd_frontend_app_name" {
+  description = "Name of the ArgoCD Application for frontend"
+  value       = var.enable_argocd_apps ? var.argocd_app_frontend_name : null
+}

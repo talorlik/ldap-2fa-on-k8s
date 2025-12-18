@@ -39,6 +39,7 @@ alb_load_balancer_name = "alb"
 # Hostnames for ingress resources (defaults to subdomain.domain_name if not set)
 phpldapadmin_host = "phpldapadmin.talorlik.com"
 ltb_passwd_host   = "passwd.talorlik.com"
+twofa_app_host    = "app.talorlik.com"
 
 # ALB scheme: internet-facing or internal
 # alb_scheme = "internet-facing"
@@ -57,6 +58,18 @@ alb_ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 # if backend.hcl exists (created via setup-application.sh script).
 # Otherwise, provide cluster name directly:
 # cluster_name = "talo-tf-us-east-1-kc-prod"
+
+##################### SMS 2FA (SNS) ##########################
+# Enable SMS-based 2FA using AWS SNS
+enable_sms_2fa = true
+
+# SNS configuration (uses defaults if not specified)
+# sns_topic_name      = "2fa-sms"
+# sns_display_name    = "2FA Verification"
+# sns_iam_role_name   = "2fa-sns-publisher"
+# sms_sender_id       = "2FA"
+# sms_type            = "Transactional"
+# sms_monthly_spend_limit = 10
 
 ##################### Route53 ##########################
 # Domain name for Route53 hosted zone and ACM certificate
@@ -102,21 +115,21 @@ argocd_rbac_role_mappings = [
 
 ##################### ArgoCD Applications ##########################
 # Enable ArgoCD Application deployments
-# enable_argocd_apps = false
+enable_argocd_apps = true
 
 # Git repository configuration (required if enable_argocd_apps = true)
 argocd_app_repo_url        = "https://github.com/talorlik/ldap-2fa-on-k8s.git"
 argocd_app_target_revision = "main"
 
 # Backend App Configuration
-# argocd_app_backend_name      = "2fa-backend"
-# argocd_app_backend_path      = "apps/backend"
-# argocd_app_backend_namespace = "2fa-backend"
+argocd_app_backend_name      = "ldap-2fa-backend"
+argocd_app_backend_path      = "application/backend/helm/ldap-2fa-backend"
+argocd_app_backend_namespace = "2fa-app"
 
 # Frontend App Configuration
-# argocd_app_frontend_name      = "2fa-frontend"
-# argocd_app_frontend_path      = "apps/frontend"
-# argocd_app_frontend_namespace = "2fa-frontend"
+argocd_app_frontend_name      = "ldap-2fa-frontend"
+argocd_app_frontend_path      = "application/frontend/helm/ldap-2fa-frontend"
+argocd_app_frontend_namespace = "2fa-app"
 
 # Sync policy configuration
 # argocd_app_sync_policy_automated = true

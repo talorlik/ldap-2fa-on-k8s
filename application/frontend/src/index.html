@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LDAP 2FA Authentication Application">
+    <title>LDAP 2FA Authentication</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <!-- QR Code Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔐 LDAP 2FA Authentication</h1>
+            <p class="subtitle">Secure two-factor authentication for your LDAP account</p>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="login">Login</button>
+            <button class="tab-btn" data-tab="enroll">Enroll MFA</button>
+        </nav>
+
+        <!-- Login Tab -->
+        <section id="login-tab" class="tab-content active">
+            <form id="login-form" class="auth-form">
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" name="username" required
+                           placeholder="Enter your LDAP username" autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" name="password" required
+                           placeholder="Enter your LDAP password" autocomplete="current-password">
+                </div>
+
+                <div class="form-group">
+                    <label for="login-code">Verification Code</label>
+                    <div class="code-input-group">
+                        <input type="text" id="login-code" name="verification_code" required
+                               placeholder="Enter 6-digit code" maxlength="6" pattern="[0-9]{6}"
+                               autocomplete="one-time-code" inputmode="numeric">
+                        <button type="button" id="send-sms-btn" class="btn btn-secondary btn-small hidden">
+                            Send SMS
+                        </button>
+                    </div>
+                    <small id="sms-status" class="form-hint hidden"></small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-text">Login</span>
+                    <span class="btn-loading hidden">Authenticating...</span>
+                </button>
+            </form>
+
+            <div id="login-result" class="result-container hidden"></div>
+        </section>
+
+        <!-- Enroll Tab -->
+        <section id="enroll-tab" class="tab-content">
+            <form id="enroll-form" class="auth-form">
+                <div class="form-group">
+                    <label for="enroll-username">Username</label>
+                    <input type="text" id="enroll-username" name="username" required
+                           placeholder="Enter your LDAP username" autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="enroll-password">Password</label>
+                    <input type="password" id="enroll-password" name="password" required
+                           placeholder="Enter your LDAP password" autocomplete="current-password">
+                </div>
+
+                <!-- MFA Method Selection -->
+                <div class="form-group">
+                    <label>MFA Method</label>
+                    <div class="mfa-method-selector">
+                        <label class="radio-option">
+                            <input type="radio" name="mfa_method" value="totp" checked>
+                            <span class="radio-label">
+                                <span class="radio-icon">📱</span>
+                                <span class="radio-text">
+                                    <strong>Authenticator App</strong>
+                                    <small>Google Authenticator, Authy, etc.</small>
+                                </span>
+                            </span>
+                        </label>
+                        <label class="radio-option" id="sms-option">
+                            <input type="radio" name="mfa_method" value="sms">
+                            <span class="radio-label">
+                                <span class="radio-icon">💬</span>
+                                <span class="radio-text">
+                                    <strong>SMS</strong>
+                                    <small>Receive codes via text message</small>
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Phone Number (for SMS) -->
+                <div class="form-group hidden" id="phone-group">
+                    <label for="enroll-phone">Phone Number</label>
+                    <input type="tel" id="enroll-phone" name="phone_number"
+                           placeholder="+1234567890 (E.164 format)"
+                           pattern="\+[1-9]\d{1,14}">
+                    <small class="form-hint">
+                        Enter phone number with country code (e.g., +1 for US)
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-text">Enroll for MFA</span>
+                    <span class="btn-loading hidden">Enrolling...</span>
+                </button>
+            </form>
+
+            <div id="enroll-result" class="result-container hidden">
+                <!-- TOTP QR Section -->
+                <div id="qr-section" class="qr-section hidden">
+                    <h3>Scan QR Code</h3>
+                    <p>Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
+                    <div id="qr-code" class="qr-code"></div>
+                    <div class="manual-entry">
+                        <p>Or manually enter this secret:</p>
+                        <code id="secret-code"></code>
+                        <button id="copy-secret" class="btn btn-secondary btn-small">Copy Secret</button>
+                    </div>
+                </div>
+
+                <!-- SMS Enrollment Success -->
+                <div id="sms-enroll-section" class="sms-section hidden">
+                    <h3>📱 SMS Verification Setup</h3>
+                    <p>A verification code has been sent to <strong id="enrolled-phone"></strong></p>
+                    <p class="hint">You can now use SMS codes to log in. Each code expires in 5 minutes.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Status Messages -->
+        <div id="status-message" class="status-message hidden"></div>
+
+        <footer>
+            <p>💡 Need help? Contact your system administrator.</p>
+        </footer>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/main.js"></script>
+</body>
+</html>

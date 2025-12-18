@@ -61,6 +61,16 @@ output "cluster_arn" {
   value       = module.eks.cluster_arn
 }
 
+output "oidc_provider_arn" {
+  description = "OIDC provider ARN for IRSA"
+  value       = module.eks.oidc_provider_arn
+}
+
+output "oidc_provider_url" {
+  description = "OIDC provider URL (without https://)"
+  value       = replace(module.eks.cluster_oidc_issuer_url, "https://", "")
+}
+
 ##################### VPC Endpoints ##########################
 output "vpc_endpoint_sg_id" {
   description = "Security group ID for VPC endpoints"
@@ -85,6 +95,16 @@ output "vpc_endpoint_ec2messages_id" {
 output "vpc_endpoint_ids" {
   description = "List of all VPC endpoint IDs"
   value       = module.endpoints.vpc_endpoint_ids
+}
+
+output "vpc_endpoint_sts_id" {
+  description = "VPC endpoint ID for STS (IRSA)"
+  value       = module.endpoints.vpc_endpoint_sts_id
+}
+
+output "vpc_endpoint_sns_id" {
+  description = "VPC endpoint ID for SNS (SMS 2FA)"
+  value       = module.endpoints.vpc_endpoint_sns_id
 }
 
 ##################### ECR ##########################

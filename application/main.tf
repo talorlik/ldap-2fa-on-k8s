@@ -237,6 +237,52 @@ resource "aws_route53_record" "ltb_passwd" {
   ]
 }
 
+# Route53 A (alias) record for 2FA application
+resource "aws_route53_record" "twofa_app" {
+  count = var.twofa_app_host != null ? 1 : 0
+
+  zone_id = data.aws_route53_zone.this.zone_id
+  name    = var.twofa_app_host
+  type    = "A"
+
+  alias {
+    name                   = local.alb_dns_name
+    zone_id                = local.alb_zone_id
+    evaluate_target_health = true
+  }
+
+  depends_on = [
+    helm_release.openldap, # Ensures ALB exists before creating record
+  ]
+}
+
+##################### SNS for SMS 2FA ##########################
+
+# SNS Module for SMS-based 2FA verification
+module "sns" {
+  source = "./modules/sns"
+
+  count = var.enable_sms_2fa ? 1 : 0
+
+  env          = var.env
+  region       = var.region
+  prefix       = var.prefix
+  cluster_name = local.cluster_name
+
+  sns_topic_name            = var.sns_topic_name
+  sns_display_name          = var.sns_display_name
+  iam_role_name             = var.sns_iam_role_name
+  service_account_namespace = var.argocd_app_backend_namespace
+  service_account_name      = "ldap-2fa-backend"
+
+  configure_sms_preferences = var.configure_sms_preferences
+  sms_sender_id             = var.sms_sender_id
+  sms_type                  = var.sms_type
+  sms_monthly_spend_limit   = var.sms_monthly_spend_limit
+
+  tags = local.tags
+}
+
 ##################### ArgoCD ##########################
 
 # ArgoCD Capability Module

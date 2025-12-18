@@ -1,0 +1,208 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ldap-2fa-backend.fullname" . }}
+  labels:
+    {{- include "ldap-2fa-backend.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ldap-2fa-backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Force rollout on configmap changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "ldap-2fa-backend.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ldap-2fa-backend.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            # LDAP Configuration
+            - name: LDAP_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: LDAP_HOST
+            - name: LDAP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: LDAP_PORT
+            - name: LDAP_USE_SSL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: LDAP_USE_SSL
+            - name: LDAP_BASE_DN
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: LDAP_BASE_DN
+            - name: LDAP_ADMIN_DN
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: LDAP_ADMIN_DN
+            - name: LDAP_USER_SEARCH_BASE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: LDAP_USER_SEARCH_BASE
+            - name: LDAP_USER_SEARCH_FILTER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: LDAP_USER_SEARCH_FILTER
+            # LDAP Admin Password from Secret
+            {{- if .Values.externalSecret.enabled }}
+            - name: LDAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalSecret.secretName }}
+                  key: {{ .Values.externalSecret.adminPasswordKey }}
+            {{- end }}
+            # MFA/TOTP Configuration
+            - name: TOTP_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: TOTP_ISSUER
+            - name: TOTP_DIGITS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: TOTP_DIGITS
+            - name: TOTP_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: TOTP_INTERVAL
+            - name: TOTP_ALGORITHM
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: TOTP_ALGORITHM
+            # SMS/SNS Configuration
+            - name: ENABLE_SMS_2FA
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: ENABLE_SMS_2FA
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: AWS_REGION
+            - name: SNS_TOPIC_ARN
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: SNS_TOPIC_ARN
+            - name: SMS_SENDER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: SMS_SENDER_ID
+            - name: SMS_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: SMS_TYPE
+            - name: SMS_CODE_LENGTH
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: SMS_CODE_LENGTH
+            - name: SMS_CODE_EXPIRY_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: SMS_CODE_EXPIRY_SECONDS
+            - name: SMS_MESSAGE_TEMPLATE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: SMS_MESSAGE_TEMPLATE
+            # Application Configuration
+            - name: APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: APP_NAME
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: DEBUG
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: LOG_LEVEL
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: CORS_ORIGINS
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

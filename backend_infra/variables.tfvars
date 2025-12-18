@@ -12,6 +12,10 @@ k8s_version  = "1.34"
 cluster_name = "kc"
 ### Endpoints ###
 endpoint_sg_name = "ep-sg"
+# STS endpoint is required for IRSA (IAM Roles for Service Accounts)
+enable_sts_endpoint = true
+# SNS endpoint is required for SMS 2FA functionality
+enable_sns_endpoint = true
 ### EBS ###
 ebs_name       = "ebs"
 ebs_claim_name = "ebs-claim"

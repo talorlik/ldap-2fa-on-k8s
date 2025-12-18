@@ -28,9 +28,26 @@ variable "vpc_id" {
   type        = string
 }
 
+variable "vpc_cidr" {
+  description = "The CIDR block of the VPC (for security group rules)"
+  type        = string
+}
+
 variable "private_subnets" {
   description = "The IDs of the private subnets"
   type        = list(string)
+}
+
+variable "enable_sts_endpoint" {
+  description = "Whether to create STS VPC endpoint (required for IRSA)"
+  type        = bool
+  default     = true
+}
+
+variable "enable_sns_endpoint" {
+  description = "Whether to create SNS VPC endpoint (required for SMS 2FA)"
+  type        = bool
+  default     = false
 }
 
 variable "tags" {

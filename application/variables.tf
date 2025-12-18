@@ -140,6 +140,12 @@ variable "ltb_passwd_host" {
   default     = null
 }
 
+variable "twofa_app_host" {
+  description = "Hostname for 2FA application ingress (e.g., app.talorlik.com). If null, will be derived from domain_name"
+  type        = string
+  default     = null
+}
+
 variable "alb_scheme" {
   description = "ALB scheme: internet-facing or internal"
   type        = string
@@ -186,6 +192,60 @@ variable "cluster_name_component" {
   description = "Name component for cluster (used only if cluster_name not provided and remote state unavailable). Full name format: prefix-region-cluster_name_component-env"
   type        = string
   default     = "kc"
+}
+
+##################### SNS SMS 2FA ##########################
+
+variable "enable_sms_2fa" {
+  description = "Whether to enable SMS-based 2FA using SNS"
+  type        = bool
+  default     = false
+}
+
+variable "sns_topic_name" {
+  description = "Name component for the SNS topic"
+  type        = string
+  default     = "2fa-sms"
+}
+
+variable "sns_display_name" {
+  description = "Display name for the SNS topic (appears in SMS sender)"
+  type        = string
+  default     = "2FA Verification"
+}
+
+variable "sns_iam_role_name" {
+  description = "Name component for the SNS IAM role"
+  type        = string
+  default     = "2fa-sns-publisher"
+}
+
+variable "configure_sms_preferences" {
+  description = "Whether to configure account-level SMS preferences"
+  type        = bool
+  default     = false
+}
+
+variable "sms_sender_id" {
+  description = "Default sender ID for SMS messages (max 11 alphanumeric characters)"
+  type        = string
+  default     = "2FA"
+}
+
+variable "sms_type" {
+  description = "Default SMS type: Promotional or Transactional"
+  type        = string
+  default     = "Transactional"
+  validation {
+    condition     = contains(["Promotional", "Transactional"], var.sms_type)
+    error_message = "SMS type must be either 'Promotional' or 'Transactional'"
+  }
+}
+
+variable "sms_monthly_spend_limit" {
+  description = "Monthly spend limit for SMS in USD"
+  type        = number
+  default     = 10
 }
 
 ##################### ArgoCD ##########################

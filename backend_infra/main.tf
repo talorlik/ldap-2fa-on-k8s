@@ -93,6 +93,10 @@ module "eks" {
 
   enable_cluster_creator_admin_permissions = true
 
+  # Enable OIDC provider for IRSA (IAM Roles for Service Accounts)
+  # This is required for pods to assume IAM roles (e.g., for SNS access)
+  enable_irsa = true
+
   compute_config = {
     enabled    = true
     node_pools = ["general-purpose"]
@@ -117,9 +121,12 @@ module "endpoints" {
   region                 = var.region
   prefix                 = var.prefix
   vpc_id                 = module.vpc.vpc_id
+  vpc_cidr               = var.vpc_cidr
   private_subnets        = module.vpc.private_subnets
   endpoint_sg_name       = var.endpoint_sg_name
   node_security_group_id = module.eks.node_security_group_id
+  enable_sts_endpoint    = var.enable_sts_endpoint
+  enable_sns_endpoint    = var.enable_sns_endpoint
   tags                   = local.tags
 }
 

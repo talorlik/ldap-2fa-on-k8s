@@ -1,0 +1,207 @@
+# Default values for ldap-2fa-backend.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Number of replicas
+replicaCount: 2
+
+# Container image configuration
+image:
+  # ECR repository URL - should be set via CI/CD or ArgoCD
+  repository: ""
+  pullPolicy: IfNotPresent
+  # Image tag - should be set via CI/CD (defaults to Chart appVersion)
+  tag: ""
+
+# Secrets for pulling images from private registry
+imagePullSecrets: []
+
+# Override chart name
+nameOverride: ""
+fullnameOverride: ""
+
+# Service account configuration
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+# Pod annotations and labels
+podAnnotations: {}
+podLabels: {}
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8000
+
+# Ingress configuration for ALB
+ingress:
+  enabled: true
+  className: ""  # Will be set to IngressClass name
+  annotations:
+    # ALB-specific annotations
+    alb.ingress.kubernetes.io/load-balancer-name: ""
+    alb.ingress.kubernetes.io/target-type: "ip"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Order annotation for path priority (lower number = higher priority)
+    alb.ingress.kubernetes.io/group.order: "10"
+  hosts:
+    - host: ""  # app.<domain> - set by ArgoCD/values override
+      paths:
+        - path: /api
+          pathType: Prefix
+  tls: []
+
+# HTTPRoute (Gateway API) - not used
+httpRoute:
+  enabled: false
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /api/healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /api/healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Additional volumes
+volumes: []
+
+# Additional volume mounts
+volumeMounts: []
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}
+
+# =============================================================================
+# Application-specific configuration
+# =============================================================================
+
+# LDAP configuration (non-sensitive values)
+ldap:
+  # LDAP server hostname (Kubernetes service DNS)
+  host: "openldap-stack-ha.ldap.svc.cluster.local"
+  # LDAP port
+  port: 389
+  # Use SSL/TLS for LDAP connection
+  useSsl: false
+  # Base DN for LDAP operations
+  baseDn: "dc=ldap,dc=talorlik,dc=internal"
+  # Admin DN for binding (used for user lookups)
+  adminDn: "cn=admin,dc=ldap,dc=talorlik,dc=internal"
+  # User search base (relative to baseDn)
+  userSearchBase: "ou=users"
+  # User search filter (use {0} as placeholder for username)
+  userSearchFilter: "(uid={0})"
+
+# MFA/TOTP configuration
+mfa:
+  # TOTP issuer name (appears in authenticator apps)
+  issuer: "LDAP-2FA-App"
+  # Number of digits in TOTP code
+  digits: 6
+  # TOTP interval in seconds
+  interval: 30
+  # TOTP algorithm (SHA1, SHA256, SHA512)
+  algorithm: "SHA1"
+
+# Application configuration
+app:
+  # Application name
+  name: "LDAP 2FA Backend API"
+  # Enable debug mode (enables API docs)
+  debug: false
+  # Log level (DEBUG, INFO, WARNING, ERROR)
+  logLevel: "INFO"
+  # CORS origins (comma-separated, empty for none)
+  corsOrigins: ""
+
+# External secrets configuration
+# Reference to existing Kubernetes secret for sensitive values
+externalSecret:
+  # Enable using external secret for LDAP admin password
+  enabled: true
+  # Name of the existing secret containing LDAP admin password
+  secretName: "ldap-admin-secret"
+  # Key in the secret containing the admin password
+  adminPasswordKey: "LDAP_ADMIN_PASSWORD"
+
+# =============================================================================
+# SMS/SNS Configuration (for SMS-based 2FA)
+# =============================================================================
+
+sms:
+  # Enable SMS-based 2FA
+  enabled: false
+  # AWS region for SNS
+  awsRegion: "us-east-1"
+  # SNS topic ARN (optional - for subscriptions/notifications)
+  snsTopicArn: ""
+  # SMS sender ID (max 11 alphanumeric chars, may not work in all countries)
+  senderId: "2FA"
+  # SMS type: Transactional (higher priority) or Promotional
+  smsType: "Transactional"
+  # Verification code length
+  codeLength: 6
+  # Code expiry in seconds
+  codeExpirySeconds: 300
+  # Custom message template ({code} placeholder for the code)
+  messageTemplate: "Your verification code is: {code}. It expires in 5 minutes."
+
+# IAM Role for Service Account (IRSA) - required for SNS access
+serviceAccountIAM:
+  # IAM role ARN to attach to the service account
+  # This should be the output from the SNS Terraform module
+  roleArn: ""

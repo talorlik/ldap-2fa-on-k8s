@@ -1,0 +1,27 @@
+apiVersion: v2
+name: ldap-2fa-frontend
+description: Frontend UI for LDAP 2FA authentication application
+
+type: application
+
+# Chart version - increment when making changes to the chart
+version: 0.1.0
+
+# Application version - updated by CI/CD pipeline
+appVersion: "1.0.0"
+
+keywords:
+  - ldap
+  - 2fa
+  - mfa
+  - authentication
+  - frontend
+  - nginx
+
+maintainers:
+  - name: Talo
+    url: https://github.com/talorlik
+
+home: https://github.com/talorlik/ldap-2fa-on-k8s
+sources:
+  - https://github.com/talorlik/ldap-2fa-on-k8s

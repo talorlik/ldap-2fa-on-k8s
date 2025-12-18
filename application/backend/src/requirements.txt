@@ -1,0 +1,17 @@
+# Core framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+gunicorn==23.0.0
+
+# Settings management
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# LDAP
+ldap3==2.9.1
+
+# AWS SDK for SNS (SMS)
+boto3==1.35.81
+
+# Production server
+python-multipart==0.0.20

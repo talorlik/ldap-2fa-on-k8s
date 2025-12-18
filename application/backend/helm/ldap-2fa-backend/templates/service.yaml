@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ldap-2fa-backend.fullname" . }}
+  labels:
+    {{- include "ldap-2fa-backend.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "ldap-2fa-backend.selectorLabels" . | nindent 4 }}

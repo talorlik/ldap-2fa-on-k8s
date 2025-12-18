@@ -66,6 +66,18 @@ variable "endpoint_sg_name" {
   type        = string
 }
 
+variable "enable_sts_endpoint" {
+  description = "Whether to create STS VPC endpoint (required for IRSA)"
+  type        = bool
+  default     = true
+}
+
+variable "enable_sns_endpoint" {
+  description = "Whether to create SNS VPC endpoint (required for SMS 2FA)"
+  type        = bool
+  default     = false
+}
+
 ##################### EBS ##########################
 
 variable "ebs_name" {

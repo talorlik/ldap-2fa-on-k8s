@@ -1,0 +1,545 @@
+/* CSS Variables for theming */
+:root {
+    --primary-color: #4f46e5;
+    --primary-hover: #4338ca;
+    --secondary-color: #64748b;
+    --success-color: #22c55e;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --background-color: #f8fafc;
+    --card-background: #ffffff;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --border-color: #e2e8f0;
+    --input-background: #f1f5f9;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --border-radius: 12px;
+    --transition: all 0.2s ease-in-out;
+}
+
+/* Reset and base styles */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+/* Main container */
+.container {
+    background: var(--card-background);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    padding: 40px;
+    width: 100%;
+    max-width: 460px;
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Header */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+header .subtitle {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+/* Tab navigation */
+.tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    background: var(--input-background);
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: var(--transition);
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    background: var(--card-background);
+    color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Tab content */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Form styles */
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-group input {
+    padding: 14px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 1rem;
+    background: var(--input-background);
+    transition: var(--transition);
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background: var(--card-background);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.form-group input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* Button styles */
+.btn {
+    padding: 14px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background: var(--input-background);
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--border-color);
+}
+
+.btn-small {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+}
+
+.btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-loading {
+    display: none;
+}
+
+.btn.loading .btn-text {
+    display: none;
+}
+
+.btn.loading .btn-loading {
+    display: inline;
+}
+
+/* Result container */
+.result-container {
+    margin-top: 24px;
+    padding: 20px;
+    border-radius: 10px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.result-container.success {
+    background: rgba(34, 197, 94, 0.1);
+    border: 2px solid var(--success-color);
+}
+
+.result-container.error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 2px solid var(--error-color);
+}
+
+.result-container h3 {
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+}
+
+.result-container.success h3 {
+    color: var(--success-color);
+}
+
+.result-container.error h3 {
+    color: var(--error-color);
+}
+
+.result-container p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+/* QR Code section */
+.qr-section {
+    text-align: center;
+}
+
+.qr-section h3 {
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.qr-section > p {
+    margin-bottom: 20px;
+}
+
+.qr-code {
+    display: inline-block;
+    padding: 16px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 20px;
+}
+
+.qr-code canvas {
+    display: block;
+}
+
+.manual-entry {
+    padding: 16px;
+    background: var(--input-background);
+    border-radius: 10px;
+    margin-top: 16px;
+}
+
+.manual-entry p {
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+}
+
+.manual-entry code {
+    display: block;
+    padding: 12px;
+    background: var(--card-background);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.9rem;
+    word-break: break-all;
+    margin-bottom: 12px;
+    color: var(--primary-color);
+}
+
+/* Status message */
+.status-message {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.status-message.success {
+    background: var(--success-color);
+    color: white;
+}
+
+.status-message.error {
+    background: var(--error-color);
+    color: white;
+}
+
+.status-message.warning {
+    background: var(--warning-color);
+    color: white;
+}
+
+/* MFA Method Selector */
+.mfa-method-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.radio-option {
+    display: block;
+    cursor: pointer;
+}
+
+.radio-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--input-background);
+    transition: var(--transition);
+}
+
+.radio-option input[type="radio"]:checked + .radio-label {
+    border-color: var(--primary-color);
+    background: rgba(79, 70, 229, 0.05);
+}
+
+.radio-option:hover .radio-label {
+    border-color: var(--primary-color);
+}
+
+.radio-icon {
+    font-size: 1.5rem;
+}
+
+.radio-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.radio-text strong {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.radio-text small {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* Code Input Group */
+.code-input-group {
+    display: flex;
+    gap: 8px;
+}
+
+.code-input-group input {
+    flex: 1;
+}
+
+.code-input-group .btn {
+    white-space: nowrap;
+}
+
+/* Form Hint */
+.form-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* SMS Section */
+.sms-section {
+    text-align: center;
+    padding: 20px;
+}
+
+.sms-section h3 {
+    color: var(--success-color);
+    margin-bottom: 12px;
+}
+
+.sms-section p {
+    margin-bottom: 8px;
+}
+
+.sms-section .hint {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Disabled radio option */
+.radio-option.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.radio-option.disabled .radio-label {
+    pointer-events: none;
+}
+
+/* Hidden utility class */
+.hidden {
+    display: none !important;
+}
+
+/* Footer */
+footer {
+    margin-top: 30px;
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+footer p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 24px;
+    }
+
+    header h1 {
+        font-size: 1.5rem;
+    }
+
+    .tabs {
+        flex-direction: column;
+    }
+
+    .tab-btn {
+        padding: 14px;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background-color: #0f172a;
+        --card-background: #1e293b;
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --border-color: #334155;
+        --input-background: #0f172a;
+    }
+
+    body {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+    }
+
+    .form-group input:focus {
+        background: var(--card-background);
+    }
+
+    .qr-code {
+        background: white;
+    }
+}
+
+/* Loading spinner */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+    margin-right: 8px;
+}

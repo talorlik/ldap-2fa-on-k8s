@@ -1,0 +1,126 @@
+# Default values for ldap-2fa-frontend.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Number of replicas
+replicaCount: 2
+
+# Container image configuration
+image:
+  # ECR repository URL - should be set via CI/CD or ArgoCD
+  repository: ""
+  pullPolicy: IfNotPresent
+  # Image tag - should be set via CI/CD (defaults to Chart appVersion)
+  tag: ""
+
+# Secrets for pulling images from private registry
+imagePullSecrets: []
+
+# Override chart name
+nameOverride: ""
+fullnameOverride: ""
+
+# Service account configuration
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+# Pod annotations and labels
+podAnnotations: {}
+podLabels: {}
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+
+# Ingress configuration for ALB
+ingress:
+  enabled: true
+  className: ""  # Will be set to IngressClass name
+  annotations:
+    # ALB-specific annotations
+    alb.ingress.kubernetes.io/load-balancer-name: ""
+    alb.ingress.kubernetes.io/target-type: "ip"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Order annotation for path priority (higher number = lower priority, matches after /api)
+    alb.ingress.kubernetes.io/group.order: "20"
+  hosts:
+    - host: ""  # app.<domain> - set by ArgoCD/values override
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# HTTPRoute (Gateway API) - not used
+httpRoute:
+  enabled: false
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 200m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+# Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 3
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Additional volumes
+volumes: []
+
+# Additional volume mounts
+volumeMounts: []
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}
