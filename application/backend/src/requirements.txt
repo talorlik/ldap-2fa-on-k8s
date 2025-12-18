@@ -24,6 +24,9 @@ redis==5.2.1
 # Password hashing
 bcrypt==4.2.1
 
+# JWT for session management
+PyJWT==2.10.1
+
 # Email validation
 email-validator==2.2.0
 

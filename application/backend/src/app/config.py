@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     ldap_admin_group_dn: str = os.getenv(
         "LDAP_ADMIN_GROUP_DN", "cn=admins,ou=groups,dc=ldap,dc=talorlik,dc=internal"
     )
+    ldap_group_search_base: str = os.getenv("LDAP_GROUP_SEARCH_BASE", "ou=groups")
     ldap_users_gid: int = int(os.getenv("LDAP_USERS_GID", "500"))
     ldap_uid_start: int = int(os.getenv("LDAP_UID_START", "10000"))
 
@@ -74,6 +75,12 @@ class Settings(BaseSettings):
     app_name: str = os.getenv("APP_NAME", "LDAP 2FA Backend API")
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
+
+    # JWT Configuration
+    jwt_secret_key: str = os.getenv("JWT_SECRET_KEY", "change-me-in-production-use-secure-random-key")
+    jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
+    jwt_expiry_minutes: int = int(os.getenv("JWT_EXPIRY_MINUTES", "60"))
+    jwt_refresh_expiry_days: int = int(os.getenv("JWT_REFRESH_EXPIRY_DAYS", "7"))
 
     # CORS Configuration (for local development)
     cors_origins: list[str] = os.getenv("CORS_ORIGINS", "").split(",") if os.getenv(

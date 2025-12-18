@@ -10,12 +10,43 @@ const API = {
     basePath: '/api',
 
     /**
+     * JWT token storage key
+     */
+    tokenKey: 'ldap2fa_token',
+
+    /**
+     * Get stored JWT token
+     */
+    getToken() {
+        return localStorage.getItem(this.tokenKey);
+    },
+
+    /**
+     * Store JWT token
+     */
+    setToken(token) {
+        if (token) {
+            localStorage.setItem(this.tokenKey, token);
+        } else {
+            localStorage.removeItem(this.tokenKey);
+        }
+    },
+
+    /**
+     * Clear JWT token (logout)
+     */
+    clearToken() {
+        localStorage.removeItem(this.tokenKey);
+    },
+
+    /**
      * Make an API request
      * @param {string} endpoint - API endpoint (e.g., '/auth/login')
      * @param {Object} options - Fetch options
+     * @param {boolean} auth - Whether to include auth token
      * @returns {Promise<Object>} Response data
      */
-    async request(endpoint, options = {}) {
+    async request(endpoint, options = {}, auth = false) {
         const url = `${this.basePath}${endpoint}`;
 
         const defaultOptions = {
@@ -23,6 +54,14 @@ const API = {
                 'Content-Type': 'application/json',
             },
         };
+
+        // Add auth header if requested and token exists
+        if (auth) {
+            const token = this.getToken();
+            if (token) {
+                defaultOptions.headers['Authorization'] = `Bearer ${token}`;
+            }
+        }
 
         const mergedOptions = {
             ...defaultOptions,
@@ -58,6 +97,13 @@ const API = {
                 null
             );
         }
+    },
+
+    /**
+     * Make an authenticated API request
+     */
+    async authRequest(endpoint, options = {}) {
+        return this.request(endpoint, options, true);
     },
 
     /**
@@ -287,6 +333,180 @@ const API = {
                 admin_username: adminUsername,
                 admin_password: adminPassword,
             }),
+        });
+    },
+
+    // =========================================================================
+    // Profile (Authenticated)
+    // =========================================================================
+
+    /**
+     * Get user profile
+     * @param {string} username - Username
+     * @returns {Promise<Object>} Profile response
+     */
+    async getProfile(username) {
+        return this.authRequest(`/profile/${encodeURIComponent(username)}`);
+    },
+
+    /**
+     * Update user profile
+     * @param {string} username - Username
+     * @param {Object} updates - Profile updates
+     * @returns {Promise<Object>} Updated profile response
+     */
+    async updateProfile(username, updates) {
+        return this.authRequest(`/profile/${encodeURIComponent(username)}`, {
+            method: 'PUT',
+            body: JSON.stringify(updates),
+        });
+    },
+
+    // =========================================================================
+    // Groups (Admin, Authenticated)
+    // =========================================================================
+
+    /**
+     * List all groups
+     * @param {Object} params - Query parameters (search, sort_by, sort_order)
+     * @returns {Promise<Object>} Groups list response
+     */
+    async listGroups(params = {}) {
+        const query = new URLSearchParams();
+        if (params.search) query.set('search', params.search);
+        if (params.sort_by) query.set('sort_by', params.sort_by);
+        if (params.sort_order) query.set('sort_order', params.sort_order);
+
+        const queryStr = query.toString();
+        return this.authRequest(`/admin/groups${queryStr ? '?' + queryStr : ''}`);
+    },
+
+    /**
+     * Create a new group
+     * @param {string} name - Group name
+     * @param {string} description - Group description
+     * @returns {Promise<Object>} Created group response
+     */
+    async createGroup(name, description = '') {
+        return this.authRequest('/admin/groups', {
+            method: 'POST',
+            body: JSON.stringify({ name, description }),
+        });
+    },
+
+    /**
+     * Get group details
+     * @param {string} groupId - Group ID
+     * @returns {Promise<Object>} Group details response
+     */
+    async getGroup(groupId) {
+        return this.authRequest(`/admin/groups/${encodeURIComponent(groupId)}`);
+    },
+
+    /**
+     * Update a group
+     * @param {string} groupId - Group ID
+     * @param {Object} updates - Group updates
+     * @returns {Promise<Object>} Updated group response
+     */
+    async updateGroup(groupId, updates) {
+        return this.authRequest(`/admin/groups/${encodeURIComponent(groupId)}`, {
+            method: 'PUT',
+            body: JSON.stringify(updates),
+        });
+    },
+
+    /**
+     * Delete a group
+     * @param {string} groupId - Group ID
+     * @returns {Promise<Object>} Deletion response
+     */
+    async deleteGroup(groupId) {
+        return this.authRequest(`/admin/groups/${encodeURIComponent(groupId)}`, {
+            method: 'DELETE',
+        });
+    },
+
+    // =========================================================================
+    // User-Group Assignment (Admin, Authenticated)
+    // =========================================================================
+
+    /**
+     * Get user's groups
+     * @param {string} userId - User ID
+     * @returns {Promise<Object>} User groups response
+     */
+    async getUserGroups(userId) {
+        return this.authRequest(`/admin/users/${encodeURIComponent(userId)}/groups`);
+    },
+
+    /**
+     * Assign user to groups
+     * @param {string} userId - User ID
+     * @param {string[]} groupIds - Array of group IDs to assign
+     * @returns {Promise<Object>} Assignment response
+     */
+    async assignUserGroups(userId, groupIds) {
+        return this.authRequest(`/admin/users/${encodeURIComponent(userId)}/groups`, {
+            method: 'POST',
+            body: JSON.stringify({ group_ids: groupIds }),
+        });
+    },
+
+    /**
+     * Replace user's groups
+     * @param {string} userId - User ID
+     * @param {string[]} groupIds - Array of group IDs to set
+     * @returns {Promise<Object>} Assignment response
+     */
+    async replaceUserGroups(userId, groupIds) {
+        return this.authRequest(`/admin/users/${encodeURIComponent(userId)}/groups`, {
+            method: 'PUT',
+            body: JSON.stringify({ group_ids: groupIds }),
+        });
+    },
+
+    /**
+     * Remove user from a group
+     * @param {string} userId - User ID
+     * @param {string} groupId - Group ID
+     * @returns {Promise<Object>} Removal response
+     */
+    async removeUserFromGroup(userId, groupId) {
+        return this.authRequest(`/admin/users/${encodeURIComponent(userId)}/groups/${encodeURIComponent(groupId)}`, {
+            method: 'DELETE',
+        });
+    },
+
+    // =========================================================================
+    // Enhanced Admin (Authenticated)
+    // =========================================================================
+
+    /**
+     * List users with enhanced filtering/sorting/search
+     * @param {Object} params - Query parameters
+     * @returns {Promise<Object>} Users list response
+     */
+    async adminListUsersEnhanced(params = {}) {
+        const query = new URLSearchParams();
+        if (params.status_filter) query.set('status_filter', params.status_filter);
+        if (params.group_filter) query.set('group_filter', params.group_filter);
+        if (params.search) query.set('search', params.search);
+        if (params.sort_by) query.set('sort_by', params.sort_by);
+        if (params.sort_order) query.set('sort_order', params.sort_order);
+
+        const queryStr = query.toString();
+        return this.authRequest(`/admin/users/enhanced${queryStr ? '?' + queryStr : ''}`);
+    },
+
+    /**
+     * Revoke an active user
+     * @param {string} userId - User ID
+     * @returns {Promise<Object>} Revoke response
+     */
+    async revokeUser(userId) {
+        return this.authRequest(`/admin/users/${encodeURIComponent(userId)}/revoke`, {
+            method: 'POST',
         });
     },
 };

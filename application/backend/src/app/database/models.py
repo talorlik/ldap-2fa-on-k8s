@@ -30,6 +30,7 @@ class ProfileStatus(str, Enum):
     PENDING = "pending"  # Signup complete, verification incomplete
     COMPLETE = "complete"  # Email + Phone verified, awaiting admin approval
     ACTIVE = "active"  # Admin activated, user exists in LDAP
+    REVOKED = "revoked"  # Admin revoked, removed from LDAP
 
 
 class MFAMethodType(str, Enum):
@@ -122,6 +123,11 @@ class User(Base):
     # Relationships
     verification_tokens: Mapped[list["VerificationToken"]] = relationship(
         "VerificationToken",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    user_groups: Mapped[list["UserGroup"]] = relationship(
+        "UserGroup",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -232,3 +238,95 @@ class VerificationToken(Base):
     def is_valid(self) -> bool:
         """Check if token is valid (not used and not expired)."""
         return not self.used and not self.is_expired()
+
+
+class Group(Base):
+    """Group model for organizing users."""
+
+    __tablename__ = "groups"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    # Corresponding LDAP group DN
+    ldap_dn: Mapped[str] = mapped_column(
+        String(500),
+        nullable=False,
+        unique=True,
+    )
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    # Relationships
+    user_groups: Mapped[list["UserGroup"]] = relationship(
+        "UserGroup",
+        back_populates="group",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def member_count(self) -> int:
+        """Get the number of members in this group."""
+        return len(self.user_groups) if self.user_groups else 0
+
+
+class UserGroup(Base):
+    """Association table for user-group membership."""
+
+    __tablename__ = "user_groups"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    group_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("groups.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    # Assignment metadata
+    assigned_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    assigned_by: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+    )  # Admin username who assigned
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", back_populates="user_groups")
+    group: Mapped["Group"] = relationship("Group", back_populates="user_groups")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_user_groups_user", "user_id"),
+        Index("ix_user_groups_group", "group_id"),
+    )

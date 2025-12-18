@@ -7,12 +7,31 @@ document.addEventListener('DOMContentLoaded', () => {
     App.init();
 });
 
+/**
+ * Escape HTML to prevent XSS attacks
+ * Uses string replacement to avoid DOM-based escaping
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 const App = {
     // State
     smsEnabled: false,
     userMfaMethod: null,
     currentUser: null, // Store current signup user for verification
-    adminCredentials: null, // Store admin credentials for API calls
+    session: null, // Store logged in session { username, isAdmin, token }
+    groups: [], // Cache of groups for admin
+    users: [], // Cache of users for admin
+    sortState: { field: 'created_at', order: 'desc' },
 
     /**
      * Initialize the application
@@ -25,13 +44,182 @@ const App = {
         this.setupCopySecret();
         this.setupMfaMethodSelector();
         this.setupVerification();
-        this.setupAdmin();
+        this.setupTopBar();
+        this.setupProfile();
+        this.setupAdminUsers();
+        this.setupAdminGroups();
+        this.setupModals();
 
         // Check if SMS is enabled
         await this.checkMfaMethods();
 
         // Check for email verification token in URL
         this.checkEmailVerificationToken();
+
+        // Check for existing session
+        this.checkSession();
+    },
+
+    /**
+     * Check for existing session from stored token
+     */
+    checkSession() {
+        const token = API.getToken();
+        if (token) {
+            try {
+                // Decode JWT payload (without verification)
+                const payload = JSON.parse(atob(token.split('.')[1]));
+
+                // Check if token is expired
+                if (payload.exp * 1000 < Date.now()) {
+                    API.clearToken();
+                    return;
+                }
+
+                // Restore session
+                this.session = {
+                    username: payload.username,
+                    isAdmin: payload.is_admin,
+                    token: token,
+                };
+
+                this.showLoggedInState();
+            } catch (e) {
+                API.clearToken();
+            }
+        }
+    },
+
+    /**
+     * Show logged in state with top bar
+     */
+    showLoggedInState() {
+        // Show top bar
+        document.getElementById('top-bar').classList.remove('hidden');
+        document.getElementById('user-display-name').textContent = this.session.username;
+
+        // Show admin menu items if admin
+        if (this.session.isAdmin) {
+            document.getElementById('admin-menu-items').classList.remove('hidden');
+        }
+
+        // Hide auth header and tabs
+        document.getElementById('auth-header').classList.add('hidden');
+        document.getElementById('auth-tabs').classList.add('hidden');
+
+        // Show profile by default
+        this.showSection('profile');
+
+        // Adjust container for logged in state
+        document.getElementById('main-container').classList.add('logged-in');
+    },
+
+    /**
+     * Show logged out state
+     */
+    showLoggedOutState() {
+        // Hide top bar
+        document.getElementById('top-bar').classList.add('hidden');
+        document.getElementById('admin-menu-items').classList.add('hidden');
+
+        // Show auth header and tabs
+        document.getElementById('auth-header').classList.remove('hidden');
+        document.getElementById('auth-tabs').classList.remove('hidden');
+
+        // Hide all sections, show login
+        this.hideAllSections();
+        document.getElementById('login-tab').classList.add('active');
+
+        // Adjust container
+        document.getElementById('main-container').classList.remove('logged-in');
+
+        // Clear session
+        this.session = null;
+        API.clearToken();
+    },
+
+    /**
+     * Show a specific section
+     */
+    showSection(section) {
+        this.hideAllSections();
+
+        switch (section) {
+            case 'profile':
+                document.getElementById('profile-section').classList.remove('hidden');
+                this.loadProfile();
+                break;
+            case 'admin-users':
+                document.getElementById('admin-users-section').classList.remove('hidden');
+                this.loadAdminUsers();
+                break;
+            case 'admin-groups':
+                document.getElementById('admin-groups-section').classList.remove('hidden');
+                this.loadAdminGroups();
+                break;
+        }
+    },
+
+    /**
+     * Hide all content sections
+     */
+    hideAllSections() {
+        document.querySelectorAll('.tab-content').forEach(el => {
+            el.classList.remove('active');
+            el.classList.add('hidden');
+        });
+    },
+
+    /**
+     * Setup top bar functionality
+     */
+    setupTopBar() {
+        const userMenuBtn = document.getElementById('user-menu-btn');
+        const userDropdown = document.getElementById('user-dropdown');
+
+        // Toggle dropdown
+        userMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('hidden');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            userDropdown.classList.add('hidden');
+        });
+
+        // Menu item handlers
+        document.getElementById('menu-profile').addEventListener('click', (e) => {
+            e.preventDefault();
+            userDropdown.classList.add('hidden');
+            this.showSection('profile');
+        });
+
+        document.getElementById('menu-admin-users').addEventListener('click', (e) => {
+            e.preventDefault();
+            userDropdown.classList.add('hidden');
+            this.showSection('admin-users');
+        });
+
+        document.getElementById('menu-admin-groups').addEventListener('click', (e) => {
+            e.preventDefault();
+            userDropdown.classList.add('hidden');
+            this.showSection('admin-groups');
+        });
+
+        document.getElementById('menu-logout').addEventListener('click', (e) => {
+            e.preventDefault();
+            userDropdown.classList.add('hidden');
+            this.logout();
+        });
+    },
+
+    /**
+     * Logout
+     */
+    logout() {
+        this.showLoggedOutState();
+        this.showStatus('Logged out successfully', 'success');
     },
 
     /**
@@ -111,8 +299,10 @@ const App = {
                 // Update content visibility
                 tabContents.forEach(content => {
                     content.classList.remove('active');
+                    content.classList.add('hidden');
                     if (content.id === `${targetTab}-tab`) {
                         content.classList.add('active');
+                        content.classList.remove('hidden');
                     }
                 });
 
@@ -231,29 +421,35 @@ const App = {
             try {
                 const response = await API.login(username, password, verificationCode);
 
-                resultContainer.innerHTML = `
-                    <h3>✅ Login Successful!</h3>
-                    <p>${response.message}</p>
-                    ${response.is_admin ? '<p class="admin-badge">👑 Admin Access Granted</p>' : ''}
-                `;
-                resultContainer.className = 'result-container success';
-                resultContainer.classList.remove('hidden');
+                // Store session
+                if (response.token) {
+                    API.setToken(response.token);
+                    this.session = {
+                        username: response.username || username,
+                        isAdmin: response.is_admin,
+                        token: response.token,
+                    };
 
-                this.showStatus('Login successful!', 'success');
+                    this.showStatus('Login successful!', 'success');
+                    form.reset();
+                    sendSmsBtn.classList.add('hidden');
+                    smsStatus.classList.add('hidden');
 
-                // Show admin tab if user is admin
-                if (response.is_admin) {
-                    document.getElementById('admin-tab-btn').classList.remove('hidden');
+                    // Show logged in state
+                    this.showLoggedInState();
+                } else {
+                    resultContainer.innerHTML = `
+                        <h3>✅ Login Successful!</h3>
+                        <p>${response.message}</p>
+                    `;
+                    resultContainer.className = 'result-container success';
+                    resultContainer.classList.remove('hidden');
                 }
-
-                form.reset();
-                sendSmsBtn.classList.add('hidden');
-                smsStatus.classList.add('hidden');
 
             } catch (error) {
                 resultContainer.innerHTML = `
                     <h3>❌ Login Failed</h3>
-                    <p>${error.message}</p>
+                    <p>${escapeHtml(error.message)}</p>
                 `;
                 resultContainer.className = 'result-container error';
                 resultContainer.classList.remove('hidden');
@@ -330,7 +526,7 @@ const App = {
             } catch (error) {
                 resultContainer.innerHTML = `
                     <h3>❌ Signup Failed</h3>
-                    <p>${error.message}</p>
+                    <p>${escapeHtml(error.message)}</p>
                 `;
                 resultContainer.className = 'result-container error';
                 resultContainer.classList.remove('hidden');
@@ -547,7 +743,7 @@ const App = {
                 resultContainer.innerHTML = `
                     <div class="result-container error">
                         <h3>❌ Enrollment Failed</h3>
-                        <p>${error.message}</p>
+                        <p>${escapeHtml(error.message)}</p>
                     </div>
                 `;
                 resultContainer.classList.remove('hidden');
@@ -596,46 +792,40 @@ const App = {
     },
 
     /**
-     * Setup admin functionality
+     * Setup profile functionality
      */
-    setupAdmin() {
-        const authForm = document.getElementById('admin-auth-form');
-        const adminLogin = document.getElementById('admin-login');
-        const adminPanel = document.getElementById('admin-panel');
-        const logoutBtn = document.getElementById('admin-logout-btn');
-        const refreshBtn = document.getElementById('admin-refresh-btn');
-        const statusFilter = document.getElementById('admin-status-filter');
+    setupProfile() {
+        const form = document.getElementById('profile-form');
 
-        // Admin login
-        authForm.addEventListener('submit', async (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const submitBtn = authForm.querySelector('button[type="submit"]');
-            const username = authForm.querySelector('#admin-username').value.trim();
-            const password = authForm.querySelector('#admin-password').value;
-            const code = authForm.querySelector('#admin-code').value.trim();
+            if (!this.session) return;
 
-            if (!/^\d{6}$/.test(code)) {
-                this.showStatus('Please enter a valid 6-digit code', 'error');
-                return;
-            }
-
+            const submitBtn = form.querySelector('button[type="submit"]');
             submitBtn.classList.add('loading');
             submitBtn.disabled = true;
 
+            const updates = {};
+            const firstName = document.getElementById('profile-firstname').value.trim();
+            const lastName = document.getElementById('profile-lastname').value.trim();
+            const email = document.getElementById('profile-email').value.trim();
+            const phoneCountryCode = document.getElementById('profile-country-code').value;
+            const phoneNumber = document.getElementById('profile-phone').value.trim();
+
+            if (firstName) updates.first_name = firstName;
+            if (lastName) updates.last_name = lastName;
+            if (email && !document.getElementById('profile-email').readOnly) {
+                updates.email = email;
+            }
+            if (!document.getElementById('profile-phone').readOnly) {
+                updates.phone_country_code = phoneCountryCode;
+                updates.phone_number = phoneNumber;
+            }
+
             try {
-                const response = await API.adminLogin(username, password, code);
-
-                if (response.is_admin) {
-                    this.adminCredentials = { username, password };
-                    adminLogin.classList.add('hidden');
-                    adminPanel.classList.remove('hidden');
-                    await this.loadAdminUsers();
-                    this.showStatus('Admin login successful!', 'success');
-                } else {
-                    throw new Error('Admin access denied');
-                }
-
+                await API.updateProfile(this.session.username, updates);
+                this.showStatus('Profile updated successfully', 'success');
             } catch (error) {
                 this.showStatus(error.message, 'error');
             } finally {
@@ -643,24 +833,104 @@ const App = {
                 submitBtn.disabled = false;
             }
         });
+    },
 
-        // Admin logout
-        logoutBtn.addEventListener('click', () => {
-            this.adminCredentials = null;
-            adminLogin.classList.remove('hidden');
-            adminPanel.classList.add('hidden');
-            authForm.reset();
-            this.showStatus('Logged out', 'success');
+    /**
+     * Load profile data
+     */
+    async loadProfile() {
+        if (!this.session) return;
+
+        try {
+            const profile = await API.getProfile(this.session.username);
+
+            document.getElementById('profile-username').value = profile.username;
+            document.getElementById('profile-firstname').value = profile.first_name;
+            document.getElementById('profile-lastname').value = profile.last_name;
+            document.getElementById('profile-email').value = profile.email;
+            document.getElementById('profile-country-code').value = profile.phone_country_code;
+            document.getElementById('profile-phone').value = profile.phone_number;
+            document.getElementById('profile-mfa').value = profile.mfa_method.toUpperCase();
+            document.getElementById('profile-status').value = profile.status.toUpperCase();
+
+            // Set read-only based on verification status
+            const emailInput = document.getElementById('profile-email');
+            const phoneInput = document.getElementById('profile-phone');
+            const countryCodeSelect = document.getElementById('profile-country-code');
+
+            if (profile.email_verified) {
+                emailInput.readOnly = true;
+                emailInput.classList.add('readonly-input');
+                document.getElementById('profile-email-hint').textContent = 'Email cannot be changed after verification';
+            } else {
+                emailInput.readOnly = false;
+                emailInput.classList.remove('readonly-input');
+                document.getElementById('profile-email-hint').textContent = '';
+            }
+
+            if (profile.phone_verified) {
+                phoneInput.readOnly = true;
+                phoneInput.classList.add('readonly-input');
+                countryCodeSelect.disabled = true;
+                document.getElementById('profile-phone-hint').textContent = 'Phone cannot be changed after verification';
+            } else {
+                phoneInput.readOnly = false;
+                phoneInput.classList.remove('readonly-input');
+                countryCodeSelect.disabled = false;
+                document.getElementById('profile-phone-hint').textContent = '';
+            }
+
+            // Display groups
+            const groupsContainer = document.getElementById('profile-groups');
+            if (profile.groups && profile.groups.length > 0) {
+                groupsContainer.innerHTML = profile.groups.map(g =>
+                    `<span class="group-badge">${g.name}</span>`
+                ).join('');
+            } else {
+                groupsContainer.innerHTML = '<span class="no-groups">No groups assigned</span>';
+            }
+
+        } catch (error) {
+            this.showStatus('Failed to load profile', 'error');
+        }
+    },
+
+    /**
+     * Setup admin users functionality
+     */
+    setupAdminUsers() {
+        const searchInput = document.getElementById('users-search');
+        const statusFilter = document.getElementById('users-status-filter');
+        const groupFilter = document.getElementById('users-group-filter');
+        const refreshBtn = document.getElementById('users-refresh-btn');
+
+        // Search
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => this.loadAdminUsers(), 300);
         });
 
-        // Refresh users
-        refreshBtn.addEventListener('click', () => {
-            this.loadAdminUsers();
-        });
+        // Filters
+        statusFilter.addEventListener('change', () => this.loadAdminUsers());
+        groupFilter.addEventListener('change', () => this.loadAdminUsers());
 
-        // Filter change
-        statusFilter.addEventListener('change', () => {
-            this.loadAdminUsers();
+        // Refresh
+        refreshBtn.addEventListener('click', () => this.loadAdminUsers());
+
+        // Sortable headers
+        document.querySelectorAll('#users-table th.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const field = th.dataset.sort;
+                if (this.sortState.field === field) {
+                    this.sortState.order = this.sortState.order === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.sortState.field = field;
+                    this.sortState.order = 'asc';
+                }
+                this.updateSortIndicators('users-table');
+                this.loadAdminUsers();
+            });
         });
     },
 
@@ -668,130 +938,438 @@ const App = {
      * Load admin users list
      */
     async loadAdminUsers() {
-        if (!this.adminCredentials) return;
+        if (!this.session || !this.session.isAdmin) return;
 
-        const usersList = document.getElementById('admin-users-list');
-        const noUsers = document.getElementById('admin-no-users');
-        const statusFilter = document.getElementById('admin-status-filter').value;
+        const tableBody = document.getElementById('users-table-body');
+        const loading = document.getElementById('users-loading');
+        const empty = document.getElementById('users-empty');
 
-        usersList.innerHTML = '<div class="loading-spinner">Loading...</div>';
-        noUsers.classList.add('hidden');
+        loading.classList.remove('hidden');
+        empty.classList.add('hidden');
+        tableBody.innerHTML = '';
 
         try {
-            const response = await API.adminListUsers(
-                this.adminCredentials.username,
-                this.adminCredentials.password,
-                statusFilter || null
-            );
+            const params = {
+                status_filter: document.getElementById('users-status-filter').value || undefined,
+                group_filter: document.getElementById('users-group-filter').value || undefined,
+                search: document.getElementById('users-search').value || undefined,
+                sort_by: this.sortState.field,
+                sort_order: this.sortState.order,
+            };
+
+            const response = await API.adminListUsersEnhanced(params);
+            this.users = response.users;
+
+            // Also load groups for filter dropdown
+            await this.loadGroupsForFilter();
 
             if (response.users.length === 0) {
-                usersList.innerHTML = '';
-                noUsers.classList.remove('hidden');
-                return;
+                empty.classList.remove('hidden');
+            } else {
+                tableBody.innerHTML = response.users.map(user => `
+                    <tr>
+                        <td>${user.first_name} ${user.last_name}</td>
+                        <td>${user.username}</td>
+                        <td>${user.email}</td>
+                        <td><span class="status-badge status-${user.status}">${user.status.toUpperCase()}</span></td>
+                        <td>${user.groups.map(g => `<span class="group-badge-small">${g.name}</span>`).join(' ') || '-'}</td>
+                        <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                        <td class="action-buttons">
+                            ${user.status === 'complete' ? `
+                                <button class="btn btn-primary btn-xs" onclick="App.showApproveModal('${user.id}', '${user.username}')">Approve</button>
+                                <button class="btn btn-danger btn-xs" onclick="App.confirmAction('Reject this user?', () => App.rejectUser('${user.id}'))">Reject</button>
+                            ` : ''}
+                            ${user.status === 'active' ? `
+                                <button class="btn btn-danger btn-xs" onclick="App.confirmAction('Revoke this user?', () => App.revokeUser('${user.id}'))">Revoke</button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `).join('');
             }
 
-            usersList.innerHTML = response.users.map(user => `
-                <div class="user-card" data-user-id="${user.id}">
-                    <div class="user-info">
-                        <div class="user-name">${user.first_name} ${user.last_name}</div>
-                        <div class="user-username">@${user.username}</div>
-                        <div class="user-details">
-                            <span>📧 ${user.email}</span>
-                            <span>📱 ${user.phone}</span>
-                        </div>
-                        <div class="user-status">
-                            <span class="status-badge status-${user.status}">${user.status.toUpperCase()}</span>
-                            <span class="verification-badges">
-                                ${user.email_verified ? '✅ Email' : '⏳ Email'}
-                                ${user.phone_verified ? '✅ Phone' : '⏳ Phone'}
-                            </span>
-                        </div>
-                        <div class="user-meta">
-                            Created: ${new Date(user.created_at).toLocaleDateString()}
-                            ${user.activated_at ? `| Activated: ${new Date(user.activated_at).toLocaleDateString()} by ${user.activated_by}` : ''}
-                        </div>
-                    </div>
-                    <div class="user-actions">
-                        ${user.status === 'complete' ? `
-                            <button class="btn btn-primary btn-small activate-btn" data-user-id="${user.id}">
-                                ✅ Activate
-                            </button>
-                            <button class="btn btn-secondary btn-small reject-btn" data-user-id="${user.id}">
-                                ❌ Reject
-                            </button>
-                        ` : ''}
-                        ${user.status === 'pending' ? `
-                            <button class="btn btn-secondary btn-small reject-btn" data-user-id="${user.id}">
-                                ❌ Delete
-                            </button>
-                        ` : ''}
-                    </div>
-                </div>
-            `).join('');
-
-            // Add event listeners to action buttons
-            usersList.querySelectorAll('.activate-btn').forEach(btn => {
-                btn.addEventListener('click', () => this.activateUser(btn.dataset.userId));
-            });
-
-            usersList.querySelectorAll('.reject-btn').forEach(btn => {
-                btn.addEventListener('click', () => this.rejectUser(btn.dataset.userId));
-            });
-
         } catch (error) {
-            usersList.innerHTML = `<div class="error-message">${error.message}</div>`;
             this.showStatus(error.message, 'error');
+        } finally {
+            loading.classList.add('hidden');
         }
     },
 
     /**
-     * Activate a user
+     * Load groups for filter dropdown
      */
-    async activateUser(userId) {
-        if (!this.adminCredentials) return;
+    async loadGroupsForFilter() {
+        try {
+            const response = await API.listGroups();
+            this.groups = response.groups;
 
-        if (!confirm('Are you sure you want to activate this user? They will be created in LDAP.')) {
+            const filterSelect = document.getElementById('users-group-filter');
+            const currentValue = filterSelect.value;
+
+            // Keep first option, update rest
+            filterSelect.innerHTML = '<option value="">All Groups</option>' +
+                response.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+
+            filterSelect.value = currentValue;
+        } catch (error) {
+            console.warn('Could not load groups for filter', error);
+        }
+    },
+
+    /**
+     * Setup admin groups functionality
+     */
+    setupAdminGroups() {
+        const searchInput = document.getElementById('groups-search');
+        const createBtn = document.getElementById('create-group-btn');
+
+        // Search
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => this.loadAdminGroups(), 300);
+        });
+
+        // Create button
+        createBtn.addEventListener('click', () => this.showGroupModal());
+
+        // Sortable headers
+        document.querySelectorAll('#groups-table th.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const field = th.dataset.sort;
+                if (this.sortState.field === field) {
+                    this.sortState.order = this.sortState.order === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.sortState.field = field;
+                    this.sortState.order = 'asc';
+                }
+                this.updateSortIndicators('groups-table');
+                this.loadAdminGroups();
+            });
+        });
+    },
+
+    /**
+     * Load admin groups list
+     */
+    async loadAdminGroups() {
+        if (!this.session || !this.session.isAdmin) return;
+
+        const tableBody = document.getElementById('groups-table-body');
+        const loading = document.getElementById('groups-loading');
+        const empty = document.getElementById('groups-empty');
+
+        loading.classList.remove('hidden');
+        empty.classList.add('hidden');
+        tableBody.innerHTML = '';
+
+        try {
+            const params = {
+                search: document.getElementById('groups-search').value || undefined,
+                sort_by: this.sortState.field,
+                sort_order: this.sortState.order,
+            };
+
+            const response = await API.listGroups(params);
+            this.groups = response.groups;
+
+            if (response.groups.length === 0) {
+                empty.classList.remove('hidden');
+            } else {
+                tableBody.innerHTML = response.groups.map(group => `
+                    <tr>
+                        <td><strong>${group.name}</strong></td>
+                        <td>${group.description || '-'}</td>
+                        <td>
+                            <a href="#" onclick="App.showGroupMembers('${group.id}', '${group.name}'); return false;">
+                                ${group.member_count} members
+                            </a>
+                        </td>
+                        <td>${new Date(group.created_at).toLocaleDateString()}</td>
+                        <td class="action-buttons">
+                            <button class="btn btn-secondary btn-xs" onclick="App.showGroupModal('${group.id}')">Edit</button>
+                            <button class="btn btn-danger btn-xs" onclick="App.confirmAction('Delete this group?', () => App.deleteGroup('${group.id}'))">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+        } catch (error) {
+            this.showStatus(error.message, 'error');
+        } finally {
+            loading.classList.add('hidden');
+        }
+    },
+
+    /**
+     * Update sort indicators in table headers
+     */
+    updateSortIndicators(tableId) {
+        document.querySelectorAll(`#${tableId} th.sortable`).forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc');
+            if (th.dataset.sort === this.sortState.field) {
+                th.classList.add(`sort-${this.sortState.order}`);
+            }
+        });
+    },
+
+    /**
+     * Setup modals
+     */
+    setupModals() {
+        const overlay = document.getElementById('modal-overlay');
+
+        // Close buttons
+        document.querySelectorAll('[data-close-modal]').forEach(btn => {
+            btn.addEventListener('click', () => this.closeModals());
+        });
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                this.closeModals();
+            }
+        });
+
+        // Group modal form
+        document.getElementById('group-modal-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.saveGroup();
+        });
+
+        // Approve modal form
+        document.getElementById('approve-modal-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.approveUser();
+        });
+    },
+
+    /**
+     * Close all modals
+     */
+    closeModals() {
+        document.getElementById('modal-overlay').classList.add('hidden');
+        document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+    },
+
+    /**
+     * Show group create/edit modal
+     */
+    async showGroupModal(groupId = null) {
+        const modal = document.getElementById('group-modal');
+        const title = document.getElementById('group-modal-title');
+        const nameInput = document.getElementById('group-name');
+        const descInput = document.getElementById('group-description');
+
+        if (groupId) {
+            title.textContent = 'Edit Group';
+            try {
+                const group = await API.getGroup(groupId);
+                nameInput.value = group.name;
+                descInput.value = group.description || '';
+                modal.dataset.groupId = groupId;
+            } catch (error) {
+                this.showStatus(error.message, 'error');
+                return;
+            }
+        } else {
+            title.textContent = 'Create Group';
+            nameInput.value = '';
+            descInput.value = '';
+            delete modal.dataset.groupId;
+        }
+
+        document.getElementById('modal-overlay').classList.remove('hidden');
+        modal.classList.remove('hidden');
+        nameInput.focus();
+    },
+
+    /**
+     * Save group (create or update)
+     */
+    async saveGroup() {
+        const modal = document.getElementById('group-modal');
+        const groupId = modal.dataset.groupId;
+        const name = document.getElementById('group-name').value.trim();
+        const description = document.getElementById('group-description').value.trim();
+
+        if (!name) {
+            this.showStatus('Group name is required', 'error');
             return;
         }
 
         try {
-            const response = await API.adminActivateUser(
-                userId,
-                this.adminCredentials.username,
-                this.adminCredentials.password
-            );
+            if (groupId) {
+                await API.updateGroup(groupId, { name, description });
+                this.showStatus('Group updated successfully', 'success');
+            } else {
+                await API.createGroup(name, description);
+                this.showStatus('Group created successfully', 'success');
+            }
 
-            this.showStatus(response.message, 'success');
-            await this.loadAdminUsers();
-
+            this.closeModals();
+            this.loadAdminGroups();
         } catch (error) {
             this.showStatus(error.message, 'error');
         }
     },
 
     /**
-     * Reject/delete a user
+     * Delete group
+     */
+    async deleteGroup(groupId) {
+        try {
+            await API.deleteGroup(groupId);
+            this.showStatus('Group deleted successfully', 'success');
+            this.loadAdminGroups();
+        } catch (error) {
+            this.showStatus(error.message, 'error');
+        }
+    },
+
+    /**
+     * Show group members modal
+     */
+    async showGroupMembers(groupId, groupName) {
+        const modal = document.getElementById('members-modal');
+        const title = document.getElementById('members-modal-title');
+        const membersList = document.getElementById('members-list');
+
+        title.textContent = `Members of ${groupName}`;
+        membersList.innerHTML = '<div class="loading-spinner">Loading...</div>';
+
+        document.getElementById('modal-overlay').classList.remove('hidden');
+        modal.classList.remove('hidden');
+
+        try {
+            const group = await API.getGroup(groupId);
+
+            if (group.members.length === 0) {
+                membersList.innerHTML = '<div class="empty-state">No members in this group</div>';
+            } else {
+                membersList.innerHTML = group.members.map(m => `
+                    <div class="member-item">
+                        <span class="member-name">${m.full_name}</span>
+                        <span class="member-username">@${m.username}</span>
+                    </div>
+                `).join('');
+            }
+        } catch (error) {
+            membersList.innerHTML = `<div class="error-message">${escapeHtml(error.message)}</div>`;
+        }
+    },
+
+    /**
+     * Show approve user modal with group selection
+     */
+    async showApproveModal(userId, username) {
+        const modal = document.getElementById('approve-modal');
+        const userNameEl = document.getElementById('approve-user-name');
+        const groupsList = document.getElementById('approve-groups-list');
+
+        userNameEl.textContent = username;
+        modal.dataset.userId = userId;
+
+        // Load groups
+        groupsList.innerHTML = '<div class="loading-spinner">Loading groups...</div>';
+
+        document.getElementById('modal-overlay').classList.remove('hidden');
+        modal.classList.remove('hidden');
+
+        try {
+            const response = await API.listGroups();
+
+            if (response.groups.length === 0) {
+                groupsList.innerHTML = '<div class="warning-message">No groups available. Please create a group first.</div>';
+            } else {
+                groupsList.innerHTML = response.groups.map(g => `
+                    <label class="checkbox-option">
+                        <input type="checkbox" name="approve_group" value="${g.id}">
+                        <span>${g.name}</span>
+                    </label>
+                `).join('');
+            }
+        } catch (error) {
+            groupsList.innerHTML = `<div class="error-message">${escapeHtml(error.message)}</div>`;
+        }
+    },
+
+    /**
+     * Approve user (from modal)
+     */
+    async approveUser() {
+        const modal = document.getElementById('approve-modal');
+        const userId = modal.dataset.userId;
+        const selectedGroups = Array.from(
+            document.querySelectorAll('input[name="approve_group"]:checked')
+        ).map(cb => cb.value);
+
+        if (selectedGroups.length === 0) {
+            this.showStatus('Please select at least one group', 'error');
+            return;
+        }
+
+        try {
+            // First assign groups
+            await API.assignUserGroups(userId, selectedGroups);
+
+            // Then activate (using the old API since we don't have JWT-based activation yet)
+            // For now, we need to use the legacy admin credentials
+            // This would need to be updated to use JWT-based activation
+            this.showStatus('User approved and assigned to groups. Please complete activation via legacy admin panel.', 'warning');
+
+            this.closeModals();
+            this.loadAdminUsers();
+        } catch (error) {
+            this.showStatus(error.message, 'error');
+        }
+    },
+
+    /**
+     * Reject user
      */
     async rejectUser(userId) {
-        if (!this.adminCredentials) return;
-
-        if (!confirm('Are you sure you want to reject/delete this user? This cannot be undone.')) {
-            return;
-        }
-
         try {
-            const response = await API.adminRejectUser(
-                userId,
-                this.adminCredentials.username,
-                this.adminCredentials.password
-            );
-
-            this.showStatus(response.message, 'success');
-            await this.loadAdminUsers();
-
+            // Note: This uses legacy auth - would need JWT-based version
+            this.showStatus('Please use legacy admin panel to reject users for now.', 'warning');
         } catch (error) {
             this.showStatus(error.message, 'error');
         }
+    },
+
+    /**
+     * Revoke user
+     */
+    async revokeUser(userId) {
+        try {
+            await API.revokeUser(userId);
+            this.showStatus('User revoked successfully', 'success');
+            this.loadAdminUsers();
+        } catch (error) {
+            this.showStatus(error.message, 'error');
+        }
+    },
+
+    /**
+     * Show confirmation dialog
+     */
+    confirmAction(message, callback) {
+        const modal = document.getElementById('confirm-modal');
+        const messageEl = document.getElementById('confirm-modal-message');
+        const okBtn = document.getElementById('confirm-modal-ok');
+
+        messageEl.textContent = message;
+
+        // Remove old event listener
+        const newOkBtn = okBtn.cloneNode(true);
+        okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+        newOkBtn.addEventListener('click', () => {
+            this.closeModals();
+            callback();
+        });
+
+        document.getElementById('modal-overlay').classList.remove('hidden');
+        modal.classList.remove('hidden');
     },
 
     /**

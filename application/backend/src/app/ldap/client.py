@@ -4,7 +4,7 @@ import logging
 from typing import Optional
 
 import ldap3
-from ldap3 import ALL, MODIFY_ADD, Connection, Server
+from ldap3 import ALL, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE, Connection, Server
 from ldap3.core.exceptions import LDAPException
 
 from app.config import Settings, get_settings
@@ -52,6 +52,17 @@ class LDAPClient:
     def _get_user_dn(self, username: str) -> str:
         """Construct the user DN from username."""
         return f"uid={username},{self._get_user_search_base()}"
+
+    def _get_group_search_base(self) -> str:
+        """Get the full group search base DN."""
+        group_search_base = self.settings.ldap_group_search_base
+        if not group_search_base.endswith(self.settings.ldap_base_dn):
+            group_search_base = f"{group_search_base},{self.settings.ldap_base_dn}"
+        return group_search_base
+
+    def _get_group_dn(self, group_name: str) -> str:
+        """Construct the group DN from group name."""
+        return f"cn={group_name},{self._get_group_search_base()}"
 
     def _get_next_uid_number(self, conn: Connection) -> int:
         """Get the next available UID number."""
@@ -388,3 +399,424 @@ class LDAPClient:
         except Exception as e:
             logger.error(f"Unexpected error adding user to group: {e}")
             return False, f"Error: {e!s}"
+
+    def remove_user_from_group(self, username: str, group_dn: str) -> tuple[bool, str]:
+        """
+        Remove a user from an LDAP group.
+
+        Args:
+            username: The username to remove
+            group_dn: The DN of the group
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        user_dn = self._get_user_dn(username)
+
+        try:
+            conn = self._get_admin_connection()
+
+            # Try to remove as member (for groupOfNames/groupOfUniqueNames)
+            success = conn.modify(
+                group_dn,
+                {"member": [(MODIFY_DELETE, [user_dn])]}
+            )
+
+            if not success:
+                # Try memberUid instead (for posixGroup)
+                success = conn.modify(
+                    group_dn,
+                    {"memberUid": [(MODIFY_DELETE, [username])]}
+                )
+
+            if success:
+                logger.info(f"Removed user {username} from group {group_dn}")
+                conn.unbind()
+                return True, "User removed from group successfully"
+            else:
+                error_msg = conn.result.get("description", "Unknown error")
+                logger.error(f"Failed to remove {username} from group: {error_msg}")
+                conn.unbind()
+                return False, f"Failed to remove from group: {error_msg}"
+
+        except LDAPException as e:
+            logger.error(f"LDAP error removing user from group: {e}")
+            return False, f"LDAP error: {e!s}"
+        except Exception as e:
+            logger.error(f"Unexpected error removing user from group: {e}")
+            return False, f"Error: {e!s}"
+
+    def list_groups(self) -> list[dict]:
+        """
+        List all LDAP groups.
+
+        Returns:
+            List of group dictionaries with dn, name, description, and members
+        """
+        groups = []
+        try:
+            conn = self._get_admin_connection()
+
+            # Search for all groups
+            conn.search(
+                search_base=self._get_group_search_base(),
+                search_filter="(|(objectClass=groupOfNames)(objectClass=groupOfUniqueNames)(objectClass=posixGroup))",
+                attributes=["cn", "description", "member", "memberUid", "uniqueMember"],
+            )
+
+            for entry in conn.entries:
+                group_data = {
+                    "dn": str(entry.entry_dn),
+                    "name": entry.cn.value if hasattr(entry, "cn") else "",
+                    "description": entry.description.value if hasattr(entry, "description") and entry.description.value else "",
+                    "members": [],
+                }
+
+                # Get members from different attribute types
+                if hasattr(entry, "member") and entry.member.values:
+                    group_data["members"].extend(entry.member.values)
+                if hasattr(entry, "uniqueMember") and entry.uniqueMember.values:
+                    group_data["members"].extend(entry.uniqueMember.values)
+                if hasattr(entry, "memberUid") and entry.memberUid.values:
+                    group_data["members"].extend(entry.memberUid.values)
+
+                groups.append(group_data)
+
+            conn.unbind()
+            logger.info(f"Listed {len(groups)} LDAP groups")
+            return groups
+
+        except LDAPException as e:
+            logger.error(f"LDAP error listing groups: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error listing groups: {e}")
+            return []
+
+    def create_group(
+        self,
+        name: str,
+        description: str = "",
+    ) -> tuple[bool, str, Optional[str]]:
+        """
+        Create a new LDAP group.
+
+        Args:
+            name: The group name (cn)
+            description: Group description
+
+        Returns:
+            Tuple of (success: bool, message: str, group_dn: Optional[str])
+        """
+        group_dn = self._get_group_dn(name)
+
+        try:
+            conn = self._get_admin_connection()
+
+            # Check if group already exists
+            conn.search(
+                search_base=group_dn,
+                search_filter="(objectClass=*)",
+                attributes=["cn"],
+            )
+            if conn.entries:
+                conn.unbind()
+                return False, f"Group {name} already exists", None
+
+            # Create group with groupOfNames objectClass
+            # Note: groupOfNames requires at least one member, using admin as placeholder
+            attributes = {
+                "objectClass": ["groupOfNames", "top"],
+                "cn": name,
+                "description": description or f"Group: {name}",
+                "member": [self.settings.ldap_admin_dn],  # Required initial member
+            }
+
+            success = conn.add(group_dn, attributes=attributes)
+
+            if success:
+                logger.info(f"Created LDAP group: {name}")
+                conn.unbind()
+                return True, f"Group {name} created successfully", group_dn
+            else:
+                error_msg = conn.result.get("description", "Unknown error")
+                logger.error(f"Failed to create LDAP group {name}: {error_msg}")
+                conn.unbind()
+                return False, f"Failed to create group: {error_msg}", None
+
+        except LDAPException as e:
+            logger.error(f"LDAP error creating group {name}: {e}")
+            return False, f"LDAP error: {e!s}", None
+        except Exception as e:
+            logger.error(f"Unexpected error creating group {name}: {e}")
+            return False, f"Error creating group: {e!s}", None
+
+    def delete_group(self, group_dn: str) -> tuple[bool, str]:
+        """
+        Delete an LDAP group.
+
+        Args:
+            group_dn: The DN of the group to delete
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        try:
+            conn = self._get_admin_connection()
+
+            success = conn.delete(group_dn)
+
+            if success:
+                logger.info(f"Deleted LDAP group: {group_dn}")
+                conn.unbind()
+                return True, "Group deleted successfully"
+            else:
+                error_msg = conn.result.get("description", "Unknown error")
+                logger.error(f"Failed to delete LDAP group {group_dn}: {error_msg}")
+                conn.unbind()
+                return False, f"Failed to delete group: {error_msg}"
+
+        except LDAPException as e:
+            logger.error(f"LDAP error deleting group {group_dn}: {e}")
+            return False, f"LDAP error: {e!s}"
+        except Exception as e:
+            logger.error(f"Unexpected error deleting group {group_dn}: {e}")
+            return False, f"Error deleting group: {e!s}"
+
+    def update_group(
+        self,
+        group_dn: str,
+        description: Optional[str] = None,
+    ) -> tuple[bool, str]:
+        """
+        Update an LDAP group's description.
+
+        Args:
+            group_dn: The DN of the group
+            description: New description (if provided)
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        try:
+            conn = self._get_admin_connection()
+
+            modifications = {}
+            if description is not None:
+                modifications["description"] = [(MODIFY_REPLACE, [description])]
+
+            if not modifications:
+                conn.unbind()
+                return True, "No changes to apply"
+
+            success = conn.modify(group_dn, modifications)
+
+            if success:
+                logger.info(f"Updated LDAP group: {group_dn}")
+                conn.unbind()
+                return True, "Group updated successfully"
+            else:
+                error_msg = conn.result.get("description", "Unknown error")
+                logger.error(f"Failed to update LDAP group {group_dn}: {error_msg}")
+                conn.unbind()
+                return False, f"Failed to update group: {error_msg}"
+
+        except LDAPException as e:
+            logger.error(f"LDAP error updating group {group_dn}: {e}")
+            return False, f"LDAP error: {e!s}"
+        except Exception as e:
+            logger.error(f"Unexpected error updating group {group_dn}: {e}")
+            return False, f"Error updating group: {e!s}"
+
+    def get_user_groups(self, username: str) -> list[dict]:
+        """
+        Get all groups a user belongs to.
+
+        Args:
+            username: The username to check
+
+        Returns:
+            List of group dictionaries with dn and name
+        """
+        user_dn = self._get_user_dn(username)
+        groups = []
+
+        try:
+            conn = self._get_admin_connection()
+
+            # Search for groups containing this user
+            # Check both member (DN) and memberUid (username)
+            search_filter = f"(|(member={user_dn})(memberUid={username})(uniqueMember={user_dn}))"
+            conn.search(
+                search_base=self._get_group_search_base(),
+                search_filter=search_filter,
+                attributes=["cn", "description"],
+            )
+
+            for entry in conn.entries:
+                groups.append({
+                    "dn": str(entry.entry_dn),
+                    "name": entry.cn.value if hasattr(entry, "cn") else "",
+                    "description": entry.description.value if hasattr(entry, "description") and entry.description.value else "",
+                })
+
+            conn.unbind()
+            logger.debug(f"User {username} belongs to {len(groups)} groups")
+            return groups
+
+        except LDAPException as e:
+            logger.error(f"LDAP error getting user groups for {username}: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error getting user groups for {username}: {e}")
+            return []
+
+    def get_admin_emails(self) -> list[str]:
+        """
+        Get email addresses of all admin group members.
+
+        Returns:
+            List of email addresses
+        """
+        emails = []
+        try:
+            conn = self._get_admin_connection()
+
+            admin_group_dn = self.settings.ldap_admin_group_dn
+
+            # Get admin group members
+            conn.search(
+                search_base=admin_group_dn,
+                search_filter="(objectClass=*)",
+                attributes=["member", "memberUid", "uniqueMember"],
+            )
+
+            if not conn.entries:
+                logger.warning(f"Admin group not found: {admin_group_dn}")
+                conn.unbind()
+                return []
+
+            entry = conn.entries[0]
+            member_dns = []
+            member_uids = []
+
+            # Collect member DNs
+            if hasattr(entry, "member") and entry.member.values:
+                member_dns.extend(entry.member.values)
+            if hasattr(entry, "uniqueMember") and entry.uniqueMember.values:
+                member_dns.extend(entry.uniqueMember.values)
+            if hasattr(entry, "memberUid") and entry.memberUid.values:
+                member_uids.extend(entry.memberUid.values)
+
+            # Fetch email for each member DN
+            for member_dn in member_dns:
+                try:
+                    conn.search(
+                        search_base=member_dn,
+                        search_filter="(objectClass=*)",
+                        attributes=["mail"],
+                    )
+                    if conn.entries and hasattr(conn.entries[0], "mail"):
+                        mail = conn.entries[0].mail.value
+                        if mail:
+                            emails.append(mail)
+                except Exception as e:
+                    logger.debug(f"Could not fetch email for {member_dn}: {e}")
+
+            # Fetch email for each memberUid
+            for uid in member_uids:
+                try:
+                    search_filter = self.settings.ldap_user_search_filter.format(uid)
+                    conn.search(
+                        search_base=self._get_user_search_base(),
+                        search_filter=search_filter,
+                        attributes=["mail"],
+                    )
+                    if conn.entries and hasattr(conn.entries[0], "mail"):
+                        mail = conn.entries[0].mail.value
+                        if mail:
+                            emails.append(mail)
+                except Exception as e:
+                    logger.debug(f"Could not fetch email for uid {uid}: {e}")
+
+            conn.unbind()
+
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_emails = []
+            for email in emails:
+                if email not in seen:
+                    seen.add(email)
+                    unique_emails.append(email)
+
+            logger.info(f"Found {len(unique_emails)} admin email addresses")
+            return unique_emails
+
+        except LDAPException as e:
+            logger.error(f"LDAP error getting admin emails: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error getting admin emails: {e}")
+            return []
+
+    def get_group_members(self, group_dn: str) -> list[str]:
+        """
+        Get all members of a group.
+
+        Args:
+            group_dn: The DN of the group
+
+        Returns:
+            List of member usernames
+        """
+        members = []
+        try:
+            conn = self._get_admin_connection()
+
+            conn.search(
+                search_base=group_dn,
+                search_filter="(objectClass=*)",
+                attributes=["member", "memberUid", "uniqueMember"],
+            )
+
+            if not conn.entries:
+                conn.unbind()
+                return []
+
+            entry = conn.entries[0]
+
+            # Get members from different attribute types
+            if hasattr(entry, "memberUid") and entry.memberUid.values:
+                members.extend(entry.memberUid.values)
+
+            # Extract username from DN for member/uniqueMember
+            if hasattr(entry, "member") and entry.member.values:
+                for member_dn in entry.member.values:
+                    # Extract uid from DN like "uid=username,ou=users,..."
+                    if member_dn.lower().startswith("uid="):
+                        parts = member_dn.split(",")
+                        if parts:
+                            uid = parts[0].split("=")[1] if "=" in parts[0] else ""
+                            if uid:
+                                members.append(uid)
+
+            if hasattr(entry, "uniqueMember") and entry.uniqueMember.values:
+                for member_dn in entry.uniqueMember.values:
+                    if member_dn.lower().startswith("uid="):
+                        parts = member_dn.split(",")
+                        if parts:
+                            uid = parts[0].split("=")[1] if "=" in parts[0] else ""
+                            if uid:
+                                members.append(uid)
+
+            conn.unbind()
+
+            # Remove duplicates
+            return list(set(members))
+
+        except LDAPException as e:
+            logger.error(f"LDAP error getting group members for {group_dn}: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error getting group members for {group_dn}: {e}")
+            return []

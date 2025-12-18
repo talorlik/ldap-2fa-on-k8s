@@ -12,6 +12,8 @@ from app.database.models import (
     User,
     VerificationToken,
     ProfileStatus,
+    Group,
+    UserGroup,
 )
 
 __all__ = [
@@ -24,4 +26,6 @@ __all__ = [
     "User",
     "VerificationToken",
     "ProfileStatus",
+    "Group",
+    "UserGroup",
 ]

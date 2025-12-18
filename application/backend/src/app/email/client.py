@@ -219,3 +219,136 @@ If you have any questions, please contact your system administrator.
         except Exception as e:
             logger.error(f"Unexpected error sending welcome email to {to_email}: {e}")
             return False, f"Failed to send email: {str(e)}"
+
+    def send_admin_notification_email(
+        self,
+        admin_emails: list[str],
+        new_user: dict,
+    ) -> tuple[bool, str]:
+        """
+        Send notification email to admins when a new user signs up.
+
+        Args:
+            admin_emails: List of admin email addresses
+            new_user: Dictionary with new user details:
+                - username: str
+                - full_name: str
+                - email: str
+                - phone: str
+                - signup_time: str (ISO format)
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        if not admin_emails:
+            logger.warning("No admin emails to send notification to")
+            return True, "No admin emails configured"
+
+        admin_dashboard_link = f"{self.settings.app_url}/#admin"
+
+        subject = f"New User Signup - {new_user.get('username', 'Unknown')} - {self.settings.totp_issuer}"
+
+        html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 28px;">New User Registration</h1>
+    </div>
+    <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0; border-top: none;">
+        <p style="font-size: 16px;">A new user has registered and is awaiting approval.</p>
+
+        <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; margin: 20px 0;">
+            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">User Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 8px 0; color: #666; width: 120px;">Username:</td>
+                    <td style="padding: 8px 0; font-weight: bold;">{new_user.get('username', 'N/A')}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666;">Full Name:</td>
+                    <td style="padding: 8px 0; font-weight: bold;">{new_user.get('full_name', 'N/A')}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666;">Email:</td>
+                    <td style="padding: 8px 0; font-weight: bold;">{new_user.get('email', 'N/A')}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666;">Phone:</td>
+                    <td style="padding: 8px 0; font-weight: bold;">{new_user.get('phone', 'N/A')}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666;">Signup Time:</td>
+                    <td style="padding: 8px 0; font-weight: bold;">{new_user.get('signup_time', 'N/A')}</td>
+                </tr>
+            </table>
+        </div>
+
+        <p style="font-size: 14px; color: #666;">
+            Once the user completes email and phone verification, you can approve or reject their account from the admin dashboard.
+        </p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{admin_dashboard_link}" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">
+                Review in Admin Dashboard
+            </a>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+        <p style="font-size: 12px; color: #999; text-align: center;">
+            This is an automated notification from {self.settings.totp_issuer}.
+        </p>
+    </div>
+</body>
+</html>
+"""
+
+        text_body = f"""
+New User Registration
+
+A new user has registered and is awaiting approval.
+
+User Details:
+- Username: {new_user.get('username', 'N/A')}
+- Full Name: {new_user.get('full_name', 'N/A')}
+- Email: {new_user.get('email', 'N/A')}
+- Phone: {new_user.get('phone', 'N/A')}
+- Signup Time: {new_user.get('signup_time', 'N/A')}
+
+Once the user completes email and phone verification, you can approve or reject their account from the admin dashboard.
+
+Review in Admin Dashboard: {admin_dashboard_link}
+
+This is an automated notification from {self.settings.totp_issuer}.
+"""
+
+        try:
+            # Send to all admin emails
+            response = self.client.send_email(
+                Source=self.settings.ses_sender_email,
+                Destination={"ToAddresses": admin_emails},
+                Message={
+                    "Subject": {"Data": subject, "Charset": "UTF-8"},
+                    "Body": {
+                        "Text": {"Data": text_body, "Charset": "UTF-8"},
+                        "Html": {"Data": html_body, "Charset": "UTF-8"},
+                    },
+                },
+            )
+            message_id = response.get("MessageId", "unknown")
+            logger.info(f"Admin notification email sent to {len(admin_emails)} admins, MessageId: {message_id}")
+            return True, "Admin notification email sent successfully"
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+            logger.error(f"Failed to send admin notification email: {error_code} - {error_message}")
+            return False, f"Failed to send email: {error_message}"
+
+        except Exception as e:
+            logger.error(f"Unexpected error sending admin notification email: {e}")
+            return False, f"Failed to send email: {str(e)}"

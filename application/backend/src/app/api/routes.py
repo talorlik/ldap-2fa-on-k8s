@@ -11,13 +11,15 @@ from enum import Enum
 from typing import Optional
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
+import jwt
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
-from app.database import get_async_session, User, VerificationToken, ProfileStatus
+from app.database import get_async_session, User, VerificationToken, ProfileStatus, Group, UserGroup
 from app.email import EmailClient
 from app.ldap import LDAPClient
 from app.mfa import TOTPManager
@@ -169,6 +171,8 @@ class LoginResponse(BaseModel):
     success: bool = Field(..., description="Whether login was successful")
     message: str = Field(..., description="Response message")
     is_admin: bool = Field(False, description="Whether user is admin")
+    token: Optional[str] = Field(None, description="JWT access token")
+    username: Optional[str] = Field(None, description="Logged in username")
 
 
 class SMSSendCodeRequest(BaseModel):
@@ -215,6 +219,107 @@ class AdminActivateResponse(BaseModel):
     """Admin activation response."""
     success: bool = Field(..., description="Whether activation was successful")
     message: str = Field(..., description="Response message")
+
+
+# Profile Models
+class ProfileResponse(BaseModel):
+    """User profile response model."""
+    id: str = Field(..., description="User ID")
+    username: str = Field(..., description="Username")
+    email: str = Field(..., description="Email address")
+    first_name: str = Field(..., description="First name")
+    last_name: str = Field(..., description="Last name")
+    phone_country_code: str = Field(..., description="Phone country code")
+    phone_number: str = Field(..., description="Phone number")
+    email_verified: bool = Field(..., description="Email verified")
+    phone_verified: bool = Field(..., description="Phone verified")
+    mfa_method: str = Field(..., description="MFA method")
+    status: str = Field(..., description="Profile status")
+    created_at: str = Field(..., description="Creation date")
+    groups: list[dict] = Field(default_factory=list, description="User's groups")
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Profile update request model."""
+    first_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    email: Optional[EmailStr] = Field(None)
+    phone_country_code: Optional[str] = Field(None)
+    phone_number: Optional[str] = Field(None)
+
+    @field_validator("phone_country_code")
+    @classmethod
+    def validate_country_code(cls, v):
+        if v is not None and not re.match(r"^\+\d{1,4}$", v):
+            raise ValueError("Country code must be in format +X or +XX")
+        return v
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, v):
+        if v is not None:
+            cleaned = re.sub(r"[\s-]", "", v)
+            if not re.match(r"^\d{5,15}$", cleaned):
+                raise ValueError("Phone number must contain 5-15 digits")
+            return cleaned
+        return v
+
+
+# Group Models
+class GroupCreateRequest(BaseModel):
+    """Group creation request."""
+    name: str = Field(..., min_length=1, max_length=100, description="Group name")
+    description: Optional[str] = Field(None, max_length=500, description="Group description")
+
+
+class GroupUpdateRequest(BaseModel):
+    """Group update request."""
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+
+
+class GroupResponse(BaseModel):
+    """Group response model."""
+    id: str = Field(..., description="Group ID")
+    name: str = Field(..., description="Group name")
+    description: Optional[str] = Field(None, description="Group description")
+    ldap_dn: str = Field(..., description="LDAP DN")
+    member_count: int = Field(..., description="Number of members")
+    created_at: str = Field(..., description="Creation date")
+
+
+class GroupListResponse(BaseModel):
+    """Group list response."""
+    groups: list[GroupResponse] = Field(..., description="List of groups")
+    total: int = Field(..., description="Total count")
+
+
+class GroupDetailResponse(GroupResponse):
+    """Group detail response with members."""
+    members: list[dict] = Field(default_factory=list, description="Group members")
+
+
+# User-Group Assignment Models
+class UserGroupAssignRequest(BaseModel):
+    """Request to assign user to groups."""
+    group_ids: list[str] = Field(..., description="List of group IDs to assign")
+
+
+class UserGroupResponse(BaseModel):
+    """User's groups response."""
+    user_id: str = Field(..., description="User ID")
+    username: str = Field(..., description="Username")
+    groups: list[dict] = Field(..., description="Assigned groups")
+
+
+# Enhanced Admin User List
+class AdminUserListRequest(BaseModel):
+    """Admin user list query parameters."""
+    status_filter: Optional[str] = Field(None, description="Filter by status")
+    group_filter: Optional[str] = Field(None, description="Filter by group ID")
+    search: Optional[str] = Field(None, description="Search term")
+    sort_by: Optional[str] = Field("created_at", description="Sort field")
+    sort_order: Optional[str] = Field("desc", description="Sort order (asc/desc)")
 
 
 # ============================================================================
@@ -311,6 +416,125 @@ async def _create_verification_token(
     await session.flush()
 
     return token
+
+
+# ============================================================================
+# JWT Helper Functions
+# ============================================================================
+
+def _create_jwt_token(
+    user_id: str,
+    username: str,
+    is_admin: bool,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
+    """Create a JWT token for authenticated sessions."""
+    settings = get_settings()
+    if expires_delta is None:
+        expires_delta = timedelta(minutes=settings.jwt_expiry_minutes)
+
+    expire = datetime.now(timezone.utc) + expires_delta
+    payload = {
+        "sub": user_id,
+        "username": username,
+        "is_admin": is_admin,
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+    }
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def _decode_jwt_token(token: str) -> dict:
+    """Decode and validate a JWT token."""
+    settings = get_settings()
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm]
+        )
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+
+async def _get_current_user(
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> dict:
+    """Get current user from JWT token."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid authorization header",
+        )
+
+    token = authorization.split(" ")[1]
+    payload = _decode_jwt_token(token)
+
+    user = await _get_user_by_username(session, payload["username"])
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    return {
+        "user": user,
+        "user_id": payload["sub"],
+        "username": payload["username"],
+        "is_admin": payload["is_admin"],
+    }
+
+
+async def _require_admin(
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> dict:
+    """Require admin privileges for an endpoint."""
+    current = await _get_current_user(authorization, session)
+    if not current["is_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
+    return current
+
+
+async def _send_admin_notification(user: User) -> None:
+    """Send notification email to admins about new user signup."""
+    try:
+        ldap_client = LDAPClient()
+        admin_emails = ldap_client.get_admin_emails()
+
+        if not admin_emails:
+            logger.warning("No admin emails found for notification")
+            return
+
+        email_client = EmailClient()
+        new_user_data = {
+            "username": user.username,
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone": user.full_phone_number,
+            "signup_time": user.created_at.isoformat() if user.created_at else datetime.now(timezone.utc).isoformat(),
+        }
+
+        success, msg = email_client.send_admin_notification_email(admin_emails, new_user_data)
+        if success:
+            logger.info(f"Admin notification sent for new user {user.username}")
+        else:
+            logger.error(f"Failed to send admin notification: {msg}")
+    except Exception as e:
+        logger.error(f"Error sending admin notification: {e}")
 
 
 # ============================================================================
@@ -429,6 +653,9 @@ async def signup(
         logger.error(f"Failed to send verification SMS: {e}")
 
     await session.commit()
+
+    # Send admin notification asynchronously (don't block response)
+    await _send_admin_notification(user)
 
     logger.info(f"User {user.username} signed up successfully")
 
@@ -986,12 +1213,21 @@ async def login(
     # Check if user is admin
     is_admin = ldap_client.is_admin(request.username)
 
+    # Generate JWT token
+    token = _create_jwt_token(
+        user_id=str(user.id),
+        username=user.username,
+        is_admin=is_admin,
+    )
+
     logger.info(f"User {request.username} logged in successfully")
 
     return LoginResponse(
         success=True,
         message="Login successful",
         is_admin=is_admin,
+        token=token,
+        username=user.username,
     )
 
 
@@ -1347,3 +1583,1017 @@ async def admin_reject_user(
         success=True,
         message=f"User {username} has been rejected and removed.",
     )
+
+
+# ============================================================================
+# Profile Endpoints
+# ============================================================================
+
+@router.get(
+    "/profile/{username}",
+    response_model=ProfileResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not authorized"},
+        404: {"description": "User not found"},
+    },
+)
+async def get_profile(
+    username: str,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> ProfileResponse:
+    """Get user profile. Users can only view their own profile unless admin."""
+    current = await _get_current_user(authorization, session)
+
+    # Check authorization - users can only view their own profile
+    if current["username"] != username.lower() and not current["is_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view your own profile",
+        )
+
+    user = await _get_user_by_username(session, username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Get user's groups
+    result = await session.execute(
+        select(UserGroup).where(UserGroup.user_id == user.id).options(
+            selectinload(UserGroup.group)
+        )
+    )
+    user_groups = result.scalars().all()
+    groups = [
+        {"id": str(ug.group_id), "name": ug.group.name}
+        for ug in user_groups if ug.group
+    ]
+
+    return ProfileResponse(
+        id=str(user.id),
+        username=user.username,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        phone_country_code=user.phone_country_code,
+        phone_number=user.phone_number,
+        email_verified=user.email_verified,
+        phone_verified=user.phone_verified,
+        mfa_method=user.mfa_method,
+        status=user.status,
+        created_at=user.created_at.isoformat() if user.created_at else "",
+        groups=groups,
+    )
+
+
+@router.put(
+    "/profile/{username}",
+    response_model=ProfileResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not authorized or field not editable"},
+        404: {"description": "User not found"},
+    },
+)
+async def update_profile(
+    username: str,
+    request: ProfileUpdateRequest,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> ProfileResponse:
+    """
+    Update user profile.
+
+    - Users can only update their own profile
+    - Email can only be changed if not verified
+    - Phone can only be changed if not verified
+    """
+    current = await _get_current_user(authorization, session)
+
+    # Check authorization - users can only update their own profile
+    if current["username"] != username.lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only update your own profile",
+        )
+
+    user = await _get_user_by_username(session, username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Update allowed fields
+    if request.first_name is not None:
+        user.first_name = request.first_name
+
+    if request.last_name is not None:
+        user.last_name = request.last_name
+
+    # Email can only be changed if not verified
+    if request.email is not None:
+        if user.email_verified:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Email cannot be changed after verification",
+            )
+        # Check if email is already taken
+        existing = await _get_user_by_email(session, request.email)
+        if existing and existing.id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already in use",
+            )
+        user.email = request.email.lower()
+
+    # Phone can only be changed if not verified
+    if request.phone_country_code is not None or request.phone_number is not None:
+        if user.phone_verified:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Phone cannot be changed after verification",
+            )
+        if request.phone_country_code is not None:
+            user.phone_country_code = request.phone_country_code
+        if request.phone_number is not None:
+            user.phone_number = request.phone_number
+
+    await session.commit()
+
+    # Get user's groups for response
+    result = await session.execute(
+        select(UserGroup).where(UserGroup.user_id == user.id).options(
+            selectinload(UserGroup.group)
+        )
+    )
+    user_groups = result.scalars().all()
+    groups = [
+        {"id": str(ug.group_id), "name": ug.group.name}
+        for ug in user_groups if ug.group
+    ]
+
+    logger.info(f"Profile updated for user {username}")
+
+    return ProfileResponse(
+        id=str(user.id),
+        username=user.username,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        phone_country_code=user.phone_country_code,
+        phone_number=user.phone_number,
+        email_verified=user.email_verified,
+        phone_verified=user.phone_verified,
+        mfa_method=user.mfa_method,
+        status=user.status,
+        created_at=user.created_at.isoformat() if user.created_at else "",
+        groups=groups,
+    )
+
+
+# ============================================================================
+# Group Management Endpoints (Admin)
+# ============================================================================
+
+@router.get(
+    "/admin/groups",
+    response_model=GroupListResponse,
+    responses={401: {"description": "Not authenticated"}, 403: {"description": "Not admin"}},
+)
+async def admin_list_groups(
+    search: Optional[str] = Query(None, description="Search term"),
+    sort_by: Optional[str] = Query("name", description="Sort field"),
+    sort_order: Optional[str] = Query("asc", description="Sort order"),
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> GroupListResponse:
+    """List all groups (admin only)."""
+    await _require_admin(authorization, session)
+
+    query = select(Group)
+
+    # Apply search
+    if search:
+        search_term = f"%{search}%"
+        query = query.where(
+            or_(
+                Group.name.ilike(search_term),
+                Group.description.ilike(search_term),
+            )
+        )
+
+    # Apply sorting
+    if sort_by == "name":
+        order_col = Group.name
+    elif sort_by == "created_at":
+        order_col = Group.created_at
+    else:
+        order_col = Group.name
+
+    if sort_order == "desc":
+        query = query.order_by(order_col.desc())
+    else:
+        query = query.order_by(order_col.asc())
+
+    result = await session.execute(query.options(selectinload(Group.user_groups)))
+    groups = result.scalars().all()
+
+    group_list = [
+        GroupResponse(
+            id=str(g.id),
+            name=g.name,
+            description=g.description,
+            ldap_dn=g.ldap_dn,
+            member_count=len(g.user_groups) if g.user_groups else 0,
+            created_at=g.created_at.isoformat() if g.created_at else "",
+        )
+        for g in groups
+    ]
+
+    return GroupListResponse(groups=group_list, total=len(group_list))
+
+
+@router.post(
+    "/admin/groups",
+    response_model=GroupResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin"},
+        400: {"description": "Group already exists"},
+    },
+)
+async def admin_create_group(
+    request: GroupCreateRequest,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> GroupResponse:
+    """Create a new group (admin only)."""
+    await _require_admin(authorization, session)
+
+    # Check if group name exists
+    existing = await session.execute(
+        select(Group).where(Group.name == request.name)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Group name already exists",
+        )
+
+    # Create LDAP group
+    ldap_client = LDAPClient()
+    success, message, ldap_dn = ldap_client.create_group(
+        name=request.name,
+        description=request.description or "",
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create LDAP group: {message}",
+        )
+
+    # Create database record
+    group = Group(
+        name=request.name,
+        description=request.description,
+        ldap_dn=ldap_dn,
+    )
+    session.add(group)
+    await session.commit()
+
+    logger.info(f"Group {request.name} created")
+
+    return GroupResponse(
+        id=str(group.id),
+        name=group.name,
+        description=group.description,
+        ldap_dn=group.ldap_dn,
+        member_count=0,
+        created_at=group.created_at.isoformat() if group.created_at else "",
+    )
+
+
+@router.get(
+    "/admin/groups/{group_id}",
+    response_model=GroupDetailResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin"},
+        404: {"description": "Group not found"},
+    },
+)
+async def admin_get_group(
+    group_id: str,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> GroupDetailResponse:
+    """Get group details (admin only)."""
+    await _require_admin(authorization, session)
+
+    try:
+        group_uuid = uuid.UUID(group_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid group ID format",
+        )
+
+    result = await session.execute(
+        select(Group).where(Group.id == group_uuid).options(
+            selectinload(Group.user_groups).selectinload(UserGroup.user)
+        )
+    )
+    group = result.scalar_one_or_none()
+
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Group not found",
+        )
+
+    members = [
+        {
+            "id": str(ug.user.id),
+            "username": ug.user.username,
+            "full_name": ug.user.full_name,
+            "assigned_at": ug.assigned_at.isoformat() if ug.assigned_at else "",
+            "assigned_by": ug.assigned_by,
+        }
+        for ug in group.user_groups if ug.user
+    ]
+
+    return GroupDetailResponse(
+        id=str(group.id),
+        name=group.name,
+        description=group.description,
+        ldap_dn=group.ldap_dn,
+        member_count=len(members),
+        created_at=group.created_at.isoformat() if group.created_at else "",
+        members=members,
+    )
+
+
+@router.put(
+    "/admin/groups/{group_id}",
+    response_model=GroupResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin"},
+        404: {"description": "Group not found"},
+    },
+)
+async def admin_update_group(
+    group_id: str,
+    request: GroupUpdateRequest,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> GroupResponse:
+    """Update a group (admin only)."""
+    await _require_admin(authorization, session)
+
+    try:
+        group_uuid = uuid.UUID(group_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid group ID format",
+        )
+
+    result = await session.execute(
+        select(Group).where(Group.id == group_uuid).options(
+            selectinload(Group.user_groups)
+        )
+    )
+    group = result.scalar_one_or_none()
+
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Group not found",
+        )
+
+    # Update LDAP group
+    if request.description is not None:
+        ldap_client = LDAPClient()
+        success, message = ldap_client.update_group(
+            group_dn=group.ldap_dn,
+            description=request.description,
+        )
+        if not success:
+            logger.warning(f"Failed to update LDAP group: {message}")
+
+    # Update database
+    if request.name is not None:
+        # Check if name already exists
+        existing = await session.execute(
+            select(Group).where(Group.name == request.name, Group.id != group_uuid)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Group name already exists",
+            )
+        group.name = request.name
+
+    if request.description is not None:
+        group.description = request.description
+
+    await session.commit()
+
+    logger.info(f"Group {group.name} updated")
+
+    return GroupResponse(
+        id=str(group.id),
+        name=group.name,
+        description=group.description,
+        ldap_dn=group.ldap_dn,
+        member_count=len(group.user_groups) if group.user_groups else 0,
+        created_at=group.created_at.isoformat() if group.created_at else "",
+    )
+
+
+@router.delete(
+    "/admin/groups/{group_id}",
+    response_model=AdminActivateResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin"},
+        404: {"description": "Group not found"},
+    },
+)
+async def admin_delete_group(
+    group_id: str,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> AdminActivateResponse:
+    """Delete a group (admin only)."""
+    await _require_admin(authorization, session)
+
+    try:
+        group_uuid = uuid.UUID(group_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid group ID format",
+        )
+
+    result = await session.execute(select(Group).where(Group.id == group_uuid))
+    group = result.scalar_one_or_none()
+
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Group not found",
+        )
+
+    group_name = group.name
+    ldap_dn = group.ldap_dn
+
+    # Delete from LDAP
+    ldap_client = LDAPClient()
+    success, message = ldap_client.delete_group(ldap_dn)
+    if not success:
+        logger.warning(f"Failed to delete LDAP group: {message}")
+
+    # Delete from database (cascades to user_groups)
+    await session.delete(group)
+    await session.commit()
+
+    logger.info(f"Group {group_name} deleted")
+
+    return AdminActivateResponse(
+        success=True,
+        message=f"Group {group_name} deleted successfully",
+    )
+
+
+# ============================================================================
+# User-Group Assignment Endpoints (Admin)
+# ============================================================================
+
+@router.get(
+    "/admin/users/{user_id}/groups",
+    response_model=UserGroupResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin"},
+        404: {"description": "User not found"},
+    },
+)
+async def admin_get_user_groups(
+    user_id: str,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> UserGroupResponse:
+    """Get user's group assignments (admin only)."""
+    await _require_admin(authorization, session)
+
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user ID format",
+        )
+
+    result = await session.execute(
+        select(User).where(User.id == user_uuid)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Get user's groups
+    result = await session.execute(
+        select(UserGroup).where(UserGroup.user_id == user_uuid).options(
+            selectinload(UserGroup.group)
+        )
+    )
+    user_groups = result.scalars().all()
+
+    groups = [
+        {
+            "id": str(ug.group_id),
+            "name": ug.group.name if ug.group else "",
+            "assigned_at": ug.assigned_at.isoformat() if ug.assigned_at else "",
+            "assigned_by": ug.assigned_by,
+        }
+        for ug in user_groups
+    ]
+
+    return UserGroupResponse(
+        user_id=str(user.id),
+        username=user.username,
+        groups=groups,
+    )
+
+
+@router.post(
+    "/admin/users/{user_id}/groups",
+    response_model=UserGroupResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin"},
+        404: {"description": "User or group not found"},
+    },
+)
+async def admin_assign_user_groups(
+    user_id: str,
+    request: UserGroupAssignRequest,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> UserGroupResponse:
+    """Assign user to groups (admin only). Adds to existing assignments."""
+    current = await _require_admin(authorization, session)
+
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user ID format",
+        )
+
+    result = await session.execute(select(User).where(User.id == user_uuid))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    ldap_client = LDAPClient()
+
+    for group_id in request.group_ids:
+        try:
+            group_uuid = uuid.UUID(group_id)
+        except ValueError:
+            continue
+
+        # Get group
+        result = await session.execute(select(Group).where(Group.id == group_uuid))
+        group = result.scalar_one_or_none()
+        if not group:
+            continue
+
+        # Check if already assigned
+        result = await session.execute(
+            select(UserGroup).where(
+                UserGroup.user_id == user_uuid,
+                UserGroup.group_id == group_uuid,
+            )
+        )
+        if result.scalar_one_or_none():
+            continue
+
+        # Add to LDAP group (only for active users)
+        if user.status == ProfileStatus.ACTIVE.value:
+            success, msg = ldap_client.add_user_to_group(user.username, group.ldap_dn)
+            if not success:
+                logger.warning(f"Failed to add {user.username} to LDAP group: {msg}")
+
+        # Add database assignment
+        user_group = UserGroup(
+            user_id=user_uuid,
+            group_id=group_uuid,
+            assigned_by=current["username"],
+        )
+        session.add(user_group)
+
+    await session.commit()
+
+    # Return updated groups
+    result = await session.execute(
+        select(UserGroup).where(UserGroup.user_id == user_uuid).options(
+            selectinload(UserGroup.group)
+        )
+    )
+    user_groups = result.scalars().all()
+
+    groups = [
+        {
+            "id": str(ug.group_id),
+            "name": ug.group.name if ug.group else "",
+            "assigned_at": ug.assigned_at.isoformat() if ug.assigned_at else "",
+            "assigned_by": ug.assigned_by,
+        }
+        for ug in user_groups
+    ]
+
+    logger.info(f"Groups assigned to user {user.username}")
+
+    return UserGroupResponse(
+        user_id=str(user.id),
+        username=user.username,
+        groups=groups,
+    )
+
+
+@router.put(
+    "/admin/users/{user_id}/groups",
+    response_model=UserGroupResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin"},
+        404: {"description": "User not found"},
+    },
+)
+async def admin_replace_user_groups(
+    user_id: str,
+    request: UserGroupAssignRequest,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> UserGroupResponse:
+    """Replace all user's group assignments (admin only)."""
+    current = await _require_admin(authorization, session)
+
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user ID format",
+        )
+
+    result = await session.execute(select(User).where(User.id == user_uuid))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    ldap_client = LDAPClient()
+
+    # Get current assignments
+    result = await session.execute(
+        select(UserGroup).where(UserGroup.user_id == user_uuid).options(
+            selectinload(UserGroup.group)
+        )
+    )
+    current_assignments = result.scalars().all()
+
+    # Remove from LDAP groups (for active users)
+    if user.status == ProfileStatus.ACTIVE.value:
+        for ug in current_assignments:
+            if ug.group:
+                ldap_client.remove_user_from_group(user.username, ug.group.ldap_dn)
+
+    # Delete all current assignments
+    for ug in current_assignments:
+        await session.delete(ug)
+
+    # Add new assignments
+    for group_id in request.group_ids:
+        try:
+            group_uuid = uuid.UUID(group_id)
+        except ValueError:
+            continue
+
+        result = await session.execute(select(Group).where(Group.id == group_uuid))
+        group = result.scalar_one_or_none()
+        if not group:
+            continue
+
+        # Add to LDAP group (for active users)
+        if user.status == ProfileStatus.ACTIVE.value:
+            ldap_client.add_user_to_group(user.username, group.ldap_dn)
+
+        user_group = UserGroup(
+            user_id=user_uuid,
+            group_id=group_uuid,
+            assigned_by=current["username"],
+        )
+        session.add(user_group)
+
+    await session.commit()
+
+    # Return updated groups
+    result = await session.execute(
+        select(UserGroup).where(UserGroup.user_id == user_uuid).options(
+            selectinload(UserGroup.group)
+        )
+    )
+    user_groups = result.scalars().all()
+
+    groups = [
+        {
+            "id": str(ug.group_id),
+            "name": ug.group.name if ug.group else "",
+            "assigned_at": ug.assigned_at.isoformat() if ug.assigned_at else "",
+            "assigned_by": ug.assigned_by,
+        }
+        for ug in user_groups
+    ]
+
+    logger.info(f"Groups replaced for user {user.username}")
+
+    return UserGroupResponse(
+        user_id=str(user.id),
+        username=user.username,
+        groups=groups,
+    )
+
+
+@router.delete(
+    "/admin/users/{user_id}/groups/{group_id}",
+    response_model=AdminActivateResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin"},
+        404: {"description": "User or assignment not found"},
+    },
+)
+async def admin_remove_user_from_group(
+    user_id: str,
+    group_id: str,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> AdminActivateResponse:
+    """Remove user from a specific group (admin only)."""
+    await _require_admin(authorization, session)
+
+    try:
+        user_uuid = uuid.UUID(user_id)
+        group_uuid = uuid.UUID(group_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid ID format",
+        )
+
+    # Get user
+    result = await session.execute(select(User).where(User.id == user_uuid))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Get assignment
+    result = await session.execute(
+        select(UserGroup).where(
+            UserGroup.user_id == user_uuid,
+            UserGroup.group_id == group_uuid,
+        ).options(selectinload(UserGroup.group))
+    )
+    user_group = result.scalar_one_or_none()
+
+    if not user_group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User is not assigned to this group",
+        )
+
+    # Remove from LDAP (for active users)
+    if user.status == ProfileStatus.ACTIVE.value and user_group.group:
+        ldap_client = LDAPClient()
+        ldap_client.remove_user_from_group(user.username, user_group.group.ldap_dn)
+
+    group_name = user_group.group.name if user_group.group else "Unknown"
+    await session.delete(user_group)
+    await session.commit()
+
+    logger.info(f"User {user.username} removed from group {group_name}")
+
+    return AdminActivateResponse(
+        success=True,
+        message=f"User removed from group {group_name}",
+    )
+
+
+# ============================================================================
+# User Revoke Endpoint (Admin)
+# ============================================================================
+
+@router.post(
+    "/admin/users/{user_id}/revoke",
+    response_model=AdminActivateResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not admin or user not active"},
+        404: {"description": "User not found"},
+    },
+)
+async def admin_revoke_user(
+    user_id: str,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> AdminActivateResponse:
+    """
+    Revoke an active user.
+
+    - Removes user from all LDAP groups
+    - Deletes user from LDAP
+    - Updates status to REVOKED
+    """
+    current = await _require_admin(authorization, session)
+
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user ID format",
+        )
+
+    result = await session.execute(
+        select(User).where(User.id == user_uuid).options(
+            selectinload(User.user_groups).selectinload(UserGroup.group)
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if user.status != ProfileStatus.ACTIVE.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only active users can be revoked",
+        )
+
+    ldap_client = LDAPClient()
+
+    # Remove from all LDAP groups
+    for ug in user.user_groups:
+        if ug.group:
+            success, msg = ldap_client.remove_user_from_group(
+                user.username, ug.group.ldap_dn
+            )
+            if not success:
+                logger.warning(f"Failed to remove {user.username} from LDAP group: {msg}")
+
+    # Delete from LDAP
+    success, message = ldap_client.delete_user(user.username)
+    if not success:
+        logger.warning(f"Failed to delete LDAP user: {message}")
+
+    # Update status to revoked
+    user.status = ProfileStatus.REVOKED.value
+
+    # Remove all group assignments from database
+    for ug in user.user_groups:
+        await session.delete(ug)
+
+    await session.commit()
+
+    logger.info(f"User {user.username} revoked by {current['username']}")
+
+    return AdminActivateResponse(
+        success=True,
+        message=f"User {user.username} has been revoked",
+    )
+
+
+# ============================================================================
+# Enhanced Admin User List with Sorting/Filtering/Search
+# ============================================================================
+
+@router.get(
+    "/admin/users/enhanced",
+    response_model=AdminUserListResponse,
+    responses={401: {"description": "Not authenticated"}, 403: {"description": "Not admin"}},
+)
+async def admin_list_users_enhanced(
+    status_filter: Optional[str] = Query(None, description="Filter by status"),
+    group_filter: Optional[str] = Query(None, description="Filter by group ID"),
+    search: Optional[str] = Query(None, description="Search term"),
+    sort_by: Optional[str] = Query("created_at", description="Sort field"),
+    sort_order: Optional[str] = Query("desc", description="Sort order"),
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> AdminUserListResponse:
+    """List users with sorting, filtering, and search (admin only)."""
+    await _require_admin(authorization, session)
+
+    query = select(User).options(
+        selectinload(User.user_groups).selectinload(UserGroup.group)
+    )
+
+    # Apply status filter
+    if status_filter:
+        query = query.where(User.status == status_filter)
+
+    # Apply search
+    if search:
+        search_term = f"%{search}%"
+        query = query.where(
+            or_(
+                User.username.ilike(search_term),
+                User.email.ilike(search_term),
+                User.first_name.ilike(search_term),
+                User.last_name.ilike(search_term),
+            )
+        )
+
+    # Apply sorting
+    if sort_by == "username":
+        order_col = User.username
+    elif sort_by == "email":
+        order_col = User.email
+    elif sort_by == "first_name":
+        order_col = User.first_name
+    elif sort_by == "status":
+        order_col = User.status
+    else:
+        order_col = User.created_at
+
+    if sort_order == "asc":
+        query = query.order_by(order_col.asc())
+    else:
+        query = query.order_by(order_col.desc())
+
+    result = await session.execute(query)
+    users = result.scalars().all()
+
+    # Filter by group if specified
+    if group_filter:
+        try:
+            group_uuid = uuid.UUID(group_filter)
+            users = [
+                u for u in users
+                if any(ug.group_id == group_uuid for ug in u.user_groups)
+            ]
+        except ValueError:
+            pass
+
+    user_list = [
+        {
+            "id": str(u.id),
+            "username": u.username,
+            "email": u.email,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "phone": u.full_phone_number,
+            "status": u.status,
+            "email_verified": u.email_verified,
+            "phone_verified": u.phone_verified,
+            "mfa_method": u.mfa_method,
+            "created_at": u.created_at.isoformat() if u.created_at else "",
+            "activated_at": u.activated_at.isoformat() if u.activated_at else None,
+            "activated_by": u.activated_by,
+            "groups": [
+                {"id": str(ug.group_id), "name": ug.group.name if ug.group else ""}
+                for ug in u.user_groups
+            ],
+        }
+        for u in users
+    ]
+
+    return AdminUserListResponse(users=user_list, total=len(user_list))

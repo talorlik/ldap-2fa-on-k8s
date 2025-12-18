@@ -10,18 +10,52 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
+    <!-- Top Navigation Bar (shown when logged in) -->
+    <header id="top-bar" class="top-bar hidden">
+        <div class="top-bar-content">
+            <div class="top-bar-brand">
+                <span class="brand-icon">🔐</span>
+                <span class="brand-text">LDAP 2FA</span>
+            </div>
+            <div class="top-bar-user">
+                <button id="user-menu-btn" class="user-menu-btn">
+                    <span id="user-display-name" class="user-name">User</span>
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+                <div id="user-dropdown" class="user-dropdown hidden">
+                    <a href="#" id="menu-profile" class="dropdown-item">
+                        <span class="dropdown-icon">👤</span> Profile
+                    </a>
+                    <div id="admin-menu-items" class="hidden">
+                        <hr class="dropdown-divider">
+                        <a href="#" id="menu-admin-users" class="dropdown-item">
+                            <span class="dropdown-icon">👥</span> User Management
+                        </a>
+                        <a href="#" id="menu-admin-groups" class="dropdown-item">
+                            <span class="dropdown-icon">📁</span> Group Management
+                        </a>
+                    </div>
+                    <hr class="dropdown-divider">
+                    <a href="#" id="menu-logout" class="dropdown-item">
+                        <span class="dropdown-icon">🚪</span> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div id="main-container" class="container">
+        <header id="auth-header">
             <h1>🔐 LDAP 2FA Authentication</h1>
             <p class="subtitle">Secure two-factor authentication for your LDAP account</p>
         </header>
 
-        <!-- Tab Navigation -->
-        <nav class="tabs">
+        <!-- Tab Navigation (pre-login) -->
+        <nav id="auth-tabs" class="tabs">
             <button class="tab-btn active" data-tab="login">Login</button>
             <button class="tab-btn" data-tab="signup">Sign Up</button>
             <button class="tab-btn" data-tab="enroll">Enroll MFA</button>
-            <button class="tab-btn hidden" data-tab="admin" id="admin-tab-btn">Admin</button>
         </nav>
 
         <!-- Login Tab -->
@@ -318,62 +352,155 @@
             </div>
         </section>
 
-        <!-- Admin Tab -->
-        <section id="admin-tab" class="tab-content">
-            <div id="admin-login" class="admin-section">
-                <h3>🔑 Admin Authentication</h3>
-                <form id="admin-auth-form" class="auth-form">
-                    <div class="form-group">
-                        <label for="admin-username">Admin Username</label>
-                        <input type="text" id="admin-username" name="admin_username" required
-                               placeholder="Enter admin username" autocomplete="username">
-                    </div>
-                    <div class="form-group">
-                        <label for="admin-password">Admin Password</label>
-                        <input type="password" id="admin-password" name="admin_password" required
-                               placeholder="Enter admin password" autocomplete="current-password">
-                    </div>
-                    <div class="form-group">
-                        <label for="admin-code">Verification Code</label>
-                        <input type="text" id="admin-code" name="verification_code" required
-                               placeholder="Enter 6-digit code" maxlength="6" pattern="[0-9]{6}"
-                               inputmode="numeric">
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <span class="btn-text">Login as Admin</span>
-                        <span class="btn-loading hidden">Authenticating...</span>
-                    </button>
-                </form>
+        <!-- Profile Section (shown when logged in) -->
+        <section id="profile-section" class="tab-content hidden">
+            <div class="section-header">
+                <h2>👤 My Profile</h2>
             </div>
-
-            <div id="admin-panel" class="admin-section hidden">
-                <div class="admin-header">
-                    <h3>👥 User Management</h3>
-                    <button type="button" id="admin-logout-btn" class="btn btn-secondary btn-small">
-                        Logout
-                    </button>
+            <form id="profile-form" class="auth-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="profile-username" readonly class="readonly-input">
                 </div>
 
-                <div class="admin-filters">
-                    <select id="admin-status-filter">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="profile-firstname">First Name</label>
+                        <input type="text" id="profile-firstname" name="first_name">
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-lastname">Last Name</label>
+                        <input type="text" id="profile-lastname" name="last_name">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="profile-email">Email</label>
+                    <input type="email" id="profile-email" name="email">
+                    <small id="profile-email-hint" class="form-hint"></small>
+                </div>
+
+                <div class="form-group">
+                    <label for="profile-phone">Phone Number</label>
+                    <div class="phone-input-group">
+                        <select id="profile-country-code" name="phone_country_code">
+                            <option value="+1">🇺🇸 +1</option>
+                            <option value="+44">🇬🇧 +44</option>
+                            <option value="+49">🇩🇪 +49</option>
+                            <option value="+33">🇫🇷 +33</option>
+                            <option value="+91">🇮🇳 +91</option>
+                        </select>
+                        <input type="tel" id="profile-phone" name="phone_number">
+                    </div>
+                    <small id="profile-phone-hint" class="form-hint"></small>
+                </div>
+
+                <div class="form-group">
+                    <label>MFA Method</label>
+                    <input type="text" id="profile-mfa" readonly class="readonly-input">
+                </div>
+
+                <div class="form-group">
+                    <label>Account Status</label>
+                    <input type="text" id="profile-status" readonly class="readonly-input">
+                </div>
+
+                <div class="form-group">
+                    <label>Groups</label>
+                    <div id="profile-groups" class="group-badges"></div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-text">Save Changes</span>
+                    <span class="btn-loading hidden">Saving...</span>
+                </button>
+            </form>
+        </section>
+
+        <!-- Admin Users Section -->
+        <section id="admin-users-section" class="tab-content hidden">
+            <div class="section-header">
+                <h2>👥 User Management</h2>
+            </div>
+
+            <div class="admin-controls">
+                <div class="search-box">
+                    <input type="text" id="users-search" placeholder="Search users..." class="search-input">
+                </div>
+                <div class="filter-controls">
+                    <select id="users-status-filter" class="filter-select">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
                         <option value="complete">Awaiting Approval</option>
-                        <option value="pending">Pending Verification</option>
-                        <option value="active">Active Users</option>
-                        <option value="">All Users</option>
+                        <option value="active">Active</option>
+                        <option value="revoked">Revoked</option>
                     </select>
-                    <button type="button" id="admin-refresh-btn" class="btn btn-secondary btn-small">
+                    <select id="users-group-filter" class="filter-select">
+                        <option value="">All Groups</option>
+                    </select>
+                    <button type="button" id="users-refresh-btn" class="btn btn-secondary btn-small">
                         🔄 Refresh
                     </button>
                 </div>
+            </div>
 
-                <div id="admin-users-list" class="admin-users-list">
-                    <!-- Users will be populated here -->
-                </div>
+            <div class="data-table-container">
+                <table class="data-table" id="users-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="first_name">Name</th>
+                            <th class="sortable" data-sort="username">Username</th>
+                            <th class="sortable" data-sort="email">Email</th>
+                            <th class="sortable" data-sort="status">Status</th>
+                            <th>Groups</th>
+                            <th class="sortable" data-sort="created_at">Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <!-- Users will be populated here -->
+                    </tbody>
+                </table>
+            </div>
 
-                <div id="admin-no-users" class="admin-no-users hidden">
-                    <p>No users found matching the selected filter.</p>
+            <div id="users-loading" class="loading-spinner hidden">Loading...</div>
+            <div id="users-empty" class="empty-state hidden">No users found</div>
+        </section>
+
+        <!-- Admin Groups Section -->
+        <section id="admin-groups-section" class="tab-content hidden">
+            <div class="section-header">
+                <h2>📁 Group Management</h2>
+                <button type="button" id="create-group-btn" class="btn btn-primary btn-small">
+                    + Create Group
+                </button>
+            </div>
+
+            <div class="admin-controls">
+                <div class="search-box">
+                    <input type="text" id="groups-search" placeholder="Search groups..." class="search-input">
                 </div>
             </div>
+
+            <div class="data-table-container">
+                <table class="data-table" id="groups-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="name">Name</th>
+                            <th>Description</th>
+                            <th>Members</th>
+                            <th class="sortable" data-sort="created_at">Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="groups-table-body">
+                        <!-- Groups will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="groups-loading" class="loading-spinner hidden">Loading...</div>
+            <div id="groups-empty" class="empty-state hidden">No groups found</div>
         </section>
 
         <!-- Status Messages -->
@@ -382,6 +509,87 @@
         <footer>
             <p>💡 Need help? Contact your system administrator.</p>
         </footer>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <!-- Group Create/Edit Modal -->
+        <div id="group-modal" class="modal hidden">
+            <div class="modal-header">
+                <h3 id="group-modal-title">Create Group</h3>
+                <button type="button" class="modal-close" data-close-modal>&times;</button>
+            </div>
+            <form id="group-modal-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="group-name">Group Name</label>
+                        <input type="text" id="group-name" required placeholder="Enter group name">
+                    </div>
+                    <div class="form-group">
+                        <label for="group-description">Description</label>
+                        <textarea id="group-description" rows="3" placeholder="Enter description"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Approve User Modal (with group selection) -->
+        <div id="approve-modal" class="modal hidden">
+            <div class="modal-header">
+                <h3>Approve User</h3>
+                <button type="button" class="modal-close" data-close-modal>&times;</button>
+            </div>
+            <form id="approve-modal-form">
+                <div class="modal-body">
+                    <p>Approve user <strong id="approve-user-name"></strong> and assign to groups:</p>
+                    <div class="form-group">
+                        <label>Select Groups (at least one required)</label>
+                        <div id="approve-groups-list" class="checkbox-list">
+                            <!-- Groups will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+                    <button type="submit" class="btn btn-primary">Approve</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Group Members Modal -->
+        <div id="members-modal" class="modal hidden">
+            <div class="modal-header">
+                <h3 id="members-modal-title">Group Members</h3>
+                <button type="button" class="modal-close" data-close-modal>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="members-list" class="members-list">
+                    <!-- Members will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal>Close</button>
+            </div>
+        </div>
+
+        <!-- Confirm Modal -->
+        <div id="confirm-modal" class="modal hidden">
+            <div class="modal-header">
+                <h3 id="confirm-modal-title">Confirm</h3>
+                <button type="button" class="modal-close" data-close-modal>&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-modal-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+                <button type="button" id="confirm-modal-ok" class="btn btn-danger">Confirm</button>
+            </div>
+        </div>
     </div>
 
     <script src="/js/api.js"></script>
