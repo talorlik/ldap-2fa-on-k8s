@@ -66,8 +66,14 @@ communication with cross-namespace access for LDAP service
 image which doesn't exist)
 - **2FA Application**: Full-stack application with Python FastAPI backend and
 static HTML/JS/CSS frontend, supporting TOTP and SMS MFA methods
+- **User Signup Management**: Self-service registration with email/phone
+verification and admin approval workflow
+- **PostgreSQL Database**: User registration data, verification tokens, and
+profile management
+- **Redis Cache**: SMS OTP code storage with automatic TTL expiration
 - **ArgoCD**: AWS EKS managed ArgoCD service for GitOps deployments (optional)
 - **SNS Integration**: AWS SNS for SMS-based 2FA verification codes (optional)
+- **SES Integration**: AWS SES for email verification and notifications
 
 ### Naming Convention
 
@@ -105,6 +111,9 @@ ldap-2fa-on-k8s/
 │       ├── argocd_app/         # ArgoCD Application CRD
 │       ├── cert-manager/       # TLS certificate management
 │       ├── network-policies/   # Kubernetes NetworkPolicies
+│       ├── postgresql/         # PostgreSQL database (Bitnami Helm)
+│       ├── redis/              # Redis cache for SMS OTP
+│       ├── ses/                # SES for email verification
 │       └── sns/                # SNS for SMS 2FA
 └── .github/workflows/          # CI/CD workflows
     ├── tfstate_infra_*.yaml
@@ -325,6 +334,9 @@ state (with fallback options)
   - `argocd_app/` - ArgoCD Application CRD for GitOps
   - `cert-manager/` - TLS certificate management (optional)
   - `network-policies/` - Kubernetes NetworkPolicies with cross-namespace access
+  - `postgresql/` - PostgreSQL database for user registrations
+  - `redis/` - Redis cache for SMS OTP storage
+  - `ses/` - AWS SES for email verification and notifications
   - `sns/` - SNS resources for SMS 2FA with IRSA
 - `application/backend/` - 2FA backend application:
   - `src/` - Python FastAPI source code
@@ -339,6 +351,8 @@ state (with fallback options)
 changes
 - `application/PRD-2FA-APP.md` - Product requirements document for 2FA
 application
+- `application/PRD-SIGNUP-MAN.md` - Product requirements document for signup
+management system
 - `application/PRD-ALB.md` - Comprehensive ALB implementation guide
 - `application/OPENLDAP-README.md` - OpenLDAP configuration and TLS setup
 - `application/OSIXIA-OPENLDAP-REQUIREMENTS.md` - OpenLDAP image requirements
@@ -372,6 +386,10 @@ practices
 `argocd_server_url`
 - **SNS** (if enabled): `sns_topic_arn`, `sns_topic_name`, `sns_iam_role_arn`,
 `sns_iam_role_name`
+- **SES** (if enabled): `ses_iam_role_arn`, `ses_iam_role_name`,
+`ses_email_identity_arn`
+- **PostgreSQL** (if enabled): `postgresql_service_name`, `postgresql_port`
+- **Redis** (if enabled): `redis_service_name`, `redis_port`
 
 ## Important Patterns
 
@@ -419,13 +437,24 @@ exist)
   - `twofa_app_host` (default: `app.talorlik.com`)
 
 **2FA Application (Helm Charts or ArgoCD):**
-- Backend: Python FastAPI with LDAP authentication and MFA support
-  - Supports TOTP (authenticator apps) and SMS (AWS SNS) MFA methods
+- Backend: Python FastAPI with comprehensive authentication features
+  - LDAP authentication and MFA support (TOTP and SMS)
+  - Self-service user signup with email/phone verification
+  - Admin dashboard for user and group management
+  - User profile management
+  - PostgreSQL for user registration and profile data
+  - Redis for SMS OTP code caching
+  - AWS SES for email verification and notifications
+  - AWS SNS for SMS verification codes
   - Exposed at `/api/*` path on `app.<domain>`
-  - Uses IRSA for SNS access (no hardcoded credentials)
+  - Uses IRSA for SNS, SES access (no hardcoded credentials)
   - Helm chart includes: Deployment, Service, Ingress, ConfigMap, Secret,
   ServiceAccount
 - Frontend: Static HTML/JS/CSS served by nginx
+  - Signup form with email/phone verification
+  - Admin dashboard (visible to admin group members)
+  - User profile page
+  - Top navigation bar with user menu
   - Exposed at `/` path on `app.<domain>`
   - Helm chart includes: Deployment, Service, Ingress
 - Deployment method:
@@ -481,6 +510,9 @@ ALB module → Helm release → Route53 A records → Network policies)
   - `cert-manager/` - Optional cert-manager for self-signed TLS certificates
   - `network-policies/` - Kubernetes NetworkPolicies for secure communication
   with cross-namespace access
+  - `postgresql/` - PostgreSQL database for user registration and profile data
+  - `redis/` - Redis cache for SMS OTP code storage with TTL
+  - `ses/` - AWS SES for email verification and admin notifications
   - `sns/` - SNS resources for SMS-based 2FA with IRSA
 - Each module has its own README.md with detailed documentation
 - Route53 and ACM certificate resources use data sources to reference existing
@@ -523,6 +555,10 @@ workflows)
 - `TF_VAR_OPENLDAP_CONFIG_PASSWORD` - OpenLDAP config password (for application
 workflows)
 
+**Database Credentials:**
+- `TF_VAR_POSTGRESQL_PASSWORD` - PostgreSQL database password
+- `TF_VAR_REDIS_PASSWORD` - Redis cache password
+
 > [!NOTE]
 >
 > This project uses AWS SSO via GitHub OIDC instead of access keys.
@@ -539,7 +575,114 @@ workflows)
 
 ## Recent Changes (December 2024)
 
-### 2FA Application and SMS Integration (December 18, 2024)
+### Admin Functions and User Profile Management (December 18, 2024)
+
+- **Admin Dashboard and User Management**:
+  - Admin tab visible only to LDAP admin group members
+  - User management with filter by status (pending, complete, active, revoked)
+  - View user details: name, email, phone, verification status, MFA method,
+  groups
+  - Activation and revocation workflow with audit logging
+  - Approval requires group assignment (at least one group)
+  - Creates user in LDAP with all attributes on approval
+  - Revocation removes user from LDAP and all groups
+- **User Profile Management**:
+  - Profile page with viewable and editable fields
+  - Edit restrictions: email/phone read-only after verification
+  - Profile fields: username, first/last name, email, phone, MFA method, status
+- **Group Management (Full CRUD)**:
+  - Create, read, update, delete groups via admin interface
+  - Group-user assignment management
+  - Sync with LDAP groups on create/update/delete
+  - View group members and member counts
+- **Admin Notifications**:
+  - Email notification to all admins on new user signup
+  - Uses AWS SES infrastructure with IRSA
+  - Async notification (non-blocking)
+- **Top Navigation Bar**:
+  - Persistent navigation after login
+  - User menu with profile and logout options
+  - Admin-specific menu items for admin users
+
+### User Signup Management System (December 18, 2024)
+
+- **Self-Service User Registration**:
+  - Signup form with fields: first/last name, username, email, phone, password,
+  MFA method
+  - Username validation (3-64 chars, alphanumeric + underscore/hyphen)
+  - Email and phone uniqueness validation
+  - Password hashing with bcrypt
+- **Email Verification via AWS SES**:
+  - UUID token-based verification links
+  - 24-hour token expiry (configurable)
+  - Resend verification with 60-second cooldown
+  - Email delivery via AWS SES with IRSA
+- **Phone Verification via AWS SNS**:
+  - 6-digit OTP code via SMS
+  - 1-hour code expiry
+  - Resend code with 60-second cooldown
+  - SMS delivery via AWS SNS with IRSA
+- **Profile State Management**:
+  - PENDING: User registered, verification incomplete
+  - COMPLETE: All verifications complete, awaiting admin
+  - ACTIVE: Admin activated, exists in LDAP
+  - REVOKED: Admin revoked, removed from LDAP
+- **Login Restrictions**:
+  - PENDING users cannot login (shows missing verifications)
+  - COMPLETE users see "awaiting admin approval" message
+  - Only ACTIVE users can complete login flow
+
+### Redis SMS OTP Storage (December 18, 2024)
+
+- **Redis Module (`modules/redis/`) for SMS OTP Code Storage**:
+  - Bitnami Redis Helm chart deployment via Terraform
+  - Standalone architecture (sufficient for OTP cache use case)
+  - Password authentication via Kubernetes Secret (from GitHub Secrets)
+  - PersistentVolume storage with RDB snapshots for data recovery
+  - Non-root security context (UID 1001)
+  - Network policy restricting Redis access to backend pods only
+  - TTL-based automatic expiration for OTP codes
+- **Redis Client Module (`app/redis/`)**:
+  - `RedisOTPClient` class with TTL-aware storage operations
+  - Automatic fallback to in-memory storage when Redis is disabled
+  - Methods: `store_code()`, `get_code()`, `delete_code()`, `code_exists()`
+  - Connection health checking and error handling
+  - Lazy initialization with connection pooling
+
+### PostgreSQL and SES Integration (December 18, 2024)
+
+- **PostgreSQL Module (`modules/postgresql/`)**:
+  - Bitnami PostgreSQL Helm chart deployment
+  - Database for user registrations and verification tokens
+  - Password authentication from GitHub Secrets
+  - PersistentVolume storage with RDB
+- **SES Module (`modules/ses/`)**:
+  - AWS SES email identity verification
+  - IAM Role with IRSA for secure pod access
+  - Email sending for verification and notifications
+  - Sender email configuration
+- **Database Connection Module (`app/database/`)**:
+  - PostgreSQL connection management
+  - SQLAlchemy models for users, verification tokens, groups, user-group
+  relationships
+  - Async database operations
+- **Email Client Module (`app/email/`)**:
+  - AWS SES integration for sending emails
+  - Email templates for verification and welcome emails
+  - IRSA-based authentication for SES access
+- **New API Endpoints**:
+  - `POST /api/auth/signup` - Register new user
+  - `POST /api/auth/verify-email` - Verify email with token
+  - `POST /api/auth/verify-phone` - Verify phone with code
+  - `POST /api/auth/resend-verification` - Resend verification
+  - `GET /api/profile/status/{username}` - Get profile status
+  - `GET /api/profile/{username}` - Get user profile
+  - `PUT /api/profile/{username}` - Update user profile
+  - Admin endpoints for user and group management
+- **Product Requirements Document**: Comprehensive PRD-SIGNUP-MAN.md documenting
+signup system, user stories, and API specifications
+
+### 2FA Application and SMS Integration (December 18, 2024 - Initial Release)
 
 - **Full-stack 2FA application deployed**:
   - Python FastAPI backend with LDAP authentication integration
