@@ -647,7 +647,7 @@ enhancements and best practices
 
 ### Module Documentation
 
-- [ALB Module](application/modules/alb/) - EKS Auto Mode ALB configuration
+- [ALB Module](application/modules/alb/README.md) - EKS Auto Mode ALB configuration
 - [ArgoCD Module](application/modules/argocd/README.md) - AWS managed ArgoCD
 setup
 - [ArgoCD Application Module](application/modules/argocd_app/README.md) -
