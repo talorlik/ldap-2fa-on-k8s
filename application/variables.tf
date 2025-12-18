@@ -205,19 +205,16 @@ variable "enable_sms_2fa" {
 variable "sns_topic_name" {
   description = "Name component for the SNS topic"
   type        = string
-  default     = "2fa-sms"
 }
 
 variable "sns_display_name" {
   description = "Display name for the SNS topic (appears in SMS sender)"
   type        = string
-  default     = "2FA Verification"
 }
 
 variable "sns_iam_role_name" {
   description = "Name component for the SNS IAM role"
   type        = string
-  default     = "2fa-sns-publisher"
 }
 
 variable "configure_sms_preferences" {
@@ -229,13 +226,11 @@ variable "configure_sms_preferences" {
 variable "sms_sender_id" {
   description = "Default sender ID for SMS messages (max 11 alphanumeric characters)"
   type        = string
-  default     = "2FA"
 }
 
 variable "sms_type" {
   description = "Default SMS type: Promotional or Transactional"
   type        = string
-  default     = "Transactional"
   validation {
     condition     = contains(["Promotional", "Transactional"], var.sms_type)
     error_message = "SMS type must be either 'Promotional' or 'Transactional'"
@@ -245,7 +240,6 @@ variable "sms_type" {
 variable "sms_monthly_spend_limit" {
   description = "Monthly spend limit for SMS in USD"
   type        = number
-  default     = 10
 }
 
 ##################### ArgoCD ##########################
@@ -259,25 +253,21 @@ variable "enable_argocd" {
 variable "argocd_role_name_component" {
   description = "Name component for ArgoCD IAM role (between prefix and env)"
   type        = string
-  default     = "argocd-role"
 }
 
 variable "argocd_capability_name_component" {
   description = "Name component for ArgoCD capability (between prefix and env)"
   type        = string
-  default     = "argocd"
 }
 
 variable "argocd_namespace" {
   description = "Kubernetes namespace for ArgoCD resources"
   type        = string
-  default     = "argocd"
 }
 
 variable "argocd_project_name" {
   description = "ArgoCD project name for cluster registration"
   type        = string
-  default     = "default"
 }
 
 variable "idc_instance_arn" {
@@ -315,7 +305,6 @@ variable "argocd_vpce_ids" {
 variable "argocd_delete_propagation_policy" {
   description = "Delete propagation policy for ArgoCD capability (RETAIN or DELETE)"
   type        = string
-  default     = "RETAIN"
   validation {
     condition     = contains(["RETAIN", "DELETE"], var.argocd_delete_propagation_policy)
     error_message = "Delete propagation policy must be either 'RETAIN' or 'DELETE'"
@@ -347,7 +336,6 @@ variable "argocd_app_target_revision" {
 variable "argocd_app_backend_name" {
   description = "Name of the ArgoCD Application for backend"
   type        = string
-  default     = "2fa-backend"
 }
 
 variable "argocd_app_backend_path" {
@@ -360,14 +348,12 @@ variable "argocd_app_backend_path" {
 variable "argocd_app_backend_namespace" {
   description = "Target Kubernetes namespace for the backend application"
   type        = string
-  default     = "2fa-backend"
 }
 
 # Frontend App Configuration
 variable "argocd_app_frontend_name" {
   description = "Name of the ArgoCD Application for frontend"
   type        = string
-  default     = "2fa-frontend"
 }
 
 variable "argocd_app_frontend_path" {
@@ -380,7 +366,6 @@ variable "argocd_app_frontend_path" {
 variable "argocd_app_frontend_namespace" {
   description = "Target Kubernetes namespace for the frontend application"
   type        = string
-  default     = "2fa-frontend"
 }
 
 variable "argocd_app_sync_policy_automated" {

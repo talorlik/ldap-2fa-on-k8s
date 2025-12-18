@@ -64,12 +64,12 @@ alb_ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 enable_sms_2fa = true
 
 # SNS configuration (uses defaults if not specified)
-# sns_topic_name      = "2fa-sms"
-# sns_display_name    = "2FA Verification"
-# sns_iam_role_name   = "2fa-sns-publisher"
-# sms_sender_id       = "2FA"
-# sms_type            = "Transactional"
-# sms_monthly_spend_limit = 10
+sns_topic_name      = "2fa-sms"
+sns_display_name    = "TALO LDAP 2FA Verification"
+sns_iam_role_name   = "2fa-sns-publisher"
+sms_sender_id       = "2FA"
+sms_type            = "Transactional"
+sms_monthly_spend_limit = 10
 
 ##################### Route53 ##########################
 # Domain name for Route53 hosted zone and ACM certificate
@@ -84,10 +84,10 @@ domain_name = "talorlik.com"
 enable_argocd = true
 
 # ArgoCD configuration
-# argocd_role_name_component       = "argocd-role"
-# argocd_capability_name_component = "argocd"
-# argocd_namespace                 = "argocd"
-# argocd_project_name              = "default"
+argocd_role_name_component       = "argocd-role"
+argocd_capability_name_component = "argocd"
+argocd_namespace                 = "argocd"
+argocd_project_name              = "default"
 
 # AWS Identity Center configuration (required if enable_argocd = true)
 idc_instance_arn = "arn:aws:sso:::instance/ssoins-72238050a762e47d"
@@ -111,7 +111,7 @@ argocd_rbac_role_mappings = [
 # argocd_vpce_ids = []
 
 # Delete propagation policy (RETAIN or DELETE)
-# argocd_delete_propagation_policy = "RETAIN"
+argocd_delete_propagation_policy = "RETAIN"
 
 ##################### ArgoCD Applications ##########################
 # Enable ArgoCD Application deployments
