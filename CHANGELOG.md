@@ -10,6 +10,46 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **User Signup Management System**
+  - Self-service user registration with profile fields (first name, last name,
+  username, email, phone, password, MFA method)
+  - Email verification via AWS SES with token-based verification links
+  - Phone verification via AWS SNS with 6-digit OTP codes
+  - Profile state management (PENDING → COMPLETE → ACTIVE)
+  - PostgreSQL database for storing user data before LDAP activation
+  - Administrator user management interface for approval workflow
+  - Login restrictions based on verification status
+
+- **Admin Functions and User Profile Management**
+  - User profile page with viewable and editable fields
+  - Edit restrictions for verified email/phone (read-only after verification)
+  - Admin dashboard (only visible to LDAP admin group members)
+  - Group CRUD operations (create, read, update, delete)
+  - User-group assignment and management
+  - Approve/Revoke workflow for user activation
+  - List features with sorting, filtering, and searching
+  - Admin email notifications on new user signup
+  - Top navigation bar with user menu after login
+
+- **PostgreSQL Module (`application/modules/postgresql/`)**
+  - Bitnami PostgreSQL Helm chart deployment via Terraform
+  - Database for storing user registrations and verification tokens
+  - Password authentication via Kubernetes Secret (from GitHub Secrets)
+  - PersistentVolume storage for data durability
+
+- **SES Module (`application/modules/ses/`)**
+  - AWS SES email identity verification
+  - IAM Role configured for IRSA
+  - Email sending capabilities for verification and notifications
+  - Welcome email on user activation
+
+- **Redis Module for SMS OTP Storage (`application/modules/redis/`)**
+  - Bitnami Redis Helm chart deployment via Terraform
+  - Replaces in-memory storage for SMS OTP codes
+  - TTL-based automatic expiration for OTP codes
+  - Network policy restricting Redis access to backend pods only
+  - Password authentication via Kubernetes Secret
+
 - **Two-Factor Authentication (2FA) Application**
   - Full-stack 2FA solution with Python FastAPI backend and static HTML/JS/CSS
   frontend
@@ -85,7 +125,29 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   - Skips creation if `backend.hcl` already exists (prevents overwriting
   existing configuration)
 
+- **New GitHub Secrets for Infrastructure Components**
+  - `TF_VAR_REDIS_PASSWORD`: Redis authentication password for SMS OTP storage
+  - `TF_VAR_POSTGRES_PASSWORD`: PostgreSQL database password for user data
+  - `TF_VAR_SES_SENDER_EMAIL`: Verified SES sender email address for
+  notifications
+  - All secrets follow existing pattern (TF_VAR_ prefix for Terraform
+  integration)
+
 ### Changed
+
+- **GitHub Actions Workflow Updates**
+  - Updated `application_infra_provisioning.yaml` with new environment variables
+  for Redis, PostgreSQL, and SES
+  - Workflows now pass Redis password via `TF_VAR_REDIS_PASSWORD` environment
+  variable
+  - Workflows now pass PostgreSQL password via `TF_VAR_POSTGRES_PASSWORD`
+  environment variable
+  - Maintains backward compatibility with existing OpenLDAP password secrets
+
+- **Comprehensive Product Requirements Documents**
+  - Added `PRD-SIGNUP-MAN.md` for user signup management system
+  - Added `PRD-ADMIN-FUNCS.md` for admin functions and profile management
+  - Added `PRD-SMS-MAN.md` for SMS OTP management with Redis
 
 - **Documentation and linting improvements**
   - All documentation files updated for Markdown lint compliance
@@ -368,6 +430,27 @@ resources
 - 2FA Backend and Frontend applications (`application/backend/`,
 `application/frontend/`)
 - GitHub Actions workflows for CI/CD (`.github/workflows/`)
+
+### Supporting Infrastructure
+
+- **PostgreSQL** (`application/modules/postgresql/`): User registration and
+verification token storage
+- **Redis** (`application/modules/redis/`): SMS OTP code storage with TTL
+- **SES** (`application/modules/ses/`): Email verification and notifications
+- **SNS** (`application/modules/sns/`): SMS-based 2FA verification
+
+### Required GitHub Secrets
+
+| Secret | Purpose |
+|--------|---------|
+| `AWS_STATE_ACCOUNT_ROLE_ARN` | Role for Terraform state operations |
+| `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` | Role for production deployments |
+| `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` | Role for development deployments |
+| `TF_VAR_OPENLDAP_ADMIN_PASSWORD` | OpenLDAP admin password |
+| `TF_VAR_OPENLDAP_CONFIG_PASSWORD` | OpenLDAP config password |
+| `TF_VAR_REDIS_PASSWORD` | Redis authentication password |
+| `TF_VAR_POSTGRES_PASSWORD` | PostgreSQL database password |
+| `TF_VAR_SES_SENDER_EMAIL` | Verified SES sender email |
 
 ## Notes
 

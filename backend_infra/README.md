@@ -461,6 +461,13 @@ aws iam list-open-id-connect-providers
 aws eks describe-cluster --name $(terraform output -raw cluster_name) --query "cluster.identity.oidc.issuer"
 ```
 
+## Related Documentation
+
+- [Application Infrastructure](../application/README.md) - OpenLDAP, 2FA app,
+PostgreSQL, Redis, SES, and ArgoCD deployment
+- [Terraform Backend State](../tf_backend_state/README.md) - S3 state management
+- [Main README](../README.md) - Project overview and quick start
+
 ## References
 
 - [AWS EKS Documentation](https://docs.aws.amazon.com/eks/)
@@ -469,3 +476,4 @@ aws eks describe-cluster --name $(terraform output -raw cluster_name) --query "c
 - [IRSA Documentation](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
 - [AWS VPC Endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints.html)
 - [AWS SNS SMS](https://docs.aws.amazon.com/sns/latest/dg/sms_publish-to-phone.html)
+- [AWS SES](https://docs.aws.amazon.com/ses/latest/dg/Welcome.html)

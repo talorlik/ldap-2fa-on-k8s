@@ -29,6 +29,15 @@ access
 HTML/JS/CSS frontend
 - **Dual MFA methods**: TOTP (authenticator apps) and SMS (AWS SNS)
 - **LDAP integration** for centralized user authentication
+- **Self-service user registration** with email/phone verification
+- **Admin dashboard** for user management, group CRUD, and approval workflows
+
+**Supporting Infrastructure:**
+
+- **PostgreSQL** for user registration and verification token storage
+- **Redis** for SMS OTP code storage with TTL-based expiration
+- **AWS SES** for email verification and notifications
+- **AWS SNS** for SMS-based 2FA verification
 
 **DevOps & Security:**
 
@@ -160,7 +169,22 @@ Configure these secrets in your GitHub repository:
    - **Description**: OpenLDAP config password
    - **Used for**: OpenLDAP Helm chart deployment
 
-6. **`GH_TOKEN`** (Required for state backend provisioning)
+6. **`TF_VAR_REDIS_PASSWORD`** (Required for application deployment)
+   - **Type**: Secret
+   - **Description**: Redis authentication password (minimum 16 characters)
+   - **Used for**: Redis Helm chart deployment for SMS OTP storage
+
+7. **`TF_VAR_POSTGRES_PASSWORD`** (Required for application deployment)
+   - **Type**: Secret
+   - **Description**: PostgreSQL database password
+   - **Used for**: PostgreSQL Helm chart deployment for user data storage
+
+8. **`TF_VAR_SES_SENDER_EMAIL`** (Required for application deployment)
+   - **Type**: Secret
+   - **Description**: Verified SES sender email address
+   - **Used for**: Email verification and notification sending
+
+9. **`GH_TOKEN`** (Required for state backend provisioning)
    - **Type**: Secret
    - **Description**: GitHub Personal Access Token with `repo` scope
    - **Used for**: Creating/updating repository variables after state backend
@@ -328,9 +352,11 @@ Deploy the Terraform backend state infrastructure by running the
 
 > [!NOTE]
 >
+> [!NOTE]
+>
 > 📖 **For detailed setup instructions**, including required GitHub Secrets,
-Variables, and configuration, see the [Terraform Backend State
-README](tf_backend_state/README.md).
+> Variables, and configuration, see the [Terraform Backend State
+> README](tf_backend_state/README.md).
 
 > [!IMPORTANT]
 >
@@ -580,6 +606,10 @@ component documentation and deployment instructions.
 provisioning and built-in EBS CSI driver
 - **Two-Factor Authentication**: Full-stack 2FA application with dual MFA
 methods (TOTP and SMS)
+- **Self-Service User Registration**: Email and phone verification with profile
+state management (PENDING → COMPLETE → ACTIVE)
+- **Admin Dashboard**: User management, group CRUD operations, and approval
+workflows for user activation
 - **IRSA Integration**: Secure AWS API access from pods without hardcoded
 credentials
 - **High Availability**: Multi-master OpenLDAP replication with persistent
@@ -613,8 +643,11 @@ After deployment:
 
 - **2FA Application**: `https://app.${domain_name}` (e.g.,
 `https://app.talorlik.com`)
+  - Self-service user registration with email/phone verification
   - Two-factor authentication enrollment and login
   - TOTP setup with QR code or SMS verification
+  - User profile management
+  - Admin dashboard (for LDAP admin group members)
 - **PhpLdapAdmin**: `https://phpldapadmin.${domain_name}` (e.g.,
 `https://phpldapadmin.talorlik.com`)
   - LDAP administration interface
@@ -640,6 +673,12 @@ app, ALB, ArgoCD, and deployment instructions
 
 - [2FA Application PRD](application/PRD-2FA-APP.md) - Product requirements for
 the 2FA application (API specs, frontend architecture)
+- [User Signup Management PRD](application/PRD-SIGNUP-MAN.md) - Self-service
+user registration with email/phone verification
+- [Admin Functions PRD](application/PRD-ADMIN-FUNCS.md) - Admin dashboard, group
+management, and approval workflows
+- [SMS OTP Management PRD](application/PRD-SMS-MAN.md) - Redis-based SMS OTP
+storage with TTL
 - [OpenLDAP README](application/OPENLDAP-README.md) - OpenLDAP configuration and
 TLS setup
 - [Security Improvements](application/SECURITY-IMPROVEMENTS.md) - Security
@@ -656,6 +695,11 @@ GitOps application deployment
 certificate management
 - [Network Policies Module](application/modules/network-policies/README.md) -
 Pod-to-pod security
+- [PostgreSQL Module](application/modules/postgresql/README.md) - User data and
+verification token storage
+- [Redis Module](application/modules/redis/README.md) - SMS OTP code storage
+- [SES Module](application/modules/ses/README.md) - Email verification and
+notifications
 - [SNS Module](application/modules/sns/README.md) - SMS 2FA integration
 - [VPC Endpoints Module](backend_infra/modules/endpoints/README.md) - Private
 AWS service access

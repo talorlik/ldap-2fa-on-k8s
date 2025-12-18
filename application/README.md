@@ -17,9 +17,15 @@ The application infrastructure provisions:
 - **Internet-Facing ALB** for UI access from the internet
 - **2FA Application** with Python FastAPI backend and static HTML/JS/CSS
 frontend
+  - Self-service user registration with email/phone verification
+  - Admin dashboard for user management and approval workflows
+  - User profile management with edit restrictions
 - **ArgoCD Capability** for GitOps deployments (AWS EKS managed service)
 - **cert-manager** for automatic TLS certificate management
 - **Network Policies** for securing pod-to-pod communication
+- **PostgreSQL** for user registration and verification token storage
+- **Redis** for SMS OTP code storage with TTL-based expiration
+- **SES Integration** for email verification and notifications
 - **SNS Integration** for SMS-based 2FA verification (optional)
 
 ## Architecture
@@ -55,11 +61,16 @@ frontend
 │  │  │ Ingress /api/*   │      │ Ingress /*       │             │            │
 │  │  └────────┬─────────┘      └──────────────────┘             │            │
 │  │           │                                                 │            │
-│  │           │ LDAP Auth                                       │            │
+│  │           │ LDAP Auth / User Data                           │            │
 │  │           ▼                                                 │            │
 │  │  ┌──────────────────┐      ┌──────────────────┐             │            │
-│  │  │ LDAP Service     │      │ SNS (SMS 2FA)    │             │            │
-│  │  │ (ClusterIP)      │      │ (via IRSA)       │             │            │
+│  │  │ LDAP Service     │      │ PostgreSQL       │             │            │
+│  │  │ (ClusterIP)      │      │ (User Data)      │             │            │
+│  │  └──────────────────┘      └──────────────────┘             │            │
+│  │                                                             │            │
+│  │  ┌──────────────────┐      ┌──────────────────┐             │            │
+│  │  │ Redis            │      │ SNS/SES          │             │            │
+│  │  │ (SMS OTP Cache)  │      │ (via IRSA)       │             │            │
 │  │  └──────────────────┘      └──────────────────┘             │            │
 │  └─────────────────────────────────────────────────────────────┘            │
 │                                                                             │
@@ -152,7 +163,26 @@ configuration (see Storage Configuration section below)
 ### 3. 2FA Application (Backend + Frontend)
 
 A full two-factor authentication application integrated with the LDAP
-infrastructure.
+infrastructure, featuring self-service user registration and admin management.
+
+#### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Self-Service Registration** | User signup with email/phone verification |
+| **Email Verification** | UUID token-based verification via AWS SES |
+| **Phone Verification** | 6-digit OTP codes via AWS SNS |
+| **Profile Management** | User profile editing with verification restrictions |
+| **Admin Dashboard** | User management, group CRUD, approval workflows |
+| **MFA Methods** | TOTP (authenticator apps) and SMS verification |
+
+#### Profile State Management
+
+| State | Description |
+|-------|-------------|
+| **PENDING** | User registered, verification incomplete |
+| **COMPLETE** | All verifications complete, awaiting admin approval |
+| **ACTIVE** | Admin approved, user exists in LDAP |
 
 #### MFA Methods Supported
 
@@ -172,6 +202,10 @@ infrastructure.
   - SMS verification code generation and sending
   - QR code URI generation for authenticator apps
   - MFA method selection and storage
+  - Self-service user registration
+  - Email/phone verification
+  - User profile management
+  - Admin functions (user management, group CRUD)
 
 **API Endpoints:**
 
@@ -183,6 +217,19 @@ infrastructure.
 | `POST` | `/api/auth/enroll` | Enroll user for MFA (TOTP or SMS) |
 | `POST` | `/api/auth/login` | Validate LDAP credentials + verification code |
 | `POST` | `/api/auth/sms/send-code` | Send SMS verification code |
+| `POST` | `/api/auth/signup` | Register new user |
+| `POST` | `/api/auth/verify-email` | Verify email with token |
+| `POST` | `/api/auth/verify-phone` | Verify phone with code |
+| `POST` | `/api/auth/resend-verification` | Resend verification email/SMS |
+| `GET` | `/api/profile/{username}` | Get user profile |
+| `PUT` | `/api/profile/{username}` | Update user profile |
+| `GET` | `/api/admin/users` | List all users (admin only) |
+| `POST` | `/api/admin/users/{username}/approve` | Approve user (admin only) |
+| `POST` | `/api/admin/users/{username}/revoke` | Revoke user (admin only) |
+| `GET` | `/api/admin/groups` | List all groups (admin only) |
+| `POST` | `/api/admin/groups` | Create group (admin only) |
+| `PUT` | `/api/admin/groups/{group}` | Update group (admin only) |
+| `DELETE` | `/api/admin/groups/{group}` | Delete group (admin only) |
 
 #### Frontend (Static HTML/JS/CSS)
 
@@ -191,10 +238,15 @@ infrastructure.
 - **Port**: 80
 - **Features**:
   - Modern, responsive UI
+  - Self-service signup form with validation
+  - Email/phone verification status panel
   - Enrollment flow with MFA method selection
   - QR code rendering for TOTP setup
   - Phone number input with E.164 validation
   - SMS send button with countdown timer
+  - User profile page with edit functionality
+  - Admin dashboard for user/group management
+  - Top navigation bar with user menu
   - Error handling and user feedback
 
 #### Routing Pattern (Single Domain)
@@ -298,8 +350,8 @@ The `modules/network-policies/` module creates Kubernetes Network Policies to
 secure internal cluster communication:
 
 - **Namespace-wide Policy**: Applies to all pods in the `ldap` namespace
-- **Secure Ports Only**: Allows communication only on encrypted ports (443, 636,
-8443)
+- **Secure Ports Only**: Allows communication only on encrypted ports (443,
+636, 8443)
 - **Cross-Namespace Communication**: Services in other namespaces can access the
 LDAP service on secure ports
 - **DNS Resolution**: Allows DNS queries for service discovery
@@ -372,6 +424,40 @@ metadata:
     eks.amazonaws.com/role-arn: <iam_role_arn from outputs>
 ```
 
+### 10. PostgreSQL Module (User Data Storage)
+
+The `modules/postgresql/` module deploys PostgreSQL for storing user
+registration and verification data:
+
+- **Bitnami Helm Chart**: Standalone PostgreSQL deployment
+- **Persistent Storage**: EBS-backed PVC for data durability
+- **User Data Storage**: Stores user registrations before LDAP activation
+- **Verification Tokens**: Email and phone verification token storage
+- **Password Authentication**: Via Kubernetes Secret from GitHub Secrets
+
+### 11. SES Module (Email Verification)
+
+The `modules/ses/` module configures AWS SES for sending verification emails:
+
+- **Email Identity Verification**: Individual email or domain verification
+- **DKIM Setup**: For domain verification and email authentication
+- **IAM Role (IRSA)**: Enables EKS pods to send emails using service account
+- **Route53 Integration**: Optional automatic DNS record creation for DKIM
+- **Email Types**:
+  - Verification emails with token-based links
+  - Welcome emails on user activation
+  - Admin notification emails on new signups
+
+### 12. Redis Module (SMS OTP Storage)
+
+The `modules/redis/` module deploys Redis for SMS OTP code storage:
+
+- **Bitnami Helm Chart**: Standalone Redis deployment
+- **TTL-based Expiration**: Automatic cleanup of expired OTP codes
+- **Shared State**: OTP codes accessible from any backend replica
+- **Persistence**: Data survives pod restarts via RDB snapshots
+- **Network Security**: ClusterIP service with password authentication
+
 ## Module Structure
 
 ```bash
@@ -438,7 +524,22 @@ application/
 │   │   ├── main.tf
 │   │   ├── outputs.tf
 │   │   └── README.md
-│   └── sns/                  # SNS module - SMS 2FA verification
+│   ├── sns/                  # SNS module - SMS 2FA verification
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── ses/                  # SES module - Email verification
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── postgresql/           # PostgreSQL module - User data storage
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   └── redis/                # Redis module - SMS OTP storage
 │       ├── main.tf
 │       ├── variables.tf
 │       ├── outputs.tf
@@ -447,6 +548,9 @@ application/
 ├── PRD-ALB.md               # ALB configuration PRD
 ├── PRD-ArgoCD.md            # ArgoCD configuration PRD
 ├── PRD-DOMAIN.md            # Domain configuration PRD
+├── PRD-SIGNUP-MAN.md        # User Signup Management PRD
+├── PRD-ADMIN-FUNCS.md       # Admin Functions and Profile Management PRD
+├── PRD-SMS-MAN.md           # SMS OTP Management with Redis PRD
 ├── PRD.md                   # Main PRD
 └── README.md                 # This file
 ```
@@ -477,6 +581,10 @@ variables (see Configuration section)
 10. **AWS Identity Center**: Required for ArgoCD RBAC configuration
 11. **VPC Endpoints (for SMS 2FA)**: STS and SNS endpoints must be enabled in
 backend_infra
+12. **GitHub Secrets for Infrastructure**:
+    - `TF_VAR_REDIS_PASSWORD`: Redis authentication password
+    - `TF_VAR_POSTGRES_PASSWORD`: PostgreSQL database password
+    - `TF_VAR_SES_SENDER_EMAIL`: Verified SES sender email address
 
 ## Configuration
 
@@ -564,6 +672,9 @@ Set these as GitHub Secrets:
 
 - `TF_VAR_OPENLDAP_ADMIN_PASSWORD`
 - `TF_VAR_OPENLDAP_CONFIG_PASSWORD`
+- `TF_VAR_REDIS_PASSWORD`
+- `TF_VAR_POSTGRES_PASSWORD`
+- `TF_VAR_SES_SENDER_EMAIL`
 
 The workflow automatically exports them as Terraform variables:
 
@@ -571,6 +682,9 @@ The workflow automatically exports them as Terraform variables:
 env:
   TF_VAR_OPENLDAP_ADMIN_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
   TF_VAR_OPENLDAP_CONFIG_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
+  TF_VAR_REDIS_PASSWORD: ${{ secrets.TF_VAR_REDIS_PASSWORD }}
+  TF_VAR_POSTGRES_PASSWORD: ${{ secrets.TF_VAR_POSTGRES_PASSWORD }}
+  TF_VAR_SES_SENDER_EMAIL: ${{ secrets.TF_VAR_SES_SENDER_EMAIL }}
 ```
 
 #### Route53 and Domain Variables
@@ -584,7 +698,8 @@ env:
 
 > [!NOTE]
 >
-> Hostnames for all services can be configured via variables or are automatically derived:
+> Hostnames for all services can be configured via variables or are
+> automatically derived:
 >
 > - PhpLdapAdmin: `phpldapadmin.${domain_name}` (or set `phpldapadmin_host` variable)
 > - LTB-passwd: `passwd.${domain_name}` (or set `ltb_passwd_host` variable)
@@ -650,6 +765,39 @@ defaults to `app_name`)
 `Transactional`)
 - `sms_monthly_spend_limit`: Monthly SMS budget (default: `10`)
 
+#### PostgreSQL Variables
+
+- `enable_postgresql`: Enable PostgreSQL deployment (default: `true`)
+- `postgresql_namespace`: Kubernetes namespace (default: `ldap-2fa`)
+- `postgresql_database_name`: Database name (default: `ldap2fa`)
+- `postgresql_database_username`: Database username (default: `ldap2fa`)
+- `postgresql_storage_size`: Storage size for PVC (default: `8Gi`)
+
+> [!IMPORTANT]
+>
+> PostgreSQL password must be set via environment variable
+> `TF_VAR_POSTGRES_PASSWORD` (from GitHub Secrets).
+
+#### SES Variables
+
+- `enable_ses`: Enable SES email resources (default: `true`)
+- `ses_sender_email`: Verified sender email address (from
+`TF_VAR_SES_SENDER_EMAIL`)
+- `ses_sender_domain`: Optional domain to verify (for DKIM)
+- `ses_route53_zone_id`: Optional Route53 zone ID for automatic DNS records
+
+#### Redis Variables
+
+- `enable_redis`: Enable Redis deployment (default: `true`)
+- `redis_namespace`: Kubernetes namespace (default: `redis`)
+- `redis_storage_size`: Storage size for PVC (default: `1Gi`)
+- `redis_persistence_enabled`: Enable data persistence (default: `true`)
+
+> [!IMPORTANT]
+>
+> Redis password must be set via environment variable
+> `TF_VAR_REDIS_PASSWORD` (from GitHub Secrets). Minimum 16 characters.
+
 ### Example Configuration
 
 **variables.tfvars:**
@@ -680,6 +828,17 @@ idc_region                  = "us-east-1"
 # SMS 2FA Configuration (optional)
 enable_sms_2fa              = true
 sms_monthly_spend_limit     = 50
+
+# PostgreSQL Configuration
+enable_postgresql           = true
+postgresql_storage_size     = "10Gi"
+
+# Redis Configuration
+enable_redis                = true
+redis_storage_size          = "1Gi"
+
+# SES Configuration
+enable_ses                  = true
 ```
 
 **.env file (local development):**
@@ -687,6 +846,9 @@ sms_monthly_spend_limit     = 50
 ```bash
 export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
 export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
+export TF_VAR_REDIS_PASSWORD="YourSecureRedisPassword123!"
+export TF_VAR_POSTGRES_PASSWORD="YourSecurePostgresPassword123!"
+export TF_VAR_SES_SENDER_EMAIL="noreply@yourdomain.com"
 ```
 
 ## Deployment
@@ -793,12 +955,20 @@ servers.
 ```bash
 # Check Helm release status
 helm list -n ldap
+helm list -n redis
+helm list -n ldap-2fa
 
 # Check OpenLDAP pods
 kubectl get pods -n ldap
 
 # Check 2FA application pods
 kubectl get pods -n 2fa-app
+
+# Check PostgreSQL pods
+kubectl get pods -n ldap-2fa
+
+# Check Redis pods
+kubectl get pods -n redis
 
 # Check Ingress resources
 kubectl get ingress -n ldap
@@ -844,11 +1014,20 @@ kubectl get application -n argocd
 
 - **URL**: `https://app.${domain_name}` (e.g., `https://app.talorlik.com`)
 - **Access**: Internet-facing (via internet-facing ALB)
-- **Purpose**: Two-factor authentication enrollment and login
+- **Purpose**: Two-factor authentication, user registration, and management
 - **Features**:
+  - Self-service user registration
+  - Email verification (click link in email)
+  - Phone verification (enter 6-digit SMS code)
   - TOTP enrollment with QR code
   - SMS enrollment with phone number verification
   - Login with LDAP credentials + verification code
+  - User profile management
+  - Admin dashboard (visible to LDAP admin group members only):
+    - User list with filtering and sorting
+    - Approve/revoke users
+    - Group CRUD operations
+    - User-group assignment
 
 ### LDAP Service
 
@@ -975,6 +1154,32 @@ global:
    - Verify cluster registration secret: `kubectl get secret -n argocd`
    - Check Application sync status: `kubectl describe application -n argocd`
 
+8. **PostgreSQL Issues**
+   - Check pods: `kubectl get pods -n ldap-2fa -l app.kubernetes.io/name=postgresql`
+   - Check logs: `kubectl logs -n ldap-2fa -l app.kubernetes.io/name=postgresql`
+   - Check PVC: `kubectl get pvc -n ldap-2fa`
+   - Test connection: `kubectl exec -it -n ldap-2fa postgresql-0 -- \
+     psql -U ldap2fa -d ldap2fa`
+
+9. **Redis Issues**
+   - Check pods: `kubectl get pods -n redis -l app.kubernetes.io/name=redis`
+   - Check logs: `kubectl logs -n redis -l app.kubernetes.io/name=redis`
+   - Check PVC: `kubectl get pvc -n redis`
+   - Test connection: `kubectl exec -it -n redis redis-master-0 -- \
+     redis-cli -a $REDIS_PASSWORD ping`
+
+10. **SES Issues**
+    - Check email identity: `aws ses get-identity-verification-attributes \
+      --identities your@email.com`
+    - Check send quota: `aws ses get-send-quota`
+    - Verify IRSA: Check service account annotation for SES IAM role
+
+11. **User Registration Issues**
+    - Check backend logs for registration errors
+    - Verify PostgreSQL connectivity
+    - Check SES sending limits (sandbox mode restricts recipients)
+    - Verify SNS SMS spending limit
+
 ### Useful Commands
 
 ```bash
@@ -1011,9 +1216,20 @@ ldapsearch -x -H ldap://openldap-stack-ha:389 -b "dc=corp,dc=internal"
 kubectl get application -n argocd
 kubectl describe application -n argocd <app-name>
 
-# Test 2FA API endpoint
+# Test 2FA API endpoints
 curl -X GET https://app.${domain_name}/api/healthz
 curl -X GET https://app.${domain_name}/api/mfa/methods
+
+# Check PostgreSQL
+kubectl logs -n ldap-2fa -l app.kubernetes.io/name=postgresql
+kubectl exec -it -n ldap-2fa postgresql-0 -- psql -U ldap2fa -d ldap2fa -c "\dt"
+
+# Check Redis
+kubectl logs -n redis -l app.kubernetes.io/name=redis
+kubectl exec -it -n redis redis-master-0 -- redis-cli -a $REDIS_PASSWORD KEYS "*"
+
+# Check SES identity status
+aws ses get-identity-verification-attributes --identities ${domain_name}
 ```
 
 ## Outputs
@@ -1032,6 +1248,13 @@ configuration)
 - `argocd_server_url`: ArgoCD UI/API endpoint URL (if ArgoCD is enabled)
 - `sns_topic_arn`: SNS topic ARN for SMS 2FA (if SMS 2FA is enabled)
 - `sns_iam_role_arn`: IAM role ARN for IRSA (if SMS 2FA is enabled)
+- `postgresql_host`: PostgreSQL service hostname (if PostgreSQL is enabled)
+- `postgresql_port`: PostgreSQL service port (if PostgreSQL is enabled)
+- `postgresql_database`: PostgreSQL database name (if PostgreSQL is enabled)
+- `redis_host`: Redis service hostname (if Redis is enabled)
+- `redis_port`: Redis service port (if Redis is enabled)
+- `ses_sender_email`: Verified SES sender email (if SES is enabled)
+- `ses_iam_role_arn`: IAM role ARN for SES IRSA (if SES is enabled)
 
 View all outputs:
 
@@ -1058,6 +1281,9 @@ terraform output
 - [IRSA (IAM Roles for Service Accounts)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
 - [ArgoCD Documentation](https://argo-cd.readthedocs.io/)
 - [cert-manager Documentation](https://cert-manager.io/docs/)
+- [AWS SES Documentation](https://docs.aws.amazon.com/ses/)
+- [Bitnami PostgreSQL Helm Chart](https://github.com/bitnami/charts/tree/main/bitnami/postgresql)
+- [Bitnami Redis Helm Chart](https://github.com/bitnami/charts/tree/main/bitnami/redis)
 
 ## Architecture Notes
 
@@ -1107,8 +1333,8 @@ ipAddressType)
 
 The Network Policies module enforces security at the pod level:
 
-- **Secure Ports Only**: Pods can only communicate on encrypted ports (443, 636,
-8443)
+- **Secure Ports Only**: Pods can only communicate on encrypted ports (443,
+636, 8443)
 - **Namespace Isolation**: Policies apply to all pods in the `ldap` namespace
 - **Cross-Namespace Access**: Services in other namespaces can access the LDAP
 service on secure ports (443, 636, 8443)
@@ -1129,9 +1355,21 @@ The 2FA application follows a single-domain pattern:
 - **Path-Based Routing**: `/api/*` routes to backend, `/` routes to frontend
 - **No CORS Required**: Same-origin requests since both share `app.${domain}`
 - **LDAP Integration**: Backend authenticates against internal LDAP service
-- **IRSA for AWS Services**: Backend uses IAM Roles for Service Accounts for SNS
-access
-- **VPC Private Access**: SNS calls go through VPC endpoints (no NAT gateway)
+- **PostgreSQL Integration**: Stores user registrations and verification tokens
+- **Redis Integration**: Caches SMS OTP codes with TTL-based expiration
+- **IRSA for AWS Services**: Backend uses IAM Roles for Service Accounts for
+SNS and SES access
+- **VPC Private Access**: SNS/STS calls go through VPC endpoints (no NAT
+gateway)
+
+### User Registration Flow
+
+1. **Signup**: User submits registration form → stored in PostgreSQL (PENDING)
+2. **Email Verification**: SES sends verification link → user clicks → email verified
+3. **Phone Verification**: SNS sends OTP → user enters code → phone verified
+4. **Profile Complete**: Both verified → status changes to COMPLETE
+5. **Admin Approval**: Admin approves → user created in LDAP → status ACTIVE
+6. **Welcome Email**: SES sends welcome email on activation
 
 ### GitOps with ArgoCD
 

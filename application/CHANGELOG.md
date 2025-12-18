@@ -9,6 +9,160 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### [2025-12-18] - Admin Functions and User Profile Management
+
+#### Added
+
+- **Admin Dashboard and User Management**
+  - Admin tab visible only to LDAP admin group members
+  - User management section with comprehensive user details view
+  - Filter users by status (pending, complete, active, revoked)
+  - View user details: name, email, phone, verification status, MFA method,
+  group memberships
+  - Activation and revocation workflow with audit logging
+
+- **User Profile Management**
+  - Profile page with viewable and editable fields
+  - Edit restrictions: email/phone read-only after verification
+  - Profile fields: username, first/last name, email, phone, MFA method, status
+
+- **Group Management (Full CRUD)**
+  - Create, read, update, delete groups via admin interface
+  - Group-user assignment management
+  - Sync with LDAP groups on create/update/delete
+  - View group members and member counts
+
+- **Approve/Revoke Workflow**
+  - Approval requires group assignment (at least one group)
+  - Creates user in LDAP with all attributes on approval
+  - Adds user to selected LDAP groups
+  - Sends welcome email on activation
+  - Revocation removes user from LDAP and all groups
+
+- **List Features**
+  - Sortable columns with visual indicators
+  - Filtering by status and group membership
+  - Real-time search for users and groups
+
+- **Admin Notifications**
+  - Email notification to all admins on new user signup
+  - Uses existing AWS SES infrastructure
+  - Async notification (non-blocking)
+
+- **Top Navigation Bar**
+  - Persistent navigation after login
+  - User menu with profile and logout options
+  - Admin-specific menu items for admin users
+
+- **Email Client Module (`app/email/`)**
+  - AWS SES integration for sending emails
+  - Email templates for verification and welcome emails
+  - IRSA-based authentication for SES access
+
+- **Database Models**
+  - Extended user model with profile fields
+  - Group model for LDAP group management
+  - UserGroup model for user-group relationships
+
+#### Changed
+
+- **Updated `routes.py`**
+  - Added profile management endpoints (`/api/profile/{username}`)
+  - Added admin endpoints for user and group management
+  - Added admin authentication and authorization checks
+
+- **Updated Frontend**
+  - Added admin dashboard UI components
+  - Added profile page with edit functionality
+  - Added top navigation bar component
+  - Enhanced CSS with admin-specific styles
+
+### [2025-12-18] - User Signup Management System
+
+#### Added
+
+- **Self-Service User Registration**
+  - Signup form with fields: first name, last name, username, email, phone,
+  password, MFA method
+  - Username validation (3-64 chars, alphanumeric + underscore/hyphen)
+  - Email and phone uniqueness validation
+  - Password hashing with bcrypt
+
+- **Email Verification via AWS SES**
+  - UUID token-based verification links
+  - 24-hour token expiry (configurable)
+  - Resend verification with 60-second cooldown
+  - Email delivery via AWS SES with IRSA
+
+- **Phone Verification via AWS SNS**
+  - 6-digit OTP code via SMS
+  - 1-hour code expiry
+  - Resend code with 60-second cooldown
+  - SMS delivery via AWS SNS with IRSA
+
+- **Profile State Management**
+  - PENDING: User registered, verification incomplete
+  - COMPLETE: All verifications complete, awaiting admin
+  - ACTIVE: Admin activated, exists in LDAP
+
+- **Login Restrictions**
+  - PENDING users cannot login (shows missing verifications)
+  - COMPLETE users see "awaiting admin approval" message
+  - Only ACTIVE users can complete login flow
+
+- **PostgreSQL Module (`modules/postgresql/`)**
+  - Bitnami PostgreSQL Helm chart deployment
+  - Database for user registrations and verification tokens
+  - Password authentication from GitHub Secrets
+  - PersistentVolume storage with RDB
+
+- **SES Module (`modules/ses/`)**
+  - AWS SES email identity verification
+  - IAM Role with IRSA for secure pod access
+  - Email sending for verification and notifications
+  - Sender email configuration
+
+- **Database Connection Module (`app/database/`)**
+  - PostgreSQL connection management
+  - SQLAlchemy models for users and verification tokens
+  - Async database operations
+
+- **New API Endpoints**
+  - `POST /api/auth/signup` - Register new user
+  - `POST /api/auth/verify-email` - Verify email with token
+  - `POST /api/auth/verify-phone` - Verify phone with code
+  - `POST /api/auth/resend-verification` - Resend verification
+  - `GET /api/profile/status/{username}` - Get profile status
+
+- **Product Requirements Document (PRD-SIGNUP-MAN.md)**
+  - Comprehensive documentation of signup system
+  - User stories and acceptance criteria
+  - Data models and API specifications
+  - UI mockups and deployment checklist
+
+#### Changed
+
+- **Updated `main.tf`**
+  - Added PostgreSQL module invocation
+  - Added SES module invocation
+  - Added related variables and outputs
+
+- **Updated `variables.tf`**
+  - Added PostgreSQL configuration variables
+  - Added SES configuration variables
+  - Added database URL and email settings
+
+- **Updated Backend Helm Chart**
+  - Added PostgreSQL environment variables
+  - Added SES environment variables
+  - Added database connection configuration
+
+- **Updated Frontend**
+  - Added signup form with validation
+  - Added verification status panel
+  - Added resend verification functionality
+  - Enhanced error messages for login restrictions
+
 ### [2025-12-18] - Redis SMS OTP Storage
 
 #### Added
@@ -412,9 +566,15 @@ certificates for ALB
 - [x] ~~Implement 2FA application with TOTP support~~ (Completed 2025-12-18)
 - [x] ~~Add SMS-based verification via AWS SNS~~ (Completed 2025-12-18)
 - [x] ~~Replace in-memory SMS OTP storage with Redis~~ (Completed 2025-12-18)
-- [ ] Add email-based verification option
+- [x] ~~Add self-service user signup with email/phone verification~~ (Completed
+2025-12-18)
+- [x] ~~Implement admin dashboard for user management~~ (Completed 2025-12-18)
+- [x] ~~Add group management and user-group assignment~~ (Completed 2025-12-18)
+- [x] ~~Add user profile management~~ (Completed 2025-12-18)
+- [ ] Add email-based MFA verification option
 - [ ] Implement backup codes for account recovery
 - [ ] Add rate limiting for authentication attempts
+- [ ] Add password reset functionality
 
 ## Verification Steps
 
