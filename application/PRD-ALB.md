@@ -10,13 +10,16 @@ balancer driver), using:
 - Multiple Ingresses from `helm-openldap` (phpLDAPadmin + ltb-passwd) sharing
 that ALB via IngressGroup.
 
-**Note**: This implementation uses **EKS Auto Mode** (`eks.amazonaws.com/alb`
-controller), not the AWS Load Balancer Controller. EKS Auto Mode:
-- Has its own built-in load balancer driver (no need to install AWS Load
-Balancer Controller)
-- Automatically handles IAM permissions (no need to attach
-AWSLoadBalancerControllerIAMPolicy)
-- Uses a different API group (`eks.amazonaws.com`) for IngressClassParams
+> [!NOTE]
+>
+> This implementation uses **EKS Auto Mode** (`eks.amazonaws.com/alb`
+> controller), not the AWS Load Balancer Controller. EKS Auto Mode:
+>
+> - Has its own built-in load balancer driver (no need to install AWS Load
+> Balancer Controller)
+> - Automatically handles IAM permissions (no need to attach
+> AWSLoadBalancerControllerIAMPolicy)
+> - Uses a different API group (`eks.amazonaws.com`) for IngressClassParams
 
 Below are the adjusted `values.yaml` snippets.
 

@@ -352,6 +352,7 @@ alb.ingress.kubernetes.io/ssl-redirect: "${app_alb_ssl_redirect}"
 | `ssl-redirect` | `${app_alb_ssl_redirect}` | Redirect port (default: `443`) |
 
 > [!NOTE]
+>
 > `group.name`, `scheme`, and `certificate-arn` are NOT specified in
 > Ingress annotations—they are inherited from `IngressClassParams`.
 

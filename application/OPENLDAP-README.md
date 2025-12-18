@@ -10,6 +10,7 @@ The chart's current image targets Bitnami's OpenLDAP image and supports Bitnami
 OpenLDAP 2.x.([GitHub][1])
 
 > [!NOTE]
+>
 > I had to override it in the code because it couldn't access that image.
 
 ### 1.1 Core OpenLDAP resources

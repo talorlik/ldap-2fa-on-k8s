@@ -48,9 +48,11 @@ A single, generic policy that applies to **ALL pods** in the namespace:
 - LDAPS (port 636)
 - Alternative HTTPS (port 8443)
 
-> **Note**: Cross-namespace communication is enabled to allow services in other
-namespaces to access the LDAP service. All communication must still use secure
-ports (HTTPS, LDAPS).
+> [!NOTE]
+>
+> Cross-namespace communication is enabled to allow services in other
+> namespaces to access the LDAP service. All communication must still use secure
+> ports (HTTPS, LDAPS).
 
 **Allowed Egress (to any pod in namespace):**
 
@@ -72,11 +74,13 @@ ports (HTTPS, LDAPS).
 
 ### 2. Default Deny Policy
 
-> **Note**: A separate default deny policy is **not created** in the current
-implementation. The `namespace_secure_communication` policy achieves default
-deny behavior by only allowing specific secure ports (443, 636, 8443). All other
-ports are implicitly denied. This approach is simpler and avoids policy
-conflicts while maintaining the same security posture.
+> [!NOTE]
+>
+> A separate default deny policy is **not created** in the current
+> implementation. The `namespace_secure_communication` policy achieves default
+> deny behavior by only allowing specific secure ports (443, 636, 8443). All other
+> ports are implicitly denied. This approach is simpler and avoids policy
+> conflicts while maintaining the same security posture.
 
 The implementation achieves default deny behavior through:
 
@@ -165,10 +169,12 @@ Your services must be configured to:
 
 ### ALB Traffic
 
-**Important**: Traffic from the ALB comes from outside the cluster (from AWS
-infrastructure), so it's **not subject to Network Policies**. The ALB
-communicates with pods via the Kubernetes Service, and the Network Policies
-control pod-to-pod communication within the cluster.
+> [!IMPORTANT]
+>
+> Traffic from the ALB comes from outside the cluster (from AWS
+> infrastructure), so it's **not subject to Network Policies**. The ALB
+> communicates with pods via the Kubernetes Service, and the Network Policies
+> control pod-to-pod communication within the cluster.
 
 ### Cross-Namespace Communication
 

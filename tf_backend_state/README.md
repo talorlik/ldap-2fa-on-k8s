@@ -542,6 +542,8 @@ Terraform detects the assumed role's ARN
 - The `principal_arn` variable is optional - only set it if you need to grant
 access to a different principal
 
-> **Note**: For multi-account setups, Account A stores state, and Account B
-deploys resources. The workflows and scripts handle this automatically via role
-assumption, and the principal ARN is automatically detected.
+> [!NOTE]
+>
+> For multi-account setups, Account A stores state, and Account B
+> deploys resources. The workflows and scripts handle this automatically via role
+> assumption, and the principal ARN is automatically detected.

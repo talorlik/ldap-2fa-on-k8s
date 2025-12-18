@@ -90,10 +90,12 @@ persistence:
   size: 8Gi
 ```
 
-> **Note**: The current implementation uses pattern 2 (chart creates PVC with
-StorageClass). The code creates a StorageClass resource and the Helm chart
-creates a new PVC using that StorageClass. The `existingClaim` option (pattern
-1) is not used in the current implementation.
+> [!NOTE]
+>
+> The current implementation uses pattern 2 (chart creates PVC with
+> StorageClass). The code creates a StorageClass resource and the Helm chart
+> creates a new PVC using that StorageClass. The `existingClaim` option (pattern 1)
+> is not used in the current implementation.
 
 You can use one of these two patterns:
 

@@ -9,6 +9,104 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### [2025-12-18] - 2FA Application and SMS Integration
+
+#### Added
+
+- **Full 2FA Application (Backend + Frontend)**
+  - Python FastAPI backend with LDAP authentication integration
+  - Support for **two MFA methods**:
+    - **TOTP (Time-based One-Time Password)** - Using authenticator apps (Google
+    Authenticator, Authy, etc.)
+    - **SMS** - Verification codes sent via AWS SNS
+  - Static HTML/JS/CSS frontend with modern, responsive UI
+  - Single domain routing pattern (`app.<domain>`) with path-based routing:
+    - `/` → Frontend
+    - `/api/*` → Backend API
+  - Complete Helm charts for both backend and frontend deployments
+  - Docker files for containerized deployment
+  - Kubernetes resources: Deployment, Service, Ingress, ConfigMap, Secret,
+  ServiceAccount, HPA
+
+- **SNS Module for SMS-based 2FA Verification**
+  - SNS Topic for centralized SMS notifications
+  - IAM Role configured for IRSA (IAM Roles for Service Accounts)
+  - Direct SMS support for sending verification codes to phone numbers
+  - E.164 phone number format support
+  - Transactional SMS type for higher delivery priority
+  - Cost control via monthly spend limits
+
+- **Product Requirements Document (PRD-2FA-APP.md)**
+  - Comprehensive documentation of 2FA application architecture
+  - API endpoint specifications for all authentication flows
+  - Frontend component and state machine documentation
+  - Security considerations and error handling patterns
+
+#### Changed
+
+- **Updated variables.tf and variables.tfvars**
+  - Added 2FA application configuration variables
+  - Added SNS topic configuration
+  - Added backend/frontend deployment settings
+
+### [2025-12-16] - ArgoCD GitOps Integration
+
+#### Added
+
+- **ArgoCD Capability Module (`modules/argocd/`)**
+  - Deploys AWS EKS managed ArgoCD service (runs in EKS control plane)
+  - Creates IAM role and policies for ArgoCD capability
+  - Configures AWS Identity Center (IdC) authentication
+  - Registers local EKS cluster with ArgoCD
+  - Sets up RBAC mappings for Identity Center groups/users
+  - Optional VPC endpoint configuration for private access
+  - Support for ECR and CodeCommit access policies
+  - Comprehensive documentation with usage examples
+
+- **ArgoCD Application Module (`modules/argocd_app/`)**
+  - Creates ArgoCD Application CRD for GitOps deployments
+  - Configures source (Git repository, path, revision) and destination
+  (cluster, namespace)
+  - Supports multiple deployment types:
+    - Plain Kubernetes manifests
+    - Helm charts with value files and parameters
+    - Kustomize with image overrides and common labels
+  - Sync policy configuration (automated/manual)
+  - Retry policies with backoff configuration
+  - Ignore differences for externally managed fields
+  - Multi-application pattern support
+
+#### Changed
+
+- **Updated main.tf**
+  - Added ArgoCD capability module integration
+  - Added ArgoCD application module calls
+  - Configured cluster registration for GitOps
+
+- **Updated variables.tf and variables.tfvars**
+  - Added ArgoCD configuration variables
+  - Added Identity Center configuration (instance ARN, region)
+  - Added RBAC role mapping configuration
+  - Added VPC endpoint configuration options
+
+### [2025-12-15] - Documentation and Linting Improvements
+
+#### Changed
+
+- **Updated documentation across all files for Markdown lint compliance**
+  - Corrected row length issues to comply with markdownlint rules
+  - Improved formatting consistency across all documentation files
+  - Updated CHANGELOG.md, OPENLDAP-README.md, OSIXIA-OPENLDAP-REQUIREMENTS.md
+  - Updated PRD-ALB.md, PRD-DOMAIN.md, PRD.md, README.md
+  - Updated SECURITY-IMPROVEMENTS.md and module README files
+
+- **Added Markdown lint configuration**
+  - Added `.markdownlint.json` for consistent documentation formatting
+
+- **Enhanced Network Policies module**
+  - Added additional network policy rules in `modules/network-policies/main.tf`
+  - Updated documentation in `modules/network-policies/README.md`
+
 ### [2025-12-14] - Deployment Versatility and Security Improvements
 
 #### Changed
@@ -237,7 +335,8 @@ certificates for ALB
 
 - [ ] Enforce TLS for all LDAP connections (`LDAP_TLS_ENFORCE: "true"`)
 - [ ] Implement client certificate verification for enhanced security
-- [ ] Add network policies for stricter pod-to-pod communication
+- [x] ~~Add network policies for stricter pod-to-pod communication~~ (Completed
+2025-12-14)
 
 ### [Future] - Monitoring and Observability
 
@@ -250,6 +349,20 @@ certificates for ALB
 - [ ] Evaluate read-only replica configuration
 - [ ] Implement backup automation for LDAP data
 - [ ] Add disaster recovery procedures
+
+### [Future] - GitOps Enhancements
+
+- [x] ~~Implement ArgoCD for GitOps deployments~~ (Completed 2025-12-16)
+- [ ] Add ApplicationSet for multi-cluster deployments
+- [ ] Implement progressive delivery with Argo Rollouts
+
+### [Future] - 2FA Application Enhancements
+
+- [x] ~~Implement 2FA application with TOTP support~~ (Completed 2025-12-18)
+- [x] ~~Add SMS-based verification via AWS SNS~~ (Completed 2025-12-18)
+- [ ] Add email-based verification option
+- [ ] Implement backup codes for account recovery
+- [ ] Add rate limiting for authentication attempts
 
 ## Verification Steps
 

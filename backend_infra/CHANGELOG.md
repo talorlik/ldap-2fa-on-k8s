@@ -9,6 +9,54 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2025-12-18] - VPC Endpoints for IRSA and SMS 2FA Support
+
+### Added
+
+- **STS VPC Endpoint for IRSA (IAM Roles for Service Accounts)**
+  - Added optional STS VPC endpoint (`com.amazonaws.${region}.sts`)
+  - Required for pods to assume IAM roles via web identity (IRSA)
+  - Controlled by `enable_sts_endpoint` variable (default: `true`)
+  - Enables secure internal communication for IAM role assumption
+
+- **SNS VPC Endpoint for SMS 2FA functionality**
+  - Added optional SNS VPC endpoint (`com.amazonaws.${region}.sns`)
+  - Required for pods to send SMS verification codes via SNS
+  - Controlled by `enable_sns_endpoint` variable (default: `false`)
+  - Enables secure internal communication for SMS 2FA
+
+- **IRSA (IAM Roles for Service Accounts) support**
+  - Enabled OIDC provider on EKS cluster with `enable_irsa = true`
+  - Allows pods to assume IAM roles for AWS service access
+  - Required for secure SNS access from application pods
+
+- **New outputs for IRSA and VPC endpoints**
+  - Added `oidc_provider_arn`: OIDC provider ARN for creating IAM roles
+  - Added `oidc_provider_url`: OIDC provider URL (without `https://`)
+  - Added `vpc_endpoint_sts_id`: VPC endpoint ID for STS
+  - Added `vpc_endpoint_sns_id`: VPC endpoint ID for SNS
+
+- **VPC CIDR security group rule**
+  - Added ingress rule allowing VPC CIDR to access VPC endpoints
+  - Supports pods that may not use node security group
+  - Ensures all pods can reach VPC endpoints regardless of network policy
+
+### Changed
+
+- **VPC Endpoints module configuration**
+  - Added `vpc_cidr` variable for security group rules
+  - Added `enable_sts_endpoint` variable (default: `true`)
+  - Added `enable_sns_endpoint` variable (default: `false`)
+  - Updated `vpc_endpoint_ids` output to include optional STS and SNS endpoints
+  - Added description and Name tag to endpoint security group
+
+- **Root module variables**
+  - Added `enable_sts_endpoint` variable to control STS endpoint creation
+  - Added `enable_sns_endpoint` variable to control SNS endpoint creation
+  - Variables passed through to endpoints module
+
+## [2025-12-15] - Provider Profile Cleanup
+
 ### Changed
 
 - **Removed provider_profile variable dependency**

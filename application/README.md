@@ -1,7 +1,9 @@
 # Application Infrastructure
 
 This Terraform configuration deploys the OpenLDAP stack with PhpLdapAdmin and
-LTB-passwd UIs on the EKS cluster created by the backend infrastructure.
+LTB-passwd UIs, plus a **full 2FA application** (backend + frontend) with LDAP
+authentication integration on the EKS cluster created by the backend
+infrastructure.
 
 ## Overview
 
@@ -13,46 +15,69 @@ The application infrastructure provisions:
 - **Application Load Balancer (ALB)** via EKS Auto Mode Ingress
 - **Persistent Storage** using EBS-backed PVCs
 - **Internet-Facing ALB** for UI access from the internet
+- **2FA Application** with Python FastAPI backend and static HTML/JS/CSS
+frontend
+- **ArgoCD Capability** for GitOps deployments (AWS EKS managed service)
+- **cert-manager** for automatic TLS certificate management
+- **Network Policies** for securing pod-to-pod communication
+- **SNS Integration** for SMS-based 2FA verification (optional)
 
 ## Architecture
 
 ```ascii
-┌─────────────────────────────────────────────────────────┐
-│                    EKS Cluster                          │
-│                                                         │
-│  ┌──────────────────────────────────────────────┐       │
-│  │            LDAP Namespace                    │       │
-│  │                                              │       │
-│  │  ┌──────────────┐  ┌──────────────────┐      │       │
-│  │  │ OpenLDAP     │  │ PhpLdapAdmin     │      │       │
-│  │  │ StatefulSet  │  │ Deployment       │      │       │
-│  │  │              │  │                  │      │       │
-│  │  │ ClusterIP    │  │ Ingress (ALB)    │      │       │
-│  │  │ (Internal)   │  │ (Internet)       │      │       │
-│  │  └──────────────┘  └──────────────────┘      │       │
-│  │                                              │       │
-│  │  ┌──────────────────┐                        │       │
-│  │  │ LTB-passwd       │                        │       │
-│  │  │ Deployment       │                        │       │
-│  │  │                  │                        │       │
-│  │  │ Ingress (ALB)    │                        │       │
-│  │  └──────────────────┘                        │       │
-│  │                                              │       │
-│  │  ┌──────────────┐                            │       │
-│  │  │ EBS PVC      │                            │       │
-│  │  │ (8Gi)        │                            │       │
-│  │  └──────────────┘                            │       │
-│  └──────────────────────────────────────────────┘       │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              EKS Cluster                                    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────┐            │
+│  │                    LDAP Namespace                           │            │
+│  │                                                             │            │
+│  │  ┌──────────────┐  ┌──────────────────┐  ┌──────────────┐   │            │
+│  │  │ OpenLDAP     │  │ PhpLdapAdmin     │  │ LTB-passwd   │   │            │
+│  │  │ StatefulSet  │  │ Deployment       │  │ Deployment   │   │            │
+│  │  │              │  │                  │  │              │   │            │
+│  │  │ ClusterIP    │  │ Ingress (ALB)    │  │ Ingress (ALB)│   │            │
+│  │  │ (Internal)   │  │ (Internet)       │  │ (Internet)   │   │            │
+│  │  └──────────────┘  └──────────────────┘  └──────────────┘   │            │
+│  │                                                             │            │
+│  │  ┌──────────────┐                                           │            │
+│  │  │ EBS PVC      │                                           │            │
+│  │  │ (8Gi)        │                                           │            │
+│  │  └──────────────┘                                           │            │
+│  └─────────────────────────────────────────────────────────────┘            │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────┐            │
+│  │                   2FA App Namespace                         │            │
+│  │                                                             │            │
+│  │  ┌──────────────────┐      ┌──────────────────┐             │            │
+│  │  │ Backend          │      │ Frontend         │             │            │
+│  │  │ (FastAPI)        │      │ (nginx)          │             │            │
+│  │  │                  │      │                  │             │            │
+│  │  │ Ingress /api/*   │      │ Ingress /*       │             │            │
+│  │  └────────┬─────────┘      └──────────────────┘             │            │
+│  │           │                                                 │            │
+│  │           │ LDAP Auth                                       │            │
+│  │           ▼                                                 │            │
+│  │  ┌──────────────────┐      ┌──────────────────┐             │            │
+│  │  │ LDAP Service     │      │ SNS (SMS 2FA)    │             │            │
+│  │  │ (ClusterIP)      │      │ (via IRSA)       │             │            │
+│  │  └──────────────────┘      └──────────────────┘             │            │
+│  └─────────────────────────────────────────────────────────────┘            │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────┐            │
+│  │                   ArgoCD (EKS Managed)                      │            │
+│  │                   GitOps Deployments                        │            │
+│  └─────────────────────────────────────────────────────────────┘            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
          │
          │
-    ┌────▼──────────────────────┐
-    │  Internet-Facing ALB      │
-    │  (HTTPS)                  │
-    │  - phpldapadmin.domain    │
-    │  - passwd.domain          │
-    └───────────────────────────┘
+    ┌────▼────────────────────────────┐
+    │  Internet-Facing ALB            │
+    │  (HTTPS)                        │
+    │  - phpldapadmin.domain          │
+    │  - passwd.domain                │
+    │  - app.domain (2FA App)         │
+    └─────────────────────────────────┘
          │
          │
     ┌────▼────────┐
@@ -65,10 +90,12 @@ The application infrastructure provisions:
 
 ### 1. Route53 Hosted Zone and ACM Certificate
 
-> **Note**: The Route53 module (`modules/route53/`) exists but is currently
-**commented out** in `main.tf`. The code uses **data sources** to reference
-existing Route53 hosted zone and ACM certificate resources that must already
-exist.
+> [!NOTE]
+>
+> The Route53 module (`modules/route53/`) exists but is currently
+> **commented out** in `main.tf`. The code uses **data sources** to reference
+> existing Route53 hosted zone and ACM certificate resources that must already
+> exist.
 
 **Current Implementation (Data Sources):**
 
@@ -122,7 +149,64 @@ Deploys the complete OpenLDAP stack using the
 configuration (see Storage Configuration section below)
 - LDAP Ports: Standard ports (389 for LDAP, 636 for LDAPS)
 
-### 3. Application Load Balancer (ALB)
+### 3. 2FA Application (Backend + Frontend)
+
+A full two-factor authentication application integrated with the LDAP
+infrastructure.
+
+#### MFA Methods Supported
+
+| Method | Description | Infrastructure |
+|--------|-------------|----------------|
+| **TOTP** | Time-based One-Time Password using authenticator apps (Google Authenticator, Authy, etc.) | None (code generated locally) |
+| **SMS** | Verification codes sent via AWS SNS to user's phone | AWS SNS, VPC endpoints, IRSA |
+
+#### Backend (Python FastAPI)
+
+- **Location**: `backend/src/app/`
+- **Framework**: FastAPI with uvicorn
+- **Port**: 8000
+- **Features**:
+  - LDAP authentication (bind operation)
+  - TOTP secret generation and verification
+  - SMS verification code generation and sending
+  - QR code URI generation for authenticator apps
+  - MFA method selection and storage
+
+**API Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/healthz` | Liveness/readiness probe |
+| `GET` | `/api/mfa/methods` | List available MFA methods |
+| `GET` | `/api/mfa/status/{username}` | Get user's MFA enrollment status |
+| `POST` | `/api/auth/enroll` | Enroll user for MFA (TOTP or SMS) |
+| `POST` | `/api/auth/login` | Validate LDAP credentials + verification code |
+| `POST` | `/api/auth/sms/send-code` | Send SMS verification code |
+
+#### Frontend (Static HTML/JS/CSS)
+
+- **Location**: `frontend/src/`
+- **Server**: nginx
+- **Port**: 80
+- **Features**:
+  - Modern, responsive UI
+  - Enrollment flow with MFA method selection
+  - QR code rendering for TOTP setup
+  - Phone number input with E.164 validation
+  - SMS send button with countdown timer
+  - Error handling and user feedback
+
+#### Routing Pattern (Single Domain)
+
+| Setting | Value |
+|---------|-------|
+| Public hostname | `app.<domain>` (e.g., `app.talorlik.com`) |
+| Frontend path | `/` |
+| Backend API path | `/api/*` |
+| DNS records needed | One A/ALIAS record |
+
+### 4. Application Load Balancer (ALB)
 
 The ALB is automatically provisioned by EKS Auto Mode when Ingress resources are
 created with the appropriate annotations:
@@ -131,8 +215,7 @@ created with the appropriate annotations:
 internet-facing`)
 - **HTTPS Only**: TLS termination at ALB using ACM certificate
 - **Target Type**: IP mode (direct pod targeting)
-- **Two Hostnames**: Single ALB handles both PhpLdapAdmin and LTB-passwd via
-host-based routing
+- **Multiple Hostnames**: Single ALB handles all services via host-based routing
 
 **ALB Configuration:**
 
@@ -189,7 +272,7 @@ not in Ingress annotations
 The actual ALB is created automatically by EKS Auto Mode when the Helm chart
 creates Ingress resources that reference the IngressClass.
 
-### 4. Storage Configuration
+### 5. Storage Configuration
 
 Creates a StorageClass and the Helm chart creates a new PVC using that
 StorageClass:
@@ -209,7 +292,7 @@ StorageClass:
   - The Helm chart creates a new PVC, it does not reuse an existing PVC from
   backend infrastructure
 
-### 5. Network Policies
+### 6. Network Policies
 
 The `modules/network-policies/` module creates Kubernetes Network Policies to
 secure internal cluster communication:
@@ -229,6 +312,66 @@ secure, encrypted ports within the cluster. Cross-namespace communication is
 enabled to allow services in other namespaces to securely access the LDAP
 service using LDAPS (port 636).
 
+### 7. ArgoCD Capability (GitOps)
+
+The `modules/argocd/` module deploys the AWS EKS managed ArgoCD service for
+GitOps deployments:
+
+- **Managed Service**: ArgoCD runs in the EKS control plane (no pods on worker
+nodes)
+- **IAM Integration**: Creates IAM role and policies for ArgoCD
+- **Identity Center Auth**: Configures AWS Identity Center (IdC) authentication
+- **Cluster Registration**: Automatically registers the local EKS cluster with
+ArgoCD
+- **RBAC Mappings**: Sets up role mappings for Identity Center groups/users
+- **Optional Private Access**: VPC endpoint configuration for private access
+
+**ArgoCD Application Module:**
+
+The `modules/argocd_app/` module creates ArgoCD Application CRDs:
+
+- **Source Configuration**: Git repository, path, revision
+- **Destination Configuration**: Cluster, namespace
+- **Sync Policies**: Automated or manual sync with retry policies
+- **Deployment Types**: Supports Helm charts, Kustomize, and plain manifests
+
+### 8. cert-manager Module
+
+The `modules/cert-manager/` module installs cert-manager and creates TLS
+certificates:
+
+- **cert-manager Installation**: Deployed in `cert-manager` namespace
+- **ClusterIssuer**: Creates self-signed certificates
+- **Certificate**: TLS certificate for OpenLDAP
+  - Creates Kubernetes secret `openldap-tls` in `ldap` namespace
+  - Valid for 10 years with auto-renewal
+  - Includes DNS names for all OpenLDAP service endpoints
+
+### 9. SNS Module (SMS 2FA)
+
+The `modules/sns/` module creates AWS SNS resources for SMS-based 2FA
+verification:
+
+- **SNS Topic**: Central topic for SMS notifications
+- **IAM Role (IRSA)**: Enables EKS pods to publish to SNS using service account
+- **Direct SMS Support**: Allows publishing SMS directly to phone numbers
+- **Subscription Management**: Supports subscribing/unsubscribing phone numbers
+- **Cost Control**: Monthly spend limits for SMS
+
+**IRSA Configuration:**
+
+The IAM role is configured for IAM Roles for Service Accounts (IRSA):
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ldap-2fa-backend
+  namespace: 2fa-app
+  annotations:
+    eks.amazonaws.com/role-arn: <iam_role_arn from outputs>
+```
+
 ## Module Structure
 
 ```bash
@@ -240,6 +383,34 @@ application/
 ├── providers.tf              # Provider configuration (AWS, Kubernetes, Helm)
 ├── helm/
 │   └── openldap-values.tpl.yaml  # Helm values template
+├── backend/
+│   ├── src/
+│   │   └── app/
+│   │       ├── main.py           # FastAPI application entry point
+│   │       ├── config.py         # Configuration management
+│   │       ├── api/
+│   │       │   └── routes.py     # API route definitions
+│   │       ├── ldap/
+│   │       │   └── client.py     # LDAP client for authentication
+│   │       ├── mfa/
+│   │       │   └── totp.py       # TOTP secret generation/verification
+│   │       └── sms/
+│   │           └── client.py     # SMS client for SNS integration
+│   ├── helm/
+│   │   └── ldap-2fa-backend/     # Backend Helm chart
+│   └── Dockerfile                 # Backend container image
+├── frontend/
+│   ├── src/
+│   │   ├── index.html            # Main HTML page
+│   │   ├── css/
+│   │   │   └── styles.css        # Styling
+│   │   └── js/
+│   │       ├── api.js            # API client
+│   │       └── main.js           # Main application logic
+│   ├── helm/
+│   │   └── ldap-2fa-frontend/    # Frontend Helm chart
+│   ├── nginx.conf                 # nginx configuration
+│   └── Dockerfile                 # Frontend container image
 ├── modules/
 │   ├── route53/              # Route53 hosted zone and ACM certificate module (currently commented out)
 │   │   ├── main.tf
@@ -249,10 +420,34 @@ application/
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
-│   └── network-policies/     # Network Policies module - secures pod-to-pod communication
+│   ├── network-policies/     # Network Policies module - secures pod-to-pod communication
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── README.md
+│   ├── argocd/               # ArgoCD Capability module - deploys managed ArgoCD
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── argocd_app/           # ArgoCD Application module - creates Application CRDs
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── cert-manager/         # cert-manager module - TLS certificate management
+│   │   ├── main.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   └── sns/                  # SNS module - SMS 2FA verification
 │       ├── main.tf
 │       ├── variables.tf
+│       ├── outputs.tf
 │       └── README.md
+├── PRD-2FA-APP.md           # 2FA Application Product Requirements Document
+├── PRD-ALB.md               # ALB configuration PRD
+├── PRD-ArgoCD.md            # ArgoCD configuration PRD
+├── PRD-DOMAIN.md            # Domain configuration PRD
+├── PRD.md                   # Main PRD
 └── README.md                 # This file
 ```
 
@@ -279,6 +474,9 @@ registrar)
 records to the Route53 name servers (output from data source)
 9. **Environment Variables**: OpenLDAP passwords must be set via environment
 variables (see Configuration section)
+10. **AWS Identity Center**: Required for ArgoCD RBAC configuration
+11. **VPC Endpoints (for SMS 2FA)**: STS and SNS endpoints must be enabled in
+backend_infra
 
 ## Configuration
 
@@ -319,8 +517,9 @@ cluster_name = "talo-tf-us-east-1-kc-prod"
 
 #### OpenLDAP Passwords (Environment Variables)
 
-**IMPORTANT**: Passwords must be set via environment variables, NOT in
-`variables.tfvars`.
+> [!IMPORTANT]
+>
+> Passwords must be set via environment variables, NOT in `variables.tfvars`.
 
 The `setup-application.sh` script automatically retrieves these passwords from
 GitHub repository secrets and exports them as environment variables for
@@ -383,12 +582,13 @@ env:
   - The ACM certificate should cover the domain and any subdomains you plan to
   use
 
-**Note**: Hostnames for PhpLdapAdmin and LTB-passwd can be configured via
-variables or are automatically derived:
-
-- PhpLdapAdmin: `phpldapadmin.${domain_name}` (or set `phpldapadmin_host`
-variable)
-- LTB-passwd: `passwd.${domain_name}` (or set `ltb_passwd_host` variable)
+> [!NOTE]
+>
+> Hostnames for all services can be configured via variables or are automatically derived:
+>
+> - PhpLdapAdmin: `phpldapadmin.${domain_name}` (or set `phpldapadmin_host` variable)
+> - LTB-passwd: `passwd.${domain_name}` (or set `ltb_passwd_host` variable)
+> - 2FA App: `app.${domain_name}` (or set `app_host` variable)
 
 #### Other OpenLDAP Variables
 
@@ -431,6 +631,25 @@ defaults to `app_name`)
 - `storage_class_is_default`: Whether to mark StorageClass as default (default:
 `false`)
 
+#### ArgoCD Variables
+
+- `enable_argocd`: Whether to enable ArgoCD capability (default: `false`)
+- `idc_instance_arn`: ARN of the AWS Identity Center instance
+- `idc_region`: Region of the Identity Center instance
+- `rbac_role_mappings`: List of RBAC role mappings for Identity Center
+- `argocd_vpce_ids`: List of VPC endpoint IDs for private access (optional)
+- `enable_ecr_access`: Whether to enable ECR access in ArgoCD IAM policy
+
+#### SNS (SMS 2FA) Variables
+
+- `enable_sms_2fa`: Enable SMS 2FA resources (default: `false`)
+- `sns_topic_name`: SNS topic name component (default: `2fa-sms`)
+- `sns_display_name`: SMS sender display name (default: `2FA Verification`)
+- `sms_sender_id`: SMS sender ID (max 11 chars, default: `2FA`)
+- `sms_type`: SMS type - `Transactional` or `Promotional` (default:
+`Transactional`)
+- `sms_monthly_spend_limit`: Monthly SMS budget (default: `10`)
+
 ### Example Configuration
 
 **variables.tfvars:**
@@ -452,6 +671,15 @@ openldap_ldap_domain        = "ldap.talorlik.internal"
 domain_name                 = "talorlik.com"
 # Note: Route53 zone and ACM certificate must already exist
 # The ACM certificate should cover the domain and wildcard subdomains (*.talorlik.com)
+
+# ArgoCD Configuration (optional)
+enable_argocd               = true
+idc_instance_arn            = "arn:aws:sso:::instance/ssoins-1234567890abcdef"
+idc_region                  = "us-east-1"
+
+# SMS 2FA Configuration (optional)
+enable_sms_2fa              = true
+sms_monthly_spend_limit     = 50
 ```
 
 **.env file (local development):**
@@ -469,12 +697,16 @@ export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
    - Configure LDAP domain
    - Set domain name (must match existing Route53 hosted zone)
    - Ensure ACM certificate exists and covers your domain/subdomains
+   - Configure ArgoCD settings if using GitOps
+   - Configure SMS 2FA settings if using SMS verification
 
 ### Step 2: Set Up OpenLDAP Passwords (For Local Development)
 
-**Note**: The `setup-application.sh` script automatically retrieves OpenLDAP
-passwords from GitHub repository secrets. For local use, you need to export them
-as environment variables since GitHub CLI cannot read secret values directly.
+> [!NOTE]
+>
+> The `setup-application.sh` script automatically retrieves OpenLDAP
+> passwords from GitHub repository secrets. For local use, you need to export them
+> as environment variables since GitHub CLI cannot read secret values directly.
 
 **Local Development:**
 
@@ -535,9 +767,11 @@ deployment account role ARN
 - Set Kubernetes environment variables using `set-k8s-env.sh`
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
-> [!NOTE] The generated `backend.hcl` file is automatically ignored by git (see
-`.gitignore`). Only the placeholder template
-(`tfstate-backend-values-template.hcl`) is committed to the repository.
+> [!NOTE]
+>
+> The generated `backend.hcl` file is automatically ignored by git (see
+> `.gitignore`). Only the placeholder template
+> (`tfstate-backend-values-template.hcl`) is committed to the repository.
 
 ### Step 4: Configure Domain Registrar
 
@@ -563,8 +797,12 @@ helm list -n ldap
 # Check OpenLDAP pods
 kubectl get pods -n ldap
 
+# Check 2FA application pods
+kubectl get pods -n 2fa-app
+
 # Check Ingress resources
 kubectl get ingress -n ldap
+kubectl get ingress -n 2fa-app
 
 # Check ALB status (via AWS CLI)
 aws elbv2 describe-load-balancers --region us-east-1
@@ -574,6 +812,15 @@ aws route53 list-hosted-zones --query "HostedZones[?Name=='talorlik.com.']"
 
 # Check ACM certificate status
 aws acm list-certificates --region us-east-1
+
+# Check ArgoCD capability (if enabled)
+aws eks describe-capability \
+  --cluster-name <cluster-name> \
+  --capability-name <argocd-capability-name> \
+  --capability-type ARGOCD
+
+# Check ArgoCD applications
+kubectl get application -n argocd
 ```
 
 ## Accessing the Services
@@ -593,15 +840,32 @@ aws acm list-certificates --region us-east-1
 - **Purpose**: Self-service password management for LDAP users
 - **Note**: Ensure DNS is properly configured at your registrar
 
+### 2FA Application
+
+- **URL**: `https://app.${domain_name}` (e.g., `https://app.talorlik.com`)
+- **Access**: Internet-facing (via internet-facing ALB)
+- **Purpose**: Two-factor authentication enrollment and login
+- **Features**:
+  - TOTP enrollment with QR code
+  - SMS enrollment with phone number verification
+  - Login with LDAP credentials + verification code
+
 ### LDAP Service
 
 - **Access**: Cluster-internal only (ClusterIP service)
 - **Port**: 389 (LDAP), 636 (LDAPS)
 - **Not Exposed**: LDAP ports are not accessible outside the cluster
 
+### ArgoCD (if enabled)
+
+- **URL**: Retrieved from Terraform output `argocd_server_url`
+- **Access**: Depends on configuration (private via VPC endpoints or
+internet-facing)
+- **Authentication**: AWS Identity Center (SSO)
+
 ## Security Considerations
 
-1. **Internet-Facing ALB**: Both UIs are accessible from the internet via a
+1. **Internet-Facing ALB**: All UIs are accessible from the internet via a
 single ALB with host-based routing (ensure proper security measures are in
 place)
 2. **HTTPS Only**: TLS termination at ALB with ACM certificate (automatically
@@ -621,6 +885,15 @@ variables or GitHub Secrets, ensuring they never appear in version control
 secure certificate provisioning
 10. **EKS Auto Mode Security**: IAM permissions are automatically handled by EKS
 Auto Mode (no manual policy attachment required)
+11. **IRSA for SNS**: SMS 2FA uses IAM Roles for Service Accounts (no hardcoded
+AWS credentials)
+12. **VPC Endpoints**: SNS and STS access goes through VPC endpoints (no public
+internet for SMS)
+13. **Phone Number Validation**: E.164 format validation for SMS phone numbers
+14. **SMS Code Expiration**: Verification codes expire after configurable
+timeout
+15. **Rate Limiting**: Consider implementing rate limiting for authentication
+attempts
 
 ## Customization
 
@@ -684,6 +957,24 @@ global:
    - Verify ACM certificate is validated: `aws acm describe-certificate
    --certificate-arn <arn>`
 
+5. **2FA Application Issues**
+   - Check backend pods: `kubectl logs -n 2fa-app -l app=ldap-2fa-backend`
+   - Check frontend pods: `kubectl logs -n 2fa-app -l app=ldap-2fa-frontend`
+   - Verify LDAP connectivity from backend: test internal DNS resolution
+   - Check IRSA role assumption: verify service account annotations
+
+6. **SMS 2FA Not Working**
+   - Verify SNS topic exists: `aws sns list-topics`
+   - Check IAM role permissions: `aws iam get-role-policy`
+   - Verify VPC endpoints for SNS and STS
+   - Check backend logs for SNS errors
+   - Verify phone number format (E.164)
+
+7. **ArgoCD Issues**
+   - Check capability status: `aws eks describe-capability`
+   - Verify cluster registration secret: `kubectl get secret -n argocd`
+   - Check Application sync status: `kubectl describe application -n argocd`
+
 ### Useful Commands
 
 ```bash
@@ -699,8 +990,15 @@ kubectl logs -n ldap -l app=phpldapadmin
 # Check LTB-passwd logs
 kubectl logs -n ldap -l app=ltb-passwd
 
+# Check 2FA Backend logs
+kubectl logs -n 2fa-app -l app=ldap-2fa-backend
+
+# Check 2FA Frontend logs
+kubectl logs -n 2fa-app -l app=ldap-2fa-frontend
+
 # View Ingress details
 kubectl describe ingress -n ldap
+kubectl describe ingress -n 2fa-app
 
 # Check ALB target health
 aws elbv2 describe-target-health --target-group-arn <target-group-arn>
@@ -708,6 +1006,14 @@ aws elbv2 describe-target-health --target-group-arn <target-group-arn>
 # Test LDAP connectivity (from within cluster)
 kubectl run -it --rm ldap-test --image=osixia/openldap --restart=Never -- bash
 ldapsearch -x -H ldap://openldap-stack-ha:389 -b "dc=corp,dc=internal"
+
+# Check ArgoCD applications
+kubectl get application -n argocd
+kubectl describe application -n argocd <app-name>
+
+# Test 2FA API endpoint
+curl -X GET https://app.${domain_name}/api/healthz
+curl -X GET https://app.${domain_name}/api/mfa/methods
 ```
 
 ## Outputs
@@ -723,6 +1029,9 @@ by Helm chart)
 - `route53_zone_id`: Route53 hosted zone ID (from data source)
 - `route53_name_servers`: Route53 name servers (from data source, for registrar
 configuration)
+- `argocd_server_url`: ArgoCD UI/API endpoint URL (if ArgoCD is enabled)
+- `sns_topic_arn`: SNS topic ARN for SMS 2FA (if SMS 2FA is enabled)
+- `sns_iam_role_arn`: IAM role ARN for IRSA (if SMS 2FA is enabled)
 
 View all outputs:
 
@@ -730,8 +1039,10 @@ View all outputs:
 terraform output
 ```
 
-**Important**: After deployment, update your domain registrar's NS records to
-point to the Route53 name servers shown in the `route53_name_servers` output.
+> [!IMPORTANT]
+>
+> After deployment, update your domain registrar's NS records to
+> point to the Route53 name servers shown in the `route53_name_servers` output.
 
 ## References
 
@@ -742,6 +1053,11 @@ point to the Route53 name servers shown in the `route53_name_servers` output.
 - [OpenLDAP Documentation](https://www.openldap.org/doc/)
 - [PhpLdapAdmin Documentation](https://www.phpldapadmin.org/)
 - [LTB-passwd Documentation](https://ltb-project.org/documentation/self-service-password)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [AWS SNS SMS Documentation](https://docs.aws.amazon.com/sns/latest/dg/sms_publish-to-phone.html)
+- [IRSA (IAM Roles for Service Accounts)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
+- [ArgoCD Documentation](https://argo-cd.readthedocs.io/)
+- [cert-manager Documentation](https://cert-manager.io/docs/)
 
 ## Architecture Notes
 
@@ -752,6 +1068,7 @@ the subdomains:
 
 - `phpldapadmin.${domain_name}` → ALB DNS name
 - `passwd.${domain_name}` → ALB DNS name
+- `app.${domain_name}` → ALB DNS name (2FA application)
 
 These records are created after the Helm release and Ingress resources are
 provisioned, ensuring the ALB DNS name is available.
@@ -803,3 +1120,25 @@ This provides defense-in-depth security, ensuring that even if a pod is
 compromised, it can only communicate on secure, encrypted ports. Cross-namespace
 communication enables microservices in different namespaces to securely access
 the centralized LDAP service.
+
+### 2FA Application Architecture
+
+The 2FA application follows a single-domain pattern:
+
+- **Single ALB Entry Point**: Both frontend and backend share the same ALB
+- **Path-Based Routing**: `/api/*` routes to backend, `/` routes to frontend
+- **No CORS Required**: Same-origin requests since both share `app.${domain}`
+- **LDAP Integration**: Backend authenticates against internal LDAP service
+- **IRSA for AWS Services**: Backend uses IAM Roles for Service Accounts for SNS
+access
+- **VPC Private Access**: SNS calls go through VPC endpoints (no NAT gateway)
+
+### GitOps with ArgoCD
+
+ArgoCD provides continuous delivery:
+
+- **Managed Service**: Runs in EKS control plane (no worker node resources)
+- **Git as Source of Truth**: All application state defined in Git
+- **Automatic Sync**: Changes in Git trigger automatic deployments
+- **Self-Healing**: Automatically corrects drift from desired state
+- **Identity Center Auth**: SSO authentication via AWS Identity Center

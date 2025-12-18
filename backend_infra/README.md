@@ -9,37 +9,50 @@ The backend infrastructure provisions:
 
 - **VPC** with public and private subnets across two availability zones
 - **EKS Cluster** (Auto Mode) for running Kubernetes workloads
-- **VPC Endpoints** for secure SSM access to nodes
+- **IRSA** (IAM Roles for Service Accounts) for secure AWS API access from pods
+- **VPC Endpoints** for secure access to AWS services (SSM, STS, SNS)
 - **ECR Repository** for container image storage
 
-> **Note**: The EBS module exists but is currently commented out in `main.tf`.
-Storage classes and PVCs are created by the application infrastructure instead.
+> [!NOTE]
+>
+> The EBS module exists but is currently commented out in `main.tf`.
+> Storage classes and PVCs are created by the application infrastructure instead.
 
 ## Architecture
 
 ```ascii
-┌─────────────────────────────────────────────────────────┐
-│                      VPC                                 │
-│                                                          │
-│  ┌──────────────┐         ┌──────────────┐             │
-│  │ Public       │         │ Public       │             │
-│  │ Subnet 1     │         │ Subnet 2    │             │
-│  └──────────────┘         └──────────────┘             │
-│         │                        │                      │
-│         └──────── IGW ──────────┘                      │
-│                                                          │
-│  ┌──────────────┐         ┌──────────────┐             │
-│  │ Private      │         │ Private      │             │
-│  │ Subnet 1     │         │ Subnet 2    │             │
-│  │              │         │              │             │
-│  │  ┌────────┐  │         │  ┌────────┐ │             │
-│  │  │ EKS    │  │         │  │ VPC    │ │             │
-│  │  │ Nodes  │  │         │  │ Endpts │ │             │
-│  │  └────────┘  │         │  └────────┘ │             │
-│  └──────┬───────┘         └──────┬──────┘             │
-│         │                        │                      │
-│         └────── NAT Gateway ─────┘                      │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                    VPC                                       │
+│                                                                              │
+│  ┌──────────────────┐                    ┌──────────────────┐              │
+│  │ Public Subnet 1   │                    │ Public Subnet 2   │              │
+│  │                   │                    │                   │              │
+│  └────────┬─────────┘                    └────────┬─────────┘              │
+│           │                                        │                         │
+│           └──────────────── IGW ──────────────────┘                         │
+│                                                                              │
+│  ┌──────────────────┐                    ┌──────────────────┐              │
+│  │ Private Subnet 1  │                    │ Private Subnet 2  │              │
+│  │                   │                    │                   │              │
+│  │  ┌────────────┐  │                    │  ┌────────────┐  │              │
+│  │  │ EKS Nodes  │  │                    │  │ EKS Nodes  │  │              │
+│  │  │            │  │                    │  │            │  │              │
+│  │  │ ┌────────┐ │  │                    │  │            │  │              │
+│  │  │ │ Pods   │ │  │                    │  │            │  │              │
+│  │  │ │ (IRSA) │ │  │                    │  │            │  │              │
+│  │  │ └────────┘ │  │                    │  │            │  │              │
+│  │  └────────────┘  │                    │  └────────────┘  │              │
+│  │                   │                    │                   │              │
+│  │  ┌────────────┐  │                    │  ┌────────────┐  │              │
+│  │  │ VPC        │  │                    │  │ VPC        │  │              │
+│  │  │ Endpoints  │  │                    │  │ Endpoints  │  │              │
+│  │  │ SSM/STS/   │  │                    │  │ SSM/STS/   │  │              │
+│  │  │ SNS        │  │                    │  │ SNS        │  │              │
+│  │  └────────────┘  │                    │  └────────────┘  │              │
+│  └────────┬─────────┘                    └────────┬─────────┘              │
+│           │                                        │                         │
+│           └───────────── NAT Gateway ─────────────┘                         │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Components
@@ -79,6 +92,10 @@ Deploys an Amazon EKS cluster in Auto Mode:
 - **Auto Mode**: Simplified cluster management with automatic node provisioning
   - Enabled via `compute_config.enabled = true`
   - Uses "general-purpose" node pool
+- **IRSA (IAM Roles for Service Accounts)**: Enabled via `enable_irsa = true`
+  - Creates OIDC provider for the cluster
+  - Allows pods to assume IAM roles for AWS service access
+  - Required for secure SNS access for SMS 2FA
 - **Elastic Load Balancing**: Automatically enabled by default with Auto Mode
   - No explicit configuration needed - `elastic_load_balancing` capability is
   enabled by default
@@ -108,11 +125,35 @@ Deploys an Amazon EKS cluster in Auto Mode:
 
 See [modules/endpoints/README.md](./modules/endpoints/README.md) for details.
 
-Creates PrivateLink endpoints for:
+Creates PrivateLink endpoints for secure access to AWS services:
 
-- SSM Session Manager access
-- Secure node access without public IPs
-- No internet gateway dependency for SSM
+#### SSM Endpoints (Always Enabled)
+
+- **SSM**: Core Systems Manager service endpoint
+- **SSM Messages**: Enables Session Manager message passing
+- **EC2 Messages**: Enables EC2 instance messaging for SSM agent communication
+
+#### STS Endpoint (Optional, Default: Enabled)
+
+- **STS**: Required for IRSA (IAM Roles for Service Accounts)
+  - Allows pods to call `sts:AssumeRoleWithWebIdentity`
+  - Controlled by `enable_sts_endpoint` variable
+  - Enables secure internal communication for IAM role assumption
+
+#### SNS Endpoint (Optional, Default: Disabled)
+
+- **SNS**: Required for SMS 2FA functionality
+  - Allows pods to send SMS verification codes via SNS
+  - Controlled by `enable_sns_endpoint` variable
+  - Enables secure internal communication without internet access
+
+#### Security Configuration
+
+- Dedicated security group for VPC endpoints
+- Ingress allows HTTPS (port 443) from EKS node security group
+- Ingress allows HTTPS (port 443) from VPC CIDR (for pods with different
+security groups)
+- Private DNS enabled for seamless service discovery
 
 ### 4. ECR Module
 
@@ -147,9 +188,10 @@ backend_infra/
     │   ├── variables.tf
     │   ├── outputs.tf
     │   └── README.md
-    └── endpoints/      # VPC endpoints
+    └── endpoints/      # VPC endpoints (SSM, STS, SNS)
         ├── main.tf
         ├── variables.tf
+        ├── outputs.tf
         └── README.md
 ```
 
@@ -182,16 +224,21 @@ configured in repository secrets
 
 ### Required Variables
 
-- `env`: Deployment environment (prod, dev)
-- `region`: AWS region (us-east-1, us-east-2)
-- `prefix`: Prefix for all resource names
-- `vpc_cidr`: CIDR block for VPC
-- `k8s_version`: Kubernetes version for EKS cluster
-- `deployment_account_role_arn`: (Optional, for GitHub Actions) ARN of IAM role
-in Account B to assume for resource deployment
-  - Automatically injected by GitHub workflows
-  - Required when using multi-account setup
-  - Format: `arn:aws:iam::ACCOUNT_B_ID:role/github-actions-deployment-role`
+| Variable | Description | Type |
+|----------|-------------|------|
+| `env` | Deployment environment (prod, dev) | `string` |
+| `region` | AWS region (us-east-1, us-east-2) | `string` |
+| `prefix` | Prefix for all resource names | `string` |
+| `vpc_cidr` | CIDR block for VPC | `string` |
+| `k8s_version` | Kubernetes version for EKS cluster | `string` |
+
+### Optional Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `deployment_account_role_arn` | ARN of IAM role in Account B to assume for resource deployment | `null` |
+| `enable_sts_endpoint` | Whether to create STS VPC endpoint (required for IRSA) | `true` |
+| `enable_sns_endpoint` | Whether to create SNS VPC endpoint (required for SMS 2FA) | `false` |
 
 ### Important Configuration
 
@@ -200,51 +247,156 @@ in Account B to assume for resource deployment
 - **Workspace-based State**: Uses Terraform workspaces named `${region}-${env}`
 - **Single NAT Gateway**: Configured for cost optimization (can be changed to
 `false` for HA)
+- **IRSA**: Enabled by default with STS endpoint for secure AWS API access from
+pods
 
 ## Outputs
 
 The infrastructure provides outputs for:
 
-**AWS Account & Region:**
+### AWS Account & Region
 
-- `aws_account`: AWS Account ID
-- `region`: AWS region
-- `env`: Deployment environment
-- `prefix`: Resource name prefix
+| Output | Description |
+|--------|-------------|
+| `aws_account` | AWS Account ID |
+| `region` | AWS region |
+| `env` | Deployment environment |
+| `prefix` | Resource name prefix |
 
-**VPC:**
+### VPC
 
-- `vpc_id`: VPC ID
-- `default_security_group_id`: Default VPC security group ID
-- `public_subnets`: List of public subnet IDs
-- `private_subnets`: List of private subnet IDs
-- `igw_id`: Internet Gateway ID
+| Output | Description |
+|--------|-------------|
+| `vpc_id` | VPC ID |
+| `default_security_group_id` | Default VPC security group ID |
+| `public_subnets` | List of public subnet IDs |
+| `private_subnets` | List of private subnet IDs |
+| `igw_id` | Internet Gateway ID |
 
-**EKS Cluster:**
+### EKS Cluster
 
-- `cluster_name`: EKS cluster name (format:
-`${prefix}-${region}-${cluster_name}-${env}`)
-- `cluster_endpoint`: EKS Cluster API endpoint
-- `cluster_arn`: EKS Cluster ARN
+| Output | Description |
+|--------|-------------|
+| `cluster_name` | EKS cluster name (format: `${prefix}-${region}-${cluster_name}-${env}`) |
+| `cluster_endpoint` | EKS Cluster API endpoint |
+| `cluster_arn` | EKS Cluster ARN |
+| `oidc_provider_arn` | OIDC provider ARN for creating IRSA IAM roles |
+| `oidc_provider_url` | OIDC provider URL (without `https://`) |
 
-> **Note**: EBS outputs are commented out since the EBS module is not currently
-active.
+### VPC Endpoints
+
+| Output | Description |
+|--------|-------------|
+| `vpc_endpoint_sg_id` | Security group ID for VPC endpoints |
+| `vpc_endpoint_ssm_id` | VPC endpoint ID for SSM |
+| `vpc_endpoint_ssmmessages_id` | VPC endpoint ID for SSM Messages |
+| `vpc_endpoint_ec2messages_id` | VPC endpoint ID for EC2 Messages |
+| `vpc_endpoint_sts_id` | VPC endpoint ID for STS (null if disabled) |
+| `vpc_endpoint_sns_id` | VPC endpoint ID for SNS (null if disabled) |
+| `vpc_endpoint_ids` | List of all enabled VPC endpoint IDs |
+
+### ECR
+
+| Output | Description |
+|--------|-------------|
+| `ecr_name` | ECR repository name |
+| `ecr_arn` | ECR repository ARN |
+| `ecr_url` | ECR repository URL for Docker image push/pull operations |
+
+> [!NOTE]
+>
+> EBS outputs are commented out since the EBS module is not currently active.
 
 Use `terraform output` to view all available outputs.
+
+## IRSA (IAM Roles for Service Accounts)
+
+The backend infrastructure enables IRSA for secure AWS API access from
+Kubernetes pods:
+
+### How IRSA Works
+
+1. EKS cluster has an OIDC provider (`enable_irsa = true`)
+2. STS VPC endpoint allows pods to call `sts:AssumeRoleWithWebIdentity`
+3. Pods use Kubernetes service accounts annotated with IAM role ARNs
+4. AWS SDK automatically assumes the IAM role using the service account token
+
+### Using IRSA in Application Infrastructure
+
+To use IRSA in your application:
+
+1. Reference the OIDC provider outputs from this module:
+
+   ```hcl
+   data "terraform_remote_state" "backend_infra" {
+     backend = "s3"
+     # ... configuration
+   }
+
+   # Create IAM role with OIDC trust policy
+   resource "aws_iam_role" "app_role" {
+     name = "app-role"
+     assume_role_policy = jsonencode({
+       Version = "2012-10-17"
+       Statement = [{
+         Effect = "Allow"
+         Principal = {
+           Federated = data.terraform_remote_state.backend_infra.outputs.oidc_provider_arn
+         }
+         Action = "sts:AssumeRoleWithWebIdentity"
+         Condition = {
+           StringEquals = {
+             "${data.terraform_remote_state.backend_infra.outputs.oidc_provider_url}:sub" = "system:serviceaccount:NAMESPACE:SERVICE_ACCOUNT_NAME"
+           }
+         }
+       }]
+     })
+   }
+   ```
+
+2. Create a Kubernetes service account with the IAM role annotation:
+
+   ```yaml
+   apiVersion: v1
+   kind: ServiceAccount
+   metadata:
+     name: my-app
+     namespace: my-namespace
+     annotations:
+       eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/app-role
+   ```
+
+3. Use the service account in your pod/deployment
+
+### SMS 2FA with SNS
+
+To enable SMS 2FA functionality:
+
+1. Set `enable_sns_endpoint = true` in your variables
+2. Create an IAM role with SNS publish permissions using IRSA
+3. Annotate your backend service account with the IAM role ARN
+4. The backend can call `sns.publish()` to send SMS verification codes
 
 ## Security Considerations
 
 1. **Private Subnets**: EKS nodes are deployed in private subnets (no public
 IPs)
-2. **VPC Endpoints**: Enable secure SSM access without internet exposure
-3. **Public API Endpoint**: EKS API server is publicly accessible (required for
+2. **VPC Endpoints**: Enable secure access to AWS services without internet
+exposure
+   - SSM endpoints for node access
+   - STS endpoint for IRSA (IAM role assumption)
+   - SNS endpoint for SMS 2FA (optional)
+3. **IRSA**: Pods assume IAM roles via OIDC, not long-lived credentials
+4. **Public API Endpoint**: EKS API server is publicly accessible (required for
 kubectl access)
-4. **IAM Permissions**:
+5. **IAM Permissions**:
    - Cluster creator has admin permissions
    - Nodes have SSM access via `AmazonSSMManagedInstanceCore` policy
-5. **Network Isolation**: Proper security group rules restrict access
-6. **Kubernetes Tags**: Subnets are properly tagged for Kubernetes integration
-7. **CloudWatch Logging**: Comprehensive logging enabled for audit and security
+   - Pods assume minimal IAM roles via IRSA
+6. **Network Isolation**: Proper security group rules restrict access
+   - VPC endpoints accept traffic only from node security group and VPC CIDR
+7. **Kubernetes Tags**: Subnets are properly tagged for Kubernetes integration
+8. **CloudWatch Logging**: Comprehensive logging enabled for audit and security
 monitoring
 
 ## Cost Optimization
@@ -253,6 +405,11 @@ monitoring
 failure)
 - **EKS Auto Mode**: Simplified and cost-effective node management
 - **Lifecycle Policies**: ECR lifecycle policies help manage storage costs
+- **VPC Endpoints**: Consider which endpoints you need:
+  - SSM endpoints: Required for node access without bastion hosts
+  - STS endpoint: Required for IRSA (enabled by default)
+  - SNS endpoint: Only enable if using SMS 2FA
+  - Estimated cost per endpoint: ~$7-10/month per availability zone
 
 ## Troubleshooting
 
@@ -266,6 +423,15 @@ allow traffic
 (no public IPs)
 4. **Kubectl Connection**: Ensure kubeconfig is updated: `aws eks
 update-kubeconfig --name <cluster-name> --region <region>`
+5. **IRSA Not Working**:
+   - Verify STS endpoint is enabled (`enable_sts_endpoint = true`)
+   - Check service account has correct annotation
+   - Verify IAM role trust policy references correct OIDC provider
+   - Check pod logs for AWS SDK errors
+6. **SNS SMS Failing**:
+   - Verify SNS endpoint is enabled (`enable_sns_endpoint = true`)
+   - Check IAM role has SNS publish permissions
+   - Verify service account annotation is correct
 
 ### Useful Commands
 
@@ -287,6 +453,12 @@ aws ec2 describe-vpc-endpoints --filters "Name=vpc-id,Values=$(terraform output 
 
 # View CloudWatch logs
 aws logs describe-log-groups --log-group-name-prefix /aws/eks/$(terraform output -raw cluster_name)
+
+# Verify OIDC provider
+aws iam list-open-id-connect-providers
+
+# Check OIDC provider details
+aws eks describe-cluster --name $(terraform output -raw cluster_name) --query "cluster.identity.oidc.issuer"
 ```
 
 ## References
@@ -294,3 +466,6 @@ aws logs describe-log-groups --log-group-name-prefix /aws/eks/$(terraform output
 - [AWS EKS Documentation](https://docs.aws.amazon.com/eks/)
 - [Terraform AWS VPC Module](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws)
 - [Terraform AWS EKS Module](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws)
+- [IRSA Documentation](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
+- [AWS VPC Endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints.html)
+- [AWS SNS SMS](https://docs.aws.amazon.com/sns/latest/dg/sms_publish-to-phone.html)

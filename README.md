@@ -2,17 +2,40 @@
 
 LDAP authentication with 2FA deployed on Kubernetes (EKS)
 
-This project deploys a complete LDAP authentication solution with self-service
-password management on Amazon EKS using Terraform. The infrastructure includes:
+This project deploys a complete LDAP authentication solution with two-factor
+authentication (2FA), self-service password management, and GitOps capabilities
+on Amazon EKS using Terraform. The infrastructure includes:
 
-- **EKS Cluster** (Auto Mode) for running Kubernetes workloads
-- **OpenLDAP Stack** with high availability and persistent storage
-- **PhpLdapAdmin** web interface for LDAP administration
-- **LTB-passwd** self-service password management UI
+**Core Infrastructure:**
+
+- **EKS Cluster** (Auto Mode) with IRSA for secure pod-to-AWS-service
+authentication
+- **VPC** with public/private subnets and VPC endpoints for private AWS service
+access
 - **Application Load Balancer (ALB)** via EKS Auto Mode for internet-facing
 access
 - **Route53 DNS** integration for domain management
 - **ACM Certificates** for HTTPS/TLS termination
+
+**LDAP Stack:**
+
+- **OpenLDAP Stack** with high availability and multi-master replication
+- **PhpLdapAdmin** web interface for LDAP administration
+- **LTB-passwd** self-service password management UI
+
+**2FA Application:**
+
+- **Full-stack 2FA application** with Python FastAPI backend and static
+HTML/JS/CSS frontend
+- **Dual MFA methods**: TOTP (authenticator apps) and SMS (AWS SNS)
+- **LDAP integration** for centralized user authentication
+
+**DevOps & Security:**
+
+- **ArgoCD** (AWS EKS managed service) for GitOps deployments
+- **cert-manager** for automatic TLS certificate management
+- **Network Policies** for securing pod-to-pod communication
+- **IRSA** (IAM Roles for Service Accounts) for secure AWS API access from pods
 
 ## Prerequisites
 
@@ -34,10 +57,22 @@ EKS cluster
 ```text
 ldap-2fa-on-k8s/
 ├── tf_backend_state/      # Terraform state backend infrastructure (S3) - Account A
-├── backend_infra/         # Core AWS infrastructure (VPC, EKS cluster) - Account B
-├── application/          # Application infrastructure (OpenLDAP, ALB, Route53) - Account B
-└── .github/workflows/    # GitHub Actions workflows for CI/CD
+├── backend_infra/         # Core AWS infrastructure (VPC, EKS, VPC endpoints, IRSA) - Account B
+├── application/           # Application infrastructure and deployments - Account B
+│   ├── backend/           # 2FA Backend (Python FastAPI)
+│   ├── frontend/          # 2FA Frontend (HTML/JS/CSS + nginx)
+│   ├── helm/              # Helm values for OpenLDAP stack
+│   └── modules/           # Terraform modules (ALB, ArgoCD, SNS, cert-manager, etc.)
+└── .github/workflows/     # GitHub Actions workflows for CI/CD
 ```
+
+For detailed information about each component, see:
+
+- [Terraform Backend State](tf_backend_state/README.md) - S3 state management
+- [Backend Infrastructure](backend_infra/README.md) - VPC, EKS, IRSA, VPC
+endpoints
+- [Application Infrastructure](application/README.md) - OpenLDAP, 2FA app,
+ArgoCD
 
 ## Multi-Account Architecture
 
@@ -130,6 +165,12 @@ Configure these secrets in your GitHub repository:
    - **Description**: GitHub Personal Access Token with `repo` scope
    - **Used for**: Creating/updating repository variables after state backend
    provisioning
+
+> [!NOTE]
+>
+> For SMS 2FA functionality, the SNS VPC endpoint must be enabled in
+> backend_infra (`enable_sns_endpoint = true`). See [Backend Infrastructure
+> README](backend_infra/README.md#vpc-endpoints-module) for details.
 
 #### AWS IAM Setup
 
@@ -286,32 +327,55 @@ Deploy the Terraform backend state infrastructure by running the
 `tfstate_infra_provisioning.yaml` workflow via the GitHub UI.
 
 > [!INFO]
+>
 > 📖 **For detailed setup instructions**, including required GitHub Secrets,
 Variables, and configuration, see the [Terraform Backend State
 README](tf_backend_state/README.md).
->
+
 > [!IMPORTANT]
+>
 > Make sure to alter the values in the variables.tfvars according to your setup
-and to commit and push them.
+> and to commit and push them.
 
 ### 2. Deploy Backend Infrastructure
 
-Deploy the main backend infrastructure (VPC, EKS cluster, VPC endpoints, EBS,
+Deploy the main backend infrastructure (VPC, EKS cluster, VPC endpoints, IRSA,
 ECR).
 
+This creates the foundational infrastructure including:
+
+- VPC with public/private subnets
+- EKS cluster with Auto Mode
+- IRSA (OIDC provider for pod IAM roles)
+- VPC endpoints (SSM, STS, and optionally SNS for SMS 2FA)
+- ECR repository for container images
+
 > [!INFO]
+>
 > 📖 **For detailed information about the backend infrastructure**, including
-architecture, components, and module documentation, see the [Backend
-Infrastructure README](backend_infra/README.md).
+> architecture, components, and module documentation, see the [Backend
+> Infrastructure README](backend_infra/README.md).
 
 ### 3. Deploy Application Infrastructure
 
-Deploy the application infrastructure (OpenLDAP stack, ALB, Route53 records).
+Deploy the application infrastructure (OpenLDAP stack, 2FA application, ALB,
+Route53 records, and optionally ArgoCD).
+
+This deploys:
+
+- OpenLDAP Stack HA with PhpLdapAdmin and LTB-passwd
+- 2FA Application (backend + frontend) with TOTP and SMS support
+- ALB with host-based routing for all services
+- cert-manager for TLS certificates
+- Network policies for security
+- ArgoCD for GitOps (optional)
+- SNS resources for SMS 2FA (optional)
 
 > [!INFO]
+>
 > 📖 **For detailed information about the application infrastructure**, including
-OpenLDAP configuration, ALB setup, and deployment steps, see the [Application
-Infrastructure README](application/README.md).
+> OpenLDAP configuration, 2FA app setup, ALB configuration, and deployment steps,
+> see the [Application Infrastructure README](application/README.md).
 
 ## Local Development Setup
 
@@ -320,14 +384,15 @@ and update `variables.tfvars` with your selected region and environment. The
 repository includes `tfstate-backend-values-template.hcl` as a template showing
 what values need to be configured.
 
-> **⚠️ IMPORTANT for Backend State Infrastructure**: For local deployment of
-`tf_backend_state`, use the provided automation scripts (`set-state.sh` and
-`get-state.sh`). These scripts automatically handle role assumption, Terraform
-operations, state file management, and repository variable updates. The scripts
-retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` from GitHub repository secrets and assume
-the role automatically. See [Terraform Backend State
-README](tf_backend_state/README.md#option-2-local-execution) for detailed
-instructions.
+> [!IMPORTANT]
+>
+> For Backend State Infrastructure**: For local deployment of
+> `tf_backend_state`, use the provided automation scripts (`set-state.sh` and
+> `get-state.sh`). These scripts automatically handle role assumption, Terraform
+> operations, state file management, and repository variable updates. The scripts
+> retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` from GitHub repository secrets and assume
+> the role automatically. See [Terraform Backend State README](tf_backend_state/README.md#option-2-local-execution)
+> for detailed instructions.
 
 ### Backend Infrastructure Setup
 
@@ -357,9 +422,11 @@ actual values
 deployment account role ARN
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
-> [!NOTE] The generated `backend.hcl` file is automatically ignored by git (see
-`.gitignore`). Only the placeholder template
-(`tfstate-backend-values-template.hcl`) is committed to the repository.
+> [!NOTE]
+>
+> The generated `backend.hcl` file is automatically ignored by git (see
+> `.gitignore`). Only the placeholder template
+> (`tfstate-backend-values-template.hcl`) is committed to the repository.
 
 ### Application Infrastructure Setup
 
@@ -393,9 +460,11 @@ deployment account role ARN
 - Set Kubernetes environment variables using `set-k8s-env.sh`
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
-> [!NOTE] The generated `backend.hcl` file is automatically ignored by git (see
-`.gitignore`). Only the placeholder template
-(`tfstate-backend-values-template.hcl`) is committed to the repository.
+> [!NOTE]
+>
+> The generated `backend.hcl` file is automatically ignored by git (see
+> `.gitignore`). Only the placeholder template
+> (`tfstate-backend-values-template.hcl`) is committed to the repository.
 
 **Important:** Before deploying the application infrastructure, you must:
 
@@ -407,9 +476,11 @@ script will retrieve them from these):
    export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
    ```
 
-   > [!NOTE] The script automatically retrieves these from GitHub repository
-   secrets if available. For local use, you need to export them as
-   environment variables since GitHub CLI cannot read secret values directly.
+   > [!NOTE]
+   >
+   > The script automatically retrieves these from GitHub repository
+   > secrets if available. For local use, you need to export them as
+   > environment variables since GitHub CLI cannot read secret values directly.
 
 2. Ensure Route53 hosted zone exists for your domain
 3. Ensure ACM certificate exists and is validated in the same region as your EKS
@@ -468,9 +539,16 @@ The script automatically handles:
 
 - **VPC** with public and private subnets across multiple availability zones
 - **EKS Cluster** in Auto Mode with automatic node provisioning
-- **VPC Endpoints** for secure SSM access to nodes
-- **EBS Storage** resources for persistent volumes
+- **IRSA (IAM Roles for Service Accounts)** for secure pod-to-AWS-service
+authentication
+- **VPC Endpoints** for private AWS service access:
+  - SSM endpoints for secure node access
+  - STS endpoint for IRSA (IAM role assumption)
+  - SNS endpoint for SMS 2FA (optional)
 - **ECR Repository** for container image storage
+
+See [Backend Infrastructure README](backend_infra/README.md) for detailed
+component documentation.
 
 ### Application Infrastructure Components
 
@@ -478,49 +556,136 @@ The script automatically handles:
   - OpenLDAP StatefulSet (3 replicas for high availability)
   - PhpLdapAdmin web interface
   - LTB-passwd self-service password management
+- **2FA Application** with LDAP authentication integration:
+  - Python FastAPI backend with TOTP and SMS MFA support
+  - Static HTML/JS/CSS frontend with modern UI
+  - Single domain routing (`app.<domain>`) with path-based access
 - **Application Load Balancer (ALB)** via EKS Auto Mode:
   - Internet-facing ALB with HTTPS/TLS termination
   - Single ALB handles multiple Ingresses via host-based routing
   - Automatic provisioning via IngressClass and IngressClassParams
+- **ArgoCD** (AWS EKS managed service) for GitOps deployments
+- **cert-manager** for automatic TLS certificate management
+- **Network Policies** for securing pod-to-pod communication
+- **SNS Integration** for SMS-based 2FA verification (optional)
 - **Route53 DNS** records for subdomains pointing to ALB
 - **Persistent Storage** using EBS-backed StorageClass
+
+See [Application Infrastructure README](application/README.md) for detailed
+component documentation and deployment instructions.
 
 ## Key Features
 
 - **EKS Auto Mode**: Simplified cluster management with automatic load balancer
-provisioning
+provisioning and built-in EBS CSI driver
+- **Two-Factor Authentication**: Full-stack 2FA application with dual MFA
+methods (TOTP and SMS)
+- **IRSA Integration**: Secure AWS API access from pods without hardcoded
+credentials
 - **High Availability**: Multi-master OpenLDAP replication with persistent
 storage
-- **Internet-Facing Access**: Secure HTTPS access to UIs via ALB
+- **GitOps Ready**: ArgoCD (AWS managed service) for declarative, Git-driven
+deployments
+- **Internet-Facing Access**: Secure HTTPS access to UIs via single ALB with
+host-based routing
 - **Self-Service Password Management**: LTB-passwd for user password resets
 - **Automated DNS**: Route53 integration for seamless domain management
-- **Secure by Default**: TLS termination, encrypted storage, network policies
+- **Secure by Default**: TLS termination, encrypted storage, network policies,
+VPC endpoints for private AWS access
+- **Multi-Account Architecture**: Separation of state storage and resource
+deployment for enhanced security
+
+## MFA Methods
+
+The 2FA application supports two multi-factor authentication methods:
+
+| Method | Description | Infrastructure Required |
+|--------|-------------|------------------------|
+| **TOTP** | Time-based One-Time Password using authenticator apps (Google Authenticator, Authy, etc.) | None (codes generated locally) |
+| **SMS** | Verification codes sent via AWS SNS to user's phone | SNS VPC endpoint, IRSA role |
+
+For detailed API specifications and frontend architecture, see the [2FA
+Application PRD](application/PRD-2FA-APP.md).
 
 ## Accessing the Services
 
 After deployment:
 
+- **2FA Application**: `https://app.${domain_name}` (e.g.,
+`https://app.talorlik.com`)
+  - Two-factor authentication enrollment and login
+  - TOTP setup with QR code or SMS verification
 - **PhpLdapAdmin**: `https://phpldapadmin.${domain_name}` (e.g.,
 `https://phpldapadmin.talorlik.com`)
+  - LDAP administration interface
 - **LTB-passwd**: `https://passwd.${domain_name}` (e.g.,
 `https://passwd.talorlik.com`)
+  - Self-service password management
+- **ArgoCD** (if enabled): URL from Terraform output `argocd_server_url`
+  - GitOps deployment management (AWS Identity Center authentication)
 - **LDAP Service**: Cluster-internal only (not exposed externally)
 
 ## Documentation
 
-- [Terraform Backend State README](tf_backend_state/README.md) - Backend state infrastructure setup
-- [Backend Infrastructure README](backend_infra/README.md) - Core AWS infrastructure details
-- [Application Infrastructure README](application/README.md) - OpenLDAP deployment and configuration
+### Infrastructure Documentation
+
+- [Terraform Backend State README](tf_backend_state/README.md) - S3 state
+management and GitHub variable configuration
+- [Backend Infrastructure README](backend_infra/README.md) - VPC, EKS, IRSA, VPC
+endpoints, and ECR documentation
+- [Application Infrastructure README](application/README.md) - OpenLDAP, 2FA
+app, ALB, ArgoCD, and deployment instructions
+
+### Application Documentation
+
+- [2FA Application PRD](application/PRD-2FA-APP.md) - Product requirements for
+the 2FA application (API specs, frontend architecture)
+- [OpenLDAP README](application/OPENLDAP-README.md) - OpenLDAP configuration and
+TLS setup
+- [Security Improvements](application/SECURITY-IMPROVEMENTS.md) - Security
+enhancements and best practices
+
+### Module Documentation
+
+- [ALB Module](application/modules/alb/) - EKS Auto Mode ALB configuration
+- [ArgoCD Module](application/modules/argocd/README.md) - AWS managed ArgoCD
+setup
+- [ArgoCD Application Module](application/modules/argocd_app/README.md) -
+GitOps application deployment
+- [cert-manager Module](application/modules/cert-manager/README.md) - TLS
+certificate management
+- [Network Policies Module](application/modules/network-policies/README.md) -
+Pod-to-pod security
+- [SNS Module](application/modules/sns/README.md) - SMS 2FA integration
+- [VPC Endpoints Module](backend_infra/modules/endpoints/README.md) - Private
+AWS service access
+- [ECR Module](backend_infra/modules/ecr/README.md) - Container registry setup
+
+### Changelogs
+
+- [Project Changelog](CHANGELOG.md) - All project changes
+- [Backend Infrastructure Changelog](backend_infra/CHANGELOG.md)
+- [Application Infrastructure Changelog](application/CHANGELOG.md)
 
 ## Security Considerations
 
-- Passwords are managed via environment variables (never committed to git)
-- TLS termination at ALB using ACM certificates
-- LDAP service is ClusterIP only (not exposed externally)
-- EBS volumes are encrypted by default
-- Network policies restrict pod-to-pod communication to secure ports, with
-cross-namespace access enabled for LDAP service access
-- EKS nodes run in private subnets
+- **Secrets Management**: Passwords managed via GitHub repository secrets and
+environment variables (never committed to git)
+- **IRSA**: Pods assume IAM roles via OIDC—no long-lived AWS credentials
+- **VPC Endpoints**: AWS service access (SSM, STS, SNS) goes through private
+endpoints—no public internet exposure
+- **TLS Termination**: HTTPS at ALB using ACM certificates; internal TLS via
+cert-manager
+- **LDAP Security**: ClusterIP only (not exposed externally), cross-namespace
+access on secure ports only
+- **Network Policies**: Pod-to-pod communication restricted to encrypted ports
+(443, 636, 8443)
+- **Storage Encryption**: EBS volumes encrypted by default
+- **Network Isolation**: EKS nodes run in private subnets
+- **Multi-Account Isolation**: State storage separated from resource deployment
+
+See [Security Improvements](application/SECURITY-IMPROVEMENTS.md) for detailed
+security documentation.
 
 ## Troubleshooting
 

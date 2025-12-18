@@ -10,6 +10,39 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Two-Factor Authentication (2FA) Application**
+  - Full-stack 2FA solution with Python FastAPI backend and static HTML/JS/CSS
+  frontend
+  - Dual MFA methods: TOTP (authenticator apps) and SMS (AWS SNS)
+  - Single domain routing with path-based access (`/` for frontend, `/api/*` for
+  backend)
+  - Complete Helm charts, Dockerfiles, and Kubernetes resources for deployment
+  - Comprehensive PRD documentation (`PRD-2FA-APP.md`)
+
+- **ArgoCD GitOps Integration**
+  - AWS EKS managed ArgoCD service deployment
+  - ArgoCD Application module for GitOps-driven deployments
+  - Support for Kubernetes manifests, Helm charts, and Kustomize
+  - AWS Identity Center (IdC) authentication and RBAC mappings
+  - ECR and CodeCommit access policy configuration
+
+- **IRSA (IAM Roles for Service Accounts) Support**
+  - Enabled OIDC provider on EKS cluster for secure pod-to-AWS-service
+  authentication
+  - New outputs: `oidc_provider_arn` and `oidc_provider_url`
+  - Required for secure SNS access from application pods
+
+- **VPC Endpoints for Private AWS Service Access**
+  - STS VPC endpoint for IRSA/web identity role assumption
+  - SNS VPC endpoint for SMS 2FA functionality
+  - VPC CIDR security group rule for pod access to endpoints
+
+- **SNS Module for SMS-based 2FA**
+  - SNS Topic for centralized SMS notifications
+  - IAM Role configured for IRSA
+  - Direct SMS support with E.164 phone number format
+  - Cost control via monthly spend limits
+
 - **OpenLDAP password management via GitHub repository secrets**
   - `setup-application.sh` now automatically retrieves OpenLDAP passwords from
   GitHub repository secrets
@@ -53,6 +86,22 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   existing configuration)
 
 ### Changed
+
+- **Documentation and linting improvements**
+  - All documentation files updated for Markdown lint compliance
+  - Added `.markdownlint.json` for consistent formatting across the project
+  - Improved formatting consistency across CHANGELOG, README, and PRD files
+
+- **Enhanced Network Policies**
+  - Added cross-namespace communication rules for LDAP service access
+  - Allows services in other namespaces to access LDAP on secure ports (443, 636,
+  8443)
+  - Maintains security by only allowing encrypted ports
+
+- **VPC Endpoints module enhancements**
+  - Added `enable_sts_endpoint` and `enable_sns_endpoint` configuration options
+  - Added `vpc_cidr` variable for security group rules
+  - New outputs for STS and SNS endpoint IDs
 
 - **Password management approach**
   - OpenLDAP passwords are now managed exclusively through GitHub repository
@@ -129,6 +178,38 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   operations
   - Fixed workflows to use environment-based role ARNs for deployment operations
   via `deployment_account_role_arn` variable
+
+## [2025-12-18] - 2FA Application and IRSA Infrastructure
+
+### Added
+
+- Full-stack 2FA application with TOTP and SMS verification methods
+- IRSA (IAM Roles for Service Accounts) support on EKS cluster
+- VPC endpoints for STS and SNS for private AWS service access
+- SNS module for SMS-based 2FA verification
+
+### Changed
+
+- Enhanced network policies to support cross-namespace communication
+- Updated VPC endpoints module with STS and SNS endpoint options
+- Added new IRSA-related outputs to backend infrastructure
+
+## [2025-12-16] - ArgoCD GitOps Integration
+
+### Added
+
+- ArgoCD capability module for EKS-managed ArgoCD service
+- ArgoCD application module for GitOps-driven deployments
+- Support for multiple deployment types (Kubernetes manifests, Helm, Kustomize)
+- AWS Identity Center authentication and RBAC integration
+
+## [2025-12-15] - Documentation and Linting Improvements
+
+### Changed
+
+- Comprehensive documentation updates for Markdown lint compliance
+- Added `.markdownlint.json` configuration for consistent formatting
+- Enhanced network policies module documentation
 
 ## [2025-12-14] - Deployment Versatility and Security Improvements
 
@@ -281,8 +362,11 @@ resources
 ### Key Components
 
 - Terraform backend state infrastructure (`tf_backend_state/`)
-- Backend infrastructure (VPC, EKS cluster) (`backend_infra/`)
-- Application infrastructure (OpenLDAP, ALB, Route53) (`application/`)
+- Backend infrastructure (VPC, EKS cluster, VPC endpoints, IRSA) (`backend_infra/`)
+- Application infrastructure (OpenLDAP, 2FA app, ALB, Route53, ArgoCD)
+(`application/`)
+- 2FA Backend and Frontend applications (`application/backend/`,
+`application/frontend/`)
 - GitHub Actions workflows for CI/CD (`.github/workflows/`)
 
 ## Notes

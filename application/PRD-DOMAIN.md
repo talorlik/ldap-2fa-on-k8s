@@ -1,11 +1,13 @@
 # DOMAIN SETUP AND LINKING TO ALB AND LDAP
 
-> **Note**: This document describes creating Route53 hosted zone and ACM
-certificate resources via Terraform. However, the current implementation in
-`main.tf` uses **data sources** to reference existing resources instead of
-creating them. The Route53 module (`modules/route53/`) exists but is commented
-out. If you want to create these resources via Terraform, uncomment the module
-and update the code accordingly.
+> [!NOTE]
+>
+> This document describes creating Route53 hosted zone and ACM
+> certificate resources via Terraform. However, the current implementation in
+> `main.tf` uses **data sources** to reference existing resources instead of
+> creating them. The Route53 module (`modules/route53/`) exists but is commented
+> out. If you want to create these resources via Terraform, uncomment the module
+> and update the code accordingly.
 
 There are three separate pieces:
 

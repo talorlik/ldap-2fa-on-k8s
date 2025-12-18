@@ -183,9 +183,11 @@ environment variables
 - Run all Terraform commands automatically (init, workspace, validate, plan,
 apply)
 
-> **Note**: The script automatically retrieves OpenLDAP passwords from GitHub
-repository secrets. For local use, you need to export them as environment
-variables since GitHub CLI cannot read secret values directly.
+> [!NOTE]
+>
+> The script automatically retrieves OpenLDAP passwords from GitHub
+> repository secrets. For local use, you need to export them as environment
+> variables since GitHub CLI cannot read secret values directly.
 
 ### Kubernetes Operations
 
@@ -402,10 +404,12 @@ workflows)
 - `TF_VAR_OPENLDAP_CONFIG_PASSWORD` - OpenLDAP config password (for application
 workflows)
 
-> **Note**: This project uses AWS SSO via GitHub OIDC instead of access keys.
-Workflows automatically select the appropriate deployment role ARN based on the
-selected environment. See main [README.md](README.md) for detailed IAM setup
-instructions.
+> [!NOTE]
+>
+> This project uses AWS SSO via GitHub OIDC instead of access keys.
+> Workflows automatically select the appropriate deployment role ARN based on the
+> selected environment. See main [README.md](README.md) for detailed IAM setup
+> instructions.
 
 ### Required GitHub Variables
 
