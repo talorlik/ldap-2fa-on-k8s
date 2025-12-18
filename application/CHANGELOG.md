@@ -9,6 +9,57 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### [2025-12-18] - Redis SMS OTP Storage
+
+#### Added
+
+- **Redis Module (`modules/redis/`) for SMS OTP Code Storage**
+  - Bitnami Redis Helm chart deployment via Terraform
+  - Standalone architecture (sufficient for OTP cache use case)
+  - Password authentication via Kubernetes Secret (from GitHub Secrets)
+  - PersistentVolume storage with RDB snapshots for data recovery
+  - Non-root security context (UID 1001)
+  - Network policy restricting Redis access to backend pods only
+  - TTL-based automatic expiration for OTP codes
+
+- **Redis Client Module (`app/redis/`)**
+  - `RedisOTPClient` class with TTL-aware storage operations
+  - Automatic fallback to in-memory storage when Redis is disabled
+  - Methods: `store_code()`, `get_code()`, `delete_code()`, `code_exists()`
+  - Connection health checking and error handling
+  - Lazy initialization with connection pooling
+
+- **Configuration Updates**
+  - Redis configuration settings in `config.py`
+  - Helm chart values for Redis connection parameters
+  - ConfigMap entries for Redis environment variables
+  - Secret reference for Redis password in deployment
+
+- **GitHub Actions Updates**
+  - Added `TF_VAR_redis_password` environment variable for Redis password
+  - Password sourced from `TF_VAR_REDIS_PASSWORD` GitHub Secret
+
+#### Changed
+
+- **Updated `routes.py` for Redis Integration**
+  - `send_sms_code` endpoint now stores OTP codes in Redis with automatic TTL
+  - `login` endpoint now retrieves and verifies OTP codes from Redis
+  - Graceful fallback to in-memory storage when Redis is disabled
+  - Returns 503 Service Unavailable if Redis fails during code storage
+
+- **Updated Backend Helm Chart**
+  - Added Redis configuration section in `values.yaml`
+  - Added Redis environment variables in `configmap.yaml`
+  - Added Redis password secret reference in `deployment.yaml`
+
+#### Documentation
+
+- Added `modules/redis/README.md` with:
+  - Architecture diagram showing backend-Redis communication
+  - Redis key schema documentation
+  - Debugging commands for Redis CLI
+  - Usage examples and configuration options
+
 ### [2025-12-18] - 2FA Application and SMS Integration
 
 #### Added
@@ -360,6 +411,7 @@ certificates for ALB
 
 - [x] ~~Implement 2FA application with TOTP support~~ (Completed 2025-12-18)
 - [x] ~~Add SMS-based verification via AWS SNS~~ (Completed 2025-12-18)
+- [x] ~~Replace in-memory SMS OTP storage with Redis~~ (Completed 2025-12-18)
 - [ ] Add email-based verification option
 - [ ] Implement backup codes for account recovery
 - [ ] Add rate limiting for authentication attempts

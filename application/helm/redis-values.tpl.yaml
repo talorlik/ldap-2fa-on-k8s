@@ -1,0 +1,69 @@
+# Redis Helm Values Template
+# Used by Terraform to configure Bitnami Redis deployment
+# for SMS OTP code storage
+
+# Standalone architecture (no HA needed for OTP cache)
+architecture: standalone
+
+# Authentication configuration
+auth:
+  enabled: true
+  # Reference Kubernetes secret created by Terraform
+  # (password sourced from GitHub Secrets → TF_VAR_redis_password)
+  existingSecret: "${secret_name}"
+  existingSecretPasswordKey: "redis-password"
+
+# Master configuration
+master:
+  # Persistence for data recovery across restarts
+  persistence:
+    enabled: ${persistence_enabled}
+    storageClass: "${storage_class_name}"
+    size: ${storage_size}
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+  # Security context - run as non-root
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 1001
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+
+  podSecurityContext:
+    enabled: true
+    fsGroup: 1001
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    ports:
+      redis: 6379
+
+# Disable replicas (standalone mode)
+replica:
+  replicaCount: 0
+
+# Metrics (optional for production monitoring)
+metrics:
+  enabled: ${metrics_enabled}
+
+# Redis configuration optimized for OTP cache
+commonConfiguration: |-
+  # Enable RDB persistence for data recovery
+  save 900 1
+  save 300 10
+  save 60 10000
+  # Disable AOF (not needed for OTP cache)
+  appendonly no
+  # Max memory policy - evict keys with TTL first
+  maxmemory-policy volatile-lru
+  # Connection timeout
+  timeout 300

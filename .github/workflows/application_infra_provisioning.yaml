@@ -44,6 +44,8 @@ jobs:
       AWS_REGION: ${{ needs.SetRegion.outputs.region_code }}
       TF_VAR_OPENLDAP_ADMIN_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
       TF_VAR_OPENLDAP_CONFIG_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
+      # Redis password for SMS OTP storage
+      TF_VAR_redis_password: ${{ secrets.TF_VAR_REDIS_PASSWORD }}
     defaults:
       run:
         working-directory: ./application

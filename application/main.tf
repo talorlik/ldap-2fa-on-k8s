@@ -256,6 +256,55 @@ resource "aws_route53_record" "twofa_app" {
   ]
 }
 
+##################### PostgreSQL for User Storage ##########################
+
+# PostgreSQL Module for user signup data storage
+module "postgresql" {
+  source = "./modules/postgresql"
+
+  count = var.enable_postgresql ? 1 : 0
+
+  env    = var.env
+  region = var.region
+  prefix = var.prefix
+
+  namespace         = var.postgresql_namespace
+  database_name     = var.postgresql_database_name
+  database_username = var.postgresql_database_username
+  database_password = var.postgresql_database_password
+  storage_class     = local.storage_class_name
+  storage_size      = var.postgresql_storage_size
+
+  tags = local.tags
+
+  depends_on = [
+    kubernetes_storage_class_v1.this,
+  ]
+}
+
+##################### SES for Email Verification ##########################
+
+# SES Module for email verification
+module "ses" {
+  source = "./modules/ses"
+
+  count = var.enable_email_verification ? 1 : 0
+
+  env          = var.env
+  region       = var.region
+  prefix       = var.prefix
+  cluster_name = local.cluster_name
+
+  sender_email              = var.ses_sender_email
+  sender_domain             = var.ses_sender_domain
+  iam_role_name             = var.ses_iam_role_name
+  service_account_namespace = var.argocd_app_backend_namespace
+  service_account_name      = "ldap-2fa-backend"
+  route53_zone_id           = var.ses_route53_zone_id != null ? var.ses_route53_zone_id : data.aws_route53_zone.this.zone_id
+
+  tags = local.tags
+}
+
 ##################### SNS for SMS 2FA ##########################
 
 # SNS Module for SMS-based 2FA verification
@@ -281,6 +330,35 @@ module "sns" {
   sms_monthly_spend_limit   = var.sms_monthly_spend_limit
 
   tags = local.tags
+}
+
+##################### Redis for SMS OTP Storage ##########################
+
+# Redis Module for centralized SMS OTP code storage with TTL-based expiration
+module "redis" {
+  source = "./modules/redis"
+
+  count = var.enable_redis ? 1 : 0
+
+  env    = var.env
+  region = var.region
+  prefix = var.prefix
+
+  enable_redis       = var.enable_redis
+  namespace          = var.redis_namespace
+  redis_password     = var.redis_password
+  storage_class_name = local.storage_class_name
+  storage_size       = var.redis_storage_size
+  chart_version      = var.redis_chart_version
+
+  # Network policy configuration
+  backend_namespace = var.argocd_app_backend_namespace
+
+  tags = local.tags
+
+  depends_on = [
+    kubernetes_storage_class_v1.this,
+  ]
 }
 
 ##################### ArgoCD ##########################

@@ -19,7 +19,9 @@
         <!-- Tab Navigation -->
         <nav class="tabs">
             <button class="tab-btn active" data-tab="login">Login</button>
+            <button class="tab-btn" data-tab="signup">Sign Up</button>
             <button class="tab-btn" data-tab="enroll">Enroll MFA</button>
+            <button class="tab-btn hidden" data-tab="admin" id="admin-tab-btn">Admin</button>
         </nav>
 
         <!-- Login Tab -->
@@ -28,13 +30,13 @@
                 <div class="form-group">
                     <label for="login-username">Username</label>
                     <input type="text" id="login-username" name="username" required
-                           placeholder="Enter your LDAP username" autocomplete="username">
+                           placeholder="Enter your username" autocomplete="username">
                 </div>
 
                 <div class="form-group">
                     <label for="login-password">Password</label>
                     <input type="password" id="login-password" name="password" required
-                           placeholder="Enter your LDAP password" autocomplete="current-password">
+                           placeholder="Enter your password" autocomplete="current-password">
                 </div>
 
                 <div class="form-group">
@@ -59,19 +61,195 @@
             <div id="login-result" class="result-container hidden"></div>
         </section>
 
+        <!-- Signup Tab -->
+        <section id="signup-tab" class="tab-content">
+            <form id="signup-form" class="auth-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="signup-firstname">First Name</label>
+                        <input type="text" id="signup-firstname" name="first_name" required
+                               placeholder="First name" autocomplete="given-name">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-lastname">Last Name</label>
+                        <input type="text" id="signup-lastname" name="last_name" required
+                               placeholder="Last name" autocomplete="family-name">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="signup-username">Username</label>
+                    <input type="text" id="signup-username" name="username" required
+                           placeholder="Choose a username" autocomplete="username"
+                           pattern="[a-zA-Z][a-zA-Z0-9_-]*" minlength="3" maxlength="64">
+                    <small class="form-hint">Letters, numbers, underscores, and hyphens only</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="signup-email">Email</label>
+                    <input type="email" id="signup-email" name="email" required
+                           placeholder="your@email.com" autocomplete="email">
+                </div>
+
+                <div class="form-group">
+                    <label for="signup-phone">Phone Number</label>
+                    <div class="phone-input-group">
+                        <select id="signup-country-code" name="phone_country_code" required>
+                            <option value="+1">🇺🇸 +1</option>
+                            <option value="+44">🇬🇧 +44</option>
+                            <option value="+49">🇩🇪 +49</option>
+                            <option value="+33">🇫🇷 +33</option>
+                            <option value="+39">🇮🇹 +39</option>
+                            <option value="+34">🇪🇸 +34</option>
+                            <option value="+31">🇳🇱 +31</option>
+                            <option value="+32">🇧🇪 +32</option>
+                            <option value="+41">🇨🇭 +41</option>
+                            <option value="+43">🇦🇹 +43</option>
+                            <option value="+46">🇸🇪 +46</option>
+                            <option value="+47">🇳🇴 +47</option>
+                            <option value="+45">🇩🇰 +45</option>
+                            <option value="+358">🇫🇮 +358</option>
+                            <option value="+48">🇵🇱 +48</option>
+                            <option value="+351">🇵🇹 +351</option>
+                            <option value="+353">🇮🇪 +353</option>
+                            <option value="+972">🇮🇱 +972</option>
+                            <option value="+971">🇦🇪 +971</option>
+                            <option value="+966">🇸🇦 +966</option>
+                            <option value="+91">🇮🇳 +91</option>
+                            <option value="+86">🇨🇳 +86</option>
+                            <option value="+81">🇯🇵 +81</option>
+                            <option value="+82">🇰🇷 +82</option>
+                            <option value="+65">🇸🇬 +65</option>
+                            <option value="+61">🇦🇺 +61</option>
+                            <option value="+64">🇳🇿 +64</option>
+                            <option value="+55">🇧🇷 +55</option>
+                            <option value="+52">🇲🇽 +52</option>
+                            <option value="+54">🇦🇷 +54</option>
+                            <option value="+27">🇿🇦 +27</option>
+                            <option value="+234">🇳🇬 +234</option>
+                            <option value="+254">🇰🇪 +254</option>
+                            <option value="+20">🇪🇬 +20</option>
+                        </select>
+                        <input type="tel" id="signup-phone" name="phone_number" required
+                               placeholder="Phone number" autocomplete="tel-national"
+                               pattern="[0-9]{5,15}" minlength="5" maxlength="15">
+                    </div>
+                    <small class="form-hint">Enter your phone number without the country code</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" name="password" required
+                           placeholder="Create a password" autocomplete="new-password"
+                           minlength="8">
+                    <small class="form-hint">Minimum 8 characters</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="signup-confirm-password">Confirm Password</label>
+                    <input type="password" id="signup-confirm-password" name="confirm_password" required
+                           placeholder="Confirm your password" autocomplete="new-password">
+                </div>
+
+                <!-- MFA Method Selection -->
+                <div class="form-group">
+                    <label>MFA Method</label>
+                    <div class="mfa-method-selector">
+                        <label class="radio-option">
+                            <input type="radio" name="signup_mfa_method" value="totp" checked>
+                            <span class="radio-label">
+                                <span class="radio-icon">📱</span>
+                                <span class="radio-text">
+                                    <strong>Authenticator App</strong>
+                                    <small>Google Authenticator, Authy, etc.</small>
+                                </span>
+                            </span>
+                        </label>
+                        <label class="radio-option" id="signup-sms-option">
+                            <input type="radio" name="signup_mfa_method" value="sms">
+                            <span class="radio-label">
+                                <span class="radio-icon">💬</span>
+                                <span class="radio-text">
+                                    <strong>SMS</strong>
+                                    <small>Receive codes via text message</small>
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-text">Create Account</span>
+                    <span class="btn-loading hidden">Creating Account...</span>
+                </button>
+            </form>
+
+            <!-- Verification Status (shown after signup) -->
+            <div id="verification-status" class="verification-panel hidden">
+                <h3>📋 Complete Your Registration</h3>
+                <p class="verification-subtitle">Please verify your email and phone to continue</p>
+
+                <div class="verification-items">
+                    <div class="verification-item">
+                        <span class="status-icon" id="email-verify-status">⏳</span>
+                        <div class="verification-details">
+                            <span class="verification-label">Email Verification</span>
+                            <span class="verification-hint" id="email-verify-hint">Check your inbox</span>
+                        </div>
+                        <button type="button" id="resend-email-btn" class="btn btn-secondary btn-small">
+                            Resend
+                        </button>
+                    </div>
+                    <div class="verification-item">
+                        <span class="status-icon" id="phone-verify-status">⏳</span>
+                        <div class="verification-details">
+                            <span class="verification-label">Phone Verification</span>
+                            <span class="verification-hint" id="phone-verify-hint">Enter code sent to your phone</span>
+                        </div>
+                        <button type="button" id="resend-phone-btn" class="btn btn-secondary btn-small">
+                            Resend
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Phone verification code input -->
+                <div class="phone-verify-input">
+                    <div class="form-group">
+                        <label for="phone-verify-code">Phone Verification Code</label>
+                        <div class="code-input-group">
+                            <input type="text" id="phone-verify-code"
+                                   placeholder="Enter 6-digit code" maxlength="6"
+                                   pattern="[0-9]{6}" inputmode="numeric">
+                            <button type="button" id="verify-phone-btn" class="btn btn-primary btn-small">
+                                Verify
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="verification-complete" class="verification-complete hidden">
+                    <div class="success-icon">✅</div>
+                    <h4>Verification Complete!</h4>
+                    <p>Your account is now awaiting admin approval. You will receive an email once activated.</p>
+                </div>
+            </div>
+
+            <div id="signup-result" class="result-container hidden"></div>
+        </section>
+
         <!-- Enroll Tab -->
         <section id="enroll-tab" class="tab-content">
             <form id="enroll-form" class="auth-form">
                 <div class="form-group">
                     <label for="enroll-username">Username</label>
                     <input type="text" id="enroll-username" name="username" required
-                           placeholder="Enter your LDAP username" autocomplete="username">
+                           placeholder="Enter your username" autocomplete="username">
                 </div>
 
                 <div class="form-group">
                     <label for="enroll-password">Password</label>
                     <input type="password" id="enroll-password" name="password" required
-                           placeholder="Enter your LDAP password" autocomplete="current-password">
+                           placeholder="Enter your password" autocomplete="current-password">
                 </div>
 
                 <!-- MFA Method Selection -->
@@ -136,6 +314,64 @@
                     <h3>📱 SMS Verification Setup</h3>
                     <p>A verification code has been sent to <strong id="enrolled-phone"></strong></p>
                     <p class="hint">You can now use SMS codes to log in. Each code expires in 5 minutes.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Tab -->
+        <section id="admin-tab" class="tab-content">
+            <div id="admin-login" class="admin-section">
+                <h3>🔑 Admin Authentication</h3>
+                <form id="admin-auth-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="admin-username">Admin Username</label>
+                        <input type="text" id="admin-username" name="admin_username" required
+                               placeholder="Enter admin username" autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-password">Admin Password</label>
+                        <input type="password" id="admin-password" name="admin_password" required
+                               placeholder="Enter admin password" autocomplete="current-password">
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-code">Verification Code</label>
+                        <input type="text" id="admin-code" name="verification_code" required
+                               placeholder="Enter 6-digit code" maxlength="6" pattern="[0-9]{6}"
+                               inputmode="numeric">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="btn-text">Login as Admin</span>
+                        <span class="btn-loading hidden">Authenticating...</span>
+                    </button>
+                </form>
+            </div>
+
+            <div id="admin-panel" class="admin-section hidden">
+                <div class="admin-header">
+                    <h3>👥 User Management</h3>
+                    <button type="button" id="admin-logout-btn" class="btn btn-secondary btn-small">
+                        Logout
+                    </button>
+                </div>
+
+                <div class="admin-filters">
+                    <select id="admin-status-filter">
+                        <option value="complete">Awaiting Approval</option>
+                        <option value="pending">Pending Verification</option>
+                        <option value="active">Active Users</option>
+                        <option value="">All Users</option>
+                    </select>
+                    <button type="button" id="admin-refresh-btn" class="btn btn-secondary btn-small">
+                        🔄 Refresh
+                    </button>
+                </div>
+
+                <div id="admin-users-list" class="admin-users-list">
+                    <!-- Users will be populated here -->
+                </div>
+
+                <div id="admin-no-users" class="admin-no-users hidden">
+                    <p>No users found matching the selected filter.</p>
                 </div>
             </div>
         </section>

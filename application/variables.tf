@@ -194,6 +194,76 @@ variable "cluster_name_component" {
   default     = "kc"
 }
 
+##################### PostgreSQL User Storage ##########################
+
+variable "enable_postgresql" {
+  description = "Whether to deploy PostgreSQL for user storage"
+  type        = bool
+  default     = true
+}
+
+variable "postgresql_namespace" {
+  description = "Kubernetes namespace for PostgreSQL"
+  type        = string
+  default     = "ldap-2fa"
+}
+
+variable "postgresql_database_name" {
+  description = "PostgreSQL database name"
+  type        = string
+  default     = "ldap2fa"
+}
+
+variable "postgresql_database_username" {
+  description = "PostgreSQL database username"
+  type        = string
+  default     = "ldap2fa"
+}
+
+variable "postgresql_database_password" {
+  description = "PostgreSQL database password. MUST be set via TF_VAR_postgresql_database_password environment variable or GitHub Secret."
+  type        = string
+  sensitive   = true
+}
+
+variable "postgresql_storage_size" {
+  description = "PostgreSQL storage size"
+  type        = string
+  default     = "8Gi"
+}
+
+##################### SES Email Verification ##########################
+
+variable "enable_email_verification" {
+  description = "Whether to enable email verification using SES"
+  type        = bool
+  default     = true
+}
+
+variable "ses_sender_email" {
+  description = "Email address to send verification emails from"
+  type        = string
+  default     = "noreply@example.com"
+}
+
+variable "ses_sender_domain" {
+  description = "Domain to verify in SES (optional, for domain-level verification)"
+  type        = string
+  default     = null
+}
+
+variable "ses_iam_role_name" {
+  description = "Name component for the SES IAM role"
+  type        = string
+  default     = "ses-sender"
+}
+
+variable "ses_route53_zone_id" {
+  description = "Route53 zone ID for SES domain verification (optional, defaults to main domain zone)"
+  type        = string
+  default     = null
+}
+
 ##################### SNS SMS 2FA ##########################
 
 variable "enable_sms_2fa" {
@@ -240,6 +310,44 @@ variable "sms_type" {
 variable "sms_monthly_spend_limit" {
   description = "Monthly spend limit for SMS in USD"
   type        = number
+}
+
+##################### Redis SMS OTP Storage ##########################
+
+variable "enable_redis" {
+  description = "Enable Redis deployment for SMS OTP storage"
+  type        = bool
+  default     = false
+}
+
+variable "redis_password" {
+  description = "Redis authentication password (from GitHub Secrets via TF_VAR_redis_password)"
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = var.enable_redis == false || length(var.redis_password) >= 16
+    error_message = "Redis password must be at least 16 characters when Redis is enabled."
+  }
+}
+
+variable "redis_namespace" {
+  description = "Kubernetes namespace for Redis"
+  type        = string
+  default     = "redis"
+}
+
+variable "redis_storage_size" {
+  description = "Redis PVC storage size"
+  type        = string
+  default     = "1Gi"
+}
+
+variable "redis_chart_version" {
+  description = "Bitnami Redis Helm chart version"
+  type        = string
+  default     = "19.6.4"
 }
 
 ##################### ArgoCD ##########################

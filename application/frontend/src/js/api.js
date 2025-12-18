@@ -78,17 +78,97 @@ const API = {
 
     /**
      * Get user's MFA enrollment status
-     * @param {string} username - LDAP username
+     * @param {string} username - Username
      * @returns {Promise<Object>} MFA status response
      */
     async getMfaStatus(username) {
         return this.request(`/mfa/status/${encodeURIComponent(username)}`);
     },
 
+    // =========================================================================
+    // Signup & Verification
+    // =========================================================================
+
+    /**
+     * Sign up a new user
+     * @param {Object} userData - User signup data
+     * @returns {Promise<Object>} Signup response
+     */
+    async signup(userData) {
+        return this.request('/auth/signup', {
+            method: 'POST',
+            body: JSON.stringify({
+                username: userData.username,
+                email: userData.email,
+                first_name: userData.firstName,
+                last_name: userData.lastName,
+                phone_country_code: userData.phoneCountryCode,
+                phone_number: userData.phoneNumber,
+                password: userData.password,
+                mfa_method: userData.mfaMethod || 'totp',
+            }),
+        });
+    },
+
+    /**
+     * Verify email address
+     * @param {string} username - Username
+     * @param {string} token - Email verification token
+     * @returns {Promise<Object>} Verification response
+     */
+    async verifyEmail(username, token) {
+        return this.request('/auth/verify-email', {
+            method: 'POST',
+            body: JSON.stringify({ username, token }),
+        });
+    },
+
+    /**
+     * Verify phone number
+     * @param {string} username - Username
+     * @param {string} code - 6-digit verification code
+     * @returns {Promise<Object>} Verification response
+     */
+    async verifyPhone(username, code) {
+        return this.request('/auth/verify-phone', {
+            method: 'POST',
+            body: JSON.stringify({ username, code }),
+        });
+    },
+
+    /**
+     * Resend verification email or SMS
+     * @param {string} username - Username
+     * @param {string} type - 'email' or 'phone'
+     * @returns {Promise<Object>} Response
+     */
+    async resendVerification(username, type) {
+        return this.request('/auth/resend-verification', {
+            method: 'POST',
+            body: JSON.stringify({
+                username,
+                verification_type: type,
+            }),
+        });
+    },
+
+    /**
+     * Get user's profile status
+     * @param {string} username - Username
+     * @returns {Promise<Object>} Profile status response
+     */
+    async getProfileStatus(username) {
+        return this.request(`/profile/status/${encodeURIComponent(username)}`);
+    },
+
+    // =========================================================================
+    // MFA Enrollment
+    // =========================================================================
+
     /**
      * Enroll a user for MFA
-     * @param {string} username - LDAP username
-     * @param {string} password - LDAP password
+     * @param {string} username - Username
+     * @param {string} password - Password
      * @param {string} mfaMethod - MFA method ('totp' or 'sms')
      * @param {string} phoneNumber - Phone number (required for SMS)
      * @returns {Promise<Object>} Enrollment response with otpauth_uri and secret
@@ -104,10 +184,14 @@ const API = {
         });
     },
 
+    // =========================================================================
+    // Login
+    // =========================================================================
+
     /**
-     * Send SMS verification code
-     * @param {string} username - LDAP username
-     * @param {string} password - LDAP password
+     * Send SMS verification code for login
+     * @param {string} username - Username
+     * @param {string} password - Password
      * @returns {Promise<Object>} SMS send response
      */
     async sendSmsCode(username, password) {
@@ -118,10 +202,10 @@ const API = {
     },
 
     /**
-     * Login with LDAP credentials and verification code
-     * @param {string} username - LDAP username
-     * @param {string} password - LDAP password
-     * @param {string} verificationCode - 6-digit verification code (TOTP or SMS)
+     * Login with credentials and verification code
+     * @param {string} username - Username
+     * @param {string} password - Password
+     * @param {string} verificationCode - 6-digit verification code
      * @returns {Promise<Object>} Login response
      */
     async login(username, password, verificationCode) {
@@ -131,6 +215,77 @@ const API = {
                 username,
                 password,
                 verification_code: verificationCode,
+            }),
+        });
+    },
+
+    // =========================================================================
+    // Admin
+    // =========================================================================
+
+    /**
+     * Admin login
+     * @param {string} username - Admin username
+     * @param {string} password - Admin password
+     * @param {string} verificationCode - 6-digit verification code
+     * @returns {Promise<Object>} Login response
+     */
+    async adminLogin(username, password, verificationCode) {
+        return this.request('/admin/login', {
+            method: 'POST',
+            body: JSON.stringify({
+                username,
+                password,
+                verification_code: verificationCode,
+            }),
+        });
+    },
+
+    /**
+     * List users (admin only)
+     * @param {string} adminUsername - Admin username
+     * @param {string} adminPassword - Admin password
+     * @param {string} statusFilter - Optional status filter
+     * @returns {Promise<Object>} User list response
+     */
+    async adminListUsers(adminUsername, adminPassword, statusFilter = null) {
+        let url = `/admin/users?admin_username=${encodeURIComponent(adminUsername)}&admin_password=${encodeURIComponent(adminPassword)}`;
+        if (statusFilter) {
+            url += `&status_filter=${encodeURIComponent(statusFilter)}`;
+        }
+        return this.request(url);
+    },
+
+    /**
+     * Activate a user (admin only)
+     * @param {string} userId - User ID to activate
+     * @param {string} adminUsername - Admin username
+     * @param {string} adminPassword - Admin password
+     * @returns {Promise<Object>} Activation response
+     */
+    async adminActivateUser(userId, adminUsername, adminPassword) {
+        return this.request(`/admin/users/${encodeURIComponent(userId)}/activate`, {
+            method: 'POST',
+            body: JSON.stringify({
+                admin_username: adminUsername,
+                admin_password: adminPassword,
+            }),
+        });
+    },
+
+    /**
+     * Reject/delete a user (admin only)
+     * @param {string} userId - User ID to reject
+     * @param {string} adminUsername - Admin username
+     * @param {string} adminPassword - Admin password
+     * @returns {Promise<Object>} Rejection response
+     */
+    async adminRejectUser(userId, adminUsername, adminPassword) {
+        return this.request(`/admin/users/${encodeURIComponent(userId)}/reject`, {
+            method: 'POST',
+            body: JSON.stringify({
+                admin_username: adminUsername,
+                admin_password: adminPassword,
             }),
         });
     },
@@ -155,6 +310,13 @@ class APIError extends Error {
     }
 
     /**
+     * Check if error is due to forbidden action (not enrolled, not active, etc.)
+     */
+    isForbidden() {
+        return this.statusCode === 403;
+    }
+
+    /**
      * Check if error is due to user not being enrolled
      */
     isNotEnrolled() {
@@ -162,10 +324,24 @@ class APIError extends Error {
     }
 
     /**
+     * Check if error is a not found error
+     */
+    isNotFound() {
+        return this.statusCode === 404;
+    }
+
+    /**
      * Check if error is a server error
      */
     isServerError() {
         return this.statusCode >= 500;
+    }
+
+    /**
+     * Check if error is a validation error
+     */
+    isValidationError() {
+        return this.statusCode === 400 || this.statusCode === 422;
     }
 }
 

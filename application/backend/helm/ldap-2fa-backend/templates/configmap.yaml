@@ -13,6 +13,20 @@ data:
   LDAP_ADMIN_DN: {{ .Values.ldap.adminDn | quote }}
   LDAP_USER_SEARCH_BASE: {{ .Values.ldap.userSearchBase | quote }}
   LDAP_USER_SEARCH_FILTER: {{ .Values.ldap.userSearchFilter | quote }}
+  LDAP_ADMIN_GROUP_DN: {{ .Values.ldapAdmin.groupDn | quote }}
+  LDAP_USERS_GID: {{ .Values.ldapAdmin.usersGid | quote }}
+  LDAP_UID_START: {{ .Values.ldapAdmin.uidStart | quote }}
+
+  # Database Configuration
+  {{- if not .Values.database.externalSecret.enabled }}
+  DATABASE_URL: {{ .Values.database.url | quote }}
+  {{- end }}
+
+  # Email/SES Configuration
+  ENABLE_EMAIL_VERIFICATION: {{ .Values.email.enabled | quote }}
+  SES_SENDER_EMAIL: {{ .Values.email.senderEmail | quote }}
+  EMAIL_VERIFICATION_EXPIRY_HOURS: {{ .Values.email.verificationExpiryHours | quote }}
+  APP_URL: {{ .Values.email.appUrl | quote }}
 
   # MFA/TOTP Configuration
   TOTP_ISSUER: {{ .Values.mfa.issuer | quote }}
@@ -35,3 +49,11 @@ data:
   DEBUG: {{ .Values.app.debug | quote }}
   LOG_LEVEL: {{ .Values.app.logLevel | quote }}
   CORS_ORIGINS: {{ .Values.app.corsOrigins | quote }}
+
+  # Redis Configuration
+  REDIS_ENABLED: {{ .Values.redis.enabled | quote }}
+  REDIS_HOST: {{ .Values.redis.host | quote }}
+  REDIS_PORT: {{ .Values.redis.port | quote }}
+  REDIS_DB: {{ .Values.redis.db | quote }}
+  REDIS_SSL: {{ .Values.redis.ssl | quote }}
+  REDIS_KEY_PREFIX: {{ .Values.redis.keyPrefix | quote }}

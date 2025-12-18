@@ -83,6 +83,21 @@ spec:
                 configMapKeyRef:
                   name: {{ include "ldap-2fa-backend.fullname" . }}-config
                   key: LDAP_USER_SEARCH_FILTER
+            - name: LDAP_ADMIN_GROUP_DN
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: LDAP_ADMIN_GROUP_DN
+            - name: LDAP_USERS_GID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: LDAP_USERS_GID
+            - name: LDAP_UID_START
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: LDAP_UID_START
             # LDAP Admin Password from Secret
             {{- if .Values.externalSecret.enabled }}
             - name: LDAP_ADMIN_PASSWORD
@@ -91,6 +106,41 @@ spec:
                   name: {{ .Values.externalSecret.secretName }}
                   key: {{ .Values.externalSecret.adminPasswordKey }}
             {{- end }}
+            # Database Configuration
+            {{- if .Values.database.externalSecret.enabled }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.externalSecret.secretName }}
+                  key: {{ .Values.database.externalSecret.passwordKey }}
+            {{- else }}
+            - name: DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: DATABASE_URL
+            {{- end }}
+            # Email/SES Configuration
+            - name: ENABLE_EMAIL_VERIFICATION
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: ENABLE_EMAIL_VERIFICATION
+            - name: SES_SENDER_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: SES_SENDER_EMAIL
+            - name: EMAIL_VERIFICATION_EXPIRY_HOURS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: EMAIL_VERIFICATION_EXPIRY_HOURS
+            - name: APP_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: APP_URL
             # MFA/TOTP Configuration
             - name: TOTP_ISSUER
               valueFrom:
@@ -174,6 +224,45 @@ spec:
                 configMapKeyRef:
                   name: {{ include "ldap-2fa-backend.fullname" . }}-config
                   key: CORS_ORIGINS
+            # Redis Configuration
+            - name: REDIS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: REDIS_ENABLED
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: REDIS_PORT
+            - name: REDIS_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: REDIS_DB
+            - name: REDIS_SSL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: REDIS_SSL
+            - name: REDIS_KEY_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: REDIS_KEY_PREFIX
+            # Redis Password from Secret
+            {{- if .Values.redis.existingSecret.enabled }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.existingSecret.name }}
+                  key: {{ .Values.redis.existingSecret.key }}
+            {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

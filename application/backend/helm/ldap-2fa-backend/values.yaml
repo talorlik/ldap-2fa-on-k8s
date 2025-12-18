@@ -179,6 +179,46 @@ externalSecret:
   adminPasswordKey: "LDAP_ADMIN_PASSWORD"
 
 # =============================================================================
+# Database Configuration (PostgreSQL)
+# =============================================================================
+
+database:
+  # PostgreSQL connection URL
+  # Format: postgresql+asyncpg://user:password@host:port/database
+  url: "postgresql+asyncpg://ldap2fa:ldap2fa@postgresql.ldap-2fa.svc.cluster.local:5432/ldap2fa"
+  # Use external secret for database password
+  externalSecret:
+    enabled: true
+    secretName: "postgresql-secret"
+    passwordKey: "password"
+
+# =============================================================================
+# Email Configuration (AWS SES)
+# =============================================================================
+
+email:
+  # Enable email verification
+  enabled: true
+  # Sender email address (must be verified in SES)
+  senderEmail: "noreply@example.com"
+  # Email verification token expiry in hours
+  verificationExpiryHours: 24
+  # Application URL for verification links
+  appUrl: "https://app.example.com"
+
+# =============================================================================
+# LDAP Admin Group Configuration
+# =============================================================================
+
+ldapAdmin:
+  # Admin group DN for checking admin privileges
+  groupDn: "cn=admins,ou=groups,dc=ldap,dc=talorlik,dc=internal"
+  # Default GID for new users
+  usersGid: 500
+  # Starting UID for new users
+  uidStart: 10000
+
+# =============================================================================
 # SMS/SNS Configuration (for SMS-based 2FA)
 # =============================================================================
 
@@ -200,8 +240,34 @@ sms:
   # Custom message template ({code} placeholder for the code)
   messageTemplate: "Your verification code is: {code}. It expires in 5 minutes."
 
-# IAM Role for Service Account (IRSA) - required for SNS access
+# IAM Role for Service Account (IRSA) - required for SNS/SES access
 serviceAccountIAM:
   # IAM role ARN to attach to the service account
-  # This should be the output from the SNS Terraform module
+  # This should include permissions for both SNS (SMS) and SES (Email)
   roleArn: ""
+
+# =============================================================================
+# Redis Configuration (SMS OTP Storage)
+# =============================================================================
+
+redis:
+  # Enable Redis for SMS OTP storage
+  enabled: false
+  # Redis service hostname
+  host: "redis-master.redis.svc.cluster.local"
+  # Redis service port
+  port: 6379
+  # Redis database number
+  db: 0
+  # Enable SSL/TLS
+  ssl: false
+  # Key prefix for OTP storage
+  keyPrefix: "sms_otp:"
+  # External secret for Redis password
+  existingSecret:
+    # Enable using external secret for Redis password
+    enabled: false
+    # Name of the existing secret containing Redis password
+    name: "redis-secret"
+    # Key in the secret containing the password
+    key: "redis-password"
