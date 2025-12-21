@@ -207,3 +207,4 @@ Terraform resource for EKS Auto Mode IngressClassParams
 - [Kubernetes IngressClass Documentation](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class)
 
 
+
