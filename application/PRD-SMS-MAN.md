@@ -719,7 +719,3 @@ metrics:
 | K8s Secret Name | `ldap-admin-secret` | `redis-secret` |
 | K8s Secret Key | `LDAP_ADMIN_PASSWORD` | `redis-password` |
 | Helm Reference | `externalSecret.secretName` | `auth.existingSecret` |
-
-
-
-

@@ -5,389 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LDAP 2FA on Kubernetes - Documentation</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary-color: #0366d6;
-            --primary-hover: #0256c2;
-            --bg-color: #ffffff;
-            --text-color: #24292e;
-            --border-color: #e1e4e8;
-            --code-bg: #f6f8fa;
-            --nav-bg: #ffffff;
-            --nav-shadow: rgba(0, 0, 0, 0.1);
-            --section-bg: #fafbfc;
-            --link-color: #0366d6;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            color: var(--text-color);
-            background-color: var(--bg-color);
-            padding-top: 80px; /* Account for sticky nav */
-        }
-
-        /* Sticky Navigation */
-        .navbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background-color: var(--nav-bg);
-            border-bottom: 1px solid var(--border-color);
-            box-shadow: 0 2px 4px var(--nav-shadow);
-            z-index: 1000;
-            padding: 0;
-        }
-
-        .nav-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .nav-logo {
-            display: flex;
-            align-items: center;
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-color);
-            text-decoration: none;
-            padding: 15px 0;
-        }
-
-        .nav-menu {
-            display: flex;
-            list-style: none;
-            gap: 10px;
-        }
-
-        .nav-menu li {
-            display: inline-block;
-        }
-
-        .nav-menu a {
-            display: block;
-            padding: 15px 12px;
-            color: var(--text-color);
-            text-decoration: none;
-            font-size: 14px;
-            transition: color 0.2s;
-            border-bottom: 2px solid transparent;
-        }
-
-        .nav-menu a:hover {
-            color: var(--primary-color);
-            border-bottom-color: var(--primary-color);
-        }
-
-        .nav-menu a.active {
-            color: var(--primary-color);
-            border-bottom-color: var(--primary-color);
-        }
-
-        .mobile-menu-toggle {
-            display: none;
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 10px;
-            color: var(--text-color);
-        }
-
-        /* Hero Section */
-        .hero {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 60px 20px;
-            text-align: center;
-        }
-
-        .hero-content {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .hero h1 {
-            font-size: 2.5em;
-            margin-bottom: 20px;
-            font-weight: 600;
-        }
-
-        .hero p {
-            font-size: 1.2em;
-            margin-bottom: 30px;
-            opacity: 0.95;
-        }
-
-        .hero-banner {
-            max-width: 100%;
-            height: auto;
-            margin-top: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Container */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-
-        /* Sections */
-        section {
-            margin-bottom: 60px;
-            scroll-margin-top: 100px; /* Account for sticky nav */
-        }
-
-        section h2 {
-            font-size: 2em;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--border-color);
-            color: var(--text-color);
-        }
-
-        section h3 {
-            font-size: 1.5em;
-            margin-top: 30px;
-            margin-bottom: 15px;
-            color: var(--text-color);
-        }
-
-        section h4 {
-            font-size: 1.2em;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            color: var(--text-color);
-        }
-
-        /* Cards */
-        .card {
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .card h3 {
-            margin-top: 0;
-            color: var(--primary-color);
-        }
-
-        /* Lists */
-        ul, ol {
-            margin-left: 20px;
-            margin-bottom: 15px;
-        }
-
-        ul li, ol li {
-            margin-bottom: 8px;
-        }
-
-        /* Links */
-        a {
-            color: var(--link-color);
-            text-decoration: none;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-        /* Code blocks */
-        code {
-            background-color: var(--code-bg);
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 0.9em;
-        }
-
-        pre {
-            background-color: var(--code-bg);
-            padding: 16px;
-            border-radius: 6px;
-            overflow-x: auto;
-            margin-bottom: 15px;
-        }
-
-        pre code {
-            background: none;
-            padding: 0;
-        }
-
-        /* Tables */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-
-        table th, table td {
-            padding: 12px;
-            text-align: left;
-            border: 1px solid var(--border-color);
-        }
-
-        table th {
-            background-color: var(--section-bg);
-            font-weight: 600;
-        }
-
-        /* Deployment Options */
-        .deployment-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .deployment-card {
-            background: var(--section-bg);
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            padding: 25px;
-        }
-
-        .deployment-card h3 {
-            margin-top: 0;
-            color: var(--primary-color);
-        }
-
-        /* Documentation Grid */
-        .doc-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .doc-item {
-            background: var(--section-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 15px;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .doc-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .doc-item a {
-            font-weight: 500;
-            display: block;
-            margin-bottom: 8px;
-        }
-
-        .doc-item p {
-            font-size: 0.9em;
-            color: #586069;
-            margin: 0;
-        }
-
-        /* Badge */
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            background-color: var(--primary-color);
-            color: white;
-            border-radius: 3px;
-            font-size: 0.8em;
-            font-weight: 600;
-            margin-left: 8px;
-        }
-
-        /* Footer */
-        footer {
-            background-color: var(--section-bg);
-            border-top: 1px solid var(--border-color);
-            padding: 30px 20px;
-            text-align: center;
-            color: #586069;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .mobile-menu-toggle {
-                display: block;
-            }
-
-            .nav-menu {
-                position: fixed;
-                left: -100%;
-                top: 60px;
-                flex-direction: column;
-                background-color: var(--nav-bg);
-                width: 100%;
-                text-align: center;
-                transition: 0.3s;
-                box-shadow: 0 10px 27px rgba(0, 0, 0, 0.05);
-                padding: 20px 0;
-                border-bottom: 1px solid var(--border-color);
-            }
-
-            .nav-menu.active {
-                left: 0;
-            }
-
-            .nav-menu li {
-                width: 100%;
-            }
-
-            .nav-menu a {
-                padding: 15px;
-                border-bottom: none;
-                border-left: 3px solid transparent;
-            }
-
-            .nav-menu a:hover,
-            .nav-menu a.active {
-                border-left-color: var(--primary-color);
-                border-bottom-color: transparent;
-            }
-
-            .hero h1 {
-                font-size: 2em;
-            }
-
-            .hero p {
-                font-size: 1em;
-            }
-
-            .deployment-options {
-                grid-template-columns: 1fr;
-            }
-
-            .doc-grid {
-                grid-template-columns: 1fr;
-            }
-
-            section h2 {
-                font-size: 1.5em;
-            }
-        }
-
-        /* Smooth scroll */
-        html {
-            scroll-behavior: smooth;
-        }
-    </style>
+    <link rel="stylesheet" href="light-theme.css" id="theme-stylesheet">
 </head>
 <body>
     <!-- Sticky Navigation -->
@@ -403,6 +21,12 @@
                 <li><a href="#access">Access</a></li>
                 <li><a href="#security">Security</a></li>
                 <li><a href="#support">Support</a></li>
+                <li>
+                    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                        <span class="icon" id="sunIcon" title="Switch to light theme">☀️</span>
+                        <span class="icon hidden" id="moonIcon" title="Switch to dark theme">🌙</span>
+                    </button>
+                </li>
             </ul>
         </div>
     </nav>
@@ -417,7 +41,7 @@
     </section>
 
     <!-- Project Overview -->
-    <section id="overview" class="container">
+    <section id="overview">
         <h2>Project Overview</h2>
         <div class="card">
             <p>This project deploys a complete LDAP authentication solution with two-factor authentication (2FA), self-service password management, and GitOps capabilities on Amazon EKS using Terraform.</p>
@@ -478,7 +102,7 @@
     </section>
 
     <!-- Getting Started -->
-    <section id="getting-started" class="container">
+    <section id="getting-started">
         <h2>Getting Started</h2>
 
         <h3>Prerequisites</h3>
@@ -494,6 +118,31 @@
             <li>AWS SSO/OIDC configured (see <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a>)</li>
             <li>Route53 hosted zone must already exist (or create it manually)</li>
             <li>ACM certificate must already exist and be validated in the same region as the EKS cluster</li>
+            <li><strong>GitHub Secrets and Variables</strong> (required for both local and GitHub Actions deployments):
+                <ul>
+                    <li><strong>Required Secrets:</strong>
+                        <ul>
+                            <li><code>AWS_STATE_ACCOUNT_ROLE_ARN</code> - IAM role ARN for state account</li>
+                            <li><code>AWS_PRODUCTION_ACCOUNT_ROLE_ARN</code> - IAM role ARN for production account</li>
+                            <li><code>AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN</code> - IAM role ARN for development account</li>
+                            <li><code>TF_VAR_OPENLDAP_ADMIN_PASSWORD</code> - OpenLDAP admin password</li>
+                            <li><code>TF_VAR_OPENLDAP_CONFIG_PASSWORD</code> - OpenLDAP config password</li>
+                            <li><code>TF_VAR_REDIS_PASSWORD</code> - Redis password (minimum 16 characters)</li>
+                            <li><code>TF_VAR_POSTGRES_PASSWORD</code> - PostgreSQL database password</li>
+                            <li><code>TF_VAR_SES_SENDER_EMAIL</code> - Verified SES sender email address</li>
+                            <li><code>GH_TOKEN</code> - GitHub Personal Access Token with <code>repo</code> scope</li>
+                        </ul>
+                    </li>
+                    <li><strong>Required Variables:</strong>
+                        <ul>
+                            <li><code>AWS_REGION</code> - AWS region where resources will be created</li>
+                            <li><code>BACKEND_PREFIX</code> - Prefix for state file path in bucket</li>
+                        </ul>
+                    </li>
+                </ul>
+                <p><strong>Note:</strong> For local deployment, secrets can be accessed via GitHub CLI or set as environment variables. For GitHub Actions, configure them in Repository Settings → Secrets and Variables → Actions.</p>
+                <p><strong>For detailed setup instructions:</strong> <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a></p>
+            </li>
         </ul>
 
         <h3>Deployment Options</h3>
@@ -511,7 +160,13 @@
                 <h4>Steps:</h4>
                 <ol>
                     <li>Clone the repository</li>
-                    <li>Set up environment variables for OpenLDAP passwords</li>
+                    <li>Ensure GitHub Secrets and Variables are configured (see Prerequisites section)</li>
+                    <li>For local use, export OpenLDAP passwords as environment variables (scripts can also retrieve from GitHub Secrets):
+                        <ul>
+                            <li><code>export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"</code></li>
+                            <li><code>export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"</code></li>
+                        </ul>
+                    </li>
                     <li>Run setup scripts:
                         <ul>
                             <li><code>backend_infra/setup-backend.sh</code> - Deploy backend infrastructure</li>
@@ -536,25 +191,12 @@
                 <h4>Requirements:</h4>
                 <ul>
                     <li>GitHub repository with Actions enabled</li>
-                    <li>GitHub Secrets configured (see below)</li>
-                    <li>GitHub Variables configured</li>
+                    <li>GitHub Secrets and Variables configured (see Prerequisites above)</li>
                     <li>AWS IAM roles set up for OIDC</li>
-                </ul>
-                <h4>Required GitHub Secrets:</h4>
-                <ul>
-                    <li><code>AWS_STATE_ACCOUNT_ROLE_ARN</code> - IAM role ARN for state account</li>
-                    <li><code>AWS_PRODUCTION_ACCOUNT_ROLE_ARN</code> - IAM role ARN for production account</li>
-                    <li><code>AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN</code> - IAM role ARN for development account</li>
-                    <li><code>TF_VAR_OPENLDAP_ADMIN_PASSWORD</code> - OpenLDAP admin password</li>
-                    <li><code>TF_VAR_OPENLDAP_CONFIG_PASSWORD</code> - OpenLDAP config password</li>
-                    <li><code>TF_VAR_REDIS_PASSWORD</code> - Redis password</li>
-                    <li><code>TF_VAR_POSTGRES_PASSWORD</code> - PostgreSQL password</li>
-                    <li><code>TF_VAR_SES_SENDER_EMAIL</code> - SES sender email</li>
-                    <li><code>GH_TOKEN</code> - GitHub Personal Access Token</li>
                 </ul>
                 <h4>Steps:</h4>
                 <ol>
-                    <li>Configure GitHub Secrets and Variables</li>
+                    <li>Ensure all GitHub Secrets and Variables are configured (see Prerequisites section)</li>
                     <li>Run the <code>tfstate_infra_provisioning.yaml</code> workflow to deploy state backend</li>
                     <li>Run backend infrastructure workflow</li>
                     <li>Run application infrastructure workflow</li>
@@ -624,7 +266,7 @@
     </section>
 
     <!-- Architecture -->
-    <section id="architecture" class="container">
+    <section id="architecture">
         <h2>Architecture</h2>
 
         <h3>Multi-Account Architecture</h3>
@@ -716,7 +358,7 @@
     </section>
 
     <!-- Documentation Index -->
-    <section id="documentation" class="container">
+    <section id="documentation">
         <h2>Documentation</h2>
 
         <h3>Infrastructure Documentation</h3>
@@ -853,7 +495,7 @@
     </section>
 
     <!-- Access Information -->
-    <section id="access" class="container">
+    <section id="access">
         <h2>Accessing the Services</h2>
 
         <p>After deployment, the following services are available:</p>
@@ -937,7 +579,7 @@
     </section>
 
     <!-- Security Considerations -->
-    <section id="security" class="container">
+    <section id="security">
         <h2>Security Considerations</h2>
 
         <div class="card">
@@ -959,7 +601,7 @@
     </section>
 
     <!-- Contributing & Support -->
-    <section id="support" class="container">
+    <section id="support">
         <h2>Contributing & Support</h2>
 
         <h3>License</h3>
@@ -989,6 +631,44 @@
     </footer>
 
     <script>
+        // Theme management
+        const themeStylesheet = document.getElementById('theme-stylesheet');
+        const themeToggle = document.getElementById('themeToggle');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+
+        // Get saved theme or default to light
+        const currentTheme = localStorage.getItem('theme') || 'light';
+
+        function setTheme(theme) {
+            if (theme === 'dark') {
+                themeStylesheet.href = 'dark-theme.css';
+                // Show sun icon (to switch to light theme)
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+                themeToggle.setAttribute('aria-label', 'Switch to light theme');
+                themeToggle.setAttribute('title', 'Switch to light theme');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                themeStylesheet.href = 'light-theme.css';
+                // Show moon icon (to switch to dark theme)
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+                themeToggle.setAttribute('aria-label', 'Switch to dark theme');
+                themeToggle.setAttribute('title', 'Switch to dark theme');
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Initialize theme on page load
+        setTheme(currentTheme);
+
+        // Toggle theme on button click
+        themeToggle.addEventListener('click', () => {
+            const newTheme = themeStylesheet.href.includes('dark-theme.css') ? 'light' : 'dark';
+            setTheme(newTheme);
+        });
+
         // Mobile menu toggle
         const mobileMenuToggle = document.getElementById('mobileMenuToggle');
         const navMenu = document.getElementById('navMenu');
