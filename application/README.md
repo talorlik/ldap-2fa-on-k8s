@@ -231,6 +231,18 @@ infrastructure, featuring self-service user registration and admin management.
 | `PUT` | `/api/admin/groups/{group}` | Update group (admin only) |
 | `DELETE` | `/api/admin/groups/{group}` | Delete group (admin only) |
 
+**API Documentation:**
+
+FastAPI automatically generates interactive API documentation that is always available:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET` | `/api/docs` | Swagger UI - Interactive API documentation and testing interface |
+| `GET` | `/api/redoc` | ReDoc UI - Alternative API documentation interface |
+| `GET` | `/api/openapi.json` | OpenAPI schema in JSON format |
+
+Access the Swagger UI at `https://app.<domain>/api/docs` (e.g., `https://app.talorlik.com/api/docs`) to explore all available endpoints, view request/response schemas, and test API calls directly from the browser. The documentation automatically updates when API endpoints change.
+
 #### Frontend (Static HTML/JS/CSS)
 
 - **Location**: `frontend/src/`

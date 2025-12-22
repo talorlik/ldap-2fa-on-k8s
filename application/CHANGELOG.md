@@ -9,6 +9,21 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **API Documentation (Swagger UI)**
+  - FastAPI Swagger UI now always enabled at `/api/docs` (previously only available in debug mode)
+  - ReDoc UI always available at `/api/redoc`
+  - OpenAPI schema accessible at `/api/openapi.json`
+  - Interactive API documentation automatically updates when endpoints change
+  - Documentation updated in README.md and PRD-2FA-APP.md to reflect availability
+
+### Changed
+
+- **Backend API Configuration**
+  - Removed debug mode condition for API documentation endpoints
+  - Swagger UI, ReDoc UI, and OpenAPI schema are now always accessible in production
+
 ### [2025-12-18] - Admin Functions and User Profile Management
 
 #### Added

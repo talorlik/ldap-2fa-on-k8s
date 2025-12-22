@@ -10,6 +10,15 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **API Documentation (Swagger UI)**
+  - FastAPI Swagger UI now always enabled at `/api/docs` (previously only available in debug mode)
+  - ReDoc UI always available at `/api/redoc`
+  - OpenAPI schema accessible at `/api/openapi.json`
+  - Interactive API documentation automatically updates when endpoints change
+  - Accessible at `https://app.<domain>/api/docs` for API exploration and testing
+
+### Added
+
 - **User Signup Management System**
   - Self-service user registration with profile fields (first name, last name,
   username, email, phone, password, MFA method)

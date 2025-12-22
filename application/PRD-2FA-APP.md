@@ -162,6 +162,18 @@ All endpoints must be served under the `/api` prefix (no path rewriting).
 |--------|----------|-------------|
 | `POST` | `/api/auth/sms/send-code` | Send SMS verification code to enrolled user |
 
+#### API Documentation Endpoints
+
+FastAPI automatically generates interactive API documentation that is always available:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/docs` | Swagger UI - Interactive API documentation and testing interface |
+| `GET` | `/api/redoc` | ReDoc UI - Alternative API documentation interface |
+| `GET` | `/api/openapi.json` | OpenAPI schema in JSON format |
+
+The Swagger UI provides an interactive interface to explore all available endpoints, view request/response schemas, and test API calls directly from the browser. The documentation automatically updates when API endpoints change.
+
 ### API Request/Response Schemas
 
 #### Enroll Request

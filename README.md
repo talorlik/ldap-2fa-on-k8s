@@ -648,6 +648,8 @@ After deployment:
   - TOTP setup with QR code or SMS verification
   - User profile management
   - Admin dashboard (for LDAP admin group members)
+  - **API Documentation**: `https://app.${domain_name}/api/docs` - Interactive Swagger UI for API exploration and testing
+  - **ReDoc Documentation**: `https://app.${domain_name}/api/redoc` - Alternative API documentation interface
 - **PhpLdapAdmin**: `https://phpldapadmin.${domain_name}` (e.g.,
 `https://phpldapadmin.talorlik.com`)
   - LDAP administration interface

@@ -25,9 +25,9 @@ app = FastAPI(
     title=settings.app_name,
     description="Two-Factor Authentication API with LDAP, TOTP, and user signup support",
     version="2.0.0",
-    docs_url="/api/docs" if settings.debug else None,
-    redoc_url="/api/redoc" if settings.debug else None,
-    openapi_url="/api/openapi.json" if settings.debug else None,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
 )
 
 # Add CORS middleware if origins are configured (for local development)
