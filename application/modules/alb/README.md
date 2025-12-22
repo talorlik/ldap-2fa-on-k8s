@@ -208,3 +208,4 @@ Terraform resource for EKS Auto Mode IngressClassParams
 
 
 
+
