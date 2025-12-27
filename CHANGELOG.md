@@ -3,21 +3,19 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic
-Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 ### Added
 
 - **API Documentation (Swagger UI)**
-  - FastAPI Swagger UI now always enabled at `/api/docs` (previously only available in debug mode)
+  - FastAPI Swagger UI now always enabled at `/api/docs` (previously only available
+  in debug mode)
   - ReDoc UI always available at `/api/redoc`
   - OpenAPI schema accessible at `/api/openapi.json`
   - Interactive API documentation automatically updates when endpoints change
   - Accessible at `https://app.<domain>/api/docs` for API exploration and testing
-
-### Added
 
 - **User Signup Management System**
   - Self-service user registration with profile fields (first name, last name,
@@ -165,8 +163,8 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **Enhanced Network Policies**
   - Added cross-namespace communication rules for LDAP service access
-  - Allows services in other namespaces to access LDAP on secure ports (443, 636,
-  8443)
+  - Allows services in other namespaces to access LDAP on secure
+  ports (443, 636, 8443)
   - Maintains security by only allowing encrypted ports
 
 - **VPC Endpoints module enhancements**
@@ -249,6 +247,27 @@ Versioning](https://semver.org/spec/v2.0.0.html).
   operations
   - Fixed workflows to use environment-based role ARNs for deployment operations
   via `deployment_account_role_arn` variable
+
+## [2025-12-19] - Terraform Backend State Infrastructure v1.0.0
+
+### Changed
+
+- **Terraform Backend State Infrastructure (v1.0.0)**
+  - Migrated from DynamoDB-based state locking to S3 file-based locking
+    (`use_lockfile = true`)
+  - Updated AWS provider to version 6.21.0
+  - Updated Terraform required version to 1.14.0
+  - Improved automation scripts (`get-state.sh` and `set-state.sh`) to use
+    AWS Secrets Manager instead of GitHub CLI for secret access
+  - Enhanced documentation with detailed troubleshooting sections
+  - Improved error handling and user feedback in automation scripts
+
+### Removed
+
+- **Terraform Backend State Infrastructure (v1.0.0)**
+  - Removed DynamoDB table and all related resources (deprecated in favor
+    of S3 file-based locking)
+  - Removed all references to DynamoDB from code and documentation
 
 ## [2025-12-18] - 2FA Application and IRSA Infrastructure
 
@@ -488,9 +507,20 @@ apply)
 
 ### Terraform State Management
 
-- The use of DynamoDB for Terraform state locking has been deprecated
-- Native S3 handling is now in use for state locking
-- All references to DynamoDB have been removed from code and documentation
+- **S3 File-Based Locking**: The Terraform backend state infrastructure
+  (v1.0.0) uses S3 file-based locking (`use_lockfile = true`) instead of
+  DynamoDB
+- **State Storage**: All Terraform state files are stored in S3 with
+  versioning enabled and server-side encryption (AES256)
+- **Access Control**: IAM-based access control with principal ARN support
+  and OIDC-based authentication (no access keys required)
+- **Automation**: Local automation scripts (`get-state.sh` and
+  `set-state.sh`) use AWS Secrets Manager for role ARN retrieval
+- **Security**: Private bucket ACL configuration, comprehensive public
+  access blocking, and encryption at rest for all state files
+- **Provider Versions**: AWS provider 6.21.0, Terraform 1.14.0
+- All references to DynamoDB have been removed from code and
+  documentation
 
 ## References
 

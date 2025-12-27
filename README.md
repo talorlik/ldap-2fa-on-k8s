@@ -78,16 +78,22 @@ ldap-2fa-on-k8s/
 For detailed information about each component, see:
 
 - [Terraform Backend State](tf_backend_state/README.md) - S3 state management
+  with file-based locking (v1.0.0), AWS provider 6.21.0, Terraform 1.14.0
 - [Backend Infrastructure](backend_infra/README.md) - VPC, EKS, IRSA, VPC
-endpoints
+  endpoints
 - [Application Infrastructure](application/README.md) - OpenLDAP, 2FA app,
-ArgoCD
+  ArgoCD
 
 ## Multi-Account Architecture
 
 This project uses a **multi-account architecture** for enhanced security:
 
 - **Account A (State Account)**: Stores Terraform state files in S3
+  - S3 bucket with versioning enabled and server-side encryption (AES256)
+  - S3 file-based locking (`use_lockfile = true`) for state file
+    concurrency control
+  - IAM-based access control with OIDC authentication (no access keys
+    required)
   - GitHub Actions authenticates with Account A for backend operations
   - Provides isolation between state storage and resource deployment
 
@@ -352,8 +358,6 @@ Deploy the Terraform backend state infrastructure by running the
 
 > [!NOTE]
 >
-> [!NOTE]
->
 > 📖 **For detailed setup instructions**, including required GitHub Secrets,
 > Variables, and configuration, see the [Terraform Backend State
 > README](tf_backend_state/README.md).
@@ -416,9 +420,10 @@ what values need to be configured.
 > `tf_backend_state`, use the provided automation scripts (`set-state.sh` and
 > `get-state.sh`). These scripts automatically handle role assumption, Terraform
 > operations, state file management, and repository variable updates. The scripts
-> retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` from GitHub repository secrets and assume
-> the role automatically. See [Terraform Backend State README](tf_backend_state/README.md#option-2-local-execution)
-> for detailed instructions.
+> retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` from AWS Secrets Manager (v1.0.0) and
+> assume the role automatically. See [Terraform Backend State
+> README](tf_backend_state/README.md#option-2-local-execution) for detailed
+> instructions.
 
 ### Backend Infrastructure Setup
 
@@ -630,7 +635,7 @@ deployment for enhanced security
 The 2FA application supports two multi-factor authentication methods:
 
 | Method | Description | Infrastructure Required |
-|--------|-------------|------------------------|
+| -------- | ------------- | ------------------------ |
 | **TOTP** | Time-based One-Time Password using authenticator apps (Google Authenticator, Authy, etc.) | None (codes generated locally) |
 | **SMS** | Verification codes sent via AWS SNS to user's phone | SNS VPC endpoint, IRSA role |
 
@@ -648,8 +653,10 @@ After deployment:
   - TOTP setup with QR code or SMS verification
   - User profile management
   - Admin dashboard (for LDAP admin group members)
-  - **API Documentation**: `https://app.${domain_name}/api/docs` - Interactive Swagger UI for API exploration and testing
-  - **ReDoc Documentation**: `https://app.${domain_name}/api/redoc` - Alternative API documentation interface
+  - **API Documentation**: `https://app.${domain_name}/api/docs` - Interactive
+  Swagger UI for API exploration and testing
+  - **ReDoc Documentation**: `https://app.${domain_name}/api/redoc` - Alternative
+  API documentation interface
 - **PhpLdapAdmin**: `https://phpldapadmin.${domain_name}` (e.g.,
 `https://phpldapadmin.talorlik.com`)
   - LDAP administration interface
@@ -665,7 +672,8 @@ After deployment:
 ### Infrastructure Documentation
 
 - [Terraform Backend State README](tf_backend_state/README.md) - S3 state
-management and GitHub variable configuration
+  management with file-based locking (v1.0.0), AWS Secrets Manager
+  integration, and GitHub variable configuration
 - [Backend Infrastructure README](backend_infra/README.md) - VPC, EKS, IRSA, VPC
 endpoints, and ECR documentation
 - [Application Infrastructure README](application/README.md) - OpenLDAP, 2FA
