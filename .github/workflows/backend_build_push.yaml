@@ -118,6 +118,8 @@ jobs:
 
   NotifyArgoCD:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: BuildAndPush
     if: success()
     steps:
