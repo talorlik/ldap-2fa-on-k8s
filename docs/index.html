@@ -48,57 +48,76 @@
         </div>
 
         <h3>Core Infrastructure</h3>
-        <ul>
-            <li><strong>EKS Cluster</strong> (Auto Mode) with IRSA for secure pod-to-AWS-service authentication</li>
-            <li><strong>VPC</strong> with public/private subnets and VPC endpoints for private AWS service access</li>
-            <li><strong>Application Load Balancer (ALB)</strong> via EKS Auto Mode for internet-facing access</li>
-            <li><strong>Route53 DNS</strong> integration for domain management</li>
-            <li><strong>ACM Certificates</strong> for HTTPS/TLS termination</li>
-        </ul>
+        <div class="card">
+            <ul>
+                <li><strong>EKS Cluster</strong> (Auto Mode) with IRSA for secure pod-to-AWS-service authentication</li>
+                <li><strong>VPC</strong> with public/private subnets and VPC endpoints for private AWS service access</li>
+                <li><strong>Application Load Balancer (ALB)</strong> via EKS Auto Mode for internet-facing access</li>
+                <li><strong>Route53 DNS</strong> integration for domain management</li>
+                <li><strong>ACM Certificates</strong> for HTTPS/TLS termination</li>
+            </ul>
+        </div>
 
         <h3>LDAP Stack</h3>
-        <ul>
-            <li><strong>OpenLDAP Stack</strong> with high availability and multi-master replication</li>
-            <li><strong>PhpLdapAdmin</strong> web interface for LDAP administration</li>
-            <li><strong>LTB-passwd</strong> self-service password management UI</li>
-        </ul>
+        <div class="card">
+            <ul>
+                <li><strong>OpenLDAP Stack</strong> with high availability and multi-master replication</li>
+                <li><strong>PhpLdapAdmin</strong> web interface for LDAP administration</li>
+                <li><strong>LTB-passwd</strong> self-service password management UI</li>
+            </ul>
+        </div>
 
         <h3>2FA Application</h3>
-        <ul>
-            <li><strong>Full-stack 2FA application</strong> with Python FastAPI backend and static HTML/JS/CSS frontend</li>
-            <li><strong>Dual MFA methods</strong>: TOTP (authenticator apps) and SMS (AWS SNS)</li>
-            <li><strong>LDAP integration</strong> for centralized user authentication</li>
-            <li><strong>Self-service user registration</strong> with email/phone verification</li>
-            <li><strong>Admin dashboard</strong> for user management, group CRUD, and approval workflows</li>
-        </ul>
+        <div class="card">
+            <ul>
+                <li><strong>Full-stack 2FA application</strong> with Python FastAPI backend and static HTML/JS/CSS frontend</li>
+                <li><strong>Dual MFA methods</strong>: TOTP (authenticator apps) and SMS (AWS SNS)</li>
+                <li><strong>LDAP integration</strong> for centralized user authentication</li>
+                <li><strong>Self-service user registration</strong> with email/phone verification and profile state management</li>
+                <li><strong>Admin dashboard</strong> for user management, group CRUD operations, and approval workflows</li>
+                <li><strong>User profile management</strong> with edit restrictions for verified fields</li>
+                <li><strong>Interactive API documentation</strong> via Swagger UI and ReDoc (always enabled)</li>
+            </ul>
+        </div>
 
         <h3>Supporting Infrastructure</h3>
-        <ul>
-            <li><strong>PostgreSQL</strong> for user registration and verification token storage</li>
-            <li><strong>Redis</strong> for SMS OTP code storage with TTL-based expiration</li>
-            <li><strong>AWS SES</strong> for email verification and notifications</li>
-            <li><strong>AWS SNS</strong> for SMS-based 2FA verification</li>
-        </ul>
+        <div class="card">
+            <ul>
+                <li><strong>PostgreSQL</strong> for user registration and verification token storage (Bitnami Helm chart)</li>
+                <li><strong>Redis</strong> for SMS OTP code storage with TTL-based automatic expiration</li>
+                <li><strong>AWS SES</strong> for email verification and notifications (IRSA-based access)</li>
+                <li><strong>AWS SNS</strong> for SMS-based 2FA verification (optional, requires VPC endpoint)</li>
+            </ul>
+        </div>
 
         <h3>DevOps & Security</h3>
-        <ul>
-            <li><strong>ArgoCD</strong> (AWS EKS managed service) for GitOps deployments</li>
-            <li><strong>cert-manager</strong> for automatic TLS certificate management</li>
-            <li><strong>Network Policies</strong> for securing pod-to-pod communication</li>
-            <li><strong>IRSA</strong> (IAM Roles for Service Accounts) for secure AWS API access from pods</li>
-        </ul>
+        <div class="card">
+            <ul>
+                <li><strong>ArgoCD</strong> (AWS EKS managed service) for GitOps deployments with AWS Identity Center authentication</li>
+                <li><strong>cert-manager</strong> for automatic TLS certificate management</li>
+                <li><strong>Network Policies</strong> for securing pod-to-pod communication with cross-namespace support</li>
+                <li><strong>IRSA</strong> (IAM Roles for Service Accounts) for secure AWS API access from pods without credentials</li>
+                <li><strong>VPC Endpoints</strong> for private AWS service access (SSM, STS, SNS) without internet exposure</li>
+                <li><strong>Multi-Account Architecture</strong> with separated state storage and deployment accounts</li>
+                <li><strong>S3 File-Based Locking</strong> for Terraform state management (migrated from DynamoDB)</li>
+            </ul>
+        </div>
 
         <h3>Key Features</h3>
-        <ul>
-            <li><strong>EKS Auto Mode</strong>: Simplified cluster management with automatic load balancer provisioning</li>
-            <li><strong>Two-Factor Authentication</strong>: Full-stack 2FA application with dual MFA methods (TOTP and SMS)</li>
-            <li><strong>Self-Service User Registration</strong>: Email and phone verification with profile state management</li>
-            <li><strong>Admin Dashboard</strong>: User management, group CRUD operations, and approval workflows</li>
-            <li><strong>IRSA Integration</strong>: Secure AWS API access from pods without hardcoded credentials</li>
-            <li><strong>High Availability</strong>: Multi-master OpenLDAP replication with persistent storage</li>
-            <li><strong>GitOps Ready</strong>: ArgoCD for declarative, Git-driven deployments</li>
-            <li><strong>Multi-Account Architecture</strong>: Separation of state storage and resource deployment for enhanced security</li>
-        </ul>
+        <div class="card">
+            <ul>
+                <li><strong>EKS Auto Mode</strong>: Simplified cluster management with automatic load balancer provisioning and built-in EBS CSI driver</li>
+                <li><strong>Two-Factor Authentication</strong>: Full-stack 2FA application with dual MFA methods (TOTP and SMS)</li>
+                <li><strong>Self-Service User Registration</strong>: Email and phone verification with profile state management (PENDING → COMPLETE → ACTIVE)</li>
+                <li><strong>Admin Dashboard</strong>: User management, group CRUD operations, approval workflows, and user profile management</li>
+                <li><strong>IRSA Integration</strong>: Secure AWS API access from pods without hardcoded credentials via OIDC</li>
+                <li><strong>High Availability</strong>: Multi-master OpenLDAP replication with persistent storage</li>
+                <li><strong>GitOps Ready</strong>: ArgoCD (AWS managed service) for declarative, Git-driven deployments</li>
+                <li><strong>Multi-Account Architecture</strong>: Separation of state storage (Account A) and resource deployment (Account B) for enhanced security</li>
+                <li><strong>API Documentation</strong>: Interactive Swagger UI and ReDoc always available at <code>/api/docs</code> and <code>/api/redoc</code></li>
+                <li><strong>Password Management</strong>: Secrets managed via GitHub repository secrets with automated retrieval</li>
+            </ul>
+        </div>
     </section>
 
     <!-- Getting Started -->
@@ -106,57 +125,59 @@
         <h2>Getting Started</h2>
 
         <h3>Prerequisites</h3>
-        <ul>
-            <li>AWS Account(s) with appropriate permissions
-                <ul>
-                    <li><strong>State Account (Account A)</strong>: For Terraform state storage (S3)</li>
-                    <li><strong>Deployment Account (Account B)</strong>: For infrastructure resources (EKS, ALB, Route53, etc.)</li>
-                </ul>
-            </li>
-            <li>GitHub Account</li>
-            <li>Fork the repository: <a href="https://github.com/talorlik/ldap-2fa-on-k8s.git" target="_blank">ldap-2fa-on-k8s</a></li>
-            <li>AWS SSO/OIDC configured (see <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a>)</li>
-            <li>Route53 hosted zone must already exist (or create it manually)</li>
-            <li>ACM certificate must already exist and be validated in the same region as the EKS cluster</li>
-            <li><strong>GitHub Secrets and Variables</strong> (required for both local and GitHub Actions deployments):
-                <ul>
-                    <li><strong>Required Secrets:</strong>
-                        <ul>
-                            <li><code>AWS_STATE_ACCOUNT_ROLE_ARN</code> - IAM role ARN for state account</li>
-                            <li><code>AWS_PRODUCTION_ACCOUNT_ROLE_ARN</code> - IAM role ARN for production account</li>
-                            <li><code>AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN</code> - IAM role ARN for development account</li>
-                            <li><code>TF_VAR_OPENLDAP_ADMIN_PASSWORD</code> - OpenLDAP admin password (exported as <code>TF_VAR_openldap_admin_password</code>)</li>
-                            <li><code>TF_VAR_OPENLDAP_CONFIG_PASSWORD</code> - OpenLDAP config password (exported as <code>TF_VAR_openldap_config_password</code>)</li>
-                            <li><code>TF_VAR_REDIS_PASSWORD</code> - Redis password (minimum 8 characters, exported as <code>TF_VAR_redis_password</code>)</li>
-                            <li><code>TF_VAR_POSTGRES_PASSWORD</code> - PostgreSQL database password (exported as <code>TF_VAR_postgresql_database_password</code>)</li>
-                            <li><code>GH_TOKEN</code> - GitHub Personal Access Token with <code>repo</code> scope</li>
-                        </ul>
-                    </li>
-                    <li><strong>Required Variables:</strong>
-                        <ul>
-                            <li><code>AWS_REGION</code> - AWS region where resources will be created</li>
-                            <li><code>BACKEND_PREFIX</code> - Prefix for state file path in bucket</li>
-                        </ul>
-                    </li>
-                </ul>
-                <p><strong>Note:</strong> For local deployment, secrets can be accessed via GitHub CLI or set as environment variables. For GitHub Actions, configure them in Repository Settings → Secrets and Variables → Actions.</p>
-                <p><strong>For detailed setup instructions:</strong> <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a></p>
-            </li>
-        </ul>
+        <div class="card">
+            <ul>
+                <li>AWS Account(s) with appropriate permissions
+                    <ul>
+                        <li><strong>State Account (Account A)</strong>: For Terraform state storage (S3)</li>
+                        <li><strong>Deployment Account (Account B)</strong>: For infrastructure resources (EKS, ALB, Route53, etc.)</li>
+                    </ul>
+                </li>
+                <li>GitHub Account</li>
+                <li>Fork the repository: <a href="https://github.com/talorlik/ldap-2fa-on-k8s.git" target="_blank">ldap-2fa-on-k8s</a></li>
+                <li>AWS SSO/OIDC configured (see <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a>)</li>
+                <li>Route53 hosted zone must already exist (or create it manually)</li>
+                <li>ACM certificate must already exist and be validated in the same region as the EKS cluster</li>
+                <li><strong>GitHub Secrets and Variables</strong> (required for both local and GitHub Actions deployments):
+                    <ul>
+                        <li><strong>Required Secrets:</strong>
+                            <ul>
+                                <li><code>AWS_STATE_ACCOUNT_ROLE_ARN</code> - IAM role ARN for state account (backend operations)</li>
+                                <li><code>AWS_PRODUCTION_ACCOUNT_ROLE_ARN</code> - IAM role ARN for production deployments</li>
+                                <li><code>AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN</code> - IAM role ARN for development deployments</li>
+                                <li><code>TF_VAR_OPENLDAP_ADMIN_PASSWORD</code> - OpenLDAP admin password (exported as <code>TF_VAR_openldap_admin_password</code>)</li>
+                                <li><code>TF_VAR_OPENLDAP_CONFIG_PASSWORD</code> - OpenLDAP config password (exported as <code>TF_VAR_openldap_config_password</code>)</li>
+                                <li><code>TF_VAR_REDIS_PASSWORD</code> - Redis password (minimum 8 characters, exported as <code>TF_VAR_redis_password</code>)</li>
+                                <li><code>TF_VAR_POSTGRES_PASSWORD</code> - PostgreSQL database password (exported as <code>TF_VAR_postgresql_database_password</code>)</li>
+                                <li><code>GH_TOKEN</code> - GitHub Personal Access Token with <code>repo</code> scope</li>
+                            </ul>
+                        </li>
+                        <li><strong>Required Variables:</strong>
+                            <ul>
+                                <li><code>AWS_REGION</code> - AWS region where resources will be created</li>
+                                <li><code>BACKEND_PREFIX</code> - Prefix for state file path in bucket</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p><strong>Note:</strong> Setup scripts automatically retrieve secrets from GitHub. For local deployment, secrets can be accessed via GitHub CLI or set as environment variables. For GitHub Actions, configure them in Repository Settings → Secrets and Variables → Actions.</p>
+                    <p><strong>For detailed setup instructions:</strong> <a href="../README.md#secrets-configuration">Secrets Configuration</a> | <a href="../application/SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
+                </li>
+            </ul>
+        </div>
 
         <h3>Deployment Options</h3>
         <div class="deployment-options">
             <div class="deployment-card">
-                <h3>Local Deployment</h3>
+                <h4>Local Deployment</h4>
                 <p><strong>Recommended for:</strong> Development, testing, and local experimentation</p>
-                <h4>Requirements:</h4>
+                <p><strong>Requirements:</strong></p>
                 <ul>
                     <li>GitHub CLI (<code>gh</code>) installed and authenticated</li>
                     <li>AWS CLI configured</li>
                     <li>Terraform installed</li>
                     <li>Kubectl configured</li>
                 </ul>
-                <h4>Steps:</h4>
+                <p><strong>Steps:</strong></p>
                 <ol>
                     <li>Clone the repository</li>
                     <li>Ensure GitHub Secrets and Variables are configured (see Prerequisites section)</li>
@@ -187,15 +208,15 @@
             </div>
 
             <div class="deployment-card">
-                <h3>GitHub Actions Deployment</h3>
+                <h4>GitHub Actions Deployment</h4>
                 <p><strong>Recommended for:</strong> Production deployments, CI/CD pipelines, automated workflows</p>
-                <h4>Requirements:</h4>
+                <p><strong>Requirements:</strong></p>
                 <ul>
                     <li>GitHub repository with Actions enabled</li>
                     <li>GitHub Secrets and Variables configured (see Prerequisites above)</li>
                     <li>AWS IAM roles set up for OIDC</li>
                 </ul>
-                <h4>Steps:</h4>
+                <p><strong>Steps:</strong></p>
                 <ol>
                     <li>Ensure all GitHub Secrets and Variables are configured (see Prerequisites section)</li>
                     <li>Run the <code>tfstate_infra_provisioning.yaml</code> workflow to deploy state backend</li>
@@ -245,25 +266,27 @@
         </table>
 
         <h3>Deployment Order</h3>
-        <ol>
-            <li><strong>Deploy Terraform Backend State Infrastructure</strong>
-                <ul>
-                    <li>See: <a href="../tf_backend_state/README.md">Terraform Backend State README</a></li>
-                </ul>
-            </li>
-            <li><strong>Deploy Backend Infrastructure</strong>
-                <ul>
-                    <li>VPC, EKS cluster, VPC endpoints, IRSA, ECR</li>
-                    <li>See: <a href="../backend_infra/README.md">Backend Infrastructure README</a></li>
-                </ul>
-            </li>
-            <li><strong>Deploy Application Infrastructure</strong>
-                <ul>
-                    <li>OpenLDAP stack, 2FA application, ALB, Route53 records, ArgoCD</li>
-                    <li>See: <a href="../application/README.md">Application Infrastructure README</a></li>
-                </ul>
-            </li>
-        </ol>
+        <div class="card">
+            <ol>
+                <li><strong>Deploy Terraform Backend State Infrastructure</strong>
+                    <ul>
+                        <li>See: <a href="../tf_backend_state/README.md">Terraform Backend State README</a></li>
+                    </ul>
+                </li>
+                <li><strong>Deploy Backend Infrastructure</strong>
+                    <ul>
+                        <li>VPC, EKS cluster, VPC endpoints, IRSA, ECR</li>
+                        <li>See: <a href="../backend_infra/README.md">Backend Infrastructure README</a></li>
+                    </ul>
+                </li>
+                <li><strong>Deploy Application Infrastructure</strong>
+                    <ul>
+                        <li>OpenLDAP stack, 2FA application, ALB, Route53 records, ArgoCD</li>
+                        <li>See: <a href="../application/README.md">Application Infrastructure README</a></li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
     </section>
 
     <!-- Architecture -->
@@ -276,27 +299,34 @@
             <ul>
                 <li><strong>Account A (State Account)</strong>: Stores Terraform state files in S3
                     <ul>
-                        <li>GitHub Actions authenticates with Account A for backend operations</li>
+                        <li>S3 bucket with versioning and server-side encryption (AES256)</li>
+                        <li>S3 file-based locking (<code>use_lockfile = true</code>) for state concurrency control</li>
+                        <li>GitHub Actions authenticates with Account A via OIDC for backend operations</li>
                         <li>Provides isolation between state storage and resource deployment</li>
+                        <li>IAM-based access control with OIDC authentication (no access keys required)</li>
                     </ul>
                 </li>
                 <li><strong>Account B (Deployment Account)</strong>: Contains all infrastructure resources
                     <ul>
                         <li>EKS cluster, VPC, ALB, Route53, and other AWS resources</li>
+                        <li>Separate roles for production and development environments</li>
                         <li>Terraform provider assumes Account B role via cross-account role assumption</li>
                         <li>Provides isolation and separation of concerns</li>
                     </ul>
                 </li>
             </ul>
+            <p><strong>For detailed architecture documentation:</strong> <a href="../README.md#multi-account-architecture">Multi-Account Architecture</a> | <a href="../tf_backend_state/README.md">Terraform Backend State README</a></p>
         </div>
 
         <h3>How It Works</h3>
-        <ol>
-            <li><strong>GitHub Actions</strong> assumes Account A role (via OIDC) for Terraform backend access</li>
-            <li><strong>Terraform backend</strong> uses Account A credentials to read/write state files</li>
-            <li><strong>Terraform AWS provider</strong> assumes Account B role (via <code>assume_role</code>) for resource deployment</li>
-            <li><strong>Remote state</strong> data sources use Account A credentials to read state from Account A</li>
-        </ol>
+        <div class="card">
+            <ol>
+                <li><strong>GitHub Actions</strong> assumes Account A role (via OIDC) for Terraform backend access</li>
+                <li><strong>Terraform backend</strong> uses Account A credentials to read/write state files</li>
+                <li><strong>Terraform AWS provider</strong> assumes Account B role (via <code>assume_role</code>) for resource deployment</li>
+                <li><strong>Remote state</strong> data sources use Account A credentials to read state from Account A</li>
+            </ol>
+        </div>
 
         <h3>Project Structure</h3>
         <pre><code>ldap-2fa-on-k8s/
@@ -310,52 +340,63 @@
 └── .github/workflows/     # GitHub Actions workflows for CI/CD</code></pre>
 
         <h3>Backend Infrastructure Components</h3>
-        <ul>
-            <li><strong>VPC</strong> with public and private subnets across multiple availability zones</li>
-            <li><strong>EKS Cluster</strong> in Auto Mode with automatic node provisioning</li>
-            <li><strong>IRSA (IAM Roles for Service Accounts)</strong> for secure pod-to-AWS-service authentication</li>
-            <li><strong>VPC Endpoints</strong> for private AWS service access:
-                <ul>
-                    <li>SSM endpoints for secure node access</li>
-                    <li>STS endpoint for IRSA (IAM role assumption)</li>
-                    <li>SNS endpoint for SMS 2FA (optional)</li>
-                </ul>
-            </li>
-            <li><strong>ECR Repository</strong> for container image storage</li>
-        </ul>
+        <div class="card">
+            <ul>
+                <li><strong>VPC</strong> with public and private subnets across multiple availability zones</li>
+                <li><strong>EKS Cluster</strong> in Auto Mode with automatic node provisioning and CloudWatch logging</li>
+                <li><strong>IRSA (IAM Roles for Service Accounts)</strong> for secure pod-to-AWS-service authentication via OIDC</li>
+                <li><strong>VPC Endpoints</strong> for private AWS service access:
+                    <ul>
+                        <li>SSM endpoints for secure node access (Session Manager)</li>
+                        <li>STS endpoint for IRSA (IAM role assumption) - enabled by default</li>
+                        <li>SNS endpoint for SMS 2FA (optional, requires <code>enable_sns_endpoint = true</code>)</li>
+                    </ul>
+                </li>
+                <li><strong>ECR Repository</strong> for container image storage with lifecycle policies</li>
+                <li><strong>Terraform State Backend</strong> using S3 with file-based locking (v1.0.0, migrated from DynamoDB)</li>
+            </ul>
+        </div>
 
         <h3>Application Infrastructure Components</h3>
-        <ul>
-            <li><strong>OpenLDAP Stack HA</strong> deployed via Helm chart with:
-                <ul>
-                    <li>OpenLDAP StatefulSet (3 replicas for high availability)</li>
-                    <li>PhpLdapAdmin web interface</li>
-                    <li>LTB-passwd self-service password management</li>
-                </ul>
-            </li>
-            <li><strong>2FA Application</strong> with LDAP authentication integration:
-                <ul>
-                    <li>Python FastAPI backend with TOTP and SMS MFA support</li>
-                    <li>Static HTML/JS/CSS frontend with modern UI</li>
-                    <li>Single domain routing (<code>app.&lt;domain&gt;</code>) with path-based access</li>
-                </ul>
-            </li>
-            <li><strong>Application Load Balancer (ALB)</strong> via EKS Auto Mode:
-                <ul>
-                    <li>Internet-facing ALB with HTTPS/TLS termination</li>
-                    <li>Single ALB handles multiple Ingresses via host-based routing</li>
-                    <li>Automatic provisioning via IngressClass and IngressClassParams</li>
-                </ul>
-            </li>
-            <li><strong>ArgoCD</strong> (AWS EKS managed service) for GitOps deployments</li>
-            <li><strong>cert-manager</strong> for automatic TLS certificate management</li>
-            <li><strong>Network Policies</strong> for securing pod-to-pod communication</li>
-            <li><strong>SNS Integration</strong> for SMS-based 2FA verification (optional)</li>
-            <li><strong>Route53 DNS</strong> records for subdomains pointing to ALB</li>
-            <li><strong>Persistent Storage</strong> using EBS-backed StorageClass</li>
-        </ul>
-
-        <p><strong>For detailed architecture documentation:</strong> <a href="../backend_infra/README.md">Backend Infrastructure README</a> | <a href="../application/README.md">Application Infrastructure README</a></p>
+        <div class="card">
+            <ul>
+                <li><strong>OpenLDAP Stack HA</strong> deployed via Helm chart with:
+                    <ul>
+                        <li>OpenLDAP StatefulSet (3 replicas for high availability)</li>
+                        <li>PhpLdapAdmin web interface</li>
+                        <li>LTB-passwd self-service password management</li>
+                    </ul>
+                </li>
+                <li><strong>2FA Application</strong> with LDAP authentication integration:
+                    <ul>
+                        <li>Python FastAPI backend with TOTP and SMS MFA support</li>
+                        <li>Static HTML/JS/CSS frontend with modern UI</li>
+                        <li>Single domain routing (<code>app.&lt;domain&gt;</code>) with path-based access</li>
+                        <li>Self-service user registration with email/phone verification</li>
+                        <li>Admin dashboard for user management and group operations</li>
+                        <li>Interactive API documentation (Swagger UI and ReDoc)</li>
+                    </ul>
+                </li>
+                <li><strong>Application Load Balancer (ALB)</strong> via EKS Auto Mode:
+                    <ul>
+                        <li>Internet-facing ALB with HTTPS/TLS termination</li>
+                        <li>Single ALB handles multiple Ingresses via host-based routing</li>
+                        <li>Automatic provisioning via IngressClass and IngressClassParams</li>
+                        <li>Certificate ARN and group name configured at cluster level</li>
+                    </ul>
+                </li>
+                <li><strong>PostgreSQL</strong> (Bitnami Helm chart) for user registration and verification token storage</li>
+                <li><strong>Redis</strong> (Bitnami Helm chart) for SMS OTP code storage with TTL-based expiration</li>
+                <li><strong>AWS SES</strong> integration for email verification and notifications (IRSA-based)</li>
+                <li><strong>ArgoCD</strong> (AWS EKS managed service) for GitOps deployments with AWS Identity Center</li>
+                <li><strong>cert-manager</strong> for automatic TLS certificate management</li>
+                <li><strong>Network Policies</strong> for securing pod-to-pod communication with cross-namespace support</li>
+                <li><strong>SNS Integration</strong> for SMS-based 2FA verification (optional, requires VPC endpoint)</li>
+                <li><strong>Route53 DNS</strong> records for subdomains pointing to ALB</li>
+                <li><strong>Persistent Storage</strong> using EBS-backed StorageClass</li>
+            </ul>
+            <p><strong>For detailed architecture documentation:</strong> <a href="../backend_infra/README.md">Backend Infrastructure README</a> | <a href="../application/README.md">Application Infrastructure README</a></p>
+        </div>
     </section>
 
     <!-- Documentation Index -->
@@ -382,23 +423,27 @@
         <div class="doc-grid">
             <div class="doc-item">
                 <a href="../application/PRD-2FA-APP.md">2FA Application PRD</a>
-                <p>Product requirements for the 2FA application (API specs, frontend architecture)</p>
+                <p>Product requirements for the 2FA application (API specs, frontend architecture, Swagger UI)</p>
             </div>
             <div class="doc-item">
                 <a href="../application/PRD-SIGNUP-MAN.md">User Signup Management PRD</a>
-                <p>Self-service user registration with email/phone verification</p>
+                <p>Self-service user registration with email/phone verification and profile state management</p>
             </div>
             <div class="doc-item">
                 <a href="../application/PRD-ADMIN-FUNCS.md">Admin Functions PRD</a>
-                <p>Admin dashboard, group management, and approval workflows</p>
+                <p>Admin dashboard, group CRUD operations, user management, and approval workflows</p>
             </div>
             <div class="doc-item">
                 <a href="../application/PRD-SMS-MAN.md">SMS OTP Management PRD</a>
-                <p>Redis-based SMS OTP storage with TTL</p>
+                <p>Redis-based SMS OTP storage with TTL-based automatic expiration</p>
             </div>
             <div class="doc-item">
                 <a href="../application/OPENLDAP-README.md">OpenLDAP README</a>
                 <p>OpenLDAP configuration and TLS setup</p>
+            </div>
+            <div class="doc-item">
+                <a href="../application/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>
+                <p>Complete guide for managing secrets via GitHub and AWS Secrets Manager</p>
             </div>
         </div>
 
@@ -482,15 +527,19 @@
             </div>
             <div class="doc-item">
                 <a href="../CHANGELOG.md">Project Changelog</a>
-                <p>All project changes</p>
+                <p>All project changes including latest features and improvements</p>
             </div>
             <div class="doc-item">
                 <a href="../backend_infra/CHANGELOG.md">Backend Infrastructure Changelog</a>
-                <p>Backend infrastructure changes</p>
+                <p>Backend infrastructure changes (VPC, EKS, IRSA, VPC endpoints)</p>
             </div>
             <div class="doc-item">
                 <a href="../application/CHANGELOG.md">Application Infrastructure Changelog</a>
-                <p>Application infrastructure changes</p>
+                <p>Application infrastructure changes (2FA app, OpenLDAP, supporting services)</p>
+            </div>
+            <div class="doc-item">
+                <a href="../tf_backend_state/CHANGELOG.md">Terraform Backend State Changelog</a>
+                <p>S3 state management changes (v1.0.0 with file-based locking)</p>
             </div>
         </div>
     </section>
@@ -510,10 +559,11 @@
                 <li>TOTP setup with QR code or SMS verification</li>
                 <li>User profile management</li>
                 <li>Admin dashboard (for LDAP admin group members only)</li>
-                <li><strong>API Documentation:</strong>
+                <li><strong>API Documentation:</strong> (Always enabled in production)
                     <ul>
                         <li><a href="https://app.${domain_name}/api/docs" target="_blank">Swagger UI</a> - Interactive API documentation and testing interface</li>
                         <li><a href="https://app.${domain_name}/api/redoc" target="_blank">ReDoc</a> - Alternative API documentation interface</li>
+                        <li><code>/api/openapi.json</code> - OpenAPI schema endpoint</li>
                     </ul>
                 </li>
             </ul>
@@ -583,45 +633,48 @@
     <section id="security">
         <h2>Security Considerations</h2>
 
+        <h3>Key Security Features</h3>
         <div class="card">
-            <h3>Key Security Features</h3>
             <ul>
-                <li><strong>Secrets Management</strong>: Passwords managed via GitHub repository secrets and environment variables (never committed to git)</li>
-                <li><strong>IRSA</strong>: Pods assume IAM roles via OIDC—no long-lived AWS credentials</li>
+                <li><strong>Secrets Management</strong>: Passwords managed via GitHub repository secrets with automated retrieval (never committed to git)</li>
+                <li><strong>IRSA</strong>: Pods assume IAM roles via OIDC—no long-lived AWS credentials required</li>
                 <li><strong>VPC Endpoints</strong>: AWS service access (SSM, STS, SNS) goes through private endpoints—no public internet exposure</li>
                 <li><strong>TLS Termination</strong>: HTTPS at ALB using ACM certificates; internal TLS via cert-manager</li>
-                <li><strong>LDAP Security</strong>: ClusterIP only (not exposed externally), cross-namespace access on secure ports only</li>
-                <li><strong>Network Policies</strong>: Pod-to-pod communication restricted to encrypted ports (443, 636, 8443)</li>
-                <li><strong>Storage Encryption</strong>: EBS volumes encrypted by default</li>
+                <li><strong>LDAP Security</strong>: ClusterIP only (not exposed externally), cross-namespace access on secure ports only (443, 636, 8443)</li>
+                <li><strong>Network Policies</strong>: Pod-to-pod communication restricted to encrypted ports with cross-namespace support</li>
+                <li><strong>Storage Encryption</strong>: EBS volumes encrypted by default; S3 state files encrypted with AES256</li>
                 <li><strong>Network Isolation</strong>: EKS nodes run in private subnets</li>
-                <li><strong>Multi-Account Isolation</strong>: State storage separated from resource deployment</li>
+                <li><strong>Multi-Account Isolation</strong>: State storage (Account A) separated from resource deployment (Account B)</li>
+                <li><strong>State Locking</strong>: S3 file-based locking for Terraform state concurrency control</li>
+                <li><strong>OIDC Authentication</strong>: GitHub Actions uses OIDC for AWS authentication (no access keys)</li>
             </ul>
+            <p><strong>For detailed security documentation:</strong> <a href="../application/SECURITY-IMPROVEMENTS.md">Security Improvements</a></p>
         </div>
-
-        <p><strong>For detailed security documentation:</strong> <a href="../application/SECURITY-IMPROVEMENTS.md">Security Improvements</a></p>
     </section>
 
     <!-- Contributing & Support -->
     <section id="support">
         <h2>Contributing & Support</h2>
 
+        <h3>Troubleshooting</h3>
+        <div class="card">
+            <p>For troubleshooting guides, see:</p>
+            <ul>
+                <li><a href="../backend_infra/README.md#troubleshooting">Backend Infrastructure Troubleshooting</a></li>
+                <li><a href="../application/README.md#troubleshooting">Application Infrastructure Troubleshooting</a></li>
+            </ul>
+        </div>
+
+        <h3>Repository</h3>
+        <div class="card">
+            <p>GitHub Repository: <a href="https://github.com/talorlik/ldap-2fa-on-k8s" target="_blank">ldap-2fa-on-k8s</a></p>
+        </div>
+
         <h3>License</h3>
         <div class="card">
             <p>This project is licensed under the <strong>MIT License</strong>.</p>
             <p>See the <a href="../LICENSE">LICENSE</a> file for details.</p>
             <p>Copyright (c) 2025 Tal Orlik</p>
-        </div>
-
-        <h3>Troubleshooting</h3>
-        <p>For troubleshooting guides, see:</p>
-        <ul>
-            <li><a href="../backend_infra/README.md#troubleshooting">Backend Infrastructure Troubleshooting</a></li>
-            <li><a href="../application/README.md#troubleshooting">Application Infrastructure Troubleshooting</a></li>
-        </ul>
-
-        <h3>Repository</h3>
-        <div class="card">
-            <p>GitHub Repository: <a href="https://github.com/talorlik/ldap-2fa-on-k8s" target="_blank">ldap-2fa-on-k8s</a></p>
         </div>
     </section>
 

@@ -255,11 +255,19 @@ p {
     margin-top: 15px;
 }
 
+#architecture p:first-child {
+    margin-top: 0;
+}
+
 p:last-child {
     margin-bottom: 0;
 }
 
 .deployment-card p:last-child {
+    margin-top: 15px;
+}
+
+#security p:last-child {
     margin-top: 15px;
 }
 
@@ -330,9 +338,13 @@ table tbody tr:nth-child(even) {
     padding: 25px;
 }
 
-.deployment-card h3 {
+.deployment-card h4 {
     margin-top: 0;
     color: var(--primary-color);
+}
+
+.deployment-card p {
+    margin-top: 15px;
 }
 
 /* Documentation Grid */
