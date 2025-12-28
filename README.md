@@ -126,32 +126,6 @@ This architecture ensures:
 This project uses **AWS SSO via GitHub OIDC** instead of access keys for
 enhanced security.
 
-#### GitHub Secrets
-
-> [!NOTE]
->
-> For complete secrets configuration details, including AWS Secrets Manager setup for local scripts, see [Secrets Requirements](application/SECRETS_REQUIREMENTS.md).
-
-Configure these secrets in your GitHub repository:
-**Repository → Settings → Secrets and variables → Actions → Secrets**
-
-**Required Secrets:**
-
-- `AWS_STATE_ACCOUNT_ROLE_ARN` - IAM role ARN for state account (backend operations)
-- `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` - IAM role ARN for production deployments
-- `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` - IAM role ARN for development deployments
-- `TF_VAR_OPENLDAP_ADMIN_PASSWORD` - OpenLDAP admin password
-- `TF_VAR_OPENLDAP_CONFIG_PASSWORD` - OpenLDAP config password
-- `TF_VAR_POSTGRESQL_PASSWORD` - PostgreSQL database password
-- `TF_VAR_REDIS_PASSWORD` - Redis password (minimum 8 characters)
-- `GH_TOKEN` - GitHub Personal Access Token with `repo` scope
-
-> [!NOTE]
->
-> For SMS 2FA functionality, the SNS VPC endpoint must be enabled in
-> backend_infra (`enable_sns_endpoint = true`). See [Backend Infrastructure
-> README](backend_infra/README.md#vpc-endpoints-module) for details.
-
 #### AWS IAM Setup
 
 **Account A (State Account):**
@@ -297,30 +271,76 @@ on whether `prod` or `dev` environment is chosen
 > - For single-account setups, you can use the same role ARN for state and
 deployment, but multi-account is recommended for better security isolation
 
-## Terraform Deployment
+## Secrets Configuration
 
-The deployment follows a three-tier approach:
+**Required Secret Values:**
 
-### 1. Deploy Terraform Backend State Infrastructure
+- `AWS_STATE_ACCOUNT_ROLE_ARN` - IAM role ARN for state account (backend operations)
+- `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` - IAM role ARN for production deployments
+- `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` - IAM role ARN for development deployments
+- `TF_VAR_OPENLDAP_ADMIN_PASSWORD` - OpenLDAP admin password
+- `TF_VAR_OPENLDAP_CONFIG_PASSWORD` - OpenLDAP config password
+- `TF_VAR_POSTGRESQL_PASSWORD` - PostgreSQL database password
+- `TF_VAR_REDIS_PASSWORD` - Redis password (minimum 8 characters)
+- `GH_TOKEN` - GitHub Personal Access Token with `repo` scope
 
-Deploy the Terraform backend state infrastructure by running the
-`tfstate_infra_provisioning.yaml` workflow via the GitHub UI.
+> [!IMPORTANT]
+>
+> Read the complete secrets configuration details here [Secrets Requirements](application/SECRETS_REQUIREMENTS.md).
+
+### For GitHub Actions
+
+Configure these secrets in your GitHub repository:
+**Repository → Settings → Secrets and variables → Actions → Secrets**
+
+### For Local Development
+
+- Store secrets in AWS Secrets Manager (scripts automatically retrieve them)
+
+## Deployment Methods
+
+This project supports two deployment methods: **GitHub Actions** (recommended)
+and **Local Development** (for testing and development).
+Both methods follow the same three-tier deployment approach.
+
+### Deployment Overview
+
+The deployment follows a three-tier approach that must be executed in order:
+
+1. **Terraform Backend State Infrastructure** - S3 state storage (Account A)
+2. **Backend Infrastructure** - VPC, EKS, VPC endpoints, IRSA, ECR (Account B)
+3. **Application Infrastructure** - OpenLDAP, 2FA app, ALB, Route53, ArgoCD
+(Account B)
+
+> [!IMPORTANT]
+>
+> Before deploying, ensure:
+>
+> - Route53 hosted zone exists for your domain
+> - ACM certificate exists and is validated in the same region as your EKS cluster
+> - Secrets are configured (see [Secrets Configuration](#secrets-configuration))
+
+### Method 1: GitHub Actions (CI/CD)
+
+Deploy infrastructure using GitHub Actions workflows for automated, repeatable deployments.
+
+#### Step 1. Deploy Terraform Backend State Infrastructure
+
+Run the `tfstate_infra_provisioning.yaml` workflow via the GitHub UI.
 
 > [!NOTE]
 >
 > 📖 **For detailed setup instructions**, including required GitHub Secrets,
-> Variables, and configuration, see the [Terraform Backend State
-> README](tf_backend_state/README.md).
+> Variables, and configuration, see the [Terraform Backend State README](tf_backend_state/README.md).
 
 > [!IMPORTANT]
 >
-> Make sure to alter the values in the variables.tfvars according to your setup
-> and to commit and push them.
+> Make sure to alter the values in `variables.tfvars` according to your setup
+> and commit and push them.
 
-### 2. Deploy Backend Infrastructure
+#### Step 2. Deploy Backend Infrastructure
 
-Deploy the main backend infrastructure (VPC, EKS cluster, VPC endpoints, IRSA,
-ECR).
+Deploy the main backend infrastructure (VPC, EKS cluster, VPC endpoints, IRSA, ECR).
 
 This creates the foundational infrastructure including:
 
@@ -333,10 +353,16 @@ This creates the foundational infrastructure including:
 > [!NOTE]
 >
 > 📖 **For detailed information about the backend infrastructure**, including
-> architecture, components, and module documentation, see the [Backend
-> Infrastructure README](backend_infra/README.md).
+> architecture, components, and module documentation,
+> see the [Backend Infrastructure README](backend_infra/README.md).
 
-### 3. Deploy Application Infrastructure
+> [!IMPORTANT]
+>
+> For SMS 2FA functionality, the SNS VPC endpoint must be enabled in
+> backend_infra (`enable_sns_endpoint = true`). See [Backend Infrastructure
+> README](backend_infra/README.md#vpc-endpoints-module) for details.
+
+#### Step 3. Deploy Application Infrastructure
 
 Deploy the application infrastructure (OpenLDAP stack, 2FA application, ALB,
 Route53 records, and optionally ArgoCD).
@@ -357,162 +383,136 @@ This deploys:
 > OpenLDAP configuration, 2FA app setup, ALB configuration, and deployment steps,
 > see the [Application Infrastructure README](application/README.md).
 
-## Local Development Setup
+### Method 2: Local Development
 
-Before running Terraform locally, you need to generate the `backend.hcl` file
-and update `variables.tfvars` with your selected region and environment. The
-repository includes `tfstate-backend-values-template.hcl` as a template showing
-what values need to be configured.
+Deploy infrastructure locally using automated setup scripts that handle configuration,
+secrets retrieval, and Terraform operations.
 
-> [!IMPORTANT]
+#### Prerequisites
+
+- GitHub CLI (`gh`) installed and authenticated
+- AWS CLI configured with appropriate permissions
+- Secrets stored in AWS Secrets Manager (see [Secrets Requirements](application/SECRETS_REQUIREMENTS.md))
+
+#### Step 1. Deploy Terraform Backend State Infrastructure
+
+For local deployment of `tf_backend_state`, use the provided automation scripts:
+
+```bash
+cd tf_backend_state
+./set-state.sh  # For initial deployment
+# or
+./get-state.sh  # For subsequent operations
+```
+
+These scripts automatically handle:
+
+- Role assumption for Account A
+- Terraform operations
+- State file management
+- Repository variable updates
+
+The scripts retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` from AWS Secrets Manager and
+assume the role automatically.
+
+> [!NOTE]
 >
-> For Backend State Infrastructure**: For local deployment of
-> `tf_backend_state`, use the provided automation scripts (`set-state.sh` and
-> `get-state.sh`). These scripts automatically handle role assumption, Terraform
-> operations, state file management, and repository variable updates. The scripts
-> retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` from AWS Secrets Manager (v1.0.0) and
-> assume the role automatically. See [Terraform Backend State
-> README](tf_backend_state/README.md#option-2-local-execution) for detailed
-> instructions.
+> 📖 See [Terraform Backend State README](tf_backend_state/README.md#option-2-local-execution)
+> for detailed instructions.
 
-### Backend Infrastructure Setup
-
-#### Option 1: Using GitHub CLI (Recommended)
-
-If you have the GitHub CLI (`gh`) installed and authenticated:
+#### Step 2. Deploy Backend Infrastructure
 
 ```bash
 cd backend_infra
 ./setup-backend.sh
 ```
 
-This script will:
+The script will:
 
-- Prompt you to select an AWS region (us-east-1 or us-east-2)
-- Prompt you to select an environment (prod or dev)
+- Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
 - Retrieve repository variables from GitHub
-- Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state
-operations
-- Retrieve the appropriate deployment account role ARN from AWS Secrets Manager based
-on the selected environment:
-  - `prod` → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
-  - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
-- Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the
-actual values
-- Update `variables.tfvars` with the selected region, environment, and
-deployment account role ARN
+- Retrieve role ARNs from AWS Secrets Manager
+- Generate `backend.hcl` from template (automatically ignored by git)
+- Update `variables.tfvars` with selected region, environment, and deployment
+account role ARN
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
 > [!NOTE]
 >
-> The script retrieves role ARNs from AWS Secrets Manager. See [Secrets Requirements](application/SECRETS_REQUIREMENTS.md) for setup instructions.
+> The generated `backend.hcl` file is automatically ignored by git.
+> Only the placeholder template (`tfstate-backend-values-template.hcl`) is committed
+> to the repository.
 
-> [!NOTE]
+> [!IMPORTANT]
 >
-> The generated `backend.hcl` file is automatically ignored by git (see
-> `.gitignore`). Only the placeholder template
-> (`tfstate-backend-values-template.hcl`) is committed to the repository.
+> For SMS 2FA functionality, ensure `enable_sns_endpoint = true` is set in
+> `backend_infra/variables.tfvars` before deploying. See [Backend Infrastructure
+> README](backend_infra/README.md#vpc-endpoints-module) for details.
 
-### Application Infrastructure Setup
-
-#### Using GitHub CLI (Recommended)
-
-If you have the GitHub CLI (`gh`) installed and authenticated:
+#### Step 3. Deploy Application Infrastructure
 
 ```bash
 cd application
 ./setup-application.sh
 ```
 
-This script will:
+The script will:
 
-- Prompt you to select an AWS region (us-east-1 or us-east-2)
-- Prompt you to select an environment (prod or dev)
+- Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
 - Retrieve repository variables from GitHub
-- Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state
-operations
-- Retrieve the appropriate deployment account role ARN from AWS Secrets Manager based
-on the selected environment:
-  - `prod` → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
-  - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
-- Retrieve password secrets from AWS Secrets Manager and export them as environment variables
-- Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the
-actual values (if it doesn't exist)
-- Update `variables.tfvars` with the selected region, environment, and
-deployment account role ARN
+- Retrieve role ARNs and password secrets from AWS Secrets Manager
+- Export password secrets as environment variables
+- Generate `backend.hcl` from template (if it doesn't exist)
+- Update `variables.tfvars` with selected region, environment, and deployment
+account role ARN
 - Set Kubernetes environment variables using `set-k8s-env.sh`
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
-> [!NOTE]
->
-> The script automatically retrieves all required secrets from AWS Secrets Manager. See [Secrets Requirements](application/SECRETS_REQUIREMENTS.md) for setup instructions.
+#### Manual Terraform Commands (Alternative)
 
-> [!NOTE]
->
-> The generated `backend.hcl` file is automatically ignored by git (see
-> `.gitignore`). Only the placeholder template
-> (`tfstate-backend-values-template.hcl`) is committed to the repository.
+If you prefer to run Terraform commands manually instead of using the setup scripts:
 
-**Important:** Before deploying the application infrastructure, you must:
-
-1. **Configure secrets**: See [Secrets Requirements](application/SECRETS_REQUIREMENTS.md) for complete setup instructions.
-   - For local use: Scripts automatically retrieve passwords from AWS Secrets Manager
-   - For GitHub Actions: Secrets must be configured in repository settings
-
-2. Ensure Route53 hosted zone exists for your domain
-3. Ensure ACM certificate exists and is validated in the same region as your EKS
-cluster
-
-## Running Terraform
-
-### Backend Infrastructure
-
-After setting up the backend configuration:
+**Step 1. Terraform Backend State Infrastructure:**
 
 ```bash
-cd backend_infra
-
+cd tf_backend_state
 terraform init -backend-config="backend.hcl"
-
-# Workspace name is dynamic based on region and environment
-# For example: us-east-1-prod, us-east-2-dev, etc.
 terraform workspace select <region>-<environment> || terraform workspace new <region>-<environment>
-
 terraform plan -var-file="variables.tfvars" -out "terraform.tfplan"
-
-# To destroy all the resources that were created
-terraform plan -var-file="variables.tfvars" -destroy -out "terraform.tfplan"
-
 terraform apply -auto-approve "terraform.tfplan"
 ```
 
-### Application Infrastructure
+**Step 2. Backend Infrastructure:**
 
-After backend infrastructure is deployed, use the automated setup script:
+```bash
+cd backend_infra
+terraform init -backend-config="backend.hcl"
+terraform workspace select <region>-<environment> || terraform workspace new <region>-<environment>
+terraform plan -var-file="variables.tfvars" -out "terraform.tfplan"
+terraform apply -auto-approve "terraform.tfplan"
+```
+
+**Step 3. Application Infrastructure:**
 
 ```bash
 cd application
-./setup-application.sh
+terraform init -backend-config="backend.hcl"
+terraform workspace select <region>-<environment> || terraform workspace new <region>-<environment>
+terraform plan -var-file="variables.tfvars" -out "terraform.tfplan"
+terraform apply -auto-approve "terraform.tfplan"
 ```
-
-The script automatically handles:
-
-- Backend configuration setup
-- Retrieval of secrets from AWS Secrets Manager (for local use) or GitHub repository secrets (for GitHub Actions)
-- Terraform initialization
-- Workspace selection/creation
-- Kubernetes environment variable configuration
-- Terraform validation, planning, and application
 
 > [!NOTE]
 >
-> For secrets configuration, see [Secrets Requirements](application/SECRETS_REQUIREMENTS.md).
+> Workspace names are dynamic based on region and environment
+> (e.g., `us-east-1-prod`, `us-east-2-dev`).
 
 ## Architecture Overview
 
 ### Backend Infrastructure Components
 
-The backend infrastructure provides the foundational AWS resources for deploying containerized applications on Kubernetes. Key components include:
+The backend infrastructure provides the foundational AWS resources for deploying
+containerized applications on Kubernetes. Key components include:
 
 - **VPC** with public and private subnets across multiple availability zones
 - **EKS Cluster** in Auto Mode with automatic node provisioning
@@ -520,11 +520,13 @@ The backend infrastructure provides the foundational AWS resources for deploying
 - **VPC Endpoints** for private AWS service access (SSM, STS, SNS)
 - **ECR Repository** for container image storage
 
-For detailed architecture diagrams, component descriptions, and configuration options, see the [Backend Infrastructure README](backend_infra/README.md).
+For detailed architecture diagrams, component descriptions, and configuration options,
+see the [Backend Infrastructure README](backend_infra/README.md).
 
 ### Application Infrastructure Components
 
-The application infrastructure deploys the LDAP stack, 2FA application, and supporting services on the EKS cluster. Key components include:
+The application infrastructure deploys the LDAP stack, 2FA application, and supporting
+services on the EKS cluster. Key components include:
 
 - **OpenLDAP Stack HA** with PhpLdapAdmin and LTB-passwd UIs
 - **2FA Application** with self-service registration and admin dashboard
@@ -533,7 +535,8 @@ The application infrastructure deploys the LDAP stack, 2FA application, and supp
 - **GitOps**: ArgoCD (AWS managed service) for declarative deployments
 - **Security**: cert-manager for TLS, Network Policies for pod-to-pod security
 
-For detailed architecture diagrams, component descriptions, API specifications, and deployment instructions, see the [Application Infrastructure README](application/README.md).
+For detailed architecture diagrams, component descriptions, API specifications,
+and deployment instructions, see the [Application Infrastructure README](application/README.md).
 
 ## Key Features
 
@@ -569,10 +572,15 @@ The 2FA application supports two multi-factor authentication methods:
 | **TOTP** | Time-based One-Time Password using authenticator apps (Google Authenticator, Authy, etc.) | None (codes generated locally) |
 | **SMS** | Verification codes sent via AWS SNS to user's phone | SNS VPC endpoint, IRSA role |
 
-For detailed API specifications, frontend architecture, and implementation details, see:
-- [2FA Application PRD](application/PRD-2FA-APP.md) - Complete API and frontend specifications
-- [SMS OTP Management PRD](application/PRD-SMS-MAN.md) - Redis-based SMS OTP storage implementation
-- [SNS Module Documentation](application/modules/sns/README.md) - SMS 2FA infrastructure setup
+For detailed API specifications, frontend architecture, and implementation details,
+see:
+
+- [2FA Application PRD](application/PRD-2FA-APP.md) - Complete API and frontend
+specifications
+- [SMS OTP Management PRD](application/PRD-SMS-MAN.md) - Redis-based SMS OTP
+storage implementation
+- [SNS Module Documentation](application/modules/sns/README.md) - SMS 2FA
+infrastructure setup
 
 ## Accessing the Services
 
@@ -650,13 +658,18 @@ AWS service access
 ### Changelogs
 
 - [Project Changelog](CHANGELOG.md) - All project changes
-- [Backend Infrastructure Changelog](backend_infra/CHANGELOG.md) - VPC, EKS, VPC endpoints, and ECR changes
-- [Application Infrastructure Changelog](application/CHANGELOG.md) - OpenLDAP, 2FA app, and supporting services changes
-- [Terraform Backend State Changelog](tf_backend_state/CHANGELOG.md) - S3 state management changes
+- [Backend Infrastructure Changelog](backend_infra/CHANGELOG.md) - VPC, EKS,
+VPC endpoints, and ECR changes
+- [Application Infrastructure Changelog](application/CHANGELOG.md) - OpenLDAP,
+2FA app, and supporting services changes
+- [Terraform Backend State Changelog](tf_backend_state/CHANGELOG.md) - S3 state
+management changes
 
 ## Security Considerations
 
-- **Secrets Management**: Passwords managed via AWS Secrets Manager (for local scripts) and GitHub repository secrets (for GitHub Actions). See [Secrets Requirements](application/SECRETS_REQUIREMENTS.md) for details.
+- **Secrets Management**: See [Secrets Configuration](#secrets-configuration) for
+details on managing passwords via AWS Secrets Manager (local) and GitHub repository
+secrets (CI/CD)
 - **IRSA**: Pods assume IAM roles via OIDC—no long-lived AWS credentials
 - **VPC Endpoints**: AWS service access (SSM, STS, SNS) goes through private
 endpoints—no public internet exposure
