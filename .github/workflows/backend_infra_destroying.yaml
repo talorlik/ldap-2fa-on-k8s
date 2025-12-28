@@ -23,6 +23,7 @@ on:
 jobs:
   SetRegion:
     runs-on: ubuntu-latest
+    permissions: {}
     outputs:
       region_code: ${{ steps.set_region.outputs.region_code }}
     steps:
