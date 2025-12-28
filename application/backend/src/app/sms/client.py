@@ -121,8 +121,7 @@ class SMSClient:
 
             message_id = response.get("MessageId")
             logger.info(
-                f"SMS sent successfully to {phone_number[-4:].rjust(len(phone_number), '*')}, "
-                f"MessageId: {message_id}"
+                f"SMS sent successfully. MessageId: {message_id}"
             )
 
             return True, "Verification code sent", message_id
