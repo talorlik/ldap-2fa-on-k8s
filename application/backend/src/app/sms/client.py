@@ -5,6 +5,7 @@ import random
 import re
 import string
 from typing import Optional
+import hashlib
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -254,9 +255,8 @@ class SMSClient:
         """
         try:
             self.sns_client.opt_in_phone_number(phoneNumber=phone_number)
-            logger.info(
-                f"Phone number opted in: {phone_number[-4:].rjust(len(phone_number), '*')}"
-            )
+            phone_hash = hashlib.sha256(phone_number.encode("utf-8")).hexdigest()[:8]
+            logger.info(f"Phone number opted in (hash={phone_hash})")
             return True, "Phone number opted in successfully"
 
         except ClientError as e:
