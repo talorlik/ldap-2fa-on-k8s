@@ -104,23 +104,27 @@ ldap-2fa-on-k8s/
 │   │   ├── helm/               # Helm chart
 │   │   ├── Dockerfile
 │   │   └── nginx.conf
-│   ├── helm/                   # OpenLDAP Helm values
+│   ├── helm/                   # Helm values templates (OpenLDAP, Redis)
 │   └── modules/                # Terraform modules
 │       ├── alb/                # IngressClass and IngressClassParams
 │       ├── argocd/             # ArgoCD capability (AWS managed)
 │       ├── argocd_app/         # ArgoCD Application CRD
 │       ├── cert-manager/       # TLS certificate management
 │       ├── network-policies/   # Kubernetes NetworkPolicies
+│       ├── openldap/           # OpenLDAP Stack HA deployment module (NEW)
 │       ├── postgresql/         # PostgreSQL database (Bitnami Helm)
 │       ├── redis/              # Redis cache for SMS OTP
+│       ├── route53/            # Route53 hosted zone (commented out)
 │       ├── ses/                # SES for email verification
 │       └── sns/                # SNS for SMS 2FA
-└── .github/workflows/          # CI/CD workflows
-    ├── tfstate_infra_*.yaml
-    ├── backend_infra_*.yaml
-    ├── application_infra_*.yaml
-    ├── backend_build_push.yaml
-    └── frontend_build_push.yaml
+├── .github/workflows/          # CI/CD workflows
+│   ├── tfstate_infra_*.yaml
+│   ├── backend_infra_*.yaml
+│   ├── application_infra_*.yaml
+│   ├── backend_build_push.yaml
+│   └── frontend_build_push.yaml
+└── docs/                       # GitHub Pages documentation
+    └── index.html              # Project documentation website
 ```
 
 ## Common Commands
@@ -333,22 +337,26 @@ and Terraform execution
   - Domain name, ALB settings, storage class
   - ArgoCD configuration (enable_argocd, Identity Center settings)
   - SNS/SMS 2FA configuration (enable_sms_2fa)
-  - Passwords retrieved automatically by setup-application.sh from GitHub secrets
+  - Passwords retrieved automatically by setup-application.sh from AWS Secrets Manager
 - `application/setup-application.sh` - Unified setup script for application
-deployment (replaces previous setup-backend.sh and setup-backend-api.sh)
+deployment (retrieves secrets from AWS Secrets Manager)
 - `application/set-k8s-env.sh` - Kubernetes environment variable configuration
 - `application/helm/openldap-values.tpl.yaml` - Helm chart values template with
-osixia/openldap:1.5.0 image and Ingress annotations
+osixia/openldap:1.5.0 image (used by OpenLDAP module)
+- `application/helm/redis-values.tpl.yaml` - Redis Helm chart values template
 - `application/providers.tf` - Retrieves cluster name from backend_infra remote
 state (with fallback options)
 - `application/main.tf` - Creates:
   - StorageClass for persistent storage
-  - OpenLDAP Helm release
+  - OpenLDAP module invocation (Helm release, secrets, Ingress, Route53 records)
   - 2FA backend Helm release (if ArgoCD not used)
   - 2FA frontend Helm release (if ArgoCD not used)
-  - Route53 records for all subdomains
+  - Route53 records for 2FA app subdomain
   - ALB module (IngressClass and IngressClassParams)
   - Network policies
+  - PostgreSQL module (with Kubernetes secrets)
+  - Redis module (with Kubernetes secrets)
+  - SES module
   - SNS module (if SMS 2FA enabled)
   - ArgoCD capability (if enabled)
   - ArgoCD Applications (if enabled)
@@ -358,10 +366,16 @@ state (with fallback options)
   - `argocd_app/` - ArgoCD Application CRD for GitOps
   - `cert-manager/` - TLS certificate management (optional)
   - `network-policies/` - Kubernetes NetworkPolicies with cross-namespace access
-  - `postgresql/` - PostgreSQL database for user registrations
-  - `redis/` - Redis cache for SMS OTP storage
+  - `openldap/` - OpenLDAP Stack HA deployment with secrets, Ingress, and Route53
+  - `postgresql/` - PostgreSQL database with Kubernetes secrets
+  - `redis/` - Redis cache with Kubernetes secrets for SMS OTP storage
+  - `route53/` - Route53 hosted zone creation (commented out, uses data sources)
   - `ses/` - AWS SES for email verification and notifications
   - `sns/` - SNS resources for SMS 2FA with IRSA
+- `application/SECRETS_REQUIREMENTS.md` - Comprehensive secrets management documentation
+  - AWS Secrets Manager setup for local scripts
+  - GitHub Repository Secrets setup for workflows
+  - Secret naming conventions and case sensitivity
 - `application/backend/` - 2FA backend application:
   - `src/` - Python FastAPI source code
   - `helm/` - Helm chart with Ingress for `/api/*`
@@ -402,6 +416,9 @@ practices
 
 - **ALB**: `alb_dns_name`, `alb_ingress_class_name`,
 `alb_ingress_class_params_name`, `alb_scheme`, `alb_ip_address_type`
+- **OpenLDAP**: `openldap_namespace`, `openldap_secret_name`,
+`openldap_helm_release_name`, `openldap_alb_dns_name`,
+`phpldapadmin_route53_record`, `ltb_passwd_route53_record`
 - **Route53**: `route53_acm_cert_arn`, `route53_domain_name`, `route53_zone_id`,
 `route53_name_servers`
 - **Network Policies**: `network_policy_name`, `network_policy_namespace`,
@@ -451,16 +468,22 @@ practices
 
 ### Application Deployments
 
-**OpenLDAP Stack (Helm Chart):**
+**OpenLDAP Stack (via OpenLDAP Module):**
+- Deployed via `application/modules/openldap/` Terraform module
 - OpenLDAP chart version: 4.0.1 from `https://jp-gouin.github.io/helm-openldap`
 - Uses osixia/openldap:1.5.0 Docker image (chart's default bitnami image doesn't
 exist)
-- Three web UIs exposed via ALB: phpLdapAdmin, LTB-passwd, and 2FA app
-- LDAP service itself remains ClusterIP (internal only)
+- **Multi-master replication**: 3 replicas for high availability
+- **Kubernetes secrets**: Admin and config passwords stored in Kubernetes secrets,
+not plain-text in Helm values
+- **Web UIs**: phpLDAPadmin and ltb-passwd exposed via ALB with separate Ingress resources
+- **LDAP service**: ClusterIP (internal only) for secure cluster-internal access
+- **Route53 DNS**: Module creates A (alias) records pointing to ALB
 - Hostnames configurable via variables:
   - `phpldapadmin_host` (default: `phpldapadmin.talorlik.com`)
   - `ltb_passwd_host` (default: `passwd.talorlik.com`)
   - `twofa_app_host` (default: `app.talorlik.com`)
+- **TLS**: Auto-generated self-signed certificates from osixia/openldap image
 
 **2FA Application (Helm Charts or ArgoCD):**
 - Backend: Python FastAPI with comprehensive authentication features
@@ -468,12 +491,13 @@ exist)
   - Self-service user signup with email/phone verification
   - Admin dashboard for user and group management
   - User profile management
-  - PostgreSQL for user registration and profile data
-  - Redis for SMS OTP code caching
-  - AWS SES for email verification and notifications
-  - AWS SNS for SMS verification codes
+  - PostgreSQL for user registration and profile data (with Kubernetes secrets)
+  - Redis for SMS OTP code caching (with Kubernetes secrets)
+  - AWS SES for email verification and notifications (via IRSA)
+  - AWS SNS for SMS verification codes (via IRSA)
   - Exposed at `/api/*` path on `app.<domain>`
   - Uses IRSA for SNS, SES access (no hardcoded credentials)
+  - Swagger UI always enabled at `/api/docs` for interactive API documentation
   - Helm chart includes: Deployment, Service, Ingress, ConfigMap, Secret,
   ServiceAccount
 - Frontend: Static HTML/JS/CSS served by nginx
@@ -536,13 +560,18 @@ ALB module → Helm release → Route53 A records → Network policies)
   - `cert-manager/` - Optional cert-manager for self-signed TLS certificates
   - `network-policies/` - Kubernetes NetworkPolicies for secure communication
   with cross-namespace access
-  - `postgresql/` - PostgreSQL database for user registration and profile data
-  - `redis/` - Redis cache for SMS OTP code storage with TTL
+  - `openldap/` - **NEW**: OpenLDAP Stack HA deployment with multi-master replication,
+  Kubernetes secrets, phpLDAPadmin, ltb-passwd, Ingress, and Route53 DNS records
+  - `postgresql/` - PostgreSQL database with Kubernetes secrets for user data
+  - `redis/` - Redis cache with Kubernetes secrets for SMS OTP storage with TTL
+  - `route53/` - Route53 hosted zone creation (exists but commented out, uses data sources)
   - `ses/` - AWS SES for email verification and admin notifications
   - `sns/` - SNS resources for SMS-based 2FA with IRSA
 - Each module has its own README.md with detailed documentation
 - Route53 and ACM certificate resources use data sources to reference existing
 resources
+- All password-based services (OpenLDAP, PostgreSQL, Redis) now use Kubernetes secrets
+instead of plain-text values in Helm charts
 
 ## GitHub Actions Workflows
 
@@ -600,6 +629,73 @@ workflows)
 - `APPLICATION_PREFIX` - S3 prefix for application state files
 
 ## Recent Changes (December 2024 - January 2025)
+
+### Security Enhancements and Code Scanning Fixes (December 28, 2024)
+
+- **GitHub Workflow Security Improvements**:
+  - Added explicit permissions declarations to all workflow jobs
+  - Applied principle of least privilege with `contents: read` or empty `permissions: {}` where no permissions needed
+  - Fixes automated code scanning alerts for missing workflow permissions
+  - Affected workflows: all infrastructure provisioning/destroying and build/push workflows
+- **LDAP Injection Prevention**:
+  - Fixed LDAP query injection vulnerability in `application/backend/src/app/ldap/client.py`
+  - Added DN component escaping using `ldap3.utils.dn.escape_rdn()`
+  - Protects `user_exists()` and `get_user_attribute()` methods from malicious input
+  - User-controlled input now properly sanitized before LDAP queries
+- **Sensitive Information Logging Protection**:
+  - Fixed clear-text logging of phone numbers in `application/backend/src/app/sms/client.py`
+  - Replaced phone number logging with SHA-256 hash (first 8 characters)
+  - Applied to `opt_in_phone_number()` method
+  - Protects PII in application logs
+- **API Documentation Always Enabled**:
+  - Swagger UI (`/api/docs`) and ReDoc UI (`/api/redoc`) now always accessible in production
+  - Removed debug mode condition for API documentation endpoints
+  - OpenAPI schema available at `/api/openapi.json`
+  - Interactive documentation automatically updates when endpoints change
+- **Documentation Improvements**:
+  - Removed duplication by replacing detailed module descriptions with links to module READMEs
+  - Enhanced cross-references to module documentation (ALB, ArgoCD, cert-manager, Network Policies, PostgreSQL, Redis, SES, SNS, VPC Endpoints, ECR, OpenLDAP)
+  - Updated component descriptions to be more concise with links to detailed documentation
+  - Improved consistency across documentation files
+  - Main README restructured for better clarity and organization
+
+### Kubernetes Secrets Integration and OpenLDAP Module (December 27-28, 2024)
+
+- **OpenLDAP Module (`application/modules/openldap/`)**: NEW
+  - Modularized OpenLDAP Stack HA deployment with comprehensive configuration
+  - Includes phpLDAPadmin and ltb-passwd web interfaces
+  - Manages Kubernetes secrets for OpenLDAP passwords
+  - Handles Helm release deployment with templated values
+  - Creates Route53 DNS records for web UIs
+  - Creates ALB Ingress resources for public access
+  - See [OpenLDAP Module Documentation](application/modules/openldap/README.md) for details
+- **Kubernetes Secrets for All Components**:
+  - **OpenLDAP**: Kubernetes secret created by OpenLDAP module for admin/config passwords
+  - **PostgreSQL**: Uses Kubernetes secret for database password (created by module)
+  - **Redis**: Uses Kubernetes secret for authentication password (created by module)
+  - Eliminates plain-text passwords in Helm values
+  - All secrets created from Terraform variables (sourced from AWS Secrets Manager or GitHub Secrets)
+- **Secrets Management Consolidation**:
+  - Created comprehensive `SECRETS_REQUIREMENTS.md` documentation
+  - Documents both AWS Secrets Manager setup (for local scripts) and GitHub Repository Secrets (for workflows)
+  - Two AWS Secrets Manager secrets: `github-role` (IAM role ARNs) and `tf-vars` (passwords)
+  - Clear distinction between local and GitHub Actions secret retrieval methods
+  - Case sensitivity guidance for TF_VAR environment variables
+- **Updated Setup Scripts**:
+  - `backend_infra/setup-backend.sh`: Now retrieves secrets from AWS Secrets Manager
+  - `application/setup-application.sh`: Retrieves both role ARNs and passwords from AWS Secrets Manager
+  - Eliminated dependency on GitHub CLI for secret retrieval (GitHub CLI cannot read secret values)
+  - Scripts automatically export secrets as environment variables for Terraform
+  - Improved error handling and validation
+- **GitHub Workflows Updated**:
+  - Added missing `TF_VAR_POSTGRESQL_PASSWORD` and `TF_VAR_REDIS_PASSWORD` to workflows
+  - Workflows continue to use GitHub Repository Secrets (unchanged)
+  - Added permissions declarations to all jobs
+- **Module Improvements**:
+  - PostgreSQL module now creates Kubernetes secret with `postgresql-password` key
+  - Redis module creates Kubernetes secret with `redis-password` key
+  - OpenLDAP module creates Kubernetes secret with admin/config password keys
+  - Bitnami Helm charts configured to use `existingSecret` instead of plain-text values
 
 ### AWS Secrets Manager Integration for Local Scripts (December 27, 2024)
 
