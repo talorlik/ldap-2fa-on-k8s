@@ -4,13 +4,15 @@ prefix = "talo-tf"
 
 ##################### OpenLDAP ##########################
 # OpenLDAP passwords - MUST be set via environment variables:
-#   TF_VAR_OPENLDAP_ADMIN_PASSWORD
-#   TF_VAR_OPENLDAP_CONFIG_PASSWORD
+#   TF_VAR_openldap_admin_password (from GitHub Secret TF_VAR_OPENLDAP_ADMIN_PASSWORD)
+#   TF_VAR_openldap_config_password (from GitHub Secret TF_VAR_OPENLDAP_CONFIG_PASSWORD)
+# Note: TF_VAR environment variables are case-sensitive and must match variable names in variables.tf
 # Or via .env file (see README for details)
 # Do NOT set passwords here in this file
 
 # OpenLDAP domain (e.g., ldap.talorlik.internal)
 openldap_ldap_domain = "ldap.talorlik.internal"
+openldap_secret_name = "openldap-secret"
 
 ##################### Storage ##########################
 # StorageClass configuration for OpenLDAP PVC
@@ -59,16 +61,35 @@ alb_ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 # Otherwise, provide cluster name directly:
 # cluster_name = "talo-tf-us-east-1-kc-prod"
 
-##################### SMS 2FA (SNS) ##########################
+##################### PostgreSQL User Storage ##########################
+enable_postgresql            = true
+postgresql_namespace         = "ldap-2fa"
+postgresql_database_name     = "ldap2fa"
+postgresql_database_username = "ldap2fa"
+postgresql_storage_size      = "8Gi"
+postgresql_secret_name       = "postgresql-secret"
+
+##################### Redis SMS OTP Storage ##########################
+enable_redis       = true
+redis_namespace    = "redis"
+redis_storage_size = "1Gi"
+redis_secret_name  = "redis-secret"
+
+##################### SES Email Verification ##########################
+enable_email_verification = true
+ses_sender_email          = "noreply@talorlik.com"
+ses_sender_domain         = "talorlik.com"
+
+##################### SNS SMS 2FA ##########################
 # Enable SMS-based 2FA using AWS SNS
 enable_sms_2fa = true
 
-# SNS configuration (uses defaults if not specified)
-sns_topic_name      = "2fa-sms"
-sns_display_name    = "TALO LDAP 2FA Verification"
-sns_iam_role_name   = "2fa-sns-publisher"
-sms_sender_id       = "2FA"
-sms_type            = "Transactional"
+# SNS configuration
+sns_topic_name          = "2fa-sms"
+sns_display_name        = "TALO LDAP 2FA Verification"
+sns_iam_role_name       = "2fa-sns-publisher"
+sms_sender_id           = "2FA"
+sms_type                = "Transactional"
 sms_monthly_spend_limit = 10
 
 ##################### Route53 ##########################

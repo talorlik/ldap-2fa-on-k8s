@@ -45,6 +45,12 @@ variable "openldap_config_password" {
   # No default - must be provided via environment variable or .env file
 }
 
+variable "openldap_secret_name" {
+  description = "Name of the Kubernetes secret for OpenLDAP passwords"
+  type        = string
+  default     = "openldap-secret"
+}
+
 ##################### Storage ##########################
 
 variable "storage_class_name" {
@@ -221,9 +227,15 @@ variable "postgresql_database_username" {
 }
 
 variable "postgresql_database_password" {
-  description = "PostgreSQL database password. MUST be set via TF_VAR_postgresql_database_password environment variable or GitHub Secret."
+  description = "PostgreSQL database password. MUST be set via TF_VAR_POSTGRESQL_PASSWORD environment variable or GitHub Secret."
   type        = string
   sensitive   = true
+}
+
+variable "postgresql_secret_name" {
+  description = "Name of the Kubernetes secret for PostgreSQL password"
+  type        = string
+  default     = "postgresql-secret"
 }
 
 variable "postgresql_storage_size" {
@@ -321,15 +333,21 @@ variable "enable_redis" {
 }
 
 variable "redis_password" {
-  description = "Redis authentication password (from GitHub Secrets via TF_VAR_redis_password)"
+  description = "Redis authentication password (from GitHub Secrets via TF_VAR_REDIS_PASSWORD)"
   type        = string
   sensitive   = true
   default     = ""
 
   validation {
-    condition     = var.enable_redis == false || length(var.redis_password) >= 16
-    error_message = "Redis password must be at least 16 characters when Redis is enabled."
+    condition     = var.enable_redis == false || length(var.redis_password) >= 8
+    error_message = "Redis password must be at least 8 characters when Redis is enabled."
   }
+}
+
+variable "redis_secret_name" {
+  description = "Name of the Kubernetes secret for Redis password"
+  type        = string
+  default     = "redis-secret"
 }
 
 variable "redis_namespace" {

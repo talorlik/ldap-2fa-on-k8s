@@ -21,38 +21,38 @@ The backend infrastructure provisions:
 ## Architecture
 
 ```ascii
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                    VPC                                       │
-│                                                                              │
-│  ┌──────────────────┐                    ┌──────────────────┐              │
-│  │ Public Subnet 1   │                    │ Public Subnet 2   │              │
-│  │                   │                    │                   │              │
-│  └────────┬─────────┘                    └────────┬─────────┘              │
-│           │                                        │                         │
-│           └──────────────── IGW ──────────────────┘                         │
-│                                                                              │
-│  ┌──────────────────┐                    ┌──────────────────┐              │
-│  │ Private Subnet 1  │                    │ Private Subnet 2  │              │
-│  │                   │                    │                   │              │
-│  │  ┌────────────┐  │                    │  ┌────────────┐  │              │
-│  │  │ EKS Nodes  │  │                    │  │ EKS Nodes  │  │              │
-│  │  │            │  │                    │  │            │  │              │
-│  │  │ ┌────────┐ │  │                    │  │            │  │              │
-│  │  │ │ Pods   │ │  │                    │  │            │  │              │
-│  │  │ │ (IRSA) │ │  │                    │  │            │  │              │
-│  │  │ └────────┘ │  │                    │  │            │  │              │
-│  │  └────────────┘  │                    │  └────────────┘  │              │
-│  │                   │                    │                   │              │
-│  │  ┌────────────┐  │                    │  ┌────────────┐  │              │
-│  │  │ VPC        │  │                    │  │ VPC        │  │              │
-│  │  │ Endpoints  │  │                    │  │ Endpoints  │  │              │
-│  │  │ SSM/STS/   │  │                    │  │ SSM/STS/   │  │              │
-│  │  │ SNS        │  │                    │  │ SNS        │  │              │
-│  │  └────────────┘  │                    │  └────────────┘  │              │
-│  └────────┬─────────┘                    └────────┬─────────┘              │
-│           │                                        │                         │
-│           └───────────── NAT Gateway ─────────────┘                         │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                              VPC                               │
+│                                                                │
+│  ┌──────────────────┐                    ┌──────────────────┐  │
+│  │ Public Subnet 1  │                    │ Public Subnet 2  │  │
+│  │                  │                    │                  │  │
+│  └────────┬─────────┘                    └────────┬─────────┘  │
+│           │                                       │            │
+│           └──────────────── IGW ──────────────────┘            │
+│                                                                │
+│  ┌──────────────────┐                    ┌──────────────────┐  │
+│  │ Private Subnet 1 │                    │ Private Subnet 2 │  │
+│  │                  │                    │                  │  │
+│  │  ┌────────────┐  │                    │  ┌────────────┐  │  │
+│  │  │ EKS Nodes  │  │                    │  │ EKS Nodes  │  │  │
+│  │  │            │  │                    │  │            │  │  │
+│  │  │ ┌────────┐ │  │                    │  │            │  │  │
+│  │  │ │ Pods   │ │  │                    │  │            │  │  │
+│  │  │ │ (IRSA) │ │  │                    │  │            │  │  │
+│  │  │ └────────┘ │  │                    │  │            │  │  │
+│  │  └────────────┘  │                    │  └────────────┘  │  │
+│  │                  │                    │                  │  │
+│  │  ┌────────────┐  │                    │  ┌────────────┐  │  │
+│  │  │ VPC        │  │                    │  │ VPC        │  │  │
+│  │  │ Endpoints  │  │                    │  │ Endpoints  │  │  │
+│  │  │ SSM/STS/   │  │                    │  │ SSM/STS/   │  │  │
+│  │  │ SNS        │  │                    │  │ SNS        │  │  │
+│  │  └────────────┘  │                    │  └────────────┘  │  │
+│  └────────┬─────────┘                    └────────┬─────────┘  │
+│           │                                       │            │
+│           └───────────── NAT Gateway ─────────────┘            │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ## Components
@@ -123,72 +123,51 @@ Deploys an Amazon EKS cluster in Auto Mode:
 
 ### 3. VPC Endpoints Module
 
-See [modules/endpoints/README.md](./modules/endpoints/README.md) for details.
+The VPC Endpoints module creates PrivateLink endpoints for secure access to
+AWS services from EKS nodes without requiring internet gateway access.
+It creates SSM endpoints (always enabled), STS endpoint (optional, default: enabled)
+for IRSA, and SNS endpoint (optional, default: disabled) for SMS 2FA.
 
-Creates PrivateLink endpoints for secure access to AWS services:
-
-#### SSM Endpoints (Always Enabled)
-
-- **SSM**: Core Systems Manager service endpoint
-- **SSM Messages**: Enables Session Manager message passing
-- **EC2 Messages**: Enables EC2 instance messaging for SSM agent communication
-
-#### STS Endpoint (Optional, Default: Enabled)
-
-- **STS**: Required for IRSA (IAM Roles for Service Accounts)
-  - Allows pods to call `sts:AssumeRoleWithWebIdentity`
-  - Controlled by `enable_sts_endpoint` variable
-  - Enables secure internal communication for IAM role assumption
-
-#### SNS Endpoint (Optional, Default: Disabled)
-
-- **SNS**: Required for SMS 2FA functionality
-  - Allows pods to send SMS verification codes via SNS
-  - Controlled by `enable_sns_endpoint` variable
-  - Enables secure internal communication without internet access
-
-#### Security Configuration
-
-- Dedicated security group for VPC endpoints
-- Ingress allows HTTPS (port 443) from EKS node security group
-- Ingress allows HTTPS (port 443) from VPC CIDR (for pods with different
-security groups)
-- Private DNS enabled for seamless service discovery
+> [!NOTE]
+>
+> For detailed VPC endpoints configuration, security setup, IRSA integration,
+> cost considerations, and usage examples, see the [VPC Endpoints Module Documentation](modules/endpoints/README.md).
 
 ### 4. ECR Module
 
-See [modules/ecr/README.md](./modules/ecr/README.md) for details.
+The ECR module creates a private Docker registry for application images with
+configurable lifecycle policies and image tag mutability settings.
 
-Creates container registry:
-
-- Private Docker registry for application images
-- Configurable lifecycle policies
-- Image tag mutability settings
+> [!NOTE]
+>
+> For detailed ECR configuration, lifecycle policies, and usage examples,
+> see the [ECR Module Documentation](modules/ecr/README.md).
 
 ## Module Structure
 
 ```bash
 backend_infra/
-├── main.tf             # Main infrastructure configuration
-├── variables.tf        # Variable definitions
-├── variables.tfvars    # Variable values (customize for your environment)
-├── outputs.tf          # Output values
-├── providers.tf        # Provider configuration (AWS, Kubernetes)
-├── backend.hcl         # Terraform backend configuration (generated)
-├── setup-backend.sh    # Backend setup script (GitHub CLI)
-├── tfstate-backend-values-template.hcl # Backend config template
+├── main.tf                        # Main infrastructure configuration
+├── variables.tf                   # Variable definitions
+├── variables.tfvars               # Variable values (customize for your environment)
+├── outputs.tf                     # Output values
+├── providers.tf                   # Provider configuration (AWS, Kubernetes)
+├── backend.hcl                    # Terraform backend configuration (generated)
+├── tfstate-backend-values-template.hcl  # Backend config template
+├── CHANGELOG.md                   # Change log for this module
+├── setup-backend.sh               # Backend setup script (GitHub CLI)
 └── modules/
-    ├── ebs/            # EBS storage resources (currently commented out in main.tf)
+    ├── ebs/                       # EBS storage resources (currently commented out in main.tf)
     │   ├── main.tf
     │   ├── variables.tf
     │   ├── outputs.tf
     │   └── README.md
-    ├── ecr/            # ECR repository
+    ├── ecr/                       # ECR repository
     │   ├── main.tf
     │   ├── variables.tf
     │   ├── outputs.tf
     │   └── README.md
-    └── endpoints/      # VPC endpoints (SSM, STS, SNS)
+    └── endpoints/                 # VPC endpoints (SSM, STS, SNS)
         ├── main.tf
         ├── variables.tf
         ├── outputs.tf
@@ -225,7 +204,7 @@ configured in repository secrets
 ### Required Variables
 
 | Variable | Description | Type |
-|----------|-------------|------|
+| ---------- | ------------- | ------ |
 | `env` | Deployment environment (prod, dev) | `string` |
 | `region` | AWS region (us-east-1, us-east-2) | `string` |
 | `prefix` | Prefix for all resource names | `string` |
@@ -235,7 +214,7 @@ configured in repository secrets
 ### Optional Variables
 
 | Variable | Description | Default |
-|----------|-------------|---------|
+| ---------- | ------------- | --------- |
 | `deployment_account_role_arn` | ARN of IAM role in Account B to assume for resource deployment | `null` |
 | `enable_sts_endpoint` | Whether to create STS VPC endpoint (required for IRSA) | `true` |
 | `enable_sns_endpoint` | Whether to create SNS VPC endpoint (required for SMS 2FA) | `false` |
@@ -257,7 +236,7 @@ The infrastructure provides outputs for:
 ### AWS Account & Region
 
 | Output | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `aws_account` | AWS Account ID |
 | `region` | AWS region |
 | `env` | Deployment environment |
@@ -266,7 +245,7 @@ The infrastructure provides outputs for:
 ### VPC
 
 | Output | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `vpc_id` | VPC ID |
 | `default_security_group_id` | Default VPC security group ID |
 | `public_subnets` | List of public subnet IDs |
@@ -276,7 +255,7 @@ The infrastructure provides outputs for:
 ### EKS Cluster
 
 | Output | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `cluster_name` | EKS cluster name (format: `${prefix}-${region}-${cluster_name}-${env}`) |
 | `cluster_endpoint` | EKS Cluster API endpoint |
 | `cluster_arn` | EKS Cluster ARN |
@@ -286,7 +265,7 @@ The infrastructure provides outputs for:
 ### VPC Endpoints
 
 | Output | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `vpc_endpoint_sg_id` | Security group ID for VPC endpoints |
 | `vpc_endpoint_ssm_id` | VPC endpoint ID for SSM |
 | `vpc_endpoint_ssmmessages_id` | VPC endpoint ID for SSM Messages |
@@ -298,7 +277,7 @@ The infrastructure provides outputs for:
 ### ECR
 
 | Output | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `ecr_name` | ECR repository name |
 | `ecr_arn` | ECR repository ARN |
 | `ecr_url` | ECR repository URL for Docker image push/pull operations |

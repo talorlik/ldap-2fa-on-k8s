@@ -125,11 +125,10 @@
                             <li><code>AWS_STATE_ACCOUNT_ROLE_ARN</code> - IAM role ARN for state account</li>
                             <li><code>AWS_PRODUCTION_ACCOUNT_ROLE_ARN</code> - IAM role ARN for production account</li>
                             <li><code>AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN</code> - IAM role ARN for development account</li>
-                            <li><code>TF_VAR_OPENLDAP_ADMIN_PASSWORD</code> - OpenLDAP admin password</li>
-                            <li><code>TF_VAR_OPENLDAP_CONFIG_PASSWORD</code> - OpenLDAP config password</li>
-                            <li><code>TF_VAR_REDIS_PASSWORD</code> - Redis password (minimum 16 characters)</li>
-                            <li><code>TF_VAR_POSTGRES_PASSWORD</code> - PostgreSQL database password</li>
-                            <li><code>TF_VAR_SES_SENDER_EMAIL</code> - Verified SES sender email address</li>
+                            <li><code>TF_VAR_OPENLDAP_ADMIN_PASSWORD</code> - OpenLDAP admin password (exported as <code>TF_VAR_openldap_admin_password</code>)</li>
+                            <li><code>TF_VAR_OPENLDAP_CONFIG_PASSWORD</code> - OpenLDAP config password (exported as <code>TF_VAR_openldap_config_password</code>)</li>
+                            <li><code>TF_VAR_REDIS_PASSWORD</code> - Redis password (minimum 8 characters, exported as <code>TF_VAR_redis_password</code>)</li>
+                            <li><code>TF_VAR_POSTGRES_PASSWORD</code> - PostgreSQL database password (exported as <code>TF_VAR_postgresql_database_password</code>)</li>
                             <li><code>GH_TOKEN</code> - GitHub Personal Access Token with <code>repo</code> scope</li>
                         </ul>
                     </li>
@@ -163,8 +162,10 @@
                     <li>Ensure GitHub Secrets and Variables are configured (see Prerequisites section)</li>
                     <li>For local use, export OpenLDAP passwords as environment variables (scripts can also retrieve from GitHub Secrets):
                         <ul>
-                            <li><code>export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"</code></li>
-                            <li><code>export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"</code></li>
+                            <li><code>export TF_VAR_openldap_admin_password="YourSecurePassword123!"</code> (Note: lowercase to match variables.tf)</li>
+                            <li><code>export TF_VAR_openldap_config_password="YourSecurePassword123!"</code> (Note: lowercase to match variables.tf)</li>
+                            <li><code>export TF_VAR_postgresql_database_password="YourSecurePostgresPassword123!"</code> (Note: lowercase to match variables.tf)</li>
+                            <li><code>export TF_VAR_redis_password="YourSecureRedisPassword123!"</code> (Note: lowercase to match variables.tf)</li>
                         </ul>
                     </li>
                     <li>Run setup scripts:

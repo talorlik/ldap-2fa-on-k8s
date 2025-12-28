@@ -20,7 +20,7 @@ _sms_codes: dict[str, dict] = {}
 This approach has several critical limitations:
 
 | Problem | Impact |
-|---------|--------|
+| --------- | -------- |
 | **Data loss on restart** | All pending OTP codes are lost when pods restart or scale |
 | **No automatic cleanup** | Expired codes only cleaned when accessed, leading to memory growth |
 | **Not horizontally scalable** | Each backend replica has its own in-memory store |
@@ -40,7 +40,7 @@ Deploy Redis as a centralized, TTL-aware cache for SMS OTP codes, enabling:
 ### Goals
 
 | ID | Goal |
-|----|------|
+| ---- | ------ |
 | G-01 | Deploy Bitnami Redis Helm chart via Terraform |
 | G-02 | Replace in-memory `_sms_codes` dict with Redis client |
 | G-03 | Leverage Redis TTL for automatic code expiration |
@@ -52,7 +52,7 @@ Deploy Redis as a centralized, TTL-aware cache for SMS OTP codes, enabling:
 ### Non-Goals
 
 | ID | Non-Goal |
-|----|----------|
+| ---- | ---------- |
 | NG-01 | High availability Redis (Sentinel/Cluster) - standalone is sufficient for OTP cache |
 | NG-02 | Migrating TOTP secrets to Redis - they remain in-memory (stateless by design) |
 | NG-03 | Redis as a general-purpose cache - scoped to SMS OTP only |
@@ -63,42 +63,42 @@ Deploy Redis as a centralized, TTL-aware cache for SMS OTP codes, enabling:
 ### Architecture Diagram
 
 ```text
-                    ┌──────────────────────────────────────────────────────────────┐
-                    │                    Kubernetes Cluster                         │
-                    │                                                               │
-                    │  ┌─────────────────────────────────────────────────────────┐ │
-                    │  │              twofa-backend namespace                     │ │
-                    │  │                                                          │ │
-                    │  │   ┌──────────────┐         ┌──────────────┐             │ │
-                    │  │   │  Backend     │         │  Backend     │             │ │
-                    │  │   │  Pod 1       │         │  Pod 2       │             │ │
-                    │  │   │              │         │              │             │ │
-                    │  │   │ redis-py     │         │ redis-py     │             │ │
-                    │  │   └──────┬───────┘         └──────┬───────┘             │ │
-                    │  │          │                        │                      │ │
-                    │  └──────────┼────────────────────────┼──────────────────────┘ │
-                    │             │                        │                        │
-                    │             │    SETEX/GET/DEL       │                        │
-                    │             │    (with TTL)          │                        │
-                    │             └───────────┬────────────┘                        │
-                    │                         │                                     │
-                    │                         ▼                                     │
-                    │  ┌─────────────────────────────────────────────────────────┐ │
-                    │  │                   redis namespace                        │ │
-                    │  │                                                          │ │
-                    │  │   ┌──────────────────────────────────────────────────┐  │ │
-                    │  │   │              Redis Standalone                     │  │ │
-                    │  │   │                                                   │  │ │
-                    │  │   │  ┌─────────────────┐    ┌─────────────────────┐  │  │ │
-                    │  │   │  │  Redis Master   │───▶│  PersistentVolume   │  │  │ │
-                    │  │   │  │  (Port 6379)    │    │  (RDB Snapshots)    │  │  │ │
-                    │  │   │  └─────────────────┘    └─────────────────────┘  │  │ │
-                    │  │   │                                                   │  │ │
-                    │  │   └──────────────────────────────────────────────────┘  │ │
-                    │  │                                                          │ │
-                    │  └──────────────────────────────────────────────────────────┘ │
-                    │                                                               │
-                    └───────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│                    Kubernetes Cluster                         │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │              twofa-backend namespace                    │  │
+│  │                                                         │  │
+│  │   ┌──────────────┐         ┌──────────────┐             │  │
+│  │   │  Backend     │         │  Backend     │             │  │
+│  │   │  Pod 1       │         │  Pod 2       │             │  │
+│  │   │              │         │              │             │  │
+│  │   │ redis-py     │         │ redis-py     │             │  │
+│  │   └──────┬───────┘         └──────┬───────┘             │  │
+│  │          │                        │                     │  │
+│  └──────────┼────────────────────────┼─────────────────────┘  │
+│             │                        │                        │
+│             │    SETEX/GET/DEL       │                        │
+│             │    (with TTL)          │                        │
+│             └───────────┬────────────┘                        │
+│                         │                                     │
+│                         ▼                                     │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │                   redis namespace                       │  │
+│  │                                                         │  │
+│  │   ┌──────────────────────────────────────────────────┐  │  │
+│  │   │              Redis Standalone                    │  │  │
+│  │   │                                                  │  │  │
+│  │   │  ┌─────────────────┐    ┌─────────────────────┐  │  │  │
+│  │   │  │  Redis Master   │───▶│  PersistentVolume   │  │  │  │
+│  │   │  │  (Port 6379)    │    │  (RDB Snapshots)    │  │  │  │
+│  │   │  └─────────────────┘    └─────────────────────┘  │  │  │
+│  │   │                                                  │  │  │
+│  │   └──────────────────────────────────────────────────┘  │  │
+│  │                                                         │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ### Data Flow
@@ -120,7 +120,7 @@ Deploy Redis as a centralized, TTL-aware cache for SMS OTP codes, enabling:
 ### Redis Key Schema
 
 | Key Pattern | Value | TTL | Description |
-|-------------|-------|-----|-------------|
+| ------------- | ------- | ----- | ------------- |
 | `sms_otp:{username}` | JSON: `{"code": "123456", "phone_number": "+1..."}` | 300s (configurable) | SMS verification code |
 
 ## Redis Deployment Specifications
@@ -128,7 +128,7 @@ Deploy Redis as a centralized, TTL-aware cache for SMS OTP codes, enabling:
 ### Helm Chart Configuration
 
 | Setting | Value | Rationale |
-|---------|-------|-----------|
+| --------- | ------- | ----------- |
 | **Chart** | `bitnami/redis` | Official, well-maintained, production-ready |
 | **Version** | Latest stable (19.x+) | Security patches, bug fixes |
 | **Architecture** | Standalone | Sufficient for OTP cache, simpler operations |
@@ -137,14 +137,14 @@ Deploy Redis as a centralized, TTL-aware cache for SMS OTP codes, enabling:
 ### Resource Requirements
 
 | Resource | Request | Limit | Rationale |
-|----------|---------|-------|-----------|
+| ---------- | --------- | ------- | ----------- |
 | CPU | 100m | 500m | OTP operations are lightweight |
 | Memory | 128Mi | 256Mi | Small dataset (active OTPs only) |
 
 ### Persistence Configuration
 
 | Setting | Value | Rationale |
-|---------|-------|-----------|
+| --------- | ------- | ----------- |
 | **Enabled** | `true` | Survive pod restarts |
 | **Storage Class** | Existing EBS CSI class | Consistent with cluster storage |
 | **Size** | 1Gi | OTP data is small |
@@ -154,7 +154,7 @@ Deploy Redis as a centralized, TTL-aware cache for SMS OTP codes, enabling:
 ### Network Configuration
 
 | Setting | Value |
-|---------|-------|
+| --------- | ------- |
 | **Service Type** | ClusterIP |
 | **Port** | 6379 |
 | **Service Name** | `redis-master.redis.svc.cluster.local` |
@@ -164,14 +164,14 @@ Deploy Redis as a centralized, TTL-aware cache for SMS OTP codes, enabling:
 ### New Files
 
 | File | Purpose |
-|------|---------|
+| ------ | --------- |
 | `app/redis/__init__.py` | Redis module initialization |
 | `app/redis/client.py` | Redis client wrapper for OTP operations |
 
 ### Modified Files
 
 | File | Changes |
-|------|---------|
+| ------ | --------- |
 | [`app/config.py`](backend/src/app/config.py) | Add Redis configuration settings |
 | [`app/api/routes.py`](backend/src/app/api/routes.py) | Replace `_sms_codes` dict with Redis calls |
 | [`requirements.txt`](backend/src/app/requirements.txt) | Add `redis` package |
@@ -225,7 +225,7 @@ class RedisOTPClient:
 The implementation must support graceful fallback:
 
 | Scenario | Behavior |
-|----------|----------|
+| ---------- | ---------- |
 | `REDIS_ENABLED=true` | Use Redis for OTP storage |
 | `REDIS_ENABLED=false` | Fall back to in-memory storage |
 | Redis connection failure | Log error, return 503 Service Unavailable |
@@ -252,7 +252,7 @@ application/
 #### Resources Created
 
 | Resource | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `kubernetes_namespace` | Dedicated `redis` namespace |
 | `kubernetes_secret` | Redis password secret (from GitHub Secrets) |
 | `helm_release` | Bitnami Redis deployment |
@@ -264,7 +264,7 @@ application/
 #### Module Inputs
 
 | Variable | Type | Default | Description |
-|----------|------|---------|-------------|
+| ---------- | ------ | --------- | ------------- |
 | `enable_redis` | bool | `false` | Enable Redis deployment |
 | `namespace` | string | `"redis"` | Kubernetes namespace |
 | `redis_version` | string | `"19.6.4"` | Bitnami Redis chart version |
@@ -276,7 +276,7 @@ application/
 #### Module Outputs
 
 | Output | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `redis_host` | Redis service hostname |
 | `redis_port` | Redis service port |
 | `redis_password_secret_name` | Name of K8s secret containing password |
@@ -340,10 +340,10 @@ spec:
 ## Security Requirements
 
 | ID | Requirement | Implementation |
-|----|-------------|----------------|
+| ---- | ------------- | ---------------- |
 | SEC-R01 | Redis must require password authentication | `auth.enabled=true` in Helm values |
 | SEC-R02 | Redis password stored in Kubernetes Secret | `kubernetes_secret` resource via Terraform |
-| SEC-R03 | Redis password sourced from GitHub Secrets | `TF_VAR_REDIS_PASSWORD` environment variable |
+| SEC-R03 | Redis password sourced from GitHub Secrets | `TF_VAR_redis_password` environment variable (from GitHub Secret `TF_VAR_REDIS_PASSWORD`) |
 | SEC-R04 | Redis not exposed outside cluster | `service.type=ClusterIP` |
 | SEC-R05 | Network policy restricts access to backend only | NetworkPolicy with namespace/pod selector |
 | SEC-R06 | Redis runs as non-root user | `securityContext` in Helm values |
@@ -355,36 +355,40 @@ spec:
 The Redis password follows the same pattern as the LDAP admin password:
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                            Secret Management Flow                                │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  GitHub Secrets              GitHub Actions            Terraform                 │
-│  ┌──────────────────┐       ┌──────────────────┐      ┌──────────────────┐      │
-│  │ TF_VAR_REDIS_    │──────▶│ env:             │─────▶│ var.redis_       │      │
-│  │ PASSWORD         │       │   TF_VAR_REDIS_  │      │ password         │      │
-│  │                  │       │   PASSWORD       │      │                  │      │
-│  └──────────────────┘       └──────────────────┘      └────────┬─────────┘      │
-│                                                                 │                │
-│                                                                 ▼                │
-│  Kubernetes                  Bitnami Redis Helm        Terraform K8s Secret     │
-│  ┌──────────────────┐       ┌──────────────────┐      ┌──────────────────┐      │
-│  │ Backend Pod      │       │ auth:            │      │ kubernetes_      │      │
-│  │                  │       │   existingSecret:│◀─────│ secret.redis_    │      │
-│  │ REDIS_PASSWORD   │◀──────│     redis-secret │      │ password         │      │
-│  │ (from secret)    │       │                  │      │                  │      │
-│  └──────────────────┘       └──────────────────┘      └──────────────────┘      │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                            Secret Management Flow                            │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  GitHub Secrets              GitHub Actions            Terraform             │
+│  ┌──────────────────┐       ┌──────────────────┐      ┌──────────────────┐   │
+│  │ TF_VAR_REDIS_    │──────▶│ env:             │─────▶│ var.redis_       │   │
+│  │ PASSWORD         │       │   TF_VAR_redis_  │      │ password         │   │
+│  │                  │       │   password       │      │                  │   │
+│  └──────────────────┘       └──────────────────┘      └────────┬─────────┘   │
+│                                                                 │            │
+│                                                                 ▼            │
+│  Kubernetes                  Bitnami Redis Helm        Terraform K8s Secret  │
+│  ┌──────────────────┐       ┌──────────────────┐      ┌──────────────────┐   │
+│  │ Backend Pod      │       │ auth:            │      │ kubernetes_      │   │
+│  │                  │       │   existingSecret:│◀─────│ secret.redis_    │   │
+│  │ REDIS_PASSWORD   │◀──────│     redis-secret │      │ password         │   │
+│  │ (from secret)    │       │                  │      │                  │   │
+│  └──────────────────┘       └──────────────────┘      └──────────────────┘   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### GitHub Secrets Configuration
 
+> [!NOTE]
+>
+> For complete secrets setup instructions, see [Secrets Requirements](SECRETS_REQUIREMENTS.md).
+
 Add the following secret to your GitHub repository:
 
 | Secret Name | Description | Example |
-|-------------|-------------|---------|
-| `TF_VAR_REDIS_PASSWORD` | Redis authentication password | Strong password (min 16 chars) |
+| ------------- | ------------- | --------- |
+| `TF_VAR_REDIS_PASSWORD` | Redis authentication password | Strong password (min 8 chars, exported as `TF_VAR_redis_password`) |
 
 ### Terraform Secret Resource
 
@@ -431,7 +435,7 @@ auth:
 ### Environment Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| ---------- | --------- | ------------- |
 | `REDIS_ENABLED` | `false` | Enable Redis for OTP storage |
 | `REDIS_HOST` | `redis-master.redis.svc.cluster.local` | Redis hostname |
 | `REDIS_PORT` | `6379` | Redis port |
@@ -452,14 +456,14 @@ variable "enable_redis" {
 }
 
 variable "redis_password" {
-  description = "Redis authentication password (from GitHub Secrets via TF_VAR_REDIS_PASSWORD)"
+  description = "Redis authentication password (from GitHub Secrets via TF_VAR_redis_password environment variable, sourced from TF_VAR_REDIS_PASSWORD secret)"
   type        = string
   sensitive   = true
   default     = ""
 
   validation {
-    condition     = var.enable_redis == false || length(var.redis_password) >= 16
-    error_message = "Redis password must be at least 16 characters when Redis is enabled."
+    condition     = var.enable_redis == false || length(var.redis_password) >= 8
+    error_message = "Redis password must be at least 8 characters when Redis is enabled."
   }
 }
 
@@ -486,17 +490,22 @@ jobs:
     # ... existing configuration ...
     env:
       AWS_REGION: ${{ needs.SetRegion.outputs.region_code }}
-      TF_VAR_OPENLDAP_ADMIN_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
-      TF_VAR_OPENLDAP_CONFIG_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
+      # Note: TF_VAR environment variables are case-sensitive and must match variable names in variables.tf
+      TF_VAR_openldap_admin_password: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
+      TF_VAR_openldap_config_password: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
       # Add Redis password from GitHub Secrets
-      TF_VAR_REDIS_PASSWORD: ${{ secrets.TF_VAR_REDIS_PASSWORD }}
+      TF_VAR_redis_password: ${{ secrets.TF_VAR_REDIS_PASSWORD }}
 ```
 
 ### Required GitHub Secrets
 
+> [!NOTE]
+>
+> See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for complete setup instructions.
+
 | Secret | Purpose | Requirements |
-|--------|---------|--------------|
-| `TF_VAR_REDIS_PASSWORD` | Redis authentication | Min 16 chars, alphanumeric + special |
+| -------- | --------- | -------------- |
+| `TF_VAR_REDIS_PASSWORD` | Redis authentication | Min 8 chars, alphanumeric + special (exported as `TF_VAR_redis_password`) |
 
 ### Password Generation Recommendation
 
@@ -518,7 +527,7 @@ pwgen -s 24 1
 ### Unit Tests
 
 | Test Case | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | `test_store_code` | Verify code stored with correct TTL |
 | `test_get_code_valid` | Retrieve valid (non-expired) code |
 | `test_get_code_expired` | Verify expired code returns None |
@@ -529,7 +538,7 @@ pwgen -s 24 1
 ### Integration Tests
 
 | Test Case | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | `test_sms_enrollment_redis` | Full enrollment flow with Redis |
 | `test_sms_login_redis` | Full login flow with Redis |
 | `test_code_expiration` | Verify automatic TTL expiration |
@@ -538,7 +547,7 @@ pwgen -s 24 1
 ### Manual Verification
 
 | Step | Expected Result |
-|------|-----------------|
+| ------ | ----------------- |
 | 1. Deploy Redis via Terraform | `helm_release.redis` successful |
 | 2. Verify Redis pod running | `kubectl get pods -n redis` shows Ready |
 | 3. Test Redis connectivity | `redis-cli ping` returns PONG |
@@ -552,8 +561,14 @@ pwgen -s 24 1
 
 ### Phase 0: GitHub Secrets Setup
 
-1. Generate a secure Redis password (minimum 16 characters)
-2. Add `TF_VAR_REDIS_PASSWORD` to GitHub repository secrets
+> [!NOTE]
+>
+> See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for complete secrets
+> configuration instructions.
+
+1. Generate a secure Redis password (minimum 8 characters)
+2. Add `TF_VAR_REDIS_PASSWORD` to GitHub repository secrets (or AWS Secrets Manager
+for local scripts)
 3. Update GitHub Actions workflow to include the new secret
 
 ### Phase 1: Infrastructure (No Application Changes)
@@ -589,7 +604,7 @@ pwgen -s 24 1
 ### Prerequisites
 
 | Dependency | Status | Notes |
-|------------|--------|-------|
+| ------------ | -------- | ------- |
 | EKS cluster | Existing | Auto Mode enabled |
 | EBS CSI driver | Existing | For PersistentVolume |
 | StorageClass | Existing | GP3 encrypted |
@@ -598,7 +613,7 @@ pwgen -s 24 1
 ### New Dependencies
 
 | Dependency | Version | Purpose |
-|------------|---------|---------|
+| ------------ | --------- | --------- |
 | Bitnami Redis Helm chart | 19.6.4+ | Redis deployment |
 | `redis` Python package | 5.0.0+ | Redis client library |
 
@@ -606,8 +621,13 @@ pwgen -s 24 1
 
 ### GitHub Secrets Setup
 
-- [ ] Generate secure Redis password (min 16 characters)
+> [!NOTE]
+>
+> See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for complete setup instructions.
+
+- [ ] Generate secure Redis password (min 8 characters)
 - [ ] Add `TF_VAR_REDIS_PASSWORD` to GitHub repository secrets
+(or AWS Secrets Manager for local scripts)
 - [ ] Verify secret is accessible in Actions workflow
 
 ### Infrastructure
@@ -680,7 +700,7 @@ architecture: standalone
 auth:
   enabled: true
   # Reference Kubernetes secret created by Terraform
-  # (password sourced from GitHub Secrets → TF_VAR_REDIS_PASSWORD)
+  # (password sourced from GitHub Secrets → TF_VAR_redis_password environment variable)
   existingSecret: "redis-secret"
   existingSecretPasswordKey: "redis-password"
 
@@ -713,7 +733,7 @@ metrics:
 ### Comparison with LDAP Secret Pattern
 
 | Aspect | LDAP Admin Password | Redis Password |
-|--------|---------------------|----------------|
+| -------- | --------------------- | ---------------- |
 | GitHub Secret | `TF_VAR_OPENLDAP_ADMIN_PASSWORD` | `TF_VAR_REDIS_PASSWORD` |
 | Terraform Variable | `var.openldap_admin_password` | `var.redis_password` |
 | K8s Secret Name | `ldap-admin-secret` | `redis-secret` |

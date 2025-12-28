@@ -37,8 +37,8 @@ variable "redis_password" {
   sensitive   = true
 
   validation {
-    condition     = length(var.redis_password) >= 16
-    error_message = "Redis password must be at least 16 characters."
+    condition     = length(var.redis_password) >= 8
+    error_message = "Redis password must be at least 8 characters."
   }
 }
 

@@ -91,7 +91,7 @@ module "redis" {
 | enable_redis | Enable Redis deployment | `bool` | `false` | no |
 | namespace | Kubernetes namespace | `string` | `"redis"` | no |
 | secret_name | Name of K8s secret for password | `string` | `"redis-secret"` | no |
-| redis_password | Redis password (min 16 chars) | `string` | n/a | yes |
+| redis_password | Redis password (min 8 chars) | `string` | n/a | yes |
 | chart_version | Bitnami chart version | `string` | `"19.6.4"` | no |
 | storage_class_name | Storage class for PVC | `string` | `""` | no |
 | storage_size | Storage size for PVC | `string` | `"1Gi"` | no |

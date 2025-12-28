@@ -7,6 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Documentation Improvements**
+  - Removed duplication across README files by replacing detailed content with
+  links to module documentation
+  - Enhanced cross-references between main README, application README,
+  and module READMEs
+  - Updated architecture overview sections to be more concise with links to
+  detailed documentation
+  - Improved module documentation references in application and backend
+  infrastructure READMEs
+  - Added links to PRD documents for detailed feature specifications
+  - Updated changelog references in main README
+
+- **GitHub Actions Workflow Updates**
+  - Updated `application_infra_provisioning.yaml` with new environment variables
+  for Redis, PostgreSQL, and SES
+  - Workflows now pass Redis password via `TF_VAR_redis_password` environment
+  variable (from GitHub Secret `TF_VAR_REDIS_PASSWORD`)
+  - Workflows now pass PostgreSQL password via `TF_VAR_postgresql_database_password`
+  environment variable (from GitHub Secret `TF_VAR_POSTGRES_PASSWORD`)
+  - Maintains backward compatibility with existing OpenLDAP password secrets
+
+- **Comprehensive Product Requirements Documents**
+  - Added `PRD-SIGNUP-MAN.md` for user signup management system
+  - Added `PRD-ADMIN-FUNCS.md` for admin functions and profile management
+  - Added `PRD-SMS-MAN.md` for SMS OTP management with Redis
+
+- **Documentation and linting improvements**
+  - All documentation files updated for Markdown lint compliance
+  - Added `.markdownlint.json` for consistent formatting across the project
+  - Improved formatting consistency across CHANGELOG, README, and PRD files
+
+- **Enhanced Network Policies**
+  - Added cross-namespace communication rules for LDAP service access
+  - Allows services in other namespaces to access LDAP on secure
+  ports (443, 636, 8443)
+  - Maintains security by only allowing encrypted ports
+
+- **VPC Endpoints module enhancements**
+  - Added `enable_sts_endpoint` and `enable_sns_endpoint` configuration options
+  - Added `vpc_cidr` variable for security group rules
+  - New outputs for STS and SNS endpoint IDs
+
+- **Password management approach**
+  - OpenLDAP passwords are now managed exclusively through GitHub repository
+  secrets
+  - Removed dependency on local password files or environment-specific
+  configurations
+  - Setup scripts automatically retrieve passwords from GitHub secrets
+  - Updated documentation to reflect new password management workflow
+  - Improved security by eliminating password storage in local files
+
+- **Setup script consolidation**
+  - Replaced `setup-backend.sh` and `setup-backend-api.sh` with unified
+  `setup-application.sh`
+  - New script provides complete end-to-end deployment automation
+  - Improved error messages and user guidance
+  - Better integration with GitHub repository secrets and variables
+
+- **Documentation updates**
+  - Updated `README.md` with comprehensive password management instructions and
+  three-role architecture documentation
+  - Updated `WARP.md` with latest setup procedures and password handling
+  - Updated `application/README.md` to reflect new setup script workflow
+  - Updated `backend_infra/README.md` to reflect environment-based role
+  selection
+  - Clarified local vs. GitHub Actions execution differences
+  - Clarified the separation between backend state operations and deployment
+  operations
+  - Updated AWS IAM setup instructions to reflect the new role structure
+
+- **Multi-account architecture clarification**
+  - Separated backend state operations from deployment operations
+  - Backend state operations now use `AWS_STATE_ACCOUNT_ROLE_ARN` (State
+  Account)
+  - Deployment operations use environment-specific role ARNs
+  (`AWS_PRODUCTION_ACCOUNT_ROLE_ARN` or `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`)
+  - Updated all workflows to use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend
+  operations
+  - Updated workflows to set `deployment_account_role_arn` variable based on
+  selected environment
+
+- **Workflow updates**
+  - `backend_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
+  backend, sets environment-based deployment role
+  - `backend_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
+  backend, sets environment-based deployment role
+  - `application_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
+  backend, sets environment-based deployment role
+  - `application_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
+  backend, sets environment-based deployment role
+
 ### Added
 
 - **API Documentation (Swagger UI)**
@@ -134,92 +227,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **New GitHub Secrets for Infrastructure Components**
   - `TF_VAR_REDIS_PASSWORD`: Redis authentication password for SMS OTP storage
+  (exported as `TF_VAR_redis_password`)
   - `TF_VAR_POSTGRES_PASSWORD`: PostgreSQL database password for user data
-  - `TF_VAR_SES_SENDER_EMAIL`: Verified SES sender email address for
-  notifications
+  (exported as `TF_VAR_postgresql_database_password`)
   - All secrets follow existing pattern (TF_VAR_ prefix for Terraform
   integration)
-
-### Changed
-
-- **GitHub Actions Workflow Updates**
-  - Updated `application_infra_provisioning.yaml` with new environment variables
-  for Redis, PostgreSQL, and SES
-  - Workflows now pass Redis password via `TF_VAR_REDIS_PASSWORD` environment
-  variable
-  - Workflows now pass PostgreSQL password via `TF_VAR_POSTGRES_PASSWORD`
-  environment variable
-  - Maintains backward compatibility with existing OpenLDAP password secrets
-
-- **Comprehensive Product Requirements Documents**
-  - Added `PRD-SIGNUP-MAN.md` for user signup management system
-  - Added `PRD-ADMIN-FUNCS.md` for admin functions and profile management
-  - Added `PRD-SMS-MAN.md` for SMS OTP management with Redis
-
-- **Documentation and linting improvements**
-  - All documentation files updated for Markdown lint compliance
-  - Added `.markdownlint.json` for consistent formatting across the project
-  - Improved formatting consistency across CHANGELOG, README, and PRD files
-
-- **Enhanced Network Policies**
-  - Added cross-namespace communication rules for LDAP service access
-  - Allows services in other namespaces to access LDAP on secure
-  ports (443, 636, 8443)
-  - Maintains security by only allowing encrypted ports
-
-- **VPC Endpoints module enhancements**
-  - Added `enable_sts_endpoint` and `enable_sns_endpoint` configuration options
-  - Added `vpc_cidr` variable for security group rules
-  - New outputs for STS and SNS endpoint IDs
-
-- **Password management approach**
-  - OpenLDAP passwords are now managed exclusively through GitHub repository
-  secrets
-  - Removed dependency on local password files or environment-specific
-  configurations
-  - Setup scripts automatically retrieve passwords from GitHub secrets
-  - Updated documentation to reflect new password management workflow
-  - Improved security by eliminating password storage in local files
-
-- **Setup script consolidation**
-  - Replaced `setup-backend.sh` and `setup-backend-api.sh` with unified
-  `setup-application.sh`
-  - New script provides complete end-to-end deployment automation
-  - Improved error messages and user guidance
-  - Better integration with GitHub repository secrets and variables
-
-- **Documentation updates**
-  - Updated `README.md` with comprehensive password management instructions and
-  three-role architecture documentation
-  - Updated `WARP.md` with latest setup procedures and password handling
-  - Updated `application/README.md` to reflect new setup script workflow
-  - Updated `backend_infra/README.md` to reflect environment-based role
-  selection
-  - Clarified local vs. GitHub Actions execution differences
-  - Clarified the separation between backend state operations and deployment
-  operations
-  - Updated AWS IAM setup instructions to reflect the new role structure
-
-- **Multi-account architecture clarification**
-  - Separated backend state operations from deployment operations
-  - Backend state operations now use `AWS_STATE_ACCOUNT_ROLE_ARN` (State
-  Account)
-  - Deployment operations use environment-specific role ARNs
-  (`AWS_PRODUCTION_ACCOUNT_ROLE_ARN` or `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`)
-  - Updated all workflows to use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend
-  operations
-  - Updated workflows to set `deployment_account_role_arn` variable based on
-  selected environment
-
-- **Workflow updates**
-  - `backend_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
-  backend, sets environment-based deployment role
-  - `backend_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
-  backend, sets environment-based deployment role
-  - `application_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
-  backend, sets environment-based deployment role
-  - `application_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
-  backend, sets environment-based deployment role
+  - **Note:** Secret names in GitHub/AWS remain uppercase, but environment
+  variables must be lowercase to match variable names in `variables.tf`
 
 ### Removed
 
@@ -470,15 +484,14 @@ verification token storage
 ### Required GitHub Secrets
 
 | Secret | Purpose |
-|--------|---------|
+| -------- | --------- |
 | `AWS_STATE_ACCOUNT_ROLE_ARN` | Role for Terraform state operations |
 | `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` | Role for production deployments |
 | `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` | Role for development deployments |
-| `TF_VAR_OPENLDAP_ADMIN_PASSWORD` | OpenLDAP admin password |
-| `TF_VAR_OPENLDAP_CONFIG_PASSWORD` | OpenLDAP config password |
-| `TF_VAR_REDIS_PASSWORD` | Redis authentication password |
-| `TF_VAR_POSTGRES_PASSWORD` | PostgreSQL database password |
-| `TF_VAR_SES_SENDER_EMAIL` | Verified SES sender email |
+| `TF_VAR_OPENLDAP_ADMIN_PASSWORD` | OpenLDAP admin password (exported as `TF_VAR_openldap_admin_password`) |
+| `TF_VAR_OPENLDAP_CONFIG_PASSWORD` | OpenLDAP config password (exported as `TF_VAR_openldap_config_password`) |
+| `TF_VAR_REDIS_PASSWORD` | Redis authentication password (exported as `TF_VAR_redis_password`) |
+| `TF_VAR_POSTGRES_PASSWORD` | PostgreSQL database password (exported as `TF_VAR_postgresql_database_password`) |
 
 ## Notes
 

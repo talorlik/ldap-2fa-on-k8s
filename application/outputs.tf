@@ -1,12 +1,7 @@
 output "alb_dns_name" {
   description = "DNS name of the shared ALB created by Ingress resources"
-  value       = local.alb_dns_name
+  value       = var.use_alb ? local.alb_dns_name : null
 }
-
-# output "alb_dns_name" {
-#   description = "DNS name of the ALB (if created)"
-#   value       = var.use_alb ? module.alb[0].alb_dns_name : "(ALB not provisioned)"
-# }
 
 output "route53_acm_cert_arn" {
   description = "ACM certificate ARN (validated and ready for use)"

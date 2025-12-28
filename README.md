@@ -126,75 +126,25 @@ This architecture ensures:
 This project uses **AWS SSO via GitHub OIDC** instead of access keys for
 enhanced security.
 
-#### Required GitHub Secrets
+#### GitHub Secrets
+
+> [!NOTE]
+>
+> For complete secrets configuration details, including AWS Secrets Manager setup for local scripts, see [Secrets Requirements](application/SECRETS_REQUIREMENTS.md).
 
 Configure these secrets in your GitHub repository:
 **Repository → Settings → Secrets and variables → Actions → Secrets**
 
-1. **`AWS_STATE_ACCOUNT_ROLE_ARN`** (Required)
-   - **Type**: Secret
-   - **Description**: ARN of the IAM role in the State Account (Account A) that
-   trusts GitHub OIDC
-   - **Format**: `arn:aws:iam::STATE_ACCOUNT_ID:role/github-actions-state-role`
-   - **Used for**: Terraform backend operations (S3 state file read/write)
-   - **Permissions needed**: S3 access to state bucket
-   - **Note**: This role is used for all backend state operations regardless of
-   environment
+**Required Secrets:**
 
-2. **`AWS_PRODUCTION_ACCOUNT_ROLE_ARN`** (Required)
-   - **Type**: Secret
-   - **Description**: ARN of the IAM role in the Production Account (Account B)
-   that trusts the State Account role
-   - **Format**: `arn:aws:iam::PROD_ACCOUNT_ID:role/github-actions-prod-role`
-   - **Used for**: Terraform provider operations (creating AWS resources) when
-   `prod` environment is selected
-   - **Permissions needed**: Full permissions to create/manage EKS, VPC, ALB,
-   Route53, etc.
-   - **Note**: This role is assumed by the Terraform AWS provider via
-   `assume_role` configuration
-
-3. **`AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`** (Required)
-   - **Type**: Secret
-   - **Description**: ARN of the IAM role in the Development Account (Account B)
-   that trusts the State Account role
-   - **Format**: `arn:aws:iam::DEV_ACCOUNT_ID:role/github-actions-dev-role`
-   - **Used for**: Terraform provider operations (creating AWS resources) when
-   `dev` environment is selected
-   - **Permissions needed**: Full permissions to create/manage EKS, VPC, ALB,
-   Route53, etc.
-   - **Note**: This role is assumed by the Terraform AWS provider via
-   `assume_role` configuration
-
-4. **`TF_VAR_OPENLDAP_ADMIN_PASSWORD`** (Required for application deployment)
-   - **Type**: Secret
-   - **Description**: OpenLDAP admin password
-   - **Used for**: OpenLDAP Helm chart deployment
-
-5. **`TF_VAR_OPENLDAP_CONFIG_PASSWORD`** (Required for application deployment)
-   - **Type**: Secret
-   - **Description**: OpenLDAP config password
-   - **Used for**: OpenLDAP Helm chart deployment
-
-6. **`TF_VAR_REDIS_PASSWORD`** (Required for application deployment)
-   - **Type**: Secret
-   - **Description**: Redis authentication password (minimum 16 characters)
-   - **Used for**: Redis Helm chart deployment for SMS OTP storage
-
-7. **`TF_VAR_POSTGRES_PASSWORD`** (Required for application deployment)
-   - **Type**: Secret
-   - **Description**: PostgreSQL database password
-   - **Used for**: PostgreSQL Helm chart deployment for user data storage
-
-8. **`TF_VAR_SES_SENDER_EMAIL`** (Required for application deployment)
-   - **Type**: Secret
-   - **Description**: Verified SES sender email address
-   - **Used for**: Email verification and notification sending
-
-9. **`GH_TOKEN`** (Required for state backend provisioning)
-   - **Type**: Secret
-   - **Description**: GitHub Personal Access Token with `repo` scope
-   - **Used for**: Creating/updating repository variables after state backend
-   provisioning
+- `AWS_STATE_ACCOUNT_ROLE_ARN` - IAM role ARN for state account (backend operations)
+- `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` - IAM role ARN for production deployments
+- `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` - IAM role ARN for development deployments
+- `TF_VAR_OPENLDAP_ADMIN_PASSWORD` - OpenLDAP admin password
+- `TF_VAR_OPENLDAP_CONFIG_PASSWORD` - OpenLDAP config password
+- `TF_VAR_POSTGRESQL_PASSWORD` - PostgreSQL database password
+- `TF_VAR_REDIS_PASSWORD` - Redis password (minimum 8 characters)
+- `GH_TOKEN` - GitHub Personal Access Token with `repo` scope
 
 > [!NOTE]
 >
@@ -443,7 +393,7 @@ This script will:
 - Retrieve repository variables from GitHub
 - Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state
 operations
-- Retrieve the appropriate deployment account role ARN from GitHub secrets based
+- Retrieve the appropriate deployment account role ARN from AWS Secrets Manager based
 on the selected environment:
   - `prod` → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
   - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
@@ -452,6 +402,10 @@ actual values
 - Update `variables.tfvars` with the selected region, environment, and
 deployment account role ARN
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
+
+> [!NOTE]
+>
+> The script retrieves role ARNs from AWS Secrets Manager. See [Secrets Requirements](application/SECRETS_REQUIREMENTS.md) for setup instructions.
 
 > [!NOTE]
 >
@@ -477,13 +431,11 @@ This script will:
 - Retrieve repository variables from GitHub
 - Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state
 operations
-- Retrieve the appropriate deployment account role ARN from GitHub secrets based
+- Retrieve the appropriate deployment account role ARN from AWS Secrets Manager based
 on the selected environment:
   - `prod` → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
   - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
-- Retrieve OpenLDAP password secrets (`TF_VAR_OPENLDAP_ADMIN_PASSWORD` and
-`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) from repository secrets and export them as
-environment variables
+- Retrieve password secrets from AWS Secrets Manager and export them as environment variables
 - Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the
 actual values (if it doesn't exist)
 - Update `variables.tfvars` with the selected region, environment, and
@@ -493,25 +445,19 @@ deployment account role ARN
 
 > [!NOTE]
 >
+> The script automatically retrieves all required secrets from AWS Secrets Manager. See [Secrets Requirements](application/SECRETS_REQUIREMENTS.md) for setup instructions.
+
+> [!NOTE]
+>
 > The generated `backend.hcl` file is automatically ignored by git (see
 > `.gitignore`). Only the placeholder template
 > (`tfstate-backend-values-template.hcl`) is committed to the repository.
 
 **Important:** Before deploying the application infrastructure, you must:
 
-1. **For local use**: Export OpenLDAP passwords as environment variables (the
-script will retrieve them from these):
-
-   ```bash
-   export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
-   export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
-   ```
-
-   > [!NOTE]
-   >
-   > The script automatically retrieves these from GitHub repository
-   > secrets if available. For local use, you need to export them as
-   > environment variables since GitHub CLI cannot read secret values directly.
+1. **Configure secrets**: See [Secrets Requirements](application/SECRETS_REQUIREMENTS.md) for complete setup instructions.
+   - For local use: Scripts automatically retrieve passwords from AWS Secrets Manager
+   - For GitHub Actions: Secrets must be configured in repository settings
 
 2. Ensure Route53 hosted zone exists for your domain
 3. Ensure ACM certificate exists and is validated in the same region as your EKS
@@ -546,64 +492,48 @@ After backend infrastructure is deployed, use the automated setup script:
 
 ```bash
 cd application
-
-# For local use: Export passwords as environment variables (script retrieves from GitHub secrets if available)
-export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
-export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
-
-# Run the setup script (handles all Terraform operations automatically)
 ./setup-application.sh
 ```
 
 The script automatically handles:
 
 - Backend configuration setup
-- Retrieval of OpenLDAP password secrets from GitHub repository secrets
+- Retrieval of secrets from AWS Secrets Manager (for local use) or GitHub repository secrets (for GitHub Actions)
 - Terraform initialization
 - Workspace selection/creation
 - Kubernetes environment variable configuration
 - Terraform validation, planning, and application
 
+> [!NOTE]
+>
+> For secrets configuration, see [Secrets Requirements](application/SECRETS_REQUIREMENTS.md).
+
 ## Architecture Overview
 
 ### Backend Infrastructure Components
 
+The backend infrastructure provides the foundational AWS resources for deploying containerized applications on Kubernetes. Key components include:
+
 - **VPC** with public and private subnets across multiple availability zones
 - **EKS Cluster** in Auto Mode with automatic node provisioning
-- **IRSA (IAM Roles for Service Accounts)** for secure pod-to-AWS-service
-authentication
-- **VPC Endpoints** for private AWS service access:
-  - SSM endpoints for secure node access
-  - STS endpoint for IRSA (IAM role assumption)
-  - SNS endpoint for SMS 2FA (optional)
+- **IRSA (IAM Roles for Service Accounts)** for secure pod-to-AWS-service authentication
+- **VPC Endpoints** for private AWS service access (SSM, STS, SNS)
 - **ECR Repository** for container image storage
 
-See [Backend Infrastructure README](backend_infra/README.md) for detailed
-component documentation.
+For detailed architecture diagrams, component descriptions, and configuration options, see the [Backend Infrastructure README](backend_infra/README.md).
 
 ### Application Infrastructure Components
 
-- **OpenLDAP Stack HA** deployed via Helm chart with:
-  - OpenLDAP StatefulSet (3 replicas for high availability)
-  - PhpLdapAdmin web interface
-  - LTB-passwd self-service password management
-- **2FA Application** with LDAP authentication integration:
-  - Python FastAPI backend with TOTP and SMS MFA support
-  - Static HTML/JS/CSS frontend with modern UI
-  - Single domain routing (`app.<domain>`) with path-based access
-- **Application Load Balancer (ALB)** via EKS Auto Mode:
-  - Internet-facing ALB with HTTPS/TLS termination
-  - Single ALB handles multiple Ingresses via host-based routing
-  - Automatic provisioning via IngressClass and IngressClassParams
-- **ArgoCD** (AWS EKS managed service) for GitOps deployments
-- **cert-manager** for automatic TLS certificate management
-- **Network Policies** for securing pod-to-pod communication
-- **SNS Integration** for SMS-based 2FA verification (optional)
-- **Route53 DNS** records for subdomains pointing to ALB
-- **Persistent Storage** using EBS-backed StorageClass
+The application infrastructure deploys the LDAP stack, 2FA application, and supporting services on the EKS cluster. Key components include:
 
-See [Application Infrastructure README](application/README.md) for detailed
-component documentation and deployment instructions.
+- **OpenLDAP Stack HA** with PhpLdapAdmin and LTB-passwd UIs
+- **2FA Application** with self-service registration and admin dashboard
+- **Application Load Balancer (ALB)** via EKS Auto Mode for internet-facing access
+- **Supporting Services**: PostgreSQL, Redis, SES, SNS (optional)
+- **GitOps**: ArgoCD (AWS managed service) for declarative deployments
+- **Security**: cert-manager for TLS, Network Policies for pod-to-pod security
+
+For detailed architecture diagrams, component descriptions, API specifications, and deployment instructions, see the [Application Infrastructure README](application/README.md).
 
 ## Key Features
 
@@ -639,8 +569,10 @@ The 2FA application supports two multi-factor authentication methods:
 | **TOTP** | Time-based One-Time Password using authenticator apps (Google Authenticator, Authy, etc.) | None (codes generated locally) |
 | **SMS** | Verification codes sent via AWS SNS to user's phone | SNS VPC endpoint, IRSA role |
 
-For detailed API specifications and frontend architecture, see the [2FA
-Application PRD](application/PRD-2FA-APP.md).
+For detailed API specifications, frontend architecture, and implementation details, see:
+- [2FA Application PRD](application/PRD-2FA-APP.md) - Complete API and frontend specifications
+- [SMS OTP Management PRD](application/PRD-SMS-MAN.md) - Redis-based SMS OTP storage implementation
+- [SNS Module Documentation](application/modules/sns/README.md) - SMS 2FA infrastructure setup
 
 ## Accessing the Services
 
@@ -718,13 +650,13 @@ AWS service access
 ### Changelogs
 
 - [Project Changelog](CHANGELOG.md) - All project changes
-- [Backend Infrastructure Changelog](backend_infra/CHANGELOG.md)
-- [Application Infrastructure Changelog](application/CHANGELOG.md)
+- [Backend Infrastructure Changelog](backend_infra/CHANGELOG.md) - VPC, EKS, VPC endpoints, and ECR changes
+- [Application Infrastructure Changelog](application/CHANGELOG.md) - OpenLDAP, 2FA app, and supporting services changes
+- [Terraform Backend State Changelog](tf_backend_state/CHANGELOG.md) - S3 state management changes
 
 ## Security Considerations
 
-- **Secrets Management**: Passwords managed via GitHub repository secrets and
-environment variables (never committed to git)
+- **Secrets Management**: Passwords managed via AWS Secrets Manager (for local scripts) and GitHub repository secrets (for GitHub Actions). See [Secrets Requirements](application/SECRETS_REQUIREMENTS.md) for details.
 - **IRSA**: Pods assume IAM roles via OIDC—no long-lived AWS credentials
 - **VPC Endpoints**: AWS service access (SSM, STS, SNS) goes through private
 endpoints—no public internet exposure

@@ -19,6 +19,12 @@ variable "namespace" {
   default     = "ldap-2fa"
 }
 
+variable "secret_name" {
+  description = "Name of the Kubernetes secret for PostgreSQL password"
+  type        = string
+  default     = "postgresql-secret"
+}
+
 variable "chart_version" {
   description = "PostgreSQL Helm chart version"
   type        = string

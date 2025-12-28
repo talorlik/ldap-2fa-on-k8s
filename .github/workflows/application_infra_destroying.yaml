@@ -1,5 +1,17 @@
 name: Application Infra Destroying
 
+# Required GitHub Repository Secrets:
+# - AWS_STATE_ACCOUNT_ROLE_ARN: IAM role ARN for backend state operations
+# - AWS_PRODUCTION_ACCOUNT_ROLE_ARN: IAM role ARN for production deployments
+# - AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN: IAM role ARN for development deployments
+# - TF_VAR_OPENLDAP_ADMIN_PASSWORD: OpenLDAP admin password
+# - TF_VAR_OPENLDAP_CONFIG_PASSWORD: OpenLDAP config password
+# - TF_VAR_POSTGRESQL_PASSWORD: PostgreSQL database password
+# - TF_VAR_REDIS_PASSWORD: Redis password for SMS OTP storage
+#
+# Note: GitHub workflows use repository secrets, while bash scripts use AWS Secrets Manager.
+# The secrets listed above must be configured in GitHub repository settings.
+
 on:
   workflow_dispatch:
     inputs:
@@ -40,8 +52,14 @@ jobs:
       id-token: write
     env:
       AWS_REGION: ${{ needs.SetRegion.outputs.region_code }}
-      TF_VAR_OPENLDAP_ADMIN_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
-      TF_VAR_OPENLDAP_CONFIG_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
+      # Note: TF_VAR environment variables are case-sensitive and must match variable names in variables.tf
+      # Secrets in GitHub remain uppercase, but environment variables must be lowercase
+      TF_VAR_openldap_admin_password: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
+      TF_VAR_openldap_config_password: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
+      # Redis password for SMS OTP storage
+      TF_VAR_redis_password: ${{ secrets.TF_VAR_REDIS_PASSWORD }}
+      # PostgreSQL password for User management database
+      TF_VAR_postgresql_database_password: ${{ secrets.TF_VAR_POSTGRESQL_PASSWORD }}
     defaults:
       run:
         working-directory: ./application
@@ -89,8 +107,10 @@ jobs:
           echo "KUBERNETES_MASTER=$KUBERNETES_MASTER" >> $GITHUB_ENV
           echo "KUBE_CONFIG_PATH=$KUBE_CONFIG_PATH" >> $GITHUB_ENV
 
-      - name: Update variables.tfvars with deployment account role
+      - name: Update variables.tfvars
         run: |
+          sed -i "s|^env[[:space:]]*=.*|env = \"${{ inputs.environment }}\"|" variables.tfvars
+          sed -i "s|^region[[:space:]]*=.*|region = \"${{ env.AWS_REGION }}\"|" variables.tfvars
           # Set deployment account role ARN based on environment
           DEPLOYMENT_ROLE_ARN="${{ inputs.environment == 'prod' && secrets.AWS_PRODUCTION_ACCOUNT_ROLE_ARN || secrets.AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN }}"
           if ! grep -q "^deployment_account_role_arn" variables.tfvars; then
@@ -98,6 +118,8 @@ jobs:
           else
             sed -i "s|^deployment_account_role_arn[[:space:]]*=.*|deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"|" variables.tfvars
           fi
+          echo "Updated variables.tfvars:"
+          cat variables.tfvars
 
       - name: Terraform plan destroy
         run: terraform plan -var-file="variables.tfvars" -destroy -out terraform.tfplan

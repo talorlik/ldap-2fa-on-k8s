@@ -21,7 +21,8 @@ frontend
   - Admin dashboard for user management and approval workflows
   - User profile management with edit restrictions
 - **ArgoCD Capability** for GitOps deployments (AWS EKS managed service)
-- **cert-manager** for automatic TLS certificate management
+- **cert-manager** module available (future improvement for automatic TLS
+certificate management)
 - **Network Policies** for securing pod-to-pod communication
 - **PostgreSQL** for user registration and verification token storage
 - **Redis** for SMS OTP code storage with TTL-based expiration
@@ -31,55 +32,55 @@ frontend
 ## Architecture
 
 ```ascii
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              EKS Cluster                                    │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────┐            │
-│  │                    LDAP Namespace                           │            │
-│  │                                                             │            │
-│  │  ┌──────────────┐  ┌──────────────────┐  ┌──────────────┐   │            │
-│  │  │ OpenLDAP     │  │ PhpLdapAdmin     │  │ LTB-passwd   │   │            │
-│  │  │ StatefulSet  │  │ Deployment       │  │ Deployment   │   │            │
-│  │  │              │  │                  │  │              │   │            │
-│  │  │ ClusterIP    │  │ Ingress (ALB)    │  │ Ingress (ALB)│   │            │
-│  │  │ (Internal)   │  │ (Internet)       │  │ (Internet)   │   │            │
-│  │  └──────────────┘  └──────────────────┘  └──────────────┘   │            │
-│  │                                                             │            │
-│  │  ┌──────────────┐                                           │            │
-│  │  │ EBS PVC      │                                           │            │
-│  │  │ (8Gi)        │                                           │            │
-│  │  └──────────────┘                                           │            │
-│  └─────────────────────────────────────────────────────────────┘            │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────┐            │
-│  │                   2FA App Namespace                         │            │
-│  │                                                             │            │
-│  │  ┌──────────────────┐      ┌──────────────────┐             │            │
-│  │  │ Backend          │      │ Frontend         │             │            │
-│  │  │ (FastAPI)        │      │ (nginx)          │             │            │
-│  │  │                  │      │                  │             │            │
-│  │  │ Ingress /api/*   │      │ Ingress /*       │             │            │
-│  │  └────────┬─────────┘      └──────────────────┘             │            │
-│  │           │                                                 │            │
-│  │           │ LDAP Auth / User Data                           │            │
-│  │           ▼                                                 │            │
-│  │  ┌──────────────────┐      ┌──────────────────┐             │            │
-│  │  │ LDAP Service     │      │ PostgreSQL       │             │            │
-│  │  │ (ClusterIP)      │      │ (User Data)      │             │            │
-│  │  └──────────────────┘      └──────────────────┘             │            │
-│  │                                                             │            │
-│  │  ┌──────────────────┐      ┌──────────────────┐             │            │
-│  │  │ Redis            │      │ SNS/SES          │             │            │
-│  │  │ (SMS OTP Cache)  │      │ (via IRSA)       │             │            │
-│  │  └──────────────────┘      └──────────────────┘             │            │
-│  └─────────────────────────────────────────────────────────────┘            │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────┐            │
-│  │                   ArgoCD (EKS Managed)                      │            │
-│  │                   GitOps Deployments                        │            │
-│  └─────────────────────────────────────────────────────────────┘            │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                         EKS Cluster                               │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                    LDAP Namespace                           │  │
+│  │                                                             │  │
+│  │  ┌──────────────┐  ┌──────────────────┐  ┌──────────────┐   │  │
+│  │  │ OpenLDAP     │  │ PhpLdapAdmin     │  │ LTB-passwd   │   │  │
+│  │  │ StatefulSet  │  │ Deployment       │  │ Deployment   │   │  │
+│  │  │              │  │                  │  │              │   │  │
+│  │  │ ClusterIP    │  │ Ingress (ALB)    │  │ Ingress (ALB)│   │  │
+│  │  │ (Internal)   │  │ (Internet)       │  │ (Internet)   │   │  │
+│  │  └──────────────┘  └──────────────────┘  └──────────────┘   │  │
+│  │                                                             │  │
+│  │  ┌──────────────┐                                           │  │
+│  │  │ EBS PVC      │                                           │  │
+│  │  │ (8Gi)        │                                           │  │
+│  │  └──────────────┘                                           │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                   2FA App Namespace                         │  │
+│  │                                                             │  │
+│  │  ┌──────────────────┐      ┌──────────────────┐             │  │
+│  │  │ Backend          │      │ Frontend         │             │  │
+│  │  │ (FastAPI)        │      │ (nginx)          │             │  │
+│  │  │                  │      │                  │             │  │
+│  │  │ Ingress /api/*   │      │ Ingress /*       │             │  │
+│  │  └────────┬─────────┘      └──────────────────┘             │  │
+│  │           │                                                 │  │
+│  │           │ LDAP Auth / User Data                           │  │
+│  │           ▼                                                 │  │
+│  │  ┌──────────────────┐      ┌──────────────────┐             │  │
+│  │  │ LDAP Service     │      │ PostgreSQL       │             │  │
+│  │  │ (ClusterIP)      │      │ (User Data)      │             │  │
+│  │  └──────────────────┘      └──────────────────┘             │  │
+│  │                                                             │  │
+│  │  ┌──────────────────┐      ┌──────────────────┐             │  │
+│  │  │ Redis            │      │ SNS/SES          │             │  │
+│  │  │ (SMS OTP Cache)  │      │ (via IRSA)       │             │  │
+│  │  └──────────────────┘      └──────────────────┘             │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                   ArgoCD (EKS Managed)                      │  │
+│  │                   GitOps Deployments                        │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
          │
          │
     ┌────▼────────────────────────────┐
@@ -168,7 +169,7 @@ infrastructure, featuring self-service user registration and admin management.
 #### Key Features
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | **Self-Service Registration** | User signup with email/phone verification |
 | **Email Verification** | UUID token-based verification via AWS SES |
 | **Phone Verification** | 6-digit OTP codes via AWS SNS |
@@ -179,7 +180,7 @@ infrastructure, featuring self-service user registration and admin management.
 #### Profile State Management
 
 | State | Description |
-|-------|-------------|
+| ------- | ------------- |
 | **PENDING** | User registered, verification incomplete |
 | **COMPLETE** | All verifications complete, awaiting admin approval |
 | **ACTIVE** | Admin approved, user exists in LDAP |
@@ -187,7 +188,7 @@ infrastructure, featuring self-service user registration and admin management.
 #### MFA Methods Supported
 
 | Method | Description | Infrastructure |
-|--------|-------------|----------------|
+| -------- | ------------- | ---------------- |
 | **TOTP** | Time-based One-Time Password using authenticator apps (Google Authenticator, Authy, etc.) | None (code generated locally) |
 | **SMS** | Verification codes sent via AWS SNS to user's phone | AWS SNS, VPC endpoints, IRSA |
 
@@ -210,7 +211,7 @@ infrastructure, featuring self-service user registration and admin management.
 **API Endpoints:**
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| -------- | ---------- | ------------- |
 | `GET` | `/api/healthz` | Liveness/readiness probe |
 | `GET` | `/api/mfa/methods` | List available MFA methods |
 | `GET` | `/api/mfa/status/{username}` | Get user's MFA enrollment status |
@@ -236,12 +237,15 @@ infrastructure, featuring self-service user registration and admin management.
 FastAPI automatically generates interactive API documentation that is always available:
 
 | Endpoint | Description |
-|----------|-------------|
-| `GET` | `/api/docs` | Swagger UI - Interactive API documentation and testing interface |
-| `GET` | `/api/redoc` | ReDoc UI - Alternative API documentation interface |
-| `GET` | `/api/openapi.json` | OpenAPI schema in JSON format |
+| ---------- | ------------- |
+| `GET` `/api/docs` | Swagger UI - Interactive API documentation and testing interface |
+| `GET` `/api/redoc` | ReDoc UI - Alternative API documentation interface |
+| `GET` `/api/openapi.json` | OpenAPI schema in JSON format |
 
-Access the Swagger UI at `https://app.<domain>/api/docs` (e.g., `https://app.talorlik.com/api/docs`) to explore all available endpoints, view request/response schemas, and test API calls directly from the browser. The documentation automatically updates when API endpoints change.
+Access the Swagger UI at `https://app.<domain>/api/docs` (e.g., `https://app.talorlik.com/api/docs`)
+to explore all available endpoints, view request/response schemas, and test API
+calls directly from the browser. The documentation automatically updates when
+API endpoints change.
 
 #### Frontend (Static HTML/JS/CSS)
 
@@ -264,7 +268,7 @@ Access the Swagger UI at `https://app.<domain>/api/docs` (e.g., `https://app.tal
 #### Routing Pattern (Single Domain)
 
 | Setting | Value |
-|---------|-------|
+| --------- | ------- |
 | Public hostname | `app.<domain>` (e.g., `app.talorlik.com`) |
 | Frontend path | `/` |
 | Backend API path | `/api/*` |
@@ -273,68 +277,23 @@ Access the Swagger UI at `https://app.<domain>/api/docs` (e.g., `https://app.tal
 ### 4. Application Load Balancer (ALB)
 
 The ALB is automatically provisioned by EKS Auto Mode when Ingress resources are
-created with the appropriate annotations:
+created with the appropriate annotations. The ALB provides:
 
-- **Internet-Facing ALB**: Accessible from the internet (`scheme:
-internet-facing`)
+- **Internet-Facing Access**: Accessible from the internet (`scheme: internet-facing`)
 - **HTTPS Only**: TLS termination at ALB using ACM certificate
 - **Target Type**: IP mode (direct pod targeting)
 - **Multiple Hostnames**: Single ALB handles all services via host-based routing
 
-**ALB Configuration:**
+The ALB is created via Kubernetes Ingress resources using EKS Auto Mode
+(not AWS Load Balancer Controller). The `elastic_load_balancing` capability is
+**enabled by default** when EKS Auto Mode is enabled (configured in backend_infra
+via `compute_config.enabled = true`).
 
-- Created via Kubernetes Ingress resources using EKS Auto Mode (not AWS Load
-Balancer Controller)
-- No manual AWS `aws_lb` resource required (handled by EKS Auto Mode)
-- `elastic_load_balancing` capability is **enabled by default** when EKS Auto
-Mode is enabled (configured in backend_infra via `compute_config.enabled =
-true`)
-- Uses `eks.amazonaws.com/alb` controller (built into EKS Auto Mode)
-
-**ALB Module:**
-
-The `modules/alb/` module creates:
-
-- `IngressClass` resource configured for EKS Auto Mode (`controller:
-eks.amazonaws.com/alb`)
-- `IngressClassParams` resource with cluster-wide ALB defaults:
-  - `scheme`: internet-facing or internal
-  - `ipAddressType`: ipv4 or dualstack
-  - `group.name`: ALB group name for grouping multiple Ingresses (max 63
-  characters)
-  - `certificateARNs`: ACM certificate ARNs for TLS termination
-- Note: EKS Auto Mode IngressClassParams supports `scheme`, `ipAddressType`,
-`group.name`, and `certificateARNs` (not subnets, security groups, or tags)
-
-**ALB Naming:**
-
-The configuration supports separate naming for:
-
-- **ALB Group Name**: Kubernetes identifier (max 63 characters) - used to group
-multiple Ingresses
-- **ALB Load Balancer Name**: AWS resource name (max 32 characters) - appears in
-AWS console
-
-Both names are automatically constructed from prefix, region, and environment,
-with proper truncation to respect limits.
-
-**Ingress Annotation Strategy:**
-
-- IngressClassParams (cluster-wide) contains:
-  - `scheme`: internet-facing or internal
-  - `ipAddressType`: ipv4 or dualstack
-  - `group.name`: ALB group name for grouping multiple Ingresses
-  - `certificateARNs`: ACM certificate ARNs for TLS termination
-- Ingress annotations (per-Ingress) contain:
-  - `load-balancer-name`: AWS ALB name (max 32 characters)
-  - `target-type`: IP or instance
-  - `listen-ports`: HTTP/HTTPS ports
-  - `ssl-redirect`: HTTPS redirect
-- Note: `group.name` and `certificate-arn` are configured in IngressClassParams,
-not in Ingress annotations
-
-The actual ALB is created automatically by EKS Auto Mode when the Helm chart
-creates Ingress resources that reference the IngressClass.
+> [!NOTE]
+>
+> For detailed ALB configuration, annotation strategy, EKS Auto Mode vs
+> AWS Load Balancer Controller differences, and implementation details,
+> see the [ALB Module Documentation](modules/alb/README.md).
 
 ### 5. Storage Configuration
 
@@ -358,117 +317,92 @@ StorageClass:
 
 ### 6. Network Policies
 
-The `modules/network-policies/` module creates Kubernetes Network Policies to
-secure internal cluster communication:
+The `modules/network-policies/` module creates Kubernetes Network Policies to secure
+internal cluster communication, enforcing secure ports only (443, 636, 8443) and
+enabling cross-namespace communication for LDAP service access.
 
-- **Namespace-wide Policy**: Applies to all pods in the `ldap` namespace
-- **Secure Ports Only**: Allows communication only on encrypted ports (443,
-636, 8443)
-- **Cross-Namespace Communication**: Services in other namespaces can access the
-LDAP service on secure ports
-- **DNS Resolution**: Allows DNS queries for service discovery
-- **External Access**: Allows HTTPS/HTTP egress for external API calls (2FA
-providers, etc.)
-- **Implicit Deny**: All other ports are implicitly denied by default
-
-This ensures that even if a pod is compromised, it can only communicate on
-secure, encrypted ports within the cluster. Cross-namespace communication is
-enabled to allow services in other namespaces to securely access the LDAP
-service using LDAPS (port 636).
+> [!NOTE]
+>
+> For detailed network policy rules, security configuration, and cross-namespace
+> communication setup, see the [Network Policies Module Documentation](modules/network-policies/README.md).
 
 ### 7. ArgoCD Capability (GitOps)
 
-The `modules/argocd/` module deploys the AWS EKS managed ArgoCD service for
-GitOps deployments:
+The `modules/argocd/` module deploys the AWS EKS managed ArgoCD service for GitOps
+deployments, including IAM integration, Identity Center authentication, and
+cluster registration.
 
-- **Managed Service**: ArgoCD runs in the EKS control plane (no pods on worker
-nodes)
-- **IAM Integration**: Creates IAM role and policies for ArgoCD
-- **Identity Center Auth**: Configures AWS Identity Center (IdC) authentication
-- **Cluster Registration**: Automatically registers the local EKS cluster with
-ArgoCD
-- **RBAC Mappings**: Sets up role mappings for Identity Center groups/users
-- **Optional Private Access**: VPC endpoint configuration for private access
+The `modules/argocd_app/` module creates ArgoCD Application CRDs for GitOps-driven
+deployments.
 
-**ArgoCD Application Module:**
-
-The `modules/argocd_app/` module creates ArgoCD Application CRDs:
-
-- **Source Configuration**: Git repository, path, revision
-- **Destination Configuration**: Cluster, namespace
-- **Sync Policies**: Automated or manual sync with retry policies
-- **Deployment Types**: Supports Helm charts, Kustomize, and plain manifests
+> [!NOTE]
+>
+> For detailed ArgoCD configuration, Identity Center setup, Application CRD creation,
+> and deployment examples, see:
+>
+> - [ArgoCD Module Documentation](modules/argocd/README.md)
+> - [ArgoCD Application Module Documentation](modules/argocd_app/README.md)
 
 ### 8. cert-manager Module
 
-The `modules/cert-manager/` module installs cert-manager and creates TLS
-certificates:
-
-- **cert-manager Installation**: Deployed in `cert-manager` namespace
-- **ClusterIssuer**: Creates self-signed certificates
-- **Certificate**: TLS certificate for OpenLDAP
-  - Creates Kubernetes secret `openldap-tls` in `ldap` namespace
-  - Valid for 10 years with auto-renewal
-  - Includes DNS names for all OpenLDAP service endpoints
+> [!NOTE]
+>
+> **Current Status**: The cert-manager module exists in the codebase but is
+> **not currently used** by the OpenLDAP module. OpenLDAP currently uses auto-generated
+> self-signed certificates from the osixia/openldap image. Integrating cert-manager
+> for automatic TLS certificate management is a **future improvement** that
+> would provide:
+>
+> - Automatic certificate generation and renewal
+> - Better certificate lifecycle management
+> - Integration with Let's Encrypt or other certificate authorities
+> - Consistent certificate management across services
+>
+> For detailed cert-manager configuration, certificate management, and usage examples,
+> see the [cert-manager Module Documentation](modules/cert-manager/README.md).
 
 ### 9. SNS Module (SMS 2FA)
 
-The `modules/sns/` module creates AWS SNS resources for SMS-based 2FA
-verification:
+The `modules/sns/` module creates AWS SNS resources for SMS-based 2FA verification,
+including SNS Topic, IAM Role (IRSA), direct SMS support, and cost control via
+monthly spend limits.
 
-- **SNS Topic**: Central topic for SMS notifications
-- **IAM Role (IRSA)**: Enables EKS pods to publish to SNS using service account
-- **Direct SMS Support**: Allows publishing SMS directly to phone numbers
-- **Subscription Management**: Supports subscribing/unsubscribing phone numbers
-- **Cost Control**: Monthly spend limits for SMS
-
-**IRSA Configuration:**
-
-The IAM role is configured for IAM Roles for Service Accounts (IRSA):
-
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: ldap-2fa-backend
-  namespace: 2fa-app
-  annotations:
-    eks.amazonaws.com/role-arn: <iam_role_arn from outputs>
-```
+> [!NOTE]
+>
+> For detailed SNS configuration, IRSA setup, SMS sending methods, phone number
+> format requirements, and cost considerations, see the [SNS Module Documentation](modules/sns/README.md).
 
 ### 10. PostgreSQL Module (User Data Storage)
 
-The `modules/postgresql/` module deploys PostgreSQL for storing user
-registration and verification data:
+The `modules/postgresql/` module deploys PostgreSQL for storing user registration
+and verification data using the Bitnami Helm chart with persistent EBS-backed storage.
 
-- **Bitnami Helm Chart**: Standalone PostgreSQL deployment
-- **Persistent Storage**: EBS-backed PVC for data durability
-- **User Data Storage**: Stores user registrations before LDAP activation
-- **Verification Tokens**: Email and phone verification token storage
-- **Password Authentication**: Via Kubernetes Secret from GitHub Secrets
+> [!NOTE]
+>
+> For detailed PostgreSQL configuration, connection strings, database schema,
+> and usage examples, see the [PostgreSQL Module Documentation](modules/postgresql/README.md).
 
 ### 11. SES Module (Email Verification)
 
-The `modules/ses/` module configures AWS SES for sending verification emails:
+The `modules/ses/` module configures AWS SES for sending verification emails,
+including email identity verification, DKIM setup, IRSA configuration, and optional
+Route53 integration.
 
-- **Email Identity Verification**: Individual email or domain verification
-- **DKIM Setup**: For domain verification and email authentication
-- **IAM Role (IRSA)**: Enables EKS pods to send emails using service account
-- **Route53 Integration**: Optional automatic DNS record creation for DKIM
-- **Email Types**:
-  - Verification emails with token-based links
-  - Welcome emails on user activation
-  - Admin notification emails on new signups
+> [!NOTE]
+>
+> For detailed SES configuration, email verification setup, IRSA configuration,
+> and usage examples, see the [SES Module Documentation](modules/ses/README.md).
 
 ### 12. Redis Module (SMS OTP Storage)
 
-The `modules/redis/` module deploys Redis for SMS OTP code storage:
+The `modules/redis/` module deploys Redis for SMS OTP code storage using the
+Bitnami Helm chart with TTL-based expiration, shared state across replicas, and
+persistent storage.
 
-- **Bitnami Helm Chart**: Standalone Redis deployment
-- **TTL-based Expiration**: Automatic cleanup of expired OTP codes
-- **Shared State**: OTP codes accessible from any backend replica
-- **Persistence**: Data survives pod restarts via RDB snapshots
-- **Network Security**: ClusterIP service with password authentication
+> [!NOTE]
+>
+> For detailed Redis architecture, key schema, debugging commands, and configuration
+> options, see the [Redis Module Documentation](modules/redis/README.md).
 
 ## Module Structure
 
@@ -477,94 +411,154 @@ application/
 ├── main.tf                    # Main application configuration
 ├── variables.tf               # Variable definitions
 ├── variables.tfvars          # Variable values (customize for your environment)
-├── outputs.tf                # Output values
-├── providers.tf              # Provider configuration (AWS, Kubernetes, Helm)
+├── outputs.tf                 # Output values
+├── providers.tf               # Provider configuration (AWS, Kubernetes, Helm)
+├── backend.hcl                # Terraform backend configuration template
+├── tfstate-backend-values-template.hcl  # Backend state configuration template
+├── CHANGELOG.md              # Change log for this module
+├── setup-application.sh       # Application setup script
+├── set-k8s-env.sh            # Kubernetes environment setup script
 ├── helm/
-│   └── openldap-values.tpl.yaml  # Helm values template
+│   ├── openldap-values.tpl.yaml  # OpenLDAP Helm values template
+│   └── redis-values.tpl.yaml   # Redis Helm values template
 ├── backend/
 │   ├── src/
 │   │   └── app/
 │   │       ├── main.py           # FastAPI application entry point
 │   │       ├── config.py         # Configuration management
 │   │       ├── api/
-│   │       │   └── routes.py     # API route definitions
+│   │       │   ├── __init__.py
+│   │       │   └── routes.py    # API route definitions
+│   │       ├── database/
+│   │       │   ├── __init__.py
+│   │       │   ├── connection.py # Database connection management
+│   │       │   └── models.py    # Database models
+│   │       ├── email/
+│   │       │   ├── __init__.py
+│   │       │   └── client.py     # Email client for SES integration
 │   │       ├── ldap/
+│   │       │   ├── __init__.py
 │   │       │   └── client.py     # LDAP client for authentication
 │   │       ├── mfa/
-│   │       │   └── totp.py       # TOTP secret generation/verification
+│   │       │   ├── __init__.py
+│   │       │   └── totp.py      # TOTP secret generation/verification
+│   │       ├── redis/
+│   │       │   ├── __init__.py
+│   │       │   └── client.py     # Redis client for OTP storage
 │   │       └── sms/
+│   │           ├── __init__.py
 │   │           └── client.py     # SMS client for SNS integration
+│   ├── src/
+│   │   └── requirements.txt     # Python dependencies
 │   ├── helm/
-│   │   └── ldap-2fa-backend/     # Backend Helm chart
-│   └── Dockerfile                 # Backend container image
+│   │   └── ldap-2fa-backend/    # Backend Helm chart
+│   │       ├── Chart.yaml
+│   │       ├── values.yaml
+│   │       └── templates/
+│   │           ├── _helpers.tpl
+│   │           ├── configmap.yaml
+│   │           ├── deployment.yaml
+│   │           ├── hpa.yaml
+│   │           ├── ingress.yaml
+│   │           ├── NOTES.txt
+│   │           ├── secret.yaml
+│   │           ├── service.yaml
+│   │           ├── serviceaccount.yaml
+│   │           └── tests/
+│   │               └── test-connection.yaml
+│   └── Dockerfile               # Backend container image
 ├── frontend/
 │   ├── src/
-│   │   ├── index.html            # Main HTML page
+│   │   ├── index.html          # Main HTML page
 │   │   ├── css/
-│   │   │   └── styles.css        # Styling
+│   │   │   └── styles.css      # Styling
 │   │   └── js/
-│   │       ├── api.js            # API client
-│   │       └── main.js           # Main application logic
+│   │       ├── api.js          # API client
+│   │       └── main.js         # Main application logic
 │   ├── helm/
-│   │   └── ldap-2fa-frontend/    # Frontend Helm chart
-│   ├── nginx.conf                 # nginx configuration
-│   └── Dockerfile                 # Frontend container image
+│   │   └── ldap-2fa-frontend/  # Frontend Helm chart
+│   │       ├── Chart.yaml
+│   │       ├── values.yaml
+│   │       └── templates/
+│   │           ├── _helpers.tpl
+│   │           ├── deployment.yaml
+│   │           ├── hpa.yaml
+│   │           ├── ingress.yaml
+│   │           ├── NOTES.txt
+│   │           ├── service.yaml
+│   │           ├── serviceaccount.yaml
+│   │           └── tests/
+│   │               └── test-connection.yaml
+│   ├── nginx.conf              # nginx configuration
+│   └── Dockerfile              # Frontend container image
 ├── modules/
-│   ├── route53/              # Route53 hosted zone and ACM certificate module (currently commented out)
+│   ├── alb/                    # ALB module - creates IngressClass and IngressClassParams for EKS Auto Mode
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── argocd/                 # ArgoCD Capability module - deploys managed ArgoCD
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── argocd_app/             # ArgoCD Application module - creates Application CRDs
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── cert-manager/           # cert-manager module - TLS certificate management
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── network-policies/       # Network Policies module - secures pod-to-pod communication
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── openldap/               # OpenLDAP module - LDAP directory service deployment
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── postgresql/             # PostgreSQL module - User data storage
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── redis/                  # Redis module - SMS OTP storage
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── route53/                # Route53 module - hosted zone and DNS management
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
-│   ├── alb/                  # ALB module - creates IngressClass and IngressClassParams for EKS Auto Mode
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   ├── network-policies/     # Network Policies module - secures pod-to-pod communication
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── README.md
-│   ├── argocd/               # ArgoCD Capability module - deploys managed ArgoCD
+│   ├── ses/                    # SES module - Email verification
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   ├── outputs.tf
 │   │   └── README.md
-│   ├── argocd_app/           # ArgoCD Application module - creates Application CRDs
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── README.md
-│   ├── cert-manager/         # cert-manager module - TLS certificate management
-│   │   ├── main.tf
-│   │   ├── outputs.tf
-│   │   └── README.md
-│   ├── sns/                  # SNS module - SMS 2FA verification
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── README.md
-│   ├── ses/                  # SES module - Email verification
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── README.md
-│   ├── postgresql/           # PostgreSQL module - User data storage
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── README.md
-│   └── redis/                # Redis module - SMS OTP storage
+│   └── sns/                    # SNS module - SMS 2FA verification
 │       ├── main.tf
 │       ├── variables.tf
 │       ├── outputs.tf
 │       └── README.md
-├── PRD-2FA-APP.md           # 2FA Application Product Requirements Document
-├── PRD-ALB.md               # ALB configuration PRD
-├── PRD-ArgoCD.md            # ArgoCD configuration PRD
-├── PRD-DOMAIN.md            # Domain configuration PRD
-├── PRD-SIGNUP-MAN.md        # User Signup Management PRD
-├── PRD-ADMIN-FUNCS.md       # Admin Functions and Profile Management PRD
-├── PRD-SMS-MAN.md           # SMS OTP Management with Redis PRD
-├── PRD.md                   # Main PRD
-└── README.md                 # This file
+├── PRD-2FA-APP.md              # 2FA Application Product Requirements Document
+├── PRD-ADMIN-FUNCS.md          # Admin Functions and Profile Management PRD
+├── PRD-ALB.md                  # ALB configuration PRD
+├── PRD-ArgoCD.md               # ArgoCD configuration PRD
+├── PRD-DOMAIN.md               # Domain configuration PRD
+├── PRD-SIGNUP-MAN.md           # User Signup Management PRD
+├── PRD-SMS-MAN.md              # SMS OTP Management with Redis PRD
+├── PRD.md                      # Main PRD
+├── OPENLDAP-README.md          # OpenLDAP deployment documentation
+├── OSIXIA-OPENLDAP-REQUIREMENTS.md  # OpenLDAP requirements documentation
+├── SECRETS_REQUIREMENTS.md     # Secrets management requirements
+├── SECURITY-IMPROVEMENTS.md   # Security improvements documentation
+└── README.md                   # This file
 ```
 
 ## Prerequisites
@@ -593,10 +587,8 @@ variables (see Configuration section)
 10. **AWS Identity Center**: Required for ArgoCD RBAC configuration
 11. **VPC Endpoints (for SMS 2FA)**: STS and SNS endpoints must be enabled in
 backend_infra
-12. **GitHub Secrets for Infrastructure**:
-    - `TF_VAR_REDIS_PASSWORD`: Redis authentication password
-    - `TF_VAR_POSTGRES_PASSWORD`: PostgreSQL database password
-    - `TF_VAR_SES_SENDER_EMAIL`: Verified SES sender email address
+12. **Secrets Configuration**: All required secrets must be configured.
+See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for complete setup instructions.
 
 ## Configuration
 
@@ -642,62 +634,13 @@ cluster_name = "talo-tf-us-east-1-kc-prod"
 > Passwords must be set via environment variables, NOT in `variables.tfvars`.
 
 The `setup-application.sh` script automatically retrieves these passwords from
-GitHub repository secrets and exports them as environment variables for
-Terraform.
+AWS Secrets Manager (for local use) or GitHub repository secrets (for GitHub Actions)
+and exports them as environment variables for Terraform.
 
-**Using setup-application.sh (Recommended):**
-
-The script automatically:
-
-- Checks for `TF_VAR_OPENLDAP_ADMIN_PASSWORD` and
-`TF_VAR_OPENLDAP_CONFIG_PASSWORD` in repository secrets
-- Retrieves them from environment variables (GitHub CLI cannot read secret
-values directly)
-- Exports them as `TF_VAR_*` environment variables for Terraform
-
-**For Local Development:**
-
-Since GitHub CLI cannot read secret values directly, you need to export them as
-environment variables before running the script:
-
-```bash
-export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
-export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
-./setup-application.sh
-```
-
-Alternatively, create a `.env` file:
-
-```bash
-cat > .env << EOF
-export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
-export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
-EOF
-
-source .env
-./setup-application.sh
-```
-
-**GitHub Actions:**
-
-Set these as GitHub Secrets:
-
-- `TF_VAR_OPENLDAP_ADMIN_PASSWORD`
-- `TF_VAR_OPENLDAP_CONFIG_PASSWORD`
-- `TF_VAR_REDIS_PASSWORD`
-- `TF_VAR_POSTGRES_PASSWORD`
-- `TF_VAR_SES_SENDER_EMAIL`
-
-The workflow automatically exports them as Terraform variables:
-
-```yaml
-env:
-  TF_VAR_OPENLDAP_ADMIN_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
-  TF_VAR_OPENLDAP_CONFIG_PASSWORD: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
-  TF_VAR_REDIS_PASSWORD: ${{ secrets.TF_VAR_REDIS_PASSWORD }}
-  TF_VAR_POSTGRES_PASSWORD: ${{ secrets.TF_VAR_POSTGRES_PASSWORD }}
-  TF_VAR_SES_SENDER_EMAIL: ${{ secrets.TF_VAR_SES_SENDER_EMAIL }}
-```
+> [!NOTE]
+>
+> For complete secrets configuration details, including AWS Secrets Manager setup,
+> GitHub repository secrets, and troubleshooting, see [Secrets Requirements](SECRETS_REQUIREMENTS.md).
 
 #### Route53 and Domain Variables
 
@@ -787,14 +730,14 @@ defaults to `app_name`)
 
 > [!IMPORTANT]
 >
-> PostgreSQL password must be set via environment variable
-> `TF_VAR_POSTGRES_PASSWORD` (from GitHub Secrets).
+> PostgreSQL password must be set via environment variable `TF_VAR_postgresql_database_password`.
+> See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for configuration details.
 
 #### SES Variables
 
 - `enable_ses`: Enable SES email resources (default: `true`)
-- `ses_sender_email`: Verified sender email address (from
-`TF_VAR_SES_SENDER_EMAIL`)
+- `ses_sender_email`: Verified sender email address
+(set in `variables.tfvars`, default: `"noreply@example.com"`)
 - `ses_sender_domain`: Optional domain to verify (for DKIM)
 - `ses_route53_zone_id`: Optional Route53 zone ID for automatic DNS records
 
@@ -807,8 +750,9 @@ defaults to `app_name`)
 
 > [!IMPORTANT]
 >
-> Redis password must be set via environment variable
-> `TF_VAR_REDIS_PASSWORD` (from GitHub Secrets). Minimum 16 characters.
+> Redis password must be set via environment variable `TF_VAR_redis_password`
+> (minimum 8 characters). See [Secrets Requirements](SECRETS_REQUIREMENTS.md)
+> for configuration details.
 
 ### Example Configuration
 
@@ -853,15 +797,11 @@ redis_storage_size          = "1Gi"
 enable_ses                  = true
 ```
 
-**.env file (local development):**
-
-```bash
-export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
-export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
-export TF_VAR_REDIS_PASSWORD="YourSecureRedisPassword123!"
-export TF_VAR_POSTGRES_PASSWORD="YourSecurePostgresPassword123!"
-export TF_VAR_SES_SENDER_EMAIL="noreply@yourdomain.com"
-```
+> [!NOTE]
+>
+> For secrets configuration (passwords), see [Secrets Requirements](SECRETS_REQUIREMENTS.md).
+> The `setup-application.sh` script automatically retrieves passwords from
+> AWS Secrets Manager.
 
 ## Deployment
 
@@ -874,42 +814,22 @@ export TF_VAR_SES_SENDER_EMAIL="noreply@yourdomain.com"
    - Configure ArgoCD settings if using GitOps
    - Configure SMS 2FA settings if using SMS verification
 
-### Step 2: Set Up OpenLDAP Passwords (For Local Development)
+### Step 2: Configure Secrets
 
 > [!NOTE]
 >
-> The `setup-application.sh` script automatically retrieves OpenLDAP
-> passwords from GitHub repository secrets. For local use, you need to export them
-> as environment variables since GitHub CLI cannot read secret values directly.
+> The `setup-application.sh` script automatically retrieves passwords from
+> AWS Secrets Manager (for local use) or GitHub repository secrets (for GitHub Actions).
 
-**Local Development:**
+**Setup Instructions:**
 
-```bash
-cd application
+See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for complete configuration
+instructions, including:
 
-# Export passwords as environment variables
-export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
-export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
-```
-
-Alternatively, create a `.env` file:
-
-```bash
-cat > .env << EOF
-export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
-export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
-EOF
-
-source .env
-```
-
-**GitHub Actions:**
-
-The workflow automatically uses GitHub Secrets. Ensure these are set in your
-repository:
-
-- `TF_VAR_OPENLDAP_ADMIN_PASSWORD`
-- `TF_VAR_OPENLDAP_CONFIG_PASSWORD`
+- AWS Secrets Manager setup (for local scripts)
+- GitHub Repository Secrets setup (for GitHub Actions)
+- Secret names and descriptions
+- Troubleshooting guide
 
 ### Step 3: Deploy Application Infrastructure
 
@@ -927,12 +847,11 @@ This script will:
 - Retrieve repository variables from GitHub
 - Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state
 operations
-- Retrieve the appropriate deployment account role ARN from GitHub secrets based
-on the selected environment:
+- Retrieve the appropriate deployment account role ARN from AWS Secrets Manager
+based on the selected environment:
   - `prod` → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
   - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
-- Retrieve OpenLDAP password secrets (`TF_VAR_OPENLDAP_ADMIN_PASSWORD` and
-`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) from repository secrets and export them as
+- Retrieve password secrets from AWS Secrets Manager and export them as
 environment variables
 - Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the
 actual values (if it doesn't exist)
@@ -1063,7 +982,8 @@ place)
 validated via Route53)
 3. **LDAP Internal**: LDAP service is ClusterIP only, not exposed externally
 4. **Sensitive Variables**: Passwords are marked as sensitive in Terraform and
-must be set via environment variables, never in `variables.tfvars`
+must be set via environment variables, never in `variables.tfvars`.
+See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for configuration details.
 5. **Encrypted Storage**: EBS volumes are encrypted by default (configurable via
 `storage_class_encrypted`)
 6. **Network Isolation**: Services run in private subnets
@@ -1071,7 +991,9 @@ must be set via environment variables, never in `variables.tfvars`
 communication to secure ports only (443, 636, 8443), with cross-namespace access
 enabled for LDAP service access
 8. **Password Injection**: Passwords are injected at runtime via environment
-variables or GitHub Secrets, ensuring they never appear in version control
+variables from AWS Secrets Manager (local scripts) or GitHub Secrets (GitHub Actions),
+ensuring they never appear in version control. See [Secrets Requirements](SECRETS_REQUIREMENTS.md)
+for details.
 9. **DNS Validation**: ACM certificate uses DNS validation via Route53, ensuring
 secure certificate provisioning
 10. **EKS Auto Mode Security**: IAM permissions are automatically handled by EKS

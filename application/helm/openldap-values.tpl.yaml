@@ -16,17 +16,16 @@ global:
   imagePullSecrets: []
   storageClass: "${storage_class_name}"
   ldapDomain: "${openldap_ldap_domain}"
-  adminPassword:  "${openldap_admin_password}"
-  configPassword: "${openldap_config_password}"
+  existingSecret: "${openldap_secret_name}"
   ldapPort: 389
   sslLdapPort: 636
 
 # Enable TLS with auto-generated certificates for osixia/openldap image
 # osixia/openldap uses different environment variable names than Bitnami
+# Note: LDAP_ADMIN_PASSWORD and LDAP_CONFIG_PASSWORD are now sourced from the Kubernetes secret
+# specified in global.existingSecret
 env:
   LDAP_DOMAIN: "${openldap_ldap_domain}"
-  LDAP_ADMIN_PASSWORD: "${openldap_admin_password}"
-  LDAP_CONFIG_PASSWORD: "${openldap_config_password}"
   # Enable TLS (osixia/openldap will auto-generate certificates if they don't exist)
   LDAP_TLS: "true"
   # Don't enforce TLS (allows both LDAP and LDAPS connections)

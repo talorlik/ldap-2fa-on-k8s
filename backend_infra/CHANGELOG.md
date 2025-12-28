@@ -4,10 +4,17 @@ All notable changes to the backend infrastructure will be documented in this
 file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic
-Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Changed
+
+- **Documentation Improvements**
+  - Removed duplication by replacing detailed module descriptions with links
+  to module READMEs
+  - Enhanced cross-references to VPC Endpoints and ECR module documentation
+  - Updated component descriptions to be more concise with links to detailed documentation
 
 ## [2025-12-18] - VPC Endpoints for IRSA and SMS 2FA Support
 

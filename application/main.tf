@@ -96,34 +96,11 @@ locals {
   }
   alb_zone_id = lookup(local.alb_zone_ids, var.region, "Z35SXDOTRQ7X7K")
 
-  # Get ALB DNS name from either Ingress (they should both point to the same ALB)
-  # Both Ingress resources use the same ALB with host-based routing
-  alb_dns_name = try(
-    data.kubernetes_ingress_v1.phpldapadmin.status[0].load_balancer[0].ingress[0].hostname,
-    data.kubernetes_ingress_v1.ltb_passwd.status[0].load_balancer[0].ingress[0].hostname,
-    ""
-  )
-
-  openldap_values = templatefile(
-    "${path.module}/helm/openldap-values.tpl.yaml",
-    {
-      storage_class_name       = local.storage_class_name
-      openldap_ldap_domain     = var.openldap_ldap_domain
-      openldap_admin_password  = var.openldap_admin_password
-      openldap_config_password = var.openldap_config_password
-      app_name                 = local.app_name
-      # ALB configuration - IngressClassParams handles scheme and ipAddressType
-      ingress_class_name = var.use_alb ? module.alb[0].ingress_class_name : "alb"
-      # alb_group_name           = local.alb_group_name
-      alb_load_balancer_name = local.alb_load_balancer_name
-      acm_cert_arn           = data.aws_acm_certificate.this.arn
-      phpldapadmin_host      = var.phpldapadmin_host
-      ltb_passwd_host        = var.ltb_passwd_host
-      # Per-Ingress annotations still needed for grouping, TLS, ports, etc.
-      alb_target_type = var.alb_target_type
-      # alb_ssl_policy           = var.alb_ssl_policy
-    }
-  )
+  # ALB DNS name: Query AWS directly using the ALB name.
+  # While this is the preferred approach, we are reliant on the OpenLDAP module
+  # being fully deployed as this guarantees that an Ingress resource exists, which triggers ALB creation.
+  # The ALB must exist before this can be queried.
+  alb_dns_name = var.use_alb ? data.aws_lb.alb[0].dns_name : null
 }
 
 # ALB module creates IngressClass and IngressClassParams for EKS Auto Mode
@@ -148,92 +125,50 @@ module "alb" {
   alb_group_name              = local.alb_group_name
 }
 
-# Helm release for OpenLDAP Stack HA
-resource "helm_release" "openldap" {
-  name       = "openldap-stack-ha"
-  repository = "https://jp-gouin.github.io/helm-openldap"
-  chart      = "openldap-stack-ha"
-  version    = "4.0.1"
+# Query AWS for ALB DNS name using the load balancer name.
+# While querying AWS directly is the preferred approach, we are reliant on the OpenLDAP module
+# being fully deployed as this guarantees that an Ingress resource exists, which triggers ALB creation.
+data "aws_lb" "alb" {
+  count = var.use_alb ? 1 : 0
+  name  = local.alb_load_balancer_name
 
-  namespace        = "ldap"
-  create_namespace = true
+  # Ensure OpenLDAP module is fully deployed (creates Ingress which triggers ALB creation)
+  depends_on = [module.openldap]
+}
 
-  # Force recreation on configuration changes
-  recreate_pods = true
-  force_update  = true
+##################### OpenLDAP ##########################
 
-  values = [local.openldap_values]
+# OpenLDAP Module
+module "openldap" {
+  source = "./modules/openldap"
+
+  env    = var.env
+  region = var.region
+  prefix = var.prefix
+
+  app_name                 = local.app_name
+  openldap_ldap_domain     = var.openldap_ldap_domain
+  openldap_admin_password  = var.openldap_admin_password
+  openldap_config_password = var.openldap_config_password
+  storage_class_name       = local.storage_class_name
+
+  phpldapadmin_host = var.phpldapadmin_host
+  ltb_passwd_host   = var.ltb_passwd_host
+
+  use_alb                = var.use_alb
+  ingress_class_name     = var.use_alb ? module.alb[0].ingress_class_name : null
+  alb_load_balancer_name = local.alb_load_balancer_name
+  alb_target_type        = var.alb_target_type
+  acm_cert_arn           = data.aws_acm_certificate.this.arn
+
+  route53_zone_id = data.aws_route53_zone.this.zone_id
+  alb_zone_id     = local.alb_zone_id
+
+  tags = local.tags
 
   depends_on = [
-    data.aws_eks_cluster.cluster,
-    data.aws_route53_zone.this,
-    data.aws_acm_certificate.this,
     kubernetes_storage_class_v1.this,
     module.alb,
-  ]
-}
-
-# Create Network Policies for secure internal cluster communication
-# Generic policies: Any service can communicate with any service, but only on secure ports
-module "network_policies" {
-  source = "./modules/network-policies"
-
-  namespace = "ldap"
-
-  depends_on = [helm_release.openldap]
-}
-
-# Get Ingress resources created by Helm chart to extract ALB DNS names
-data "kubernetes_ingress_v1" "phpldapadmin" {
-  metadata {
-    name      = "openldap-stack-ha-phpldapadmin"
-    namespace = "ldap"
-  }
-
-  depends_on = [helm_release.openldap]
-}
-
-data "kubernetes_ingress_v1" "ltb_passwd" {
-  metadata {
-    name      = "openldap-stack-ha-ltb-passwd"
-    namespace = "ldap"
-  }
-
-  depends_on = [helm_release.openldap]
-}
-
-# Route53 A (alias) records for subdomains pointing to ALB
-resource "aws_route53_record" "phpldapadmin" {
-  zone_id = data.aws_route53_zone.this.zone_id
-  name    = var.phpldapadmin_host
-  type    = "A"
-
-  alias {
-    name                   = local.alb_dns_name
-    zone_id                = local.alb_zone_id
-    evaluate_target_health = true
-  }
-
-  depends_on = [
-    helm_release.openldap,
-    data.kubernetes_ingress_v1.phpldapadmin,
-  ]
-}
-
-resource "aws_route53_record" "ltb_passwd" {
-  zone_id = data.aws_route53_zone.this.zone_id
-  name    = var.ltb_passwd_host
-  type    = "A"
-
-  alias {
-    name                   = local.alb_dns_name
-    zone_id                = local.alb_zone_id
-    evaluate_target_health = true
-  }
-
-  depends_on = [
-    helm_release.openldap,
-    data.kubernetes_ingress_v1.ltb_passwd,
   ]
 }
 
@@ -246,13 +181,13 @@ resource "aws_route53_record" "twofa_app" {
   type    = "A"
 
   alias {
-    name                   = local.alb_dns_name
+    name                   = module.openldap.alb_dns_name
     zone_id                = local.alb_zone_id
     evaluate_target_health = true
   }
 
   depends_on = [
-    helm_release.openldap, # Ensures ALB exists before creating record
+    module.openldap, # Ensures ALB exists before creating record
   ]
 }
 
@@ -269,6 +204,7 @@ module "postgresql" {
   prefix = var.prefix
 
   namespace         = var.postgresql_namespace
+  secret_name       = var.postgresql_secret_name
   database_name     = var.postgresql_database_name
   database_username = var.postgresql_database_username
   database_password = var.postgresql_database_password
@@ -346,6 +282,7 @@ module "redis" {
 
   enable_redis       = var.enable_redis
   namespace          = var.redis_namespace
+  secret_name        = var.redis_secret_name
   redis_password     = var.redis_password
   storage_class_name = local.storage_class_name
   storage_size       = var.redis_storage_size

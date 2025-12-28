@@ -57,15 +57,19 @@ global:
   imagePullSecrets: []
   storageClass: ""              # leave empty, use persistence.storageClass instead
   ldapDomain: "ldap.talorlik.internal"   # or whatever LDAP base you want
-  adminPassword:  "${TF_VAR_OPENLDAP_ADMIN_PASSWORD}"
-  configPassword: "${TF_VAR_OPENLDAP_CONFIG_PASSWORD}"
+  adminPassword:  "${TF_VAR_openldap_admin_password}"
+  configPassword: "${TF_VAR_openldap_config_password}"
   ldapPort: 389                 # standard LDAP
   sslLdapPort: 636              # standard LDAPS
 ```
 
 In Terraform you will not literally hardcode
-`${TF_VAR_OPENLDAP_ADMIN_PASSWORD}`; you will template these from variables or
+`${TF_VAR_openldap_admin_password}` (from GitHub Secret `TF_VAR_OPENLDAP_ADMIN_PASSWORD` or AWS Secrets Manager); you will template these from variables or
 inject via `global.existingSecret`. The important part is:
+
+> [!NOTE]
+>
+> For complete secrets configuration, see [Secrets Requirements](SECRETS_REQUIREMENTS.md).
 
 - Do not keep `Not@SecurePassw0rd`.
 - Set `ldapDomain` to the real domain you will use for DNs. ([GitHub][1])
@@ -419,6 +423,30 @@ You now have:
 - LDAP reachable only inside the cluster via ClusterIP service.
 - Two GUIs reachable via ALB on the hostnames you specified, for manual
 management and self service.
+
+## Future Improvements
+
+### cert-manager Integration
+
+**Current Status**: The cert-manager module exists in the codebase (`modules/cert-manager/`)
+but is **not currently used** by the OpenLDAP module. OpenLDAP currently uses auto-generated
+self-signed certificates from the osixia/openldap image.
+
+**Future Enhancement**: Integrating cert-manager would provide:
+
+- Automatic certificate generation and renewal for OpenLDAP TLS certificates
+- Better certificate lifecycle management (renewal, rotation)
+- Integration with Let's Encrypt or other certificate authorities for trusted certificates
+- Consistent certificate management across all services
+- Reduced manual certificate management overhead
+
+**Implementation Notes**:
+
+- The cert-manager module is already available and can be enabled
+- Integration would require updating the OpenLDAP Helm values to reference cert-manager-issued
+certificates
+- Certificates would be stored in Kubernetes secrets and mounted into the OpenLDAP pods
+- This would replace the current auto-generated self-signed certificates
 
 [1]: https://github.com/jp-gouin/helm-openldap "GitHub - jp-gouin/helm-openldap:
 Helm chart of Openldap in High availability with multi-master replication and

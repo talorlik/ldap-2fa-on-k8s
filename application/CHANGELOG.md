@@ -4,25 +4,33 @@ All notable changes to the OpenLDAP application infrastructure will be
 documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic
-Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Added
-
-- **API Documentation (Swagger UI)**
-  - FastAPI Swagger UI now always enabled at `/api/docs` (previously only available in debug mode)
-  - ReDoc UI always available at `/api/redoc`
-  - OpenAPI schema accessible at `/api/openapi.json`
-  - Interactive API documentation automatically updates when endpoints change
-  - Documentation updated in README.md and PRD-2FA-APP.md to reflect availability
-
 ### Changed
+
+- **Documentation Improvements**
+  - Removed duplication by replacing detailed module descriptions with links to
+  module READMEs
+  - Enhanced cross-references to module documentation (ALB, ArgoCD, cert-manager,
+  Network Policies, PostgreSQL, Redis, SES, SNS)
+  - Updated component descriptions to be more concise with links to detailed documentation
+  - Improved consistency across documentation files
 
 - **Backend API Configuration**
   - Removed debug mode condition for API documentation endpoints
   - Swagger UI, ReDoc UI, and OpenAPI schema are now always accessible in production
+
+### Added
+
+- **API Documentation (Swagger UI)**
+  - FastAPI Swagger UI now always enabled at `/api/docs` (previously only available
+  in debug mode)
+  - ReDoc UI always available at `/api/redoc`
+  - OpenAPI schema accessible at `/api/openapi.json`
+  - Interactive API documentation automatically updates when endpoints change
+  - Documentation updated in README.md and PRD-2FA-APP.md to reflect availability
 
 ### [2025-12-18] - Admin Functions and User Profile Management
 
@@ -206,7 +214,8 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **GitHub Actions Updates**
   - Added `TF_VAR_redis_password` environment variable for Redis password
-  - Password sourced from `TF_VAR_REDIS_PASSWORD` GitHub Secret
+  - Password sourced from `TF_VAR_REDIS_PASSWORD` GitHub Secret (secret name remains
+  uppercase, but exported as lowercase to match `variables.tf`)
 
 #### Changed
 
@@ -382,7 +391,10 @@ access**
   - `setup-application.sh` now automatically retrieves OpenLDAP passwords from
   GitHub repository secrets
   - Script checks for `TF_VAR_OPENLDAP_ADMIN_PASSWORD` and
-  `TF_VAR_OPENLDAP_CONFIG_PASSWORD` secrets
+  `TF_VAR_OPENLDAP_CONFIG_PASSWORD`, `TF_VAR_POSTGRESQL_PASSWORD`,
+  and `TF_VAR_REDIS_PASSWORD` secrets (exported as lowercase `TF_VAR_openldap_admin_password`,
+  `TF_VAR_openldap_config_password`, `TF_VAR_postgresql_database_password`,
+  and `TF_VAR_redis_password` to match `variables.tf`)
   - Automatically exports passwords as environment variables for Terraform
   - Supports both GitHub Actions (secrets automatically available) and local
   execution (requires exported environment variables)

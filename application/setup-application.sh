@@ -95,32 +95,61 @@ get_repo_variable() {
     echo "$value"
 }
 
-# Function to check if repository secret exists using GitHub CLI
-check_repo_secret_exists() {
+# Function to retrieve secret from AWS Secrets Manager
+get_aws_secret() {
     local secret_name=$1
-    local exists
+    local secret_json
+    local exit_code
 
-    exists=$(gh secret list --repo "${REPO_OWNER}/${REPO_NAME}" --json name --jq ".[] | select(.name == \"${secret_name}\") | .name" 2>/dev/null || echo "")
+    # Retrieve secret from AWS Secrets Manager
+    secret_json=$(aws secretsmanager get-secret-value \
+        --secret-id "$secret_name" \
+        --query SecretString \
+        --output text 2>&1)
 
-    if [ -z "$exists" ]; then
+    # Capture exit code before checking
+    exit_code=$?
+
+    # Validate secret retrieval
+    if [ $exit_code -ne 0 ]; then
+        print_error "Failed to retrieve secret '${secret_name}' from AWS Secrets Manager"
+        print_error "Error: $secret_json"
         return 1
     fi
 
-    return 0
+    # Validate JSON can be parsed
+    if ! echo "$secret_json" | jq empty 2>/dev/null; then
+        print_error "Secret '${secret_name}' contains invalid JSON"
+        return 1
+    fi
+
+    echo "$secret_json"
 }
 
-# Function to get repository secret value
-# Note: GitHub CLI doesn't allow reading secret values directly for security reasons
-# In GitHub Actions, secrets are automatically available as environment variables
-get_repo_secret_value() {
-    local secret_name=$1
+# Function to get key value from secret JSON
+get_secret_key_value() {
+    local secret_json=$1
+    local key_name=$2
     local value
 
-    # In GitHub Actions, secrets are available as environment variables with the same name
-    # For local use, we check if it's set as an environment variable
-    value="${!secret_name:-}"
+    # Validate JSON can be parsed
+    if ! echo "$secret_json" | jq empty 2>/dev/null; then
+        print_error "Invalid JSON provided to get_secret_key_value"
+        return 1
+    fi
 
-    if [ -z "$value" ]; then
+    # Extract key value using jq
+    value=$(echo "$secret_json" | jq -r ".[\"${key_name}\"]" 2>/dev/null)
+
+    # Check if jq command succeeded
+    if [ $? -ne 0 ]; then
+        print_error "Failed to parse JSON or extract key '${key_name}'"
+        return 1
+    fi
+
+    # Check if key exists (jq returns "null" for non-existent keys)
+    if [ "$value" = "null" ] || [ -z "$value" ]; then
+        print_error "Key '${key_name}' not found in secret JSON or value is empty"
         return 1
     fi
 
@@ -173,87 +202,86 @@ esac
 print_success "Selected environment: ${ENVIRONMENT}"
 echo ""
 
-# Retrieve STATE_ACCOUNT_ROLE_ARN for backend state operations
-print_info "Retrieving AWS_STATE_ACCOUNT_ROLE_ARN from repository secrets..."
-if ! check_repo_secret_exists "AWS_STATE_ACCOUNT_ROLE_ARN"; then
-    print_error "AWS_STATE_ACCOUNT_ROLE_ARN secret not found in repository secrets."
-    echo "Please ensure AWS_STATE_ACCOUNT_ROLE_ARN is set in GitHub repository secrets."
+# Retrieve role ARNs from AWS Secrets Manager in a single call
+# This minimizes AWS CLI calls by fetching all required role ARNs at once
+print_info "Retrieving role ARNs from AWS Secrets Manager..."
+ROLE_SECRET_JSON=$(get_aws_secret "github-role" || echo "")
+if [ -z "$ROLE_SECRET_JSON" ]; then
+    print_error "Failed to retrieve 'github-role' secret from AWS Secrets Manager"
     exit 1
 fi
 
-STATE_ROLE_ARN=$(get_repo_secret_value "AWS_STATE_ACCOUNT_ROLE_ARN" || echo "")
+# Extract STATE_ACCOUNT_ROLE_ARN for backend state operations
+STATE_ROLE_ARN=$(get_secret_key_value "$ROLE_SECRET_JSON" "AWS_STATE_ACCOUNT_ROLE_ARN" || echo "")
 if [ -z "$STATE_ROLE_ARN" ]; then
-    print_error "Failed to retrieve AWS_STATE_ACCOUNT_ROLE_ARN secret value."
-    echo "In GitHub Actions, secrets are automatically available as environment variables."
-    echo "For local use, ensure the secret is available as an environment variable."
+    print_error "Failed to retrieve AWS_STATE_ACCOUNT_ROLE_ARN from secret"
     exit 1
 fi
 print_success "Retrieved AWS_STATE_ACCOUNT_ROLE_ARN"
 
-# Determine which deployment account role ARN secret to use based on environment
+# Determine which deployment account role ARN to use based on environment
 if [ "$ENVIRONMENT" = "prod" ]; then
-    DEPLOYMENT_ROLE_ARN_SECRET_NAME="AWS_PRODUCTION_ACCOUNT_ROLE_ARN"
+    DEPLOYMENT_ROLE_ARN_KEY="AWS_PRODUCTION_ACCOUNT_ROLE_ARN"
 else
-    DEPLOYMENT_ROLE_ARN_SECRET_NAME="AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN"
+    DEPLOYMENT_ROLE_ARN_KEY="AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN"
 fi
 
-# Retrieve deployment account role ARN for provider assume_role
-print_info "Retrieving ${DEPLOYMENT_ROLE_ARN_SECRET_NAME} from repository secrets..."
-if ! check_repo_secret_exists "${DEPLOYMENT_ROLE_ARN_SECRET_NAME}"; then
-    print_error "${DEPLOYMENT_ROLE_ARN_SECRET_NAME} secret not found in repository secrets."
-    echo "Please ensure ${DEPLOYMENT_ROLE_ARN_SECRET_NAME} is set in GitHub repository secrets."
-    exit 1
-fi
-
-DEPLOYMENT_ROLE_ARN=$(get_repo_secret_value "${DEPLOYMENT_ROLE_ARN_SECRET_NAME}" || echo "")
+# Extract deployment account role ARN for provider assume_role
+DEPLOYMENT_ROLE_ARN=$(get_secret_key_value "$ROLE_SECRET_JSON" "$DEPLOYMENT_ROLE_ARN_KEY" || echo "")
 if [ -z "$DEPLOYMENT_ROLE_ARN" ]; then
-    print_error "Failed to retrieve ${DEPLOYMENT_ROLE_ARN_SECRET_NAME} secret value."
-    echo "In GitHub Actions, secrets are automatically available as environment variables."
-    echo "For local use, ensure the secret is available as an environment variable."
+    print_error "Failed to retrieve ${DEPLOYMENT_ROLE_ARN_KEY} from secret"
     exit 1
 fi
-print_success "Retrieved ${DEPLOYMENT_ROLE_ARN_SECRET_NAME}"
+print_success "Retrieved ${DEPLOYMENT_ROLE_ARN_KEY}"
 
-# Retrieve OpenLDAP password secrets
-print_info "Retrieving OpenLDAP password secrets from repository secrets..."
-if ! check_repo_secret_exists "TF_VAR_OPENLDAP_ADMIN_PASSWORD"; then
-    print_error "TF_VAR_OPENLDAP_ADMIN_PASSWORD secret not found in repository secrets."
-    echo "Please ensure TF_VAR_OPENLDAP_ADMIN_PASSWORD is set in GitHub repository secrets."
-    exit 1
-fi
-
-if ! check_repo_secret_exists "TF_VAR_OPENLDAP_CONFIG_PASSWORD"; then
-    print_error "TF_VAR_OPENLDAP_CONFIG_PASSWORD secret not found in repository secrets."
-    echo "Please ensure TF_VAR_OPENLDAP_CONFIG_PASSWORD is set in GitHub repository secrets."
+# Retrieve Terraform variables from AWS Secrets Manager in a single call
+print_info "Retrieving Terraform variables from AWS Secrets Manager..."
+TF_VARS_SECRET_JSON=$(get_aws_secret "tf-vars" || echo "")
+if [ -z "$TF_VARS_SECRET_JSON" ]; then
+    print_error "Failed to retrieve 'tf-vars' secret from AWS Secrets Manager"
     exit 1
 fi
 
-# Get OpenLDAP password values from environment variables
-# Note: GitHub CLI cannot read secret values directly, so we check environment variables
-# For local use, users should export these as environment variables before running the script
-TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE=$(get_repo_secret_value "TF_VAR_OPENLDAP_ADMIN_PASSWORD" || echo "")
+# Extract OpenLDAP password values from tf-vars secret
+TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_ADMIN_PASSWORD" || echo "")
 if [ -z "$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_OPENLDAP_ADMIN_PASSWORD secret value."
-    echo "In GitHub Actions, secrets are automatically available as environment variables."
-    echo "For local use, ensure the secret is available as an environment variable:"
-    echo "  export TF_VAR_OPENLDAP_ADMIN_PASSWORD=\"your_password\""
+    print_error "Failed to retrieve TF_VAR_OPENLDAP_ADMIN_PASSWORD from secret"
     exit 1
 fi
+print_success "Retrieved TF_VAR_OPENLDAP_ADMIN_PASSWORD"
 
-TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE=$(get_repo_secret_value "TF_VAR_OPENLDAP_CONFIG_PASSWORD" || echo "")
+TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_CONFIG_PASSWORD" || echo "")
 if [ -z "$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_OPENLDAP_CONFIG_PASSWORD secret value."
-    echo "In GitHub Actions, secrets are automatically available as environment variables."
-    echo "For local use, ensure the secret is available as an environment variable:"
-    echo "  export TF_VAR_OPENLDAP_CONFIG_PASSWORD=\"your_password\""
+    print_error "Failed to retrieve TF_VAR_OPENLDAP_CONFIG_PASSWORD from secret"
     exit 1
 fi
+print_success "Retrieved TF_VAR_OPENLDAP_CONFIG_PASSWORD"
+
+# Extract PostgreSQL password from tf-vars secret
+TF_VAR_POSTGRESQL_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_POSTGRESQL_PASSWORD" || echo "")
+if [ -z "$TF_VAR_POSTGRESQL_PASSWORD_VALUE" ]; then
+    print_error "Failed to retrieve TF_VAR_POSTGRESQL_PASSWORD from secret"
+    exit 1
+fi
+print_success "Retrieved TF_VAR_POSTGRESQL_PASSWORD"
+
+# Extract Redis password from tf-vars secret
+TF_VAR_REDIS_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_REDIS_PASSWORD" || echo "")
+if [ -z "$TF_VAR_REDIS_PASSWORD_VALUE" ]; then
+    print_error "Failed to retrieve TF_VAR_REDIS_PASSWORD from secret"
+    exit 1
+fi
+print_success "Retrieved TF_VAR_REDIS_PASSWORD"
 
 # Export as environment variables for Terraform
-export TF_VAR_OPENLDAP_ADMIN_PASSWORD="$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE"
-export TF_VAR_OPENLDAP_CONFIG_PASSWORD="$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE"
+# Note: TF_VAR environment variables are case-sensitive and must match variable names in variables.tf
+# Secrets in AWS/GitHub remain uppercase, but environment variables must be lowercase
+export TF_VAR_openldap_admin_password="$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE"
+export TF_VAR_openldap_config_password="$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE"
+export TF_VAR_postgresql_database_password="$TF_VAR_POSTGRESQL_PASSWORD_VALUE"
+export TF_VAR_redis_password="$TF_VAR_REDIS_PASSWORD_VALUE"
 
-print_success "Retrieved and exported OpenLDAP password secrets"
+print_success "Retrieved and exported all secrets from AWS Secrets Manager"
 echo ""
 
 # Use STATE_ROLE_ARN for backend operations

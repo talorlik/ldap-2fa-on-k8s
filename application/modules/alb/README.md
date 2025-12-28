@@ -28,13 +28,15 @@ automatically - no need to attach `AWSLoadBalancerControllerIAMPolicy`
 EKS Auto Mode IngressClassParams supports these cluster-wide defaults:
 
 | Setting | Description |
-|---------|-------------|
+| --------- | ------------- |
 | `scheme` | `internet-facing` or `internal` |
 | `ipAddressType` | `ipv4` or `dualstack` |
 | `group.name` | ALB group name for grouping multiple Ingresses |
 | `certificateARNs` | ACM certificate ARNs for TLS termination |
 
-> **Note**: Unlike AWS Load Balancer Controller, EKS Auto Mode IngressClassParams
+> [!NOTE]
+>
+> Unlike AWS Load Balancer Controller, EKS Auto Mode IngressClassParams
 > does NOT support subnets, security groups, or tags.
 
 ### Annotation Strategy
@@ -46,10 +48,37 @@ The module implements a two-tier configuration approach:
    - Inherited by all Ingresses using this IngressClass
 
 2. **Per-Ingress settings** (Ingress annotations):
-   - `alb.ingress.kubernetes.io/load-balancer-name`
-   - `alb.ingress.kubernetes.io/target-type`
-   - `alb.ingress.kubernetes.io/listen-ports`
-   - `alb.ingress.kubernetes.io/ssl-redirect`
+   - `alb.ingress.kubernetes.io/load-balancer-name` - AWS ALB name (max 32 characters)
+   - `alb.ingress.kubernetes.io/target-type` - IP or instance
+   - `alb.ingress.kubernetes.io/listen-ports` - HTTP/HTTPS ports
+   - `alb.ingress.kubernetes.io/ssl-redirect` - HTTPS redirect
+
+> [!NOTE]
+>
+> `group.name` and `certificateARNs` are configured in IngressClassParams (cluster-wide),
+> not in Ingress annotations. This centralizes TLS and group configuration at the
+> cluster level, reducing annotation duplication.
+
+### ALB Naming
+
+The configuration supports separate naming for:
+
+- **ALB Group Name** (`alb_group_name`): Kubernetes identifier (max 63 characters)
+  - used to group multiple Ingresses
+  - Configured in IngressClassParams (`group.name`)
+  - Used internally by Kubernetes to group Ingresses that share the same ALB
+  - Defaults to `app_name` if not provided
+
+- **ALB Load Balancer Name** (`load-balancer-name` annotation): AWS resource name
+(max 32 characters)
+  - appears in AWS console
+  - Configured in Ingress annotations (per-Ingress)
+  - The actual AWS ALB resource name visible in AWS console
+  - Should be truncated to 32 characters if needed
+
+Both names are automatically constructed from prefix, region, and environment,
+with proper truncation to respect limits. The module handles name generation automatically,
+but you can override `alb_group_name` if needed.
 
 ## What it Creates
 
@@ -96,7 +125,7 @@ module "alb" {
 ## Inputs
 
 | Name | Description | Type | Required | Default |
-|------|-------------|------|----------|---------|
+| ------ | ------------- | ------ | ---------- | --------- |
 | env | Environment suffix for resource names | string | yes | - |
 | region | Deployment region | string | yes | - |
 | prefix | Prefix for resource names | string | yes | - |
@@ -112,7 +141,7 @@ module "alb" {
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ------ | ------------- |
 | ingress_class_name | Name of the IngressClass for shared ALB |
 | ingress_class_params_name | Name of the IngressClassParams |
 | alb_scheme | ALB scheme configured in IngressClassParams |
@@ -185,12 +214,31 @@ aws elbv2 describe-load-balancers --region us-east-1
 ## Differences: EKS Auto Mode vs AWS Load Balancer Controller
 
 | Feature | EKS Auto Mode | AWS Load Balancer Controller |
-|---------|---------------|------------------------------|
+| --------- | --------------- | ------------------------------ |
 | Controller | `eks.amazonaws.com/alb` | `alb.ingress.kubernetes.io` |
 | API Group | `eks.amazonaws.com` | `elbv2.k8s.aws` |
 | IAM Setup | Automatic | Requires IAM policy |
 | Installation | Built-in | Requires Helm chart |
 | IngressClassParams | `scheme`, `ipAddressType`, `group.name`, `certificateARNs` | All above plus `subnets`, `securityGroups`, `tags` |
+
+## Internet-Facing ALB Configuration
+
+The ALB is configured as `internet-facing` by default to enable:
+
+- **Public Access**: Access to UIs from anywhere on the internet
+- **User Convenience**: Public accessibility for user-facing services
+- **HTTPS Only**: Secure communication with TLS termination at ALB
+- **DNS Required**: Proper DNS configuration required for public access
+
+When using `internet-facing` scheme:
+
+- ALB is accessible from the internet
+- Requires ACM certificate for HTTPS/TLS termination
+- Route53 DNS records should point to ALB DNS name
+- Security groups must allow HTTPS (443) traffic from internet
+
+For internal-only access, set `alb_scheme = "internal"` to create an internal ALB
+accessible only from within the VPC.
 
 ## Notes
 
@@ -199,6 +247,9 @@ Terraform resource for EKS Auto Mode IngressClassParams
 - The IngressClass is set as the default class for the cluster
 - ALB is automatically provisioned when Ingress resources are created
 - Changes to IngressClassParams trigger resource recreation
+- The actual ALB is created automatically by EKS Auto Mode when the Helm chart
+creates Ingress resources that reference the IngressClass
+- Multiple Ingresses can share a single ALB by using the same `group.name` in IngressClassParams
 
 ## References
 

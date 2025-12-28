@@ -51,7 +51,7 @@ module "ses" {
 ## Inputs
 
 | Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
+| ------ | ------------- | ------ | --------- | :--------: |
 | env | Deployment environment | `string` | n/a | yes |
 | region | Deployment region | `string` | n/a | yes |
 | prefix | Name prefix for resources | `string` | n/a | yes |
@@ -66,7 +66,7 @@ module "ses" {
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ------ | ------------- |
 | sender_email | Verified sender email |
 | sender_domain | Verified domain (if configured) |
 | iam_role_arn | IAM role ARN for IRSA |
@@ -74,12 +74,62 @@ module "ses" {
 | email_identity_arn | SES identity ARN |
 | verification_status | Verification instructions |
 
+## IRSA Configuration
+
+The IAM role is configured for IAM Roles for Service Accounts (IRSA). To use it:
+
+1. The module creates an IAM role with SES send permissions
+2. Add the annotation to your Kubernetes service account:
+
+    ```yaml
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: ldap-2fa-backend
+      namespace: ldap-2fa
+      annotations:
+        eks.amazonaws.com/role-arn: <iam_role_arn from outputs>
+    ```
+
+3. The backend application will automatically assume this role when making
+AWS SDK calls to SES
+
+## Email Types
+
+The SES module supports sending various email types for the 2FA application:
+
+- **Verification Emails**: Token-based verification links for email verification
+  - Contains UUID token in verification link
+  - 24-hour token expiry (configurable)
+  - Sent when user registers or requests resend
+
+- **Welcome Emails**: Sent when admin approves user activation
+  - Confirms user account is active
+  - Provides login instructions
+
+- **Admin Notification Emails**: Sent to all admins when new user signs up
+  - Notifies admins of pending user approval
+  - Includes user details for review
+
+For detailed email templates and sending logic, see the application backend code
+in `application/backend/src/app/email/client.py`.
+
 ## Important Notes
 
-1. **SES Sandbox**: New SES accounts are in sandbox mode and can only send to verified addresses. Request production access for unrestricted sending.
+1. **SES Sandbox**: New SES accounts are in sandbox mode and can only send to
+verified addresses. Request production access for unrestricted sending.
 
-2. **Email Verification**: If using individual email verification, check the inbox for the verification link from AWS.
+2. **Email Verification**: If using individual email verification, check the
+inbox for the verification link from AWS.
 
-3. **Domain Verification**: If using domain verification without Route53 integration, manually add the DNS records shown in the AWS console.
+3. **Domain Verification**: If using domain verification without Route53 integration,
+manually add the DNS records shown in the AWS console.
 
-4. **Service Account**: The Kubernetes service account must have the annotation `eks.amazonaws.com/role-arn` set to the IAM role ARN for IRSA to work.
+4. **Service Account**: The Kubernetes service account must have the annotation
+`eks.amazonaws.com/role-arn` set to the IAM role ARN for IRSA to work.
+
+5. **VPC Endpoints**: For SMS 2FA, ensure SNS VPC endpoint is enabled in backend_infra.
+SES does not require a VPC endpoint (uses internet gateway or NAT gateway).
+
+6. **Sending Limits**: SES has sending limits based on account reputation.
+Monitor sending quotas and request limit increases if needed.

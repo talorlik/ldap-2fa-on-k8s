@@ -1,6 +1,7 @@
 # PostgreSQL Module
 
-Deploys PostgreSQL using the Bitnami Helm chart for the LDAP 2FA application user storage.
+Deploys PostgreSQL using the Bitnami Helm chart for the LDAP 2FA application
+user storage.
 
 ## Features
 
@@ -32,7 +33,7 @@ module "postgresql" {
 ## Inputs
 
 | Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
+| ------ | ------------- | ------ | --------- | :--------: |
 | env | Deployment environment | `string` | n/a | yes |
 | region | Deployment region | `string` | n/a | yes |
 | prefix | Name prefix for resources | `string` | n/a | yes |
@@ -48,7 +49,7 @@ module "postgresql" {
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ------ | ------------- |
 | host | PostgreSQL service hostname |
 | port | PostgreSQL service port |
 | database | Database name |
@@ -56,14 +57,51 @@ module "postgresql" {
 | connection_url | Connection URL (without password) |
 | namespace | Kubernetes namespace |
 
+## Purpose
+
+This module deploys PostgreSQL for the LDAP 2FA application to store:
+
+- **User Registrations**: User data before LDAP activation (first name, last name,
+username, email, phone, password hash, MFA method)
+- **Verification Tokens**: Email verification tokens (UUID-based) and phone
+verification codes
+- **Profile State**: User profile state management (PENDING → COMPLETE → ACTIVE)
+- **Group Assignments**: User-group relationships before LDAP activation
+
+The database stores user registration data until an administrator approves the user,
+at which point the user is created in LDAP and the database record is updated to
+ACTIVE status.
+
 ## Connection
 
 From within the cluster, connect using:
-```
+
+```text
 postgresql://ldap2fa:<password>@postgresql.ldap-2fa.svc.cluster.local:5432/ldap2fa
 ```
 
-For the async SQLAlchemy driver:
-```
+For the async SQLAlchemy driver (used by FastAPI):
+
+```text
 postgresql+asyncpg://ldap2fa:<password>@postgresql.ldap-2fa.svc.cluster.local:5432/ldap2fa
 ```
+
+## Database Schema
+
+The application uses SQLAlchemy models to define the database schema.
+Key tables include:
+
+- **Users**: User registration data with profile fields and verification status
+- **Verification Tokens**: Email and phone verification tokens with expiration
+- **Groups**: LDAP group definitions
+- **User Groups**: User-group relationships
+
+For detailed schema information, see the application backend code in `application/backend/src/app/database/models.py`.
+
+## Security
+
+- **Password Authentication**: Database password is stored in Kubernetes Secret
+(from GitHub Secrets)
+- **Network**: ClusterIP service (not exposed externally)
+- **Storage**: Persistent EBS-backed storage for data durability
+- **Backup**: Consider implementing regular backups for production deployments

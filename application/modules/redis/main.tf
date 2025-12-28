@@ -8,6 +8,77 @@
 
 locals {
   name = "${var.prefix}-${var.region}-redis-${var.env}"
+
+  # Build Redis Helm values (without secret reference to avoid circular dependency)
+  redis_values_base = {
+    architecture = "standalone"
+
+    auth = {
+      enabled                   = true
+      existingSecretPasswordKey = "redis-password"
+    }
+
+    master = {
+      persistence = merge(
+        {
+          enabled = var.persistence_enabled
+          size    = var.storage_size
+        },
+        var.storage_class_name != "" ? { storageClass = var.storage_class_name } : {}
+      )
+
+      resources = {
+        limits = {
+          cpu    = var.resources.limits.cpu
+          memory = var.resources.limits.memory
+        }
+        requests = {
+          cpu    = var.resources.requests.cpu
+          memory = var.resources.requests.memory
+        }
+      }
+
+      containerSecurityContext = {
+        enabled                  = true
+        runAsUser                = 1001
+        runAsNonRoot             = true
+        allowPrivilegeEscalation = false
+      }
+
+      podSecurityContext = {
+        enabled = true
+        fsGroup = 1001
+      }
+
+      service = {
+        type = "ClusterIP"
+        ports = {
+          redis = 6379
+        }
+      }
+    }
+
+    replica = {
+      replicaCount = 0
+    }
+
+    metrics = {
+      enabled = var.metrics_enabled
+    }
+
+    commonConfiguration = <<-EOT
+      # Enable RDB persistence for data recovery
+      save 900 1
+      save 300 10
+      save 60 10000
+      # Disable AOF (not needed for OTP cache)
+      appendonly no
+      # Max memory policy - evict keys with TTL first
+      maxmemory-policy volatile-lru
+      # Connection timeout
+      timeout 300
+    EOT
+  }
 }
 
 # Create namespace for Redis
@@ -62,139 +133,21 @@ resource "helm_release" "redis" {
   version    = var.chart_version
   namespace  = kubernetes_namespace.redis[0].metadata[0].name
 
-  # Architecture: standalone for OTP cache (no HA needed)
-  set {
-    name  = "architecture"
-    value = "standalone"
-  }
-
-  # Authentication using existing secret
-  set {
-    name  = "auth.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "auth.existingSecret"
-    value = kubernetes_secret.redis_password[0].metadata[0].name
-  }
-
-  set {
-    name  = "auth.existingSecretPasswordKey"
-    value = "redis-password"
-  }
-
-  # Master configuration
-  set {
-    name  = "master.persistence.enabled"
-    value = tostring(var.persistence_enabled)
-  }
-
-  set {
-    name  = "master.persistence.size"
-    value = var.storage_size
-  }
-
-  dynamic "set" {
-    for_each = var.storage_class_name != "" ? [var.storage_class_name] : []
-    content {
-      name  = "master.persistence.storageClass"
-      value = set.value
-    }
-  }
-
-  # Resources for master
-  set {
-    name  = "master.resources.limits.cpu"
-    value = var.resources.limits.cpu
-  }
-
-  set {
-    name  = "master.resources.limits.memory"
-    value = var.resources.limits.memory
-  }
-
-  set {
-    name  = "master.resources.requests.cpu"
-    value = var.resources.requests.cpu
-  }
-
-  set {
-    name  = "master.resources.requests.memory"
-    value = var.resources.requests.memory
-  }
-
-  # Security context - run as non-root
-  set {
-    name  = "master.containerSecurityContext.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "master.containerSecurityContext.runAsUser"
-    value = "1001"
-  }
-
-  set {
-    name  = "master.containerSecurityContext.runAsNonRoot"
-    value = "true"
-  }
-
-  set {
-    name  = "master.containerSecurityContext.allowPrivilegeEscalation"
-    value = "false"
-  }
-
-  # Pod security context
-  set {
-    name  = "master.podSecurityContext.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "master.podSecurityContext.fsGroup"
-    value = "1001"
-  }
-
-  # Service configuration
-  set {
-    name  = "master.service.type"
-    value = "ClusterIP"
-  }
-
-  set {
-    name  = "master.service.ports.redis"
-    value = "6379"
-  }
-
-  # Disable replicas (standalone mode)
-  set {
-    name  = "replica.replicaCount"
-    value = "0"
-  }
-
-  # Disable metrics (optional for production monitoring)
-  set {
-    name  = "metrics.enabled"
-    value = tostring(var.metrics_enabled)
-  }
-
-  # Redis configuration - optimize for OTP cache use case
-  set {
-    name  = "commonConfiguration"
-    value = <<-EOT
-      # Enable RDB persistence for data recovery
-      save 900 1
-      save 300 10
-      save 60 10000
-      # Disable AOF (not needed for OTP cache)
-      appendonly no
-      # Max memory policy - evict keys with TTL first
-      maxmemory-policy volatile-lru
-      # Connection timeout
-      timeout 300
-    EOT
-  }
+  # Use values attribute for complex nested structures (recommended approach)
+  # This follows the official Bitnami Redis Helm chart values structure
+  values = [
+    yamlencode(merge(
+      local.redis_values_base,
+      {
+        auth = merge(
+          local.redis_values_base.auth,
+          {
+            existingSecret = kubernetes_secret.redis_password[0].metadata[0].name
+          }
+        )
+      }
+    ))
+  ]
 
   wait          = true
   wait_for_jobs = true
