@@ -183,9 +183,7 @@ class SMSClient:
             )
 
             subscription_arn = response.get("SubscriptionArn")
-            logger.info(
-                f"Phone number subscribed: {phone_number[-4:].rjust(len(phone_number), '*')}"
-            )
+            logger.info(f"Phone number subscribed with ARN: {subscription_arn}")
 
             return True, "Phone number subscribed successfully", subscription_arn
 
