@@ -6,6 +6,7 @@ from typing import Optional
 import ldap3
 from ldap3 import ALL, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE, Connection, Server
 from ldap3.core.exceptions import LDAPException
+from ldap3.utils.dn import escape_rdn
 
 from app.config import Settings, get_settings
 
@@ -508,7 +509,9 @@ class LDAPClient:
         Returns:
             Tuple of (success: bool, message: str, group_dn: Optional[str])
         """
-        group_dn = self._get_group_dn(name)
+        # Escape the group name before using it in a DN or as the cn attribute
+        safe_name = escape_rdn(name)
+        group_dn = self._get_group_dn(safe_name)
 
         try:
             conn = self._get_admin_connection()
@@ -527,7 +530,7 @@ class LDAPClient:
             # Note: groupOfNames requires at least one member, using admin as placeholder
             attributes = {
                 "objectClass": ["groupOfNames", "top"],
-                "cn": name,
+                "cn": safe_name,
                 "description": description or f"Group: {name}",
                 "member": [self.settings.ldap_admin_dn],  # Required initial member
             }
