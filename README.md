@@ -65,6 +65,7 @@ EKS cluster
 
 ```text
 ldap-2fa-on-k8s/
+├── SECRETS_REQUIREMENTS.md  # Secrets management documentation (AWS Secrets Manager & GitHub Secrets)
 ├── tf_backend_state/      # Terraform state backend infrastructure (S3) - Account A
 ├── backend_infra/         # Core AWS infrastructure (VPC, EKS, VPC endpoints, IRSA) - Account B
 ├── application/           # Application infrastructure and deployments - Account B
@@ -286,7 +287,7 @@ deployment, but multi-account is recommended for better security isolation
 
 > [!IMPORTANT]
 >
-> Read the complete secrets configuration details here [Secrets Requirements](application/SECRETS_REQUIREMENTS.md).
+> Read the complete secrets configuration details here [Secrets Requirements](SECRETS_REQUIREMENTS.md).
 
 ### For GitHub Actions
 
@@ -392,7 +393,7 @@ secrets retrieval, and Terraform operations.
 
 - GitHub CLI (`gh`) installed and authenticated
 - AWS CLI configured with appropriate permissions
-- Secrets stored in AWS Secrets Manager (see [Secrets Requirements](application/SECRETS_REQUIREMENTS.md))
+- Secrets stored in AWS Secrets Manager (see [Secrets Requirements](SECRETS_REQUIREMENTS.md))
 
 #### Step 1. Deploy Terraform Backend State Infrastructure
 

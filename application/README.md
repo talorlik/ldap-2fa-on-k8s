@@ -556,7 +556,6 @@ application/
 ├── PRD.md                      # Main PRD
 ├── OPENLDAP-README.md          # OpenLDAP deployment documentation
 ├── OSIXIA-OPENLDAP-REQUIREMENTS.md  # OpenLDAP requirements documentation
-├── SECRETS_REQUIREMENTS.md     # Secrets management requirements
 ├── SECURITY-IMPROVEMENTS.md   # Security improvements documentation
 └── README.md                   # This file
 ```
@@ -588,7 +587,7 @@ variables (see Configuration section)
 11. **VPC Endpoints (for SMS 2FA)**: STS and SNS endpoints must be enabled in
 backend_infra
 12. **Secrets Configuration**: All required secrets must be configured.
-See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for complete setup instructions.
+See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete setup instructions.
 
 ## Configuration
 
@@ -640,7 +639,7 @@ and exports them as environment variables for Terraform.
 > [!NOTE]
 >
 > For complete secrets configuration details, including AWS Secrets Manager setup,
-> GitHub repository secrets, and troubleshooting, see [Secrets Requirements](SECRETS_REQUIREMENTS.md).
+> GitHub repository secrets, and troubleshooting, see [Secrets Requirements](../SECRETS_REQUIREMENTS.md).
 
 #### Route53 and Domain Variables
 
@@ -731,7 +730,7 @@ defaults to `app_name`)
 > [!IMPORTANT]
 >
 > PostgreSQL password must be set via environment variable `TF_VAR_postgresql_database_password`.
-> See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for configuration details.
+> See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for configuration details.
 
 #### SES Variables
 
@@ -751,7 +750,7 @@ defaults to `app_name`)
 > [!IMPORTANT]
 >
 > Redis password must be set via environment variable `TF_VAR_redis_password`
-> (minimum 8 characters). See [Secrets Requirements](SECRETS_REQUIREMENTS.md)
+> (minimum 8 characters). See [Secrets Requirements](../SECRETS_REQUIREMENTS.md)
 > for configuration details.
 
 ### Example Configuration
@@ -799,7 +798,7 @@ enable_ses                  = true
 
 > [!NOTE]
 >
-> For secrets configuration (passwords), see [Secrets Requirements](SECRETS_REQUIREMENTS.md).
+> For secrets configuration (passwords), see [Secrets Requirements](../SECRETS_REQUIREMENTS.md).
 > The `setup-application.sh` script automatically retrieves passwords from
 > AWS Secrets Manager.
 
@@ -823,7 +822,7 @@ enable_ses                  = true
 
 **Setup Instructions:**
 
-See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for complete configuration
+See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete configuration
 instructions, including:
 
 - AWS Secrets Manager setup (for local scripts)
@@ -983,7 +982,7 @@ validated via Route53)
 3. **LDAP Internal**: LDAP service is ClusterIP only, not exposed externally
 4. **Sensitive Variables**: Passwords are marked as sensitive in Terraform and
 must be set via environment variables, never in `variables.tfvars`.
-See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for configuration details.
+See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for configuration details.
 5. **Encrypted Storage**: EBS volumes are encrypted by default (configurable via
 `storage_class_encrypted`)
 6. **Network Isolation**: Services run in private subnets
@@ -992,7 +991,7 @@ communication to secure ports only (443, 636, 8443), with cross-namespace access
 enabled for LDAP service access
 8. **Password Injection**: Passwords are injected at runtime via environment
 variables from AWS Secrets Manager (local scripts) or GitHub Secrets (GitHub Actions),
-ensuring they never appear in version control. See [Secrets Requirements](SECRETS_REQUIREMENTS.md)
+ensuring they never appear in version control. See [Secrets Requirements](../SECRETS_REQUIREMENTS.md)
 for details.
 9. **DNS Validation**: ACM certificate uses DNS validation via Route53, ensuring
 secure certificate provisioning

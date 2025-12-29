@@ -382,7 +382,7 @@ The Redis password follows the same pattern as the LDAP admin password:
 
 > [!NOTE]
 >
-> For complete secrets setup instructions, see [Secrets Requirements](SECRETS_REQUIREMENTS.md).
+> For complete secrets setup instructions, see [Secrets Requirements](../SECRETS_REQUIREMENTS.md).
 
 Add the following secret to your GitHub repository:
 
@@ -501,7 +501,7 @@ jobs:
 
 > [!NOTE]
 >
-> See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for complete setup instructions.
+> See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete setup instructions.
 
 | Secret | Purpose | Requirements |
 | -------- | --------- | -------------- |
@@ -563,7 +563,7 @@ pwgen -s 24 1
 
 > [!NOTE]
 >
-> See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for complete secrets
+> See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete secrets
 > configuration instructions.
 
 1. Generate a secure Redis password (minimum 8 characters)
@@ -623,7 +623,7 @@ for local scripts)
 
 > [!NOTE]
 >
-> See [Secrets Requirements](SECRETS_REQUIREMENTS.md) for complete setup instructions.
+> See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete setup instructions.
 
 - [ ] Generate secure Redis password (min 8 characters)
 - [ ] Add `TF_VAR_REDIS_PASSWORD` to GitHub repository secrets

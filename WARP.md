@@ -88,6 +88,7 @@ Terraform workspaces are named: `${region}-${env}` (e.g., `us-east-1-prod`,
 
 ```text
 ldap-2fa-on-k8s/
+├── SECRETS_REQUIREMENTS.md     # Secrets management documentation (root)
 ├── tf_backend_state/           # Terraform state backend (S3) - Account A
 ├── backend_infra/              # Core AWS infrastructure - Account B
 │   └── modules/
@@ -151,6 +152,7 @@ cd tf_backend_state
 ```
 
 The scripts automatically:
+
 - Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` from AWS Secrets Manager (secret: 'github-role')
 - Assume the IAM role with temporary credentials
 - Handle Terraform provisioning (if infrastructure doesn't exist)
@@ -372,7 +374,7 @@ state (with fallback options)
   - `route53/` - Route53 hosted zone creation (commented out, uses data sources)
   - `ses/` - AWS SES for email verification and notifications
   - `sns/` - SNS resources for SMS 2FA with IRSA
-- `application/SECRETS_REQUIREMENTS.md` - Comprehensive secrets management documentation
+- `SECRETS_REQUIREMENTS.md` - Comprehensive secrets management documentation
   - AWS Secrets Manager setup for local scripts
   - GitHub Repository Secrets setup for workflows
   - Secret naming conventions and case sensitivity
@@ -469,6 +471,7 @@ practices
 ### Application Deployments
 
 **OpenLDAP Stack (via OpenLDAP Module):**
+
 - Deployed via `application/modules/openldap/` Terraform module
 - OpenLDAP chart version: 4.0.1 from `https://jp-gouin.github.io/helm-openldap`
 - Uses osixia/openldap:1.5.0 Docker image (chart's default bitnami image doesn't
@@ -476,7 +479,8 @@ exist)
 - **Multi-master replication**: 3 replicas for high availability
 - **Kubernetes secrets**: Admin and config passwords stored in Kubernetes secrets,
 not plain-text in Helm values
-- **Web UIs**: phpLDAPadmin and ltb-passwd exposed via ALB with separate Ingress resources
+- **Web UIs**: phpLDAPadmin and ltb-passwd exposed via ALB with separate Ingress
+resources
 - **LDAP service**: ClusterIP (internal only) for secure cluster-internal access
 - **Route53 DNS**: Module creates A (alias) records pointing to ALB
 - Hostnames configurable via variables:
@@ -486,6 +490,7 @@ not plain-text in Helm values
 - **TLS**: Auto-generated self-signed certificates from osixia/openldap image
 
 **2FA Application (Helm Charts or ArgoCD):**
+
 - Backend: Python FastAPI with comprehensive authentication features
   - LDAP authentication and MFA support (TOTP and SMS)
   - Self-service user signup with email/phone verification
@@ -512,6 +517,7 @@ not plain-text in Helm values
   - Or via ArgoCD GitOps (if `enable_argocd = true`)
 
 **ALB Configuration:**
+
 - Uses EKS Auto Mode (`eks.amazonaws.com/alb` controller) instead of AWS Load
 Balancer Controller
 - IngressClassParams (cluster-wide) contains: `scheme`, `ipAddressType`,
@@ -564,7 +570,8 @@ ALB module → Helm release → Route53 A records → Network policies)
   Kubernetes secrets, phpLDAPadmin, ltb-passwd, Ingress, and Route53 DNS records
   - `postgresql/` - PostgreSQL database with Kubernetes secrets for user data
   - `redis/` - Redis cache with Kubernetes secrets for SMS OTP storage with TTL
-  - `route53/` - Route53 hosted zone creation (exists but commented out, uses data sources)
+  - `route53/` - Route53 hosted zone creation (exists but commented out, uses
+  data sources)
   - `ses/` - AWS SES for email verification and admin notifications
   - `sns/` - SNS resources for SMS-based 2FA with IRSA
 - Each module has its own README.md with detailed documentation
@@ -578,6 +585,7 @@ instead of plain-text values in Helm charts
 ### Available Workflows
 
 **Infrastructure Workflows:**
+
 - `tfstate_infra_provisioning.yaml` - Create Terraform backend state
 - `tfstate_infra_destroying.yaml` - Destroy Terraform backend state
 - `backend_infra_provisioning.yaml` - Create backend infrastructure
@@ -587,12 +595,14 @@ instead of plain-text values in Helm charts
 - `application_infra_destroying.yaml` - Destroy application infrastructure
 
 **Application CI/CD Workflows:**
+
 - `backend_build_push.yaml` - Build and push 2FA backend Docker image to ECR
 - `frontend_build_push.yaml` - Build and push 2FA frontend Docker image to ECR
 
 ### Required GitHub Secrets
 
 **AWS Authentication:**
+
 - `AWS_STATE_ACCOUNT_ROLE_ARN` - ARN of IAM role in Account A (State Account)
 that trusts GitHub OIDC provider (used for all backend state operations)
 - `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` - ARN of IAM role in Production Account
@@ -602,15 +612,18 @@ selected)
 (Account B) that trusts Account A role (used when `dev` environment is selected)
 
 **Terraform Automation:**
+
 - `GH_TOKEN` - GitHub PAT with `repo` scope (for updating repository variables)
 
 **OpenLDAP Credentials:**
+
 - `TF_VAR_OPENLDAP_ADMIN_PASSWORD` - OpenLDAP admin password (for application
 workflows)
 - `TF_VAR_OPENLDAP_CONFIG_PASSWORD` - OpenLDAP config password (for application
 workflows)
 
 **Database Credentials:**
+
 - `TF_VAR_POSTGRESQL_PASSWORD` - PostgreSQL database password
 - `TF_VAR_REDIS_PASSWORD` - Redis cache password
 
@@ -634,9 +647,12 @@ workflows)
 
 - **GitHub Workflow Security Improvements**:
   - Added explicit permissions declarations to all workflow jobs
-  - Applied principle of least privilege with `contents: read` or empty `permissions: {}` where no permissions needed
+  - Applied principle of least privilege with `contents: read` or empty
+  `permissions: {}`
+  where no permissions needed
   - Fixes automated code scanning alerts for missing workflow permissions
-  - Affected workflows: all infrastructure provisioning/destroying and build/push workflows
+  - Affected workflows: all infrastructure provisioning/destroying and build/push
+  workflows
 - **LDAP Injection Prevention**:
   - Fixed LDAP query injection vulnerability in `application/backend/src/app/ldap/client.py`
   - Added DN component escaping using `ldap3.utils.dn.escape_rdn()`
@@ -648,13 +664,16 @@ workflows)
   - Applied to `opt_in_phone_number()` method
   - Protects PII in application logs
 - **API Documentation Always Enabled**:
-  - Swagger UI (`/api/docs`) and ReDoc UI (`/api/redoc`) now always accessible in production
+  - Swagger UI (`/api/docs`) and ReDoc UI (`/api/redoc`) now always accessible in
+  production
   - Removed debug mode condition for API documentation endpoints
   - OpenAPI schema available at `/api/openapi.json`
   - Interactive documentation automatically updates when endpoints change
 - **Documentation Improvements**:
-  - Removed duplication by replacing detailed module descriptions with links to module READMEs
-  - Enhanced cross-references to module documentation (ALB, ArgoCD, cert-manager, Network Policies, PostgreSQL, Redis, SES, SNS, VPC Endpoints, ECR, OpenLDAP)
+  - Removed duplication by replacing detailed module descriptions with links to
+  module READMEs
+  - Enhanced cross-references to module documentation (ALB, ArgoCD, cert-manager,
+  Network Policies, PostgreSQL, Redis, SES, SNS, VPC Endpoints, ECR, OpenLDAP)
   - Updated component descriptions to be more concise with links to detailed documentation
   - Improved consistency across documentation files
   - Main README restructured for better clarity and organization
@@ -668,23 +687,30 @@ workflows)
   - Handles Helm release deployment with templated values
   - Creates Route53 DNS records for web UIs
   - Creates ALB Ingress resources for public access
-  - See [OpenLDAP Module Documentation](application/modules/openldap/README.md) for details
+  - See [OpenLDAP Module Documentation](application/modules/openldap/README.md)
+  for details
 - **Kubernetes Secrets for All Components**:
-  - **OpenLDAP**: Kubernetes secret created by OpenLDAP module for admin/config passwords
+  - **OpenLDAP**: Kubernetes secret created by OpenLDAP module for admin/config
+  passwords
   - **PostgreSQL**: Uses Kubernetes secret for database password (created by module)
   - **Redis**: Uses Kubernetes secret for authentication password (created by module)
   - Eliminates plain-text passwords in Helm values
-  - All secrets created from Terraform variables (sourced from AWS Secrets Manager or GitHub Secrets)
+  - All secrets created from Terraform variables (sourced from AWS Secrets Manager
+  or GitHub Secrets)
 - **Secrets Management Consolidation**:
-  - Created comprehensive `SECRETS_REQUIREMENTS.md` documentation
-  - Documents both AWS Secrets Manager setup (for local scripts) and GitHub Repository Secrets (for workflows)
-  - Two AWS Secrets Manager secrets: `github-role` (IAM role ARNs) and `tf-vars` (passwords)
+  - Created comprehensive `SECRETS_REQUIREMENTS.md` documentation (located in root)
+  - Documents both AWS Secrets Manager setup (for local scripts) and
+  GitHub Repository Secrets (for workflows)
+  - Two AWS Secrets Manager secrets: `github-role` (IAM role ARNs) and `tf-vars`
+  (passwords)
   - Clear distinction between local and GitHub Actions secret retrieval methods
   - Case sensitivity guidance for TF_VAR environment variables
 - **Updated Setup Scripts**:
   - `backend_infra/setup-backend.sh`: Now retrieves secrets from AWS Secrets Manager
-  - `application/setup-application.sh`: Retrieves both role ARNs and passwords from AWS Secrets Manager
-  - Eliminated dependency on GitHub CLI for secret retrieval (GitHub CLI cannot read secret values)
+  - `application/setup-application.sh`: Retrieves both role ARNs and passwords
+  from AWS Secrets Manager
+  - Eliminated dependency on GitHub CLI for secret retrieval (GitHub CLI cannot
+  read secret values)
   - Scripts automatically export secrets as environment variables for Terraform
   - Improved error handling and validation
 - **GitHub Workflows Updated**:
@@ -695,14 +721,17 @@ workflows)
   - PostgreSQL module now creates Kubernetes secret with `postgresql-password` key
   - Redis module creates Kubernetes secret with `redis-password` key
   - OpenLDAP module creates Kubernetes secret with admin/config password keys
-  - Bitnami Helm charts configured to use `existingSecret` instead of plain-text values
+  - Bitnami Helm charts configured to use `existingSecret` instead of plain-text
+  values
 
 ### AWS Secrets Manager Integration for Local Scripts (December 27, 2024)
 
 - **Local script secret retrieval from AWS Secrets Manager**:
-  - Updated `get-state.sh` and `set-state.sh` to retrieve role ARNs from AWS Secrets Manager
+  - Updated `get-state.sh` and `set-state.sh` to retrieve role ARNs from
+  AWS Secrets Manager
   - Secret name: `github-role` containing JSON with key `AWS_STATE_ACCOUNT_ROLE_ARN`
-  - Replaces previous GitHub CLI secret access (GitHub CLI cannot read secret values directly)
+  - Replaces previous GitHub CLI secret access (GitHub CLI cannot read secret
+  values directly)
   - Scripts automatically assume the role retrieved from AWS Secrets Manager
 - **GitHub Actions workflows unchanged**:
   - Workflows continue to retrieve role ARN from GitHub repository secrets
@@ -718,7 +747,8 @@ workflows)
 - **Updated documentation**:
   - `tf_backend_state/README.md` updated with AWS Secrets Manager setup instructions
   - `tf_backend_state/CHANGELOG.md` updated with latest changes
-  - Clarified differences between GitHub Actions (repository secrets) and local scripts (AWS Secrets Manager)
+  - Clarified differences between GitHub Actions (repository secrets) and local
+  scripts (AWS Secrets Manager)
 
 ## Recent Changes (December 2024)
 
@@ -1166,11 +1196,12 @@ when Ingresses don't exist
 The 2FA application supports two multi-factor authentication methods:
 
 | Method | Description | Infrastructure Required |
-|--------|-------------|------------------------|
+| -------- | ------------- | ------------------------ |
 | **TOTP** | Time-based One-Time Password using authenticator apps (Google Authenticator, Authy, etc.) | None (codes generated locally) |
 | **SMS** | Verification codes sent via AWS SNS to user's phone | SNS VPC endpoint, IRSA role, SNS module |
 
 **Enabling SMS 2FA:**
+
 1. Set `enable_sts_endpoint = true` in `backend_infra/variables.tfvars` (for
 IRSA)
 2. Set `enable_sns_endpoint = true` in `backend_infra/variables.tfvars` (for

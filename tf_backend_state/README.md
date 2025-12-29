@@ -61,7 +61,7 @@ workflows. Configure them at:
     - **⚠️ Note**: For local script execution, ensure the same role ARN is
       stored in AWS Secrets Manager secret 'github-role' with key
       'AWS_STATE_ACCOUNT_ROLE_ARN'. See [Secrets
-      Requirements](../application/SECRETS_REQUIREMENTS.md) for complete setup
+      Requirements](../SECRETS_REQUIREMENTS.md) for complete setup
       instructions.
 
 2. `GH_TOKEN`

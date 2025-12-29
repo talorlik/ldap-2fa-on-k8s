@@ -63,13 +63,10 @@ global:
   sslLdapPort: 636              # standard LDAPS
 ```
 
-In Terraform you will not literally hardcode
-`${TF_VAR_openldap_admin_password}` (from GitHub Secret `TF_VAR_OPENLDAP_ADMIN_PASSWORD` or AWS Secrets Manager); you will template these from variables or
-inject via `global.existingSecret`. The important part is:
-
-> [!NOTE]
->
-> For complete secrets configuration, see [Secrets Requirements](SECRETS_REQUIREMENTS.md).
+In Terraform you will not literally hardcode `${TF_VAR_openldap_admin_password}`
+(from GitHub Secret `TF_VAR_OPENLDAP_ADMIN_PASSWORD` or AWS Secrets Manager);
+you will template these from variables or inject via `global.existingSecret`.
+The important part is:
 
 - Do not keep `Not@SecurePassw0rd`.
 - Set `ldapDomain` to the real domain you will use for DNs. ([GitHub][1])
@@ -79,6 +76,10 @@ If you prefer secrets instead of cleartext in values:
 - Use `global.existingSecret` (documented in the chart README) which expects
 keys `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_ADMIN_PASSWORD`, and remove
 `adminPassword` / `configPassword` from the file. ([GitHub][1])
+
+> [!NOTE]
+>
+> For complete secrets configuration, see [Secrets Requirements](../SECRETS_REQUIREMENTS.md).
 
 ### 2.2 Persistence on your EBS StorageClass / PVC
 
@@ -96,34 +97,33 @@ persistence:
 
 > [!NOTE]
 >
-> The current implementation uses pattern 2 (chart creates PVC with
-> StorageClass). The code creates a StorageClass resource and the Helm chart
-> creates a new PVC using that StorageClass. The `existingClaim` option (pattern 1)
-> is not used in the current implementation.
+> In the current implementation (pattern 2) the code creates a StorageClass resource
+> and the Helm chart creates a new PVC using that StorageClass.
+> The `existingClaim` option (pattern 1) is not used.
 
 You can use one of these two patterns:
 
 1. Reuse the existing PVC (not currently used):
 
-```yaml
-persistence:
-  enabled: true
-  existingClaim: "openldap-pvc"   # must match your PVC name
-  accessModes:
-    - ReadWriteOnce
-  size: 8Gi                       # ignored when existingClaim is used, but harmless
-```
+    ```yaml
+    persistence:
+      enabled: true
+      existingClaim: "openldap-pvc"   # must match your PVC name
+      accessModes:
+        - ReadWriteOnce
+      size: 8Gi                       # ignored when existingClaim is used, but harmless
+    ```
 
 2. Let the chart create a PVC with your StorageClass (current implementation):
 
-```yaml
-persistence:
-  enabled: true
-  storageClass: "your-ebs-sc-name"
-  accessModes:
-    - ReadWriteOnce
-  size: 8Gi
-```
+    ```yaml
+    persistence:
+      enabled: true
+      storageClass: "your-ebs-sc-name"
+      accessModes:
+        - ReadWriteOnce
+      size: 8Gi
+    ```
 
 The current implementation uses pattern 2: a StorageClass is created by
 Terraform (`kubernetes_storage_class_v1` resource), and the Helm chart creates a
@@ -445,7 +445,8 @@ self-signed certificates from the osixia/openldap image.
 - The cert-manager module is already available and can be enabled
 - Integration would require updating the OpenLDAP Helm values to reference cert-manager-issued
 certificates
-- Certificates would be stored in Kubernetes secrets and mounted into the OpenLDAP pods
+- Certificates would be stored in Kubernetes secrets and mounted into the
+OpenLDAP pods
 - This would replace the current auto-generated self-signed certificates
 
 [1]: https://github.com/jp-gouin/helm-openldap "GitHub - jp-gouin/helm-openldap:

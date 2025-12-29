@@ -160,7 +160,7 @@
                         </li>
                     </ul>
                     <p><strong>Note:</strong> Setup scripts automatically retrieve secrets from GitHub. For local deployment, secrets can be accessed via GitHub CLI or set as environment variables. For GitHub Actions, configure them in Repository Settings → Secrets and Variables → Actions.</p>
-                    <p><strong>For detailed setup instructions:</strong> <a href="../README.md#secrets-configuration">Secrets Configuration</a> | <a href="../application/SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
+                    <p><strong>For detailed setup instructions:</strong> <a href="../README.md#secrets-configuration">Secrets Configuration</a> | <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
                 </li>
             </ul>
         </div>
@@ -330,6 +330,7 @@
 
         <h3>Project Structure</h3>
         <pre><code>ldap-2fa-on-k8s/
+├── SECRETS_REQUIREMENTS.md  # Secrets management documentation (AWS Secrets Manager & GitHub Secrets)
 ├── tf_backend_state/      # Terraform state backend infrastructure (S3) - Account A
 ├── backend_infra/         # Core AWS infrastructure (VPC, EKS, VPC endpoints, IRSA) - Account B
 ├── application/           # Application infrastructure and deployments - Account B
@@ -442,7 +443,7 @@
                 <p>OpenLDAP configuration and TLS setup</p>
             </div>
             <div class="doc-item">
-                <a href="../application/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>
+                <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>
                 <p>Complete guide for managing secrets via GitHub and AWS Secrets Manager</p>
             </div>
         </div>

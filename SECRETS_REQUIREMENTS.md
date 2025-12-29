@@ -440,9 +440,10 @@ in workflow YAML
 
 ## Related Documentation
 
-- [Main README](../README.md) - Project overview and setup instructions
-- [Application Infrastructure README](README.md) - Application deployment details
-- [Backend Infrastructure README](../backend_infra/README.md) - Backend infrastructure
+- [Main README](README.md) - Project overview and setup instructions
+- [Application Infrastructure README](application/README.md) - Application deployment
+details
+- [Backend Infrastructure README](backend_infra/README.md) - Backend infrastructure
 setup
-- [Terraform Backend State README](../tf_backend_state/README.md) - State backend
+- [Terraform Backend State README](tf_backend_state/README.md) - State backend
 configuration
