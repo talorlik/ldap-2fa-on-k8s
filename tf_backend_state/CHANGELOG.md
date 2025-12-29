@@ -10,6 +10,50 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- Enhanced `set-state.sh` script with comprehensive automation:
+  - Automatic role assumption from AWS Secrets Manager
+  - Intelligent infrastructure provisioning detection
+  - Automatic state file download from S3 when bucket exists
+  - Terraform validation, plan, and apply workflow integration
+  - Bucket name verification and GitHub repository variable management
+  - Comprehensive error handling with colored output
+  - Always updates bucket name and state file to ensure synchronization
+
+### Changed
+
+- Simplified Terraform configuration:
+  - Removed `principal_arn` variable - bucket policy now always uses current
+    caller's ARN automatically via `data.aws_caller_identity.current.arn`
+  - Eliminates need to pass principal ARN as a variable, simplifying
+    configuration
+- Improved `set-state.sh` script workflow:
+  - Removed conditional check for `PROVISIONED_INFRA` - script now always
+    updates bucket name and state file
+  - Ensures bucket name repository variable and state file are always
+    synchronized with latest values
+  - Checks for existing `BACKEND_BUCKET_NAME` repository variable to determine
+    if infrastructure needs provisioning
+  - Automatically downloads existing state file from S3 when bucket is found
+  - Validates bucket name consistency between repository variable and Terraform
+    output
+  - Enhanced credential extraction with jq fallback to sed for broader
+    compatibility
+  - Improved user feedback with colored status messages (INFO, SUCCESS, ERROR)
+
+### Removed
+
+- Removed `principal_arn` variable from `variables.tf` - no longer needed as
+  bucket policy automatically uses current caller's ARN
+
+### Security
+
+- Enhanced credential handling in `set-state.sh`:
+  - Secure role assumption with timestamped session names
+  - Credential verification before proceeding with operations
+  - Proper error handling for failed role assumptions
+
 ## [1.0.0] - 2025
 
 ### Added

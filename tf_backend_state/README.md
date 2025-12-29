@@ -58,8 +58,11 @@ workflows. Configure them at:
       ARN from AWS Secrets Manager instead (see [Local Execution](#option-2-local-execution)
       section)
     - **Permissions needed**: S3 access to create/manage state bucket
-    - **⚠️ Note**: For local script execution, ensure the same role ARN is stored
-    in AWS Secrets Manager secret 'github-role' with key 'AWS_STATE_ACCOUNT_ROLE_ARN'. See [Secrets Requirements](../application/SECRETS_REQUIREMENTS.md) for complete setup instructions.
+    - **⚠️ Note**: For local script execution, ensure the same role ARN is
+      stored in AWS Secrets Manager secret 'github-role' with key
+      'AWS_STATE_ACCOUNT_ROLE_ARN'. See [Secrets
+      Requirements](../application/SECRETS_REQUIREMENTS.md) for complete setup
+      instructions.
 
 2. `GH_TOKEN`
 
@@ -138,35 +141,6 @@ Configure these **required** variables in `variables.tfvars` before running:
     - **Example**: `"mycompany-tf"`, `"project-name"`
     - **Used for**: Creating unique names for all resources
     - **⚠️ Important**: Choose a unique prefix to avoid naming conflicts
-
-### Optional Variables
-
-1. `principal_arn` (Optional - Not Required)
-
-    - **Type**: `string` (optional, defaults to current caller's ARN)
-    - **Description**: AWS IAM principal (user or role) ARN that will have
-    access to the S3 bucket. If not provided, Terraform automatically
-    detects and uses the current caller's ARN (the identity running
-    Terraform).
-    - **Default**: Automatically uses `data.aws_caller_identity.current.arn`
-    - **Example**: `"arn:aws:iam::123456789012:user/myuser"` or
-    `"arn:aws:iam::123456789012:role/myrole"`
-    - **Used for**: Granting access to AWS to execute all needed operations.
-    - **Security Note**: ⚠️ **No need to hard-code ARNs!** The default behavior
-    automatically uses the current caller's ARN, whether it's:
-      - Your local IAM user
-      - An assumed IAM role (automatically handled by the scripts - see [Local
-      Execution](#option-2-local-execution))
-      - A GitHub Actions OIDC role
-    - **Local Deployment**: For local deployment, the scripts automatically
-    assume the IAM role configured in `AWS_STATE_ACCOUNT_ROLE_ARN` GitHub
-    secret. Terraform will automatically detect and use the assumed role's
-    ARN.
-    - **When to override**: Only set this if you need to grant access to a
-    different principal than the one running Terraform.
-    - **How to find it** (if needed):
-      - For IAM User: AWS Console → IAM → Users → Your User → Summary → ARN
-      - For IAM Role: AWS Console → IAM → Roles → Your Role → Summary → ARN
 
 ## How to Run
 
@@ -277,6 +251,13 @@ cd tf_backend_state
 ./set-state.sh
 ```
 
+> [!NOTE]
+>
+> The script intelligently detects whether infrastructure needs to be provisioned
+> by checking for the `BACKEND_BUCKET_NAME` repository variable. If the variable
+> exists, it assumes infrastructure is already provisioned and will download the
+> existing state file from S3 (if available) before uploading any updates.
+
 **What the script does automatically**:
 
 1. Retrieves `AWS_STATE_ACCOUNT_ROLE_ARN` from **AWS Secrets Manager**
@@ -284,13 +265,18 @@ cd tf_backend_state
 2. Retrieves `AWS_REGION` from GitHub repository variables (defaults to
 `us-east-1`)
 3. Retrieves `BACKEND_PREFIX` from GitHub repository variables
-4. Assumes the IAM role with temporary credentials
+4. Assumes the IAM role with temporary credentials and verifies credentials
 5. Checks if infrastructure already exists:
    - **If not exists**: Runs `terraform init`, `validate`, `plan`, and `apply`
-   - **If exists**: Downloads existing state file from S3 (if available)
-6. Saves bucket name to GitHub repository variable `BACKEND_BUCKET_NAME`
-7. Uploads `terraform.tfstate` to S3 (only if infrastructure was just
-provisioned)
+     to provision infrastructure
+   - **If exists**: Downloads existing state file from S3 (if available) or
+     uses local state file
+6. Verifies bucket name consistency between repository variable and Terraform
+   output
+7. **Always** saves/updates bucket name to GitHub repository variable
+   `BACKEND_BUCKET_NAME`
+8. **Always** uploads `terraform.tfstate` to S3 (ensures state file is
+   synchronized with latest changes)
 
 #### Downloading Existing State File
 
@@ -384,12 +370,12 @@ S3
 - **Cause**: The IAM principal doesn't have S3 permissions, or there's a
 mismatch between the caller and the bucket policy
 - **Solution**:
-  - By default, `principal_arn` automatically uses the current caller's ARN.
-  Verify this matches your expectations:
+  - The bucket policy automatically uses the current caller's ARN via
+  `data.aws_caller_identity.current.arn`. Verify this matches your expectations:
     - Run `aws sts get-caller-identity` to see your current ARN
     - Ensure the caller has S3 permissions for the state bucket
-  - If you've overridden `principal_arn`, verify it matches the IAM role ARN
-  used in `AWS_STATE_ACCOUNT_ROLE_ARN` secret (for GitHub Actions)
+  - For GitHub Actions: Verify the IAM role ARN used in `AWS_STATE_ACCOUNT_ROLE_ARN`
+  secret matches the assumed role
   - Check that the OIDC trust relationship is correctly configured (for GitHub
   Actions)
 
@@ -591,15 +577,15 @@ ARN
 
 #### Step 3: S3 Bucket Policy (Automatic)
 
-The bucket policy in `main.tf` automatically uses the current caller's ARN by
-default. **No configuration needed!**
+The bucket policy in `main.tf` automatically uses the current caller's ARN via
+`data.aws_caller_identity.current.arn`. **No configuration needed!**
 
 - When running via GitHub Actions: The workflow automatically detects the
 assumed role's ARN and uses it
 - When running locally: The scripts automatically assume the IAM role and
 Terraform detects the assumed role's ARN
-- The `principal_arn` variable is optional - only set it if you need to grant
-access to a different principal
+- The bucket policy always grants access to the current caller, eliminating the
+need for manual ARN configuration
 
 > [!NOTE]
 >
