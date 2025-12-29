@@ -28,6 +28,20 @@ These are used for AWS authentication and role assumption:
 - `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` - Role for production deployments
 - `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` - Role for development deployments
 
+### 1.1. ExternalId for Cross-Account Role Assumption
+
+- `AWS_ASSUME_EXTERNAL_ID` - ExternalId for cross-account role assumption security
+  - **Purpose:** Prevents confused deputy attacks when assuming deployment account
+  roles
+  - **Generation:** `openssl rand -hex 32`
+  - **Storage:**
+    - AWS Secrets Manager: Plain text secret named `external-id`
+    - GitHub: Repository secret `AWS_ASSUME_EXTERNAL_ID`
+  - **Requirement:** Must match the ExternalId configured in deployment account
+  role Trust Relationships
+  - **Used By:** `setup-backend.sh`, `setup-application.sh`, and all GitHub Actions
+  workflows
+
 ### 2. Application Passwords
 
 These are used for application infrastructure components:
@@ -71,6 +85,26 @@ Contains Terraform variable values (passwords):
   "TF_VAR_REDIS_PASSWORD": "<redis-password>"
 }
 ```
+
+### Secret 3: `external-id`
+
+Contains ExternalId for cross-account role assumption (plain text, not JSON):
+
+```text
+<generated-external-id>
+```
+
+**Important:** This is a plain text secret, not JSON. Generate using:
+
+```bash
+openssl rand -hex 32
+```
+
+The same value must be:
+
+- Stored in AWS Secrets Manager as `external-id` (plain text)
+- Stored in GitHub repository secret `AWS_ASSUME_EXTERNAL_ID`
+- Added to deployment account role Trust Relationships as a condition
 
 ### Creating AWS Secrets Manager Secrets
 
@@ -128,6 +162,47 @@ aws secretsmanager update-secret \
   --region us-east-1
 ```
 
+### Creating the `external-id` secret
+
+```bash
+# Generate ExternalId
+EXTERNAL_ID=$(openssl rand -hex 32)
+echo "Generated ExternalId: $EXTERNAL_ID"
+
+# Create the secret in AWS Secrets Manager
+aws secretsmanager create-secret \
+  --name external-id \
+  --secret-string "$EXTERNAL_ID" \
+  --region us-east-1
+```
+
+Or update an existing secret:
+
+```bash
+aws secretsmanager update-secret \
+  --secret-id external-id \
+  --secret-string "$EXTERNAL_ID" \
+  --region us-east-1
+```
+
+> [!IMPORTANT]
+>
+> The same ExternalId value must be:
+>
+> 1. Stored in AWS Secrets Manager as `external-id` (plain text)
+> 2. Stored in GitHub repository secret `AWS_ASSUME_EXTERNAL_ID`
+> 3. Added to deployment account role Trust Relationships as a condition:
+>
+>    ```json
+>    {
+>      "Condition": {
+>        "StringEquals": {
+>          "sts:ExternalId": "<generated-external-id>"
+>        }
+>      }
+>    }
+>    ```
+
 ### IAM Permissions for AWS Secrets Manager
 
 The AWS credentials used to run local scripts must have the following permissions:
@@ -144,7 +219,8 @@ The AWS credentials used to run local scripts must have the following permission
       ],
       "Resource": [
         "arn:aws:secretsmanager:*:*:secret:github-role-*",
-        "arn:aws:secretsmanager:*:*:secret:tf-vars-*"
+        "arn:aws:secretsmanager:*:*:secret:tf-vars-*",
+        "arn:aws:secretsmanager:*:*:secret:external-id-*"
       ]
     }
   ]
@@ -164,6 +240,7 @@ Configure these at:
 | `AWS_STATE_ACCOUNT_ROLE_ARN` | IAM Role ARN | Role for backend state operations (S3 bucket access) | All workflows |
 | `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` | IAM Role ARN | Role for production deployments | Workflows (when `prod` environment) |
 | `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` | IAM Role ARN | Role for development deployments | Workflows (when `dev` environment) |
+| `AWS_ASSUME_EXTERNAL_ID` | ExternalId | ExternalId for cross-account role assumption security | All deployment workflows |
 | `TF_VAR_OPENLDAP_ADMIN_PASSWORD` | Password | OpenLDAP admin password | Application deployment workflows |
 | `TF_VAR_OPENLDAP_CONFIG_PASSWORD` | Password | OpenLDAP config password | Application deployment workflows |
 | `TF_VAR_POSTGRESQL_PASSWORD` | Password | PostgreSQL database password | Application deployment workflows |
@@ -233,6 +310,29 @@ used for Terraform provider assume_role operations
   - `setup-backend.sh` (when environment is "dev")
   - `setup-application.sh` (when environment is "dev")
   - GitHub Actions workflows (when `dev` environment is selected)
+
+#### AWS_ASSUME_EXTERNAL_ID
+
+- **Secret Location:**
+  - AWS Secrets Manager: Plain text secret named `external-id`
+  - GitHub: Repository secret `AWS_ASSUME_EXTERNAL_ID`
+- **Type:** String (ExternalId)
+- **Description:** ExternalId for cross-account role assumption security. Prevents
+confused deputy attacks by ensuring only authorized callers can assume deployment
+account roles. Must match the ExternalId configured in deployment account role Trust
+Relationships.
+- **Generation:** `openssl rand -hex 32`
+- **Format:** Hexadecimal string (64 characters)
+- **Example:** `a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456`
+- **Used By:**
+  - `setup-backend.sh` (retrieved from AWS Secrets Manager)
+  - `setup-application.sh` (retrieved from AWS Secrets Manager)
+  - All GitHub Actions workflows (retrieved from GitHub secrets)
+- **Security Note:** This is a sensitive security credential and must be stored
+securely. The same value must be configured in:
+  1. AWS Secrets Manager as `external-id` (plain text)
+  2. GitHub repository secret `AWS_ASSUME_EXTERNAL_ID`
+  3. Deployment account role Trust Relationships (as a condition)
 
 ### Application Passwords
 
@@ -312,10 +412,12 @@ to match Terraform variable names
 
 ### Secret Retrieval Strategy
 
-1. **Two Secret Calls:** Local scripts retrieve secrets from two separate secrets
+1. **Three Secret Calls:** Local scripts retrieve secrets from three separate secrets
 in AWS Secrets Manager:
-   - `github-role` - Contains all IAM role ARNs (single call)
-   - `tf-vars` - Contains all Terraform variable values (single call)
+   - `github-role` - Contains all IAM role ARNs (single call, JSON format)
+   - `tf-vars` - Contains all Terraform variable values (single call, JSON format)
+   - `external-id` - Contains ExternalId for cross-account role assumption
+   (single call, plain text)
    This minimizes AWS CLI calls by fetching all required values from each secret
    in one operation.
 
@@ -341,10 +443,12 @@ Local bash scripts (`setup-backend.sh`, `setup-application.sh`, `set-state.sh`,
 `get-state.sh`):
 
 - Retrieve role ARNs from AWS Secrets Manager secret `github-role`
+- Retrieve ExternalId from AWS Secrets Manager secret `external-id` (plain text)
 - Retrieve passwords from AWS Secrets Manager secret `tf-vars`
 - Export them as environment variables for Terraform
 - Automatically handle case conversion (uppercase secrets → lowercase environment
 variables)
+- Add ExternalId to `variables.tfvars` for Terraform provider configuration
 
 ### GitHub Actions Workflow Behavior
 
@@ -373,6 +477,7 @@ env:
 | `github-role` | `AWS_STATE_ACCOUNT_ROLE_ARN` | IAM Role ARN | All scripts | Role for backend state operations |
 | `github-role` | `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` | IAM Role ARN | Scripts (prod) | Role for production deployments |
 | `github-role` | `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` | IAM Role ARN | Scripts (dev) | Role for development deployments |
+| `external-id` | (plain text) | ExternalId | `setup-backend.sh`, `setup-application.sh` | ExternalId for cross-account role assumption security |
 | `tf-vars` | `TF_VAR_OPENLDAP_ADMIN_PASSWORD` | Password | `setup-application.sh` | OpenLDAP admin password (exported as `TF_VAR_openldap_admin_password`) |
 | `tf-vars` | `TF_VAR_OPENLDAP_CONFIG_PASSWORD` | Password | `setup-application.sh` | OpenLDAP config password (exported as `TF_VAR_openldap_config_password`) |
 | `tf-vars` | `TF_VAR_POSTGRESQL_PASSWORD` | Password | `setup-application.sh` | PostgreSQL database password (exported as `TF_VAR_postgresql_database_password`) |
@@ -385,6 +490,7 @@ env:
 | `AWS_STATE_ACCOUNT_ROLE_ARN` | IAM Role ARN | Role for backend state operations |
 | `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` | IAM Role ARN | Role for production deployments |
 | `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` | IAM Role ARN | Role for development deployments |
+| `AWS_ASSUME_EXTERNAL_ID` | ExternalId | ExternalId for cross-account role assumption security (must match deployment account role Trust Relationship) |
 | `TF_VAR_OPENLDAP_ADMIN_PASSWORD` | Password | OpenLDAP admin password |
 | `TF_VAR_OPENLDAP_CONFIG_PASSWORD` | Password | OpenLDAP config password |
 | `TF_VAR_POSTGRESQL_PASSWORD` | Password | PostgreSQL database password |

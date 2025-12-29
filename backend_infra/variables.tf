@@ -20,6 +20,14 @@ variable "deployment_account_role_arn" {
   nullable    = true
 }
 
+variable "deployment_account_external_id" {
+  description = "ExternalId for cross-account role assumption security. Required when assuming roles in deployment accounts. Must match the ExternalId configured in the deployment account role's Trust Relationship. Retrieved from AWS Secrets Manager (secret: 'external-id') for local deployment or GitHub secret (AWS_ASSUME_EXTERNAL_ID) for GitHub Actions."
+  type        = string
+  default     = null
+  nullable    = true
+  sensitive   = true
+}
+
 ###################### VPC #########################
 
 variable "vpc_name" {

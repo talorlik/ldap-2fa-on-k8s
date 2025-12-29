@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **ExternalId Support for Cross-Account Role Assumption**
+  - Added ExternalId requirement for enhanced security when assuming deployment
+  account roles
+  - ExternalId retrieved from AWS Secrets Manager (secret: `external-id`) for
+  local deployment
+  - ExternalId retrieved from GitHub repository secret (`AWS_ASSUME_EXTERNAL_ID`)
+  for GitHub Actions
+  - ExternalId passed to Terraform provider's `assume_role` block
+  - New variable `deployment_account_external_id` added to `variables.tf`
+  - Setup script (`setup-application.sh`) automatically retrieves ExternalId from
+  AWS Secrets Manager
+  - GitHub Actions workflow (`application_infra_provisioning.yaml`) updated to use
+  `AWS_ASSUME_EXTERNAL_ID` secret
+  - Deployment account roles must have ExternalId condition in Trust Relationship
+  - Prevents confused deputy attacks in multi-account deployments
+  - ExternalId generation: `openssl rand -hex 32`
+
 ### Changed
 
 - **Documentation Improvements**
@@ -22,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed debug mode condition for API documentation endpoints
   - Swagger UI, ReDoc UI, and OpenAPI schema are now always accessible in production
 
-### Added
+## [2025-12-20] - Swagger UI for API Documentation
 
 - **API Documentation (Swagger UI)**
   - FastAPI Swagger UI now always enabled at `/api/docs` (previously only available
@@ -32,9 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Interactive API documentation automatically updates when endpoints change
   - Documentation updated in README.md and PRD-2FA-APP.md to reflect availability
 
-### [2025-12-18] - Admin Functions and User Profile Management
+## [2025-12-18] - Admin Functions and User Profile Management
 
-#### Added
+### Added
 
 - **Admin Dashboard and User Management**
   - Admin tab visible only to LDAP admin group members
@@ -87,7 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Group model for LDAP group management
   - UserGroup model for user-group relationships
 
-#### Changed
+### Changed
 
 - **Updated `routes.py`**
   - Added profile management endpoints (`/api/profile/{username}`)
@@ -100,9 +119,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added top navigation bar component
   - Enhanced CSS with admin-specific styles
 
-### [2025-12-18] - User Signup Management System
+## [2025-12-18] - User Signup Management System
 
-#### Added
+### Added
 
 - **Self-Service User Registration**
   - Signup form with fields: first name, last name, username, email, phone,
@@ -163,7 +182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Data models and API specifications
   - UI mockups and deployment checklist
 
-#### Changed
+### Changed
 
 - **Updated `main.tf`**
   - Added PostgreSQL module invocation
@@ -186,9 +205,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added resend verification functionality
   - Enhanced error messages for login restrictions
 
-### [2025-12-18] - Redis SMS OTP Storage
+## [2025-12-18] - Redis SMS OTP Storage
 
-#### Added
+### Added
 
 - **Redis Module (`modules/redis/`) for SMS OTP Code Storage**
   - Bitnami Redis Helm chart deployment via Terraform
@@ -217,7 +236,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Password sourced from `TF_VAR_REDIS_PASSWORD` GitHub Secret (secret name remains
   uppercase, but exported as lowercase to match `variables.tf`)
 
-#### Changed
+### Changed
 
 - **Updated `routes.py` for Redis Integration**
   - `send_sms_code` endpoint now stores OTP codes in Redis with automatic TTL
@@ -230,7 +249,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added Redis environment variables in `configmap.yaml`
   - Added Redis password secret reference in `deployment.yaml`
 
-#### Documentation
+### Documentation
 
 - Added `modules/redis/README.md` with:
   - Architecture diagram showing backend-Redis communication
@@ -238,9 +257,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Debugging commands for Redis CLI
   - Usage examples and configuration options
 
-### [2025-12-18] - 2FA Application and SMS Integration
+## [2025-12-18] - 2FA Application and SMS Integration
 
-#### Added
+### Added
 
 - **Full 2FA Application (Backend + Frontend)**
   - Python FastAPI backend with LDAP authentication integration
@@ -271,16 +290,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Frontend component and state machine documentation
   - Security considerations and error handling patterns
 
-#### Changed
+### Changed
 
 - **Updated variables.tf and variables.tfvars**
   - Added 2FA application configuration variables
   - Added SNS topic configuration
   - Added backend/frontend deployment settings
 
-### [2025-12-16] - ArgoCD GitOps Integration
+## [2025-12-16] - ArgoCD GitOps Integration
 
-#### Added
+### Added
 
 - **ArgoCD Capability Module (`modules/argocd/`)**
   - Deploys AWS EKS managed ArgoCD service (runs in EKS control plane)
@@ -305,7 +324,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ignore differences for externally managed fields
   - Multi-application pattern support
 
-#### Changed
+### Changed
 
 - **Updated main.tf**
   - Added ArgoCD capability module integration
@@ -318,9 +337,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added RBAC role mapping configuration
   - Added VPC endpoint configuration options
 
-### [2025-12-15] - Documentation and Linting Improvements
+## [2025-12-15] - Documentation and Linting Improvements
 
-#### Changed
+### Changed
 
 - **Updated documentation across all files for Markdown lint compliance**
   - Corrected row length issues to comply with markdownlint rules
@@ -336,9 +355,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added additional network policy rules in `modules/network-policies/main.tf`
   - Updated documentation in `modules/network-policies/README.md`
 
-### [2025-12-14] - Deployment Versatility and Security Improvements
+## [2025-12-14] - Deployment Versatility and Security Improvements
 
-#### Changed
+### Changed
 
 - **Network Policies: Enabled cross-namespace communication for LDAP service
 access**
@@ -385,7 +404,7 @@ access**
   - Ensures proper separation between state account (S3) and deployment accounts
   (resource creation)
 
-#### Added
+### Added
 
 - **Automated OpenLDAP password retrieval from GitHub secrets**
   - `setup-application.sh` now automatically retrieves OpenLDAP passwords from
@@ -409,23 +428,23 @@ access**
   - Replaces previous `setup-backend.sh` and `setup-backend-api.sh` scripts
   - Includes comprehensive error handling and user guidance
 
-#### Removed
+### Removed
 
 - **Legacy setup scripts**
   - Removed `setup-backend.sh` (replaced by unified `setup-application.sh`)
   - Removed `setup-backend-api.sh` (replaced by unified `setup-application.sh`)
   - Consolidated functionality improves maintainability and reduces complexity
 
-#### Fixed
+### Fixed
 
 - Corrected documentation to reflect new password management via GitHub
 repository secrets
   - Updated README.md with accurate password setup instructions
   - Clarified local vs. GitHub Actions execution differences
 
-### [2025-12-10] - Ingress Configuration Updates
+## [2025-12-10] - Ingress Configuration Updates
 
-#### Changed
+### Changed
 
 - **Moved certificate ARN and group name to IngressClassParams (cluster-wide
 configuration)**
@@ -444,7 +463,7 @@ configuration)**
   - Updated documentation in `PRD-ALB.md` and `README.md` to reflect new
   annotation strategy
 
-#### Verified
+### Verified
 
 - Multi-ingress single ALB configuration is correctly implemented with EKS Auto
 Mode
@@ -457,9 +476,9 @@ Mode
   - Cluster-wide defaults (`scheme`, `ipAddressType`, `group.name`,
   `certificateARNs`) inherited from IngressClassParams
 
-### [2025-12-08] - ALB and TLS Configuration Updates
+## [2025-12-08] - ALB and TLS Configuration Updates
 
-#### Changed
+### Changed
 
 - **Migrated from AWS Load Balancer Controller to EKS Auto Mode**
   - Updated ALB controller from `alb.ingress.kubernetes.io` to
@@ -502,7 +521,7 @@ osixia/openldap image requirements
   - Added explicit `LDAP_TLS: "true"` to enable TLS
   - Updated comments to clarify osixia/openldap-specific behavior
 
-#### Added
+### Added
 
 - **New variable `alb_load_balancer_name`** for custom AWS ALB naming
   - Allows separate control over Kubernetes group identifier vs AWS resource
@@ -521,7 +540,7 @@ osixia/openldap image requirements
   - Added implementation details section explaining Terraform and Helm chart
   responsibilities
 
-#### Fixed
+### Fixed
 
 - Fixed TLS configuration compatibility issue between Helm chart (designed for
 Bitnami) and osixia/openldap image
@@ -533,7 +552,7 @@ Bitnami) and osixia/openldap image
 
 ## [2025-12-02] - Initial Configuration
 
-### Added to date
+### Added
 
 - Initial OpenLDAP deployment using osixia/openldap:1.5.0 image
 - Helm chart from jp-gouin/helm-openldap (version 4.0.1)

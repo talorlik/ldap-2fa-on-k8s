@@ -605,6 +605,16 @@ in Account B to assume for resource deployment
   - Automatically injected by GitHub workflows
   - Required when using multi-account setup
   - Format: `arn:aws:iam::ACCOUNT_B_ID:role/github-actions-deployment-role`
+- `deployment_account_external_id`: (Optional, for security) ExternalId for
+cross-account role assumption
+  - Automatically retrieved from AWS Secrets Manager (secret: `external-id`) for
+  local deployment
+  - Automatically retrieved from GitHub secret (`AWS_ASSUME_EXTERNAL_ID`) for
+  GitHub Actions
+  - Required when deployment account roles have ExternalId condition in Trust Relationship
+  - Must match the ExternalId configured in the deployment account role's
+  Trust Relationship
+  - Generated using: `openssl rand -hex 32`
 
 #### Cluster Name Injection
 
@@ -850,12 +860,14 @@ operations
 based on the selected environment:
   - `prod` → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
   - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
+- Retrieve ExternalId from AWS Secrets Manager (secret: `external-id`) for
+cross-account role assumption security
 - Retrieve password secrets from AWS Secrets Manager and export them as
 environment variables
 - Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the
 actual values (if it doesn't exist)
-- Update `variables.tfvars` with the selected region, environment, and
-deployment account role ARN
+- Update `variables.tfvars` with the selected region, environment,
+deployment account role ARN, and ExternalId
 - Set Kubernetes environment variables using `set-k8s-env.sh`
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 

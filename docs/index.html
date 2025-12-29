@@ -145,6 +145,7 @@
                                 <li><code>AWS_STATE_ACCOUNT_ROLE_ARN</code> - IAM role ARN for state account (backend operations)</li>
                                 <li><code>AWS_PRODUCTION_ACCOUNT_ROLE_ARN</code> - IAM role ARN for production deployments</li>
                                 <li><code>AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN</code> - IAM role ARN for development deployments</li>
+                                <li><code>AWS_ASSUME_EXTERNAL_ID</code> - ExternalId for cross-account role assumption security (must match deployment account role Trust Relationship)</li>
                                 <li><code>TF_VAR_OPENLDAP_ADMIN_PASSWORD</code> - OpenLDAP admin password (exported as <code>TF_VAR_openldap_admin_password</code>)</li>
                                 <li><code>TF_VAR_OPENLDAP_CONFIG_PASSWORD</code> - OpenLDAP config password (exported as <code>TF_VAR_openldap_config_password</code>)</li>
                                 <li><code>TF_VAR_REDIS_PASSWORD</code> - Redis password (minimum 8 characters, exported as <code>TF_VAR_redis_password</code>)</li>
@@ -648,6 +649,7 @@
                 <li><strong>Multi-Account Isolation</strong>: State storage (Account A) separated from resource deployment (Account B)</li>
                 <li><strong>State Locking</strong>: S3 file-based locking for Terraform state concurrency control</li>
                 <li><strong>OIDC Authentication</strong>: GitHub Actions uses OIDC for AWS authentication (no access keys)</li>
+                <li><strong>ExternalId Security</strong>: Cross-account role assumption requires ExternalId to prevent confused deputy attacks</li>
             </ul>
             <p><strong>For detailed security documentation:</strong> <a href="../application/SECURITY-IMPROVEMENTS.md">Security Improvements</a></p>
         </div>

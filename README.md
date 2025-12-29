@@ -279,6 +279,8 @@ deployment, but multi-account is recommended for better security isolation
 - `AWS_STATE_ACCOUNT_ROLE_ARN` - IAM role ARN for state account (backend operations)
 - `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` - IAM role ARN for production deployments
 - `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` - IAM role ARN for development deployments
+- `AWS_ASSUME_EXTERNAL_ID` - ExternalId for cross-account role assumption security
+(must match value in deployment account role Trust Relationship)
 - `TF_VAR_OPENLDAP_ADMIN_PASSWORD` - OpenLDAP admin password
 - `TF_VAR_OPENLDAP_CONFIG_PASSWORD` - OpenLDAP config password
 - `TF_VAR_POSTGRESQL_PASSWORD` - PostgreSQL database password
@@ -297,6 +299,10 @@ Configure these secrets in your GitHub repository:
 ### For Local Development
 
 - Store secrets in AWS Secrets Manager (scripts automatically retrieve them)
+- **ExternalId**: Store as plain text secret named `external-id` in
+AWS Secrets Manager
+  - Generate using: `openssl rand -hex 32`
+  - Must match the ExternalId in deployment account role Trust Relationships
 
 ## Deployment Methods
 

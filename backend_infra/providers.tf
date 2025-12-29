@@ -16,7 +16,7 @@ terraform {
     use_lockfile = true
   }
 
-  required_version = "= 1.14.0"
+  required_version = "~> 1.14.0"
 }
 
 provider "aws" {
@@ -25,10 +25,12 @@ provider "aws" {
   # Assume role in deployment account (Account B) if role ARN is provided
   # This allows GitHub Actions to authenticate with Account A (for state)
   # while Terraform provider uses Account B (for resource deployment)
+  # ExternalId is required for security when assuming cross-account roles
   dynamic "assume_role" {
     for_each = var.deployment_account_role_arn != null ? [1] : []
     content {
-      role_arn = var.deployment_account_role_arn
+      role_arn    = var.deployment_account_role_arn
+      external_id = var.deployment_account_external_id
     }
   }
 }

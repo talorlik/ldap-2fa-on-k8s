@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **ExternalId Support for Cross-Account Role Assumption**
+  - Added ExternalId requirement for enhanced security when assuming deployment
+  account roles
+  - ExternalId retrieved from AWS Secrets Manager (secret: `external-id`) for
+  local deployment
+  - ExternalId retrieved from GitHub repository secret (`AWS_ASSUME_EXTERNAL_ID`)
+  for GitHub Actions
+  - ExternalId passed to Terraform provider's `assume_role` block
+  - New variable `deployment_account_external_id` added to `variables.tf`
+  - Setup script (`setup-backend.sh`) automatically retrieves ExternalId from
+  AWS Secrets Manager
+  - GitHub Actions workflow (`backend_infra_provisioning.yaml`) updated to use
+  `AWS_ASSUME_EXTERNAL_ID` secret
+  - Deployment account roles must have ExternalId condition in Trust Relationship
+  - Prevents confused deputy attacks in multi-account deployments
+  - ExternalId generation: `openssl rand -hex 32`
+
 ### Changed
 
 - **Documentation Improvements**

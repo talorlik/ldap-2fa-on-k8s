@@ -196,8 +196,8 @@ backend_infra/
 4. **Backend Configuration**: Generate `backend.hcl` using the setup scripts
 (see main [README.md](../README.md))
 5. **GitHub Secrets**: Ensure `AWS_STATE_ACCOUNT_ROLE_ARN`,
-`AWS_PRODUCTION_ACCOUNT_ROLE_ARN`, and `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` are
-configured in repository secrets
+`AWS_PRODUCTION_ACCOUNT_ROLE_ARN`, `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`, and
+`AWS_ASSUME_EXTERNAL_ID` are configured in repository secrets
 
 ## Key Variables
 
@@ -216,6 +216,7 @@ configured in repository secrets
 | Variable | Description | Default |
 | ---------- | ------------- | --------- |
 | `deployment_account_role_arn` | ARN of IAM role in Account B to assume for resource deployment | `null` |
+| `deployment_account_external_id` | ExternalId for cross-account role assumption security (must match Trust Relationship) | `null` |
 | `enable_sts_endpoint` | Whether to create STS VPC endpoint (required for IRSA) | `true` |
 | `enable_sns_endpoint` | Whether to create SNS VPC endpoint (required for SMS 2FA) | `false` |
 

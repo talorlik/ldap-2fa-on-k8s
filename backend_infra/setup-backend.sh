@@ -126,6 +126,37 @@ get_aws_secret() {
     echo "$secret_json"
 }
 
+# Function to retrieve plain text secret from AWS Secrets Manager
+get_aws_plaintext_secret() {
+    local secret_name=$1
+    local secret_value
+    local exit_code
+
+    # Retrieve secret from AWS Secrets Manager
+    secret_value=$(aws secretsmanager get-secret-value \
+        --secret-id "$secret_name" \
+        --query SecretString \
+        --output text 2>&1)
+
+    # Capture exit code before checking
+    exit_code=$?
+
+    # Validate secret retrieval
+    if [ $exit_code -ne 0 ]; then
+        print_error "Failed to retrieve secret '${secret_name}' from AWS Secrets Manager"
+        print_error "Error: $secret_value"
+        return 1
+    fi
+
+    # Check if secret value is empty
+    if [ -z "$secret_value" ]; then
+        print_error "Secret '${secret_name}' is empty"
+        return 1
+    fi
+
+    echo "$secret_value"
+}
+
 # Function to get key value from secret JSON
 get_secret_key_value() {
     local secret_json=$1
@@ -285,6 +316,16 @@ fi
 print_info "Assumed role identity: $CALLER_ARN"
 echo ""
 
+# Retrieve ExternalId from AWS Secrets Manager (plain text secret)
+# Must be retrieved after assuming role to have AWS credentials
+print_info "Retrieving ExternalId from AWS Secrets Manager..."
+EXTERNAL_ID=$(get_aws_plaintext_secret "external-id" || echo "")
+if [ -z "$EXTERNAL_ID" ]; then
+    print_error "Failed to retrieve 'external-id' secret from AWS Secrets Manager"
+    exit 1
+fi
+print_success "Retrieved ExternalId"
+
 # Retrieve repository variables
 print_info "Retrieving repository variables..."
 
@@ -345,6 +386,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     else
         sed -i '' "s|^deployment_account_role_arn[[:space:]]*=.*|deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"|" "$VARIABLES_FILE"
     fi
+    # Add or update deployment_account_external_id
+    if ! grep -q "^deployment_account_external_id" "$VARIABLES_FILE"; then
+        echo "deployment_account_external_id = \"${EXTERNAL_ID}\"" >> "$VARIABLES_FILE"
+    else
+        sed -i '' "s|^deployment_account_external_id[[:space:]]*=.*|deployment_account_external_id = \"${EXTERNAL_ID}\"|" "$VARIABLES_FILE"
+    fi
 else
     # Linux sed
     sed -i "s|^env[[:space:]]*=.*|env                    = \"${ENVIRONMENT}\"|" "$VARIABLES_FILE"
@@ -354,6 +401,12 @@ else
         echo "deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"" >> "$VARIABLES_FILE"
     else
         sed -i "s|^deployment_account_role_arn[[:space:]]*=.*|deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"|" "$VARIABLES_FILE"
+    fi
+    # Add or update deployment_account_external_id
+    if ! grep -q "^deployment_account_external_id" "$VARIABLES_FILE"; then
+        echo "deployment_account_external_id = \"${EXTERNAL_ID}\"" >> "$VARIABLES_FILE"
+    else
+        sed -i "s|^deployment_account_external_id[[:space:]]*=.*|deployment_account_external_id = \"${EXTERNAL_ID}\"|" "$VARIABLES_FILE"
     fi
 fi
 

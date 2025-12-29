@@ -1,5 +1,5 @@
-env    = "prod"
-region = "us-east-1"
+env                    = "prod"
+region                 = "us-east-1"
 prefix = "talo-tf"
 ### VPC ###
 vpc_name         = "vpc"
@@ -51,3 +51,4 @@ ecr_lifecycle_policy = {
     }
   ]
 }
+deployment_account_role_arn = "arn:aws:iam::944880695150:role/github-role"

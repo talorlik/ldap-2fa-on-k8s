@@ -4,6 +4,7 @@ name: Application Infra Provisioning
 # - AWS_STATE_ACCOUNT_ROLE_ARN: IAM role ARN for backend state operations
 # - AWS_PRODUCTION_ACCOUNT_ROLE_ARN: IAM role ARN for production deployments
 # - AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN: IAM role ARN for development deployments
+# - AWS_ASSUME_EXTERNAL_ID: ExternalId for cross-account role assumption security
 # - TF_VAR_OPENLDAP_ADMIN_PASSWORD: OpenLDAP admin password
 # - TF_VAR_OPENLDAP_CONFIG_PASSWORD: OpenLDAP config password
 # - TF_VAR_POSTGRESQL_PASSWORD: PostgreSQL database password
@@ -103,6 +104,13 @@ jobs:
             echo "deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"" >> variables.tfvars
           else
             sed -i "s|^deployment_account_role_arn[[:space:]]*=.*|deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"|" variables.tfvars
+          fi
+          # Set ExternalId for cross-account role assumption security
+          EXTERNAL_ID="${{ secrets.AWS_ASSUME_EXTERNAL_ID }}"
+          if ! grep -q "^deployment_account_external_id" variables.tfvars; then
+            echo "deployment_account_external_id = \"${EXTERNAL_ID}\"" >> variables.tfvars
+          else
+            sed -i "s|^deployment_account_external_id[[:space:]]*=.*|deployment_account_external_id = \"${EXTERNAL_ID}\"|" variables.tfvars
           fi
           echo "Updated variables.tfvars:"
           cat variables.tfvars

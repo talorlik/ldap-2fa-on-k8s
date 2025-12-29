@@ -238,6 +238,62 @@ After deployment, verify:
    # Should fail or timeout
    ```
 
+### 4. Cross-Account Role Assumption Security
+
+#### ✅ ExternalId for Role Assumption
+
+- **Added**: ExternalId requirement for cross-account role assumption between
+state account (Account A) and deployment accounts (Account B)
+- **Location**: `application/providers.tf`, `backend_infra/providers.tf`
+- **Implementation**:
+  - ExternalId retrieved from AWS Secrets Manager (secret: `external-id`) for
+  local deployment
+  - ExternalId retrieved from GitHub repository secret (`AWS_ASSUME_EXTERNAL_ID`)
+  for GitHub Actions
+  - ExternalId passed to Terraform provider's `assume_role` block
+  - Deployment account roles must have ExternalId condition in Trust Relationship
+
+**Key Security Features**:
+
+- **Prevents Confused Deputy Attacks**: ExternalId ensures only authorized
+callers can assume deployment account roles
+- **Secret-Based Management**: ExternalId stored securely in AWS Secrets Manager
+and GitHub secrets (never hardcoded)
+- **Consistent Value**: Same ExternalId used across both local and CI/CD
+deployments
+- **Trust Relationship Condition**: Deployment account roles require ExternalId
+match in Trust Relationship policy
+
+**Trust Relationship Configuration**:
+
+The deployment account role's Trust Relationship must include:
+
+```json
+{
+  "Effect": "Allow",
+  "Principal": {
+    "AWS": "arn:aws:iam::STATE_ACCOUNT_ID:role/github-role"
+  },
+  "Action": "sts:AssumeRole",
+  "Condition": {
+    "StringEquals": {
+      "sts:ExternalId": "<generated-external-id>"
+    }
+  }
+}
+```
+
+**ExternalId Generation**:
+
+- Generate using: `openssl rand -hex 32`
+- Must match in:
+  - AWS Secrets Manager secret `external-id` (plain text)
+  - GitHub repository secret `AWS_ASSUME_EXTERNAL_ID`
+  - Deployment account role Trust Relationship condition
+
+**Result**: Enhanced security for cross-account role assumption, preventing
+unauthorized role assumption attempts.
+
 ## Security Compliance
 
 These changes ensure:
@@ -251,6 +307,8 @@ allowed services
 ✅ **Principle of Least Privilege**: Each service has minimal required network
 access
 ✅ **Modern TLS**: Only secure TLS protocols are used
+✅ **Cross-Account Security**: ExternalId prevents confused deputy attacks in
+multi-account deployments
 
 ## Next Steps (Optional Enhancements)
 
