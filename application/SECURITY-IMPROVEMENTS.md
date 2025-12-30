@@ -283,6 +283,59 @@ The deployment account role's Trust Relationship must include:
 }
 ```
 
+**State Account Role Trust Relationship (Reverse Direction)**:
+
+In addition to deployment account roles trusting the state account role, the
+state account role's Trust Relationship must also be updated to allow the
+deployment account roles. This bidirectional trust is required for proper
+cross-account role assumption.
+
+> [!IMPORTANT]
+>
+> **ExternalId Still Required**: The ExternalId security mechanism is still
+> required when the state account role assumes deployment account roles. The
+> ExternalId condition must be present in the deployment account roles' Trust
+> Relationships (as shown above), and the state account role must provide the
+> ExternalId when assuming those roles. The ExternalId is retrieved from
+> `AWS_ASSUME_EXTERNAL_ID` secret (for GitHub Actions) or AWS Secrets Manager
+> (for local deployment).
+
+Update the state account role's Trust Relationship to include the deployment
+account role ARNs:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::STATE_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:YOUR_ORG/YOUR_REPO:*"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::PRODUCTION_ACCOUNT_ID:role/github-role",
+          "arn:aws:iam::DEVELOPMENT_ACCOUNT_ID:role/github-role"
+        ]
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+Replace `PRODUCTION_ACCOUNT_ID` and `DEVELOPMENT_ACCOUNT_ID` with your actual
+account IDs, and `github-role` with your actual deployment role names.
+
 **ExternalId Generation**:
 
 - Generate using: `openssl rand -hex 32`
@@ -292,7 +345,9 @@ The deployment account role's Trust Relationship must include:
   - Deployment account role Trust Relationship condition
 
 **Result**: Enhanced security for cross-account role assumption, preventing
-unauthorized role assumption attempts.
+unauthorized role assumption attempts. Both the deployment account roles and the
+state account role must trust each other in their respective Trust
+Relationships for proper bidirectional cross-account access.
 
 ## Security Compliance
 

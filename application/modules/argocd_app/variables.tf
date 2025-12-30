@@ -157,8 +157,3 @@ variable "directory_config" {
   default = null
 }
 
-variable "depends_on_resources" {
-  description = "List of resources this Application depends on (e.g., ArgoCD capability, cluster secret)"
-  type        = list(any)
-  default     = []
-}

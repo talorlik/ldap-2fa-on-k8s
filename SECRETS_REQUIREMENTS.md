@@ -203,6 +203,60 @@ aws secretsmanager update-secret \
 >    }
 >    ```
 
+> [!IMPORTANT]
+>
+> **Bidirectional Trust Relationships Required:**
+>
+> For multi-account setups, both trust relationships must be configured:
+>
+> 1. **Deployment Account Roles** must trust the State Account role (already
+>    documented above) **with ExternalId condition**
+> 2. **State Account Role** must also trust the Deployment Account roles in its
+>    Trust Relationship
+>
+> **ExternalId Still Required**: The ExternalId security mechanism is still
+> required when the state account role assumes deployment account roles. The
+> ExternalId condition must be present in the deployment account roles' Trust
+> Relationships, and the state account role must provide the ExternalId when
+> assuming those roles. The ExternalId is retrieved from `AWS_ASSUME_EXTERNAL_ID`
+> secret (for GitHub Actions) or AWS Secrets Manager (for local deployment).
+>
+> Update the state account role's (`github-actions-state-role`) Trust
+> Relationship to include the deployment account role ARNs:
+>
+> ```json
+> {
+>   "Version": "2012-10-17",
+>   "Statement": [
+>     {
+>       "Effect": "Allow",
+>       "Principal": {
+>         "Federated": "arn:aws:iam::STATE_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+>       },
+>       "Action": "sts:AssumeRoleWithWebIdentity",
+>       "Condition": {
+>         "StringLike": {
+>           "token.actions.githubusercontent.com:sub": "repo:YOUR_ORG/YOUR_REPO:*"
+>         }
+>       }
+>     },
+>     {
+>       "Effect": "Allow",
+>       "Principal": {
+>         "AWS": [
+>           "arn:aws:iam::PRODUCTION_ACCOUNT_ID:role/github-role",
+>           "arn:aws:iam::DEVELOPMENT_ACCOUNT_ID:role/github-role"
+>         ]
+>       },
+>       "Action": "sts:AssumeRole"
+>     }
+>   ]
+> }
+> ```
+>
+> Replace `PRODUCTION_ACCOUNT_ID` and `DEVELOPMENT_ACCOUNT_ID` with your actual
+> account IDs, and `github-role` with your actual deployment role names.
+
 ### IAM Permissions for AWS Secrets Manager
 
 The AWS credentials used to run local scripts must have the following permissions:
@@ -286,6 +340,10 @@ backend state operations (S3 bucket access for Terraform state)
   - `set-state.sh`
   - `get-state.sh`
   - All GitHub Actions workflows
+- **Trust Relationship Requirement:** For multi-account setups, the state account
+role's Trust Relationship must include the deployment account role ARNs to enable
+bidirectional trust. See the "Bidirectional Trust Relationships Required" section
+above (in the ExternalId configuration) for configuration details.
 
 #### AWS_PRODUCTION_ACCOUNT_ROLE_ARN
 

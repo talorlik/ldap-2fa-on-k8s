@@ -45,19 +45,21 @@ output "alb_ip_address_type" {
 }
 
 ##################### Network Policies Module ##########################
+# Network policies are created within the openldap module
+# These outputs expose the network policy information from the openldap module
 output "network_policy_name" {
   description = "Name of the network policy for secure namespace communication"
-  value       = module.network_policies.network_policy_name
+  value       = module.openldap.network_policy_name
 }
 
 output "network_policy_namespace" {
   description = "Namespace where the network policy is applied"
-  value       = module.network_policies.network_policy_namespace
+  value       = module.openldap.network_policy_namespace
 }
 
 output "network_policy_uid" {
   description = "UID of the network policy resource"
-  value       = module.network_policies.network_policy_uid
+  value       = module.openldap.network_policy_uid
 }
 
 ##################### PostgreSQL ##########################

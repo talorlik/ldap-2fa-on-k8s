@@ -41,3 +41,19 @@ output "ltb_passwd_route53_record_name" {
   description = "Route53 record name for ltb-passwd"
   value       = aws_route53_record.ltb_passwd.name
 }
+
+##################### Network Policies ##########################
+output "network_policy_name" {
+  description = "Name of the network policy for secure namespace communication"
+  value       = var.enable_network_policies ? module.network_policies[0].network_policy_name : null
+}
+
+output "network_policy_namespace" {
+  description = "Namespace where the network policy is applied"
+  value       = var.enable_network_policies ? module.network_policies[0].network_policy_namespace : null
+}
+
+output "network_policy_uid" {
+  description = "UID of the network policy resource"
+  value       = var.enable_network_policies ? module.network_policies[0].network_policy_uid : null
+}

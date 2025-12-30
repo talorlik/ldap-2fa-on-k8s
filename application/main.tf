@@ -348,10 +348,6 @@ module "argocd_app_backend" {
     }
     sync_options = ["CreateNamespace=true"]
   } : null
-
-  depends_on_resources = [
-    module.argocd[0].argocd_capability_name
-  ]
 }
 
 # ArgoCD Application - Frontend
@@ -377,8 +373,4 @@ module "argocd_app_frontend" {
     }
     sync_options = ["CreateNamespace=true"]
   } : null
-
-  depends_on_resources = [
-    module.argocd[0].argocd_capability_name
-  ]
 }

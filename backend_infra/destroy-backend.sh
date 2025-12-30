@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Script to configure backend.hcl and variables.tfvars with user-selected region and environment
-# and run Terraform commands
-# Usage: ./setup-application.sh
+# and run Terraform destroy commands
+# Usage: ./destroy-backend.sh
 
 set -euo pipefail
 
@@ -17,10 +17,6 @@ PLACEHOLDER_FILE="tfstate-backend-values-template.hcl"
 BACKEND_FILE="backend.hcl"
 VARIABLES_FILE="variables.tfvars"
 
-# Export configuration variables for use by sourced scripts
-export BACKEND_FILE
-export VARIABLES_FILE
-
 # Function to print colored messages
 print_error() {
     echo -e "${RED}ERROR:${NC} $1" >&2
@@ -32,6 +28,10 @@ print_success() {
 
 print_info() {
     echo -e "${YELLOW}INFO:${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}WARNING:${NC} $1"
 }
 
 # Check if AWS CLI is installed
@@ -191,91 +191,23 @@ get_secret_key_value() {
     echo "$value"
 }
 
-# Function to assume an AWS IAM role and export credentials
-# Usage: assume_aws_role <role_arn> [external_id] [role_description] [session_name_suffix]
-#   role_arn: The ARN of the role to assume (required)
-#   external_id: Optional external ID for cross-account role assumption
-#   role_description: Optional description for logging (defaults to "role")
-#   session_name_suffix: Optional suffix for session name (defaults to "setup-application")
-assume_aws_role() {
-    local role_arn=$1
-    local external_id=${2:-}
-    local role_description=${3:-"role"}
-    local session_name_suffix=${4:-"setup-application"}
+# Warning about destructive operation
+echo ""
+print_warning "=========================================="
+print_warning "  DESTRUCTIVE OPERATION WARNING"
+print_warning "=========================================="
+print_warning "This script will DESTROY all infrastructure"
+print_warning "in the selected region and environment."
+print_warning ""
+print_warning "This action CANNOT be undone!"
+print_warning "=========================================="
+echo ""
+read -p "Are you sure you want to continue? (type 'yes' to confirm): " confirmation
 
-    if [ -z "$role_arn" ]; then
-        print_error "Role ARN is required for assume_aws_role"
-        return 1
-    fi
-
-    print_info "Assuming ${role_description}: $role_arn"
-    print_info "Region: $AWS_REGION"
-
-    # Assume the role
-    local role_session_name="${session_name_suffix}-$(date +%s)"
-    local assume_role_output
-
-    # Assume role and capture output
-    # Add external ID if provided
-    if [ -n "$external_id" ]; then
-        assume_role_output=$(aws sts assume-role \
-            --role-arn "$role_arn" \
-            --role-session-name "$role_session_name" \
-            --external-id "$external_id" \
-            --region "$AWS_REGION" 2>&1)
-    else
-        assume_role_output=$(aws sts assume-role \
-            --role-arn "$role_arn" \
-            --role-session-name "$role_session_name" \
-            --region "$AWS_REGION" 2>&1)
-    fi
-
-    if [ $? -ne 0 ]; then
-        print_error "Failed to assume ${role_description}: $assume_role_output"
-        return 1
-    fi
-
-    # Extract credentials from JSON output
-    # Try using jq if available (more reliable), otherwise use sed/grep
-    local access_key_id
-    local secret_access_key
-    local session_token
-
-    if command -v jq &> /dev/null; then
-        access_key_id=$(echo "$assume_role_output" | jq -r '.Credentials.AccessKeyId')
-        secret_access_key=$(echo "$assume_role_output" | jq -r '.Credentials.SecretAccessKey')
-        session_token=$(echo "$assume_role_output" | jq -r '.Credentials.SessionToken')
-    else
-        # Fallback: use sed for JSON parsing (works on both macOS and Linux)
-        access_key_id=$(echo "$assume_role_output" | sed -n 's/.*"AccessKeyId"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        secret_access_key=$(echo "$assume_role_output" | sed -n 's/.*"SecretAccessKey"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        session_token=$(echo "$assume_role_output" | sed -n 's/.*"SessionToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-    fi
-
-    if [ -z "$access_key_id" ] || [ -z "$secret_access_key" ] || [ -z "$session_token" ]; then
-        print_error "Failed to extract credentials from assume-role output."
-        print_error "Output was: $assume_role_output"
-        return 1
-    fi
-
-    # Export credentials to environment variables
-    export AWS_ACCESS_KEY_ID="$access_key_id"
-    export AWS_SECRET_ACCESS_KEY="$secret_access_key"
-    export AWS_SESSION_TOKEN="$session_token"
-
-    print_success "Successfully assumed ${role_description}"
-
-    # Verify the credentials work
-    local caller_arn
-    caller_arn=$(aws sts get-caller-identity --region "$AWS_REGION" --query 'Arn' --output text 2>&1)
-    if [ $? -ne 0 ]; then
-        print_error "Failed to verify assumed role credentials: $caller_arn"
-        return 1
-    fi
-
-    print_info "${role_description} identity: $caller_arn"
-    return 0
-}
+if [ "$confirmation" != "yes" ]; then
+    print_info "Operation cancelled."
+    exit 0
+fi
 
 # Interactive prompts
 echo ""
@@ -299,7 +231,6 @@ esac
 
 # Extract region code (everything before the colon)
 AWS_REGION="${SELECTED_REGION%%:*}"
-export AWS_REGION
 print_success "Selected region: ${SELECTED_REGION} (${AWS_REGION})"
 
 echo ""
@@ -322,20 +253,31 @@ case ${env_choice:-1} in
 esac
 
 print_success "Selected environment: ${ENVIRONMENT}"
-export ENVIRONMENT
 echo ""
 
-# Retrieve role ARNs from AWS Secrets Manager in a single call
+# Final confirmation with environment details
+print_warning "You are about to DESTROY infrastructure in:"
+print_warning "  Region: ${AWS_REGION}"
+print_warning "  Environment: ${ENVIRONMENT}"
+echo ""
+read -p "Type 'DESTROY' to confirm: " final_confirmation
+
+if [ "$final_confirmation" != "DESTROY" ]; then
+    print_info "Operation cancelled."
+    exit 0
+fi
+
+# Retrieve all role ARNs from AWS Secrets Manager in a single call
 # This minimizes AWS CLI calls by fetching all required role ARNs at once
 print_info "Retrieving role ARNs from AWS Secrets Manager..."
-ROLE_SECRET_JSON=$(get_aws_secret "github-role" || echo "")
-if [ -z "$ROLE_SECRET_JSON" ]; then
-    print_error "Failed to retrieve 'github-role' secret from AWS Secrets Manager"
+SECRET_JSON=$(get_aws_secret "github-role" || echo "")
+if [ -z "$SECRET_JSON" ]; then
+    print_error "Failed to retrieve secret from AWS Secrets Manager"
     exit 1
 fi
 
 # Extract STATE_ACCOUNT_ROLE_ARN for backend state operations
-STATE_ROLE_ARN=$(get_secret_key_value "$ROLE_SECRET_JSON" "AWS_STATE_ACCOUNT_ROLE_ARN" || echo "")
+STATE_ROLE_ARN=$(get_secret_key_value "$SECRET_JSON" "AWS_STATE_ACCOUNT_ROLE_ARN" || echo "")
 if [ -z "$STATE_ROLE_ARN" ]; then
     print_error "Failed to retrieve AWS_STATE_ACCOUNT_ROLE_ARN from secret"
     exit 1
@@ -350,73 +292,73 @@ else
 fi
 
 # Extract deployment account role ARN for provider assume_role
-DEPLOYMENT_ROLE_ARN=$(get_secret_key_value "$ROLE_SECRET_JSON" "$DEPLOYMENT_ROLE_ARN_KEY" || echo "")
+DEPLOYMENT_ROLE_ARN=$(get_secret_key_value "$SECRET_JSON" "$DEPLOYMENT_ROLE_ARN_KEY" || echo "")
 if [ -z "$DEPLOYMENT_ROLE_ARN" ]; then
     print_error "Failed to retrieve ${DEPLOYMENT_ROLE_ARN_KEY} from secret"
     exit 1
 fi
-export DEPLOYMENT_ROLE_ARN
 print_success "Retrieved ${DEPLOYMENT_ROLE_ARN_KEY}"
 
+# Use STATE_ROLE_ARN for backend operations
+ROLE_ARN="$STATE_ROLE_ARN"
+
+print_info "Assuming role: $ROLE_ARN"
+print_info "Region: $AWS_REGION"
+
+# Assume the role
+ROLE_SESSION_NAME="destroy-backend-$(date +%s)"
+
+# Assume role and capture output
+ASSUME_ROLE_OUTPUT=$(aws sts assume-role \
+    --role-arn "$ROLE_ARN" \
+    --role-session-name "$ROLE_SESSION_NAME" \
+    --region "$AWS_REGION" 2>&1)
+
+if [ $? -ne 0 ]; then
+    print_error "Failed to assume role: $ASSUME_ROLE_OUTPUT"
+    exit 1
+fi
+
+# Extract credentials from JSON output
+# Try using jq if available (more reliable), otherwise use sed/grep
+if command -v jq &> /dev/null; then
+    export AWS_ACCESS_KEY_ID=$(echo "$ASSUME_ROLE_OUTPUT" | jq -r '.Credentials.AccessKeyId')
+    export AWS_SECRET_ACCESS_KEY=$(echo "$ASSUME_ROLE_OUTPUT" | jq -r '.Credentials.SecretAccessKey')
+    export AWS_SESSION_TOKEN=$(echo "$ASSUME_ROLE_OUTPUT" | jq -r '.Credentials.SessionToken')
+else
+    # Fallback: use sed for JSON parsing (works on both macOS and Linux)
+    export AWS_ACCESS_KEY_ID=$(echo "$ASSUME_ROLE_OUTPUT" | sed -n 's/.*"AccessKeyId"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    export AWS_SECRET_ACCESS_KEY=$(echo "$ASSUME_ROLE_OUTPUT" | sed -n 's/.*"SecretAccessKey"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    export AWS_SESSION_TOKEN=$(echo "$ASSUME_ROLE_OUTPUT" | sed -n 's/.*"SessionToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+fi
+
+if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_SESSION_TOKEN" ]; then
+    print_error "Failed to extract credentials from assume-role output."
+    print_error "Output was: $ASSUME_ROLE_OUTPUT"
+    exit 1
+fi
+
+print_success "Successfully assumed role"
+
+# Verify the credentials work
+CALLER_ARN=$(aws sts get-caller-identity --region "$AWS_REGION" --query 'Arn' --output text 2>&1)
+if [ $? -ne 0 ]; then
+    print_error "Failed to verify assumed role credentials: $CALLER_ARN"
+    exit 1
+fi
+
+print_info "Assumed role identity: $CALLER_ARN"
+echo ""
+
 # Retrieve ExternalId from AWS Secrets Manager (plain text secret)
+# Must be retrieved after assuming role to have AWS credentials
 print_info "Retrieving ExternalId from AWS Secrets Manager..."
 EXTERNAL_ID=$(get_aws_plaintext_secret "external-id" || echo "")
 if [ -z "$EXTERNAL_ID" ]; then
     print_error "Failed to retrieve 'external-id' secret from AWS Secrets Manager"
     exit 1
 fi
-export EXTERNAL_ID
 print_success "Retrieved ExternalId"
-
-# Retrieve Terraform variables from AWS Secrets Manager in a single call
-print_info "Retrieving Terraform variables from AWS Secrets Manager..."
-TF_VARS_SECRET_JSON=$(get_aws_secret "tf-vars" || echo "")
-if [ -z "$TF_VARS_SECRET_JSON" ]; then
-    print_error "Failed to retrieve 'tf-vars' secret from AWS Secrets Manager"
-    exit 1
-fi
-
-# Extract OpenLDAP password values from tf-vars secret
-TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_ADMIN_PASSWORD" || echo "")
-if [ -z "$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_OPENLDAP_ADMIN_PASSWORD from secret"
-    exit 1
-fi
-print_success "Retrieved TF_VAR_OPENLDAP_ADMIN_PASSWORD"
-
-TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_CONFIG_PASSWORD" || echo "")
-if [ -z "$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_OPENLDAP_CONFIG_PASSWORD from secret"
-    exit 1
-fi
-print_success "Retrieved TF_VAR_OPENLDAP_CONFIG_PASSWORD"
-
-# Extract PostgreSQL password from tf-vars secret
-TF_VAR_POSTGRESQL_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_POSTGRESQL_PASSWORD" || echo "")
-if [ -z "$TF_VAR_POSTGRESQL_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_POSTGRESQL_PASSWORD from secret"
-    exit 1
-fi
-print_success "Retrieved TF_VAR_POSTGRESQL_PASSWORD"
-
-# Extract Redis password from tf-vars secret
-TF_VAR_REDIS_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_REDIS_PASSWORD" || echo "")
-if [ -z "$TF_VAR_REDIS_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_REDIS_PASSWORD from secret"
-    exit 1
-fi
-print_success "Retrieved TF_VAR_REDIS_PASSWORD"
-
-# Export as environment variables for Terraform
-# Note: TF_VAR environment variables are case-sensitive and must match variable names in variables.tf
-# Secrets in AWS/GitHub remain uppercase, but environment variables must be lowercase
-export TF_VAR_openldap_admin_password="$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE"
-export TF_VAR_openldap_config_password="$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE"
-export TF_VAR_postgresql_database_password="$TF_VAR_POSTGRESQL_PASSWORD_VALUE"
-export TF_VAR_redis_password="$TF_VAR_REDIS_PASSWORD_VALUE"
-
-print_success "Retrieved and exported all secrets from AWS Secrets Manager"
-echo ""
 
 # Retrieve repository variables
 print_info "Retrieving repository variables..."
@@ -424,8 +366,8 @@ print_info "Retrieving repository variables..."
 BUCKET_NAME=$(get_repo_variable "BACKEND_BUCKET_NAME") || exit 1
 print_success "Retrieved BACKEND_BUCKET_NAME"
 
-APPLICATION_PREFIX=$(get_repo_variable "APPLICATION_PREFIX") || exit 1
-print_success "Retrieved APPLICATION_PREFIX"
+BACKEND_PREFIX=$(get_repo_variable "BACKEND_PREFIX") || exit 1
+print_success "Retrieved BACKEND_PREFIX"
 
 # Check if backend.hcl already exists
 if [ -f "$BACKEND_FILE" ]; then
@@ -447,31 +389,73 @@ else
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS sed requires -i '' for in-place editing
         sed -i '' "s|<BACKEND_BUCKET_NAME>|${BUCKET_NAME}|g" "$BACKEND_FILE"
-        sed -i '' "s|<APPLICATION_PREFIX>|${APPLICATION_PREFIX}|g" "$BACKEND_FILE"
+        sed -i '' "s|<BACKEND_PREFIX>|${BACKEND_PREFIX}|g" "$BACKEND_FILE"
         sed -i '' "s|<AWS_REGION>|${AWS_REGION}|g" "$BACKEND_FILE"
     else
         # Linux sed
         sed -i "s|<BACKEND_BUCKET_NAME>|${BUCKET_NAME}|g" "$BACKEND_FILE"
-        sed -i "s|<APPLICATION_PREFIX>|${APPLICATION_PREFIX}|g" "$BACKEND_FILE"
+        sed -i "s|<BACKEND_PREFIX>|${BACKEND_PREFIX}|g" "$BACKEND_FILE"
         sed -i "s|<AWS_REGION>|${AWS_REGION}|g" "$BACKEND_FILE"
     fi
 
     print_success "Created ${BACKEND_FILE}"
 fi
 
+# Update variables.tfvars
+print_info "Updating ${VARIABLES_FILE} with selected values..."
+
+if [ ! -f "$VARIABLES_FILE" ]; then
+    print_error "Variables file '${VARIABLES_FILE}' not found."
+    exit 1
+fi
+
+# Update variables.tfvars (works on macOS and Linux)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS sed requires -i '' for in-place editing
+    sed -i '' "s|^env[[:space:]]*=.*|env                    = \"${ENVIRONMENT}\"|" "$VARIABLES_FILE"
+    sed -i '' "s|^region[[:space:]]*=.*|region                 = \"${AWS_REGION}\"|" "$VARIABLES_FILE"
+    # Add or update deployment_account_role_arn
+    if ! grep -q "^deployment_account_role_arn" "$VARIABLES_FILE"; then
+        echo "deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"" >> "$VARIABLES_FILE"
+    else
+        sed -i '' "s|^deployment_account_role_arn[[:space:]]*=.*|deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"|" "$VARIABLES_FILE"
+    fi
+    # Add or update deployment_account_external_id
+    if ! grep -q "^deployment_account_external_id" "$VARIABLES_FILE"; then
+        echo "deployment_account_external_id = \"${EXTERNAL_ID}\"" >> "$VARIABLES_FILE"
+    else
+        sed -i '' "s|^deployment_account_external_id[[:space:]]*=.*|deployment_account_external_id = \"${EXTERNAL_ID}\"|" "$VARIABLES_FILE"
+    fi
+else
+    # Linux sed
+    sed -i "s|^env[[:space:]]*=.*|env                    = \"${ENVIRONMENT}\"|" "$VARIABLES_FILE"
+    sed -i "s|^region[[:space:]]*=.*|region                 = \"${AWS_REGION}\"|" "$VARIABLES_FILE"
+    # Add or update deployment_account_role_arn
+    if ! grep -q "^deployment_account_role_arn" "$VARIABLES_FILE"; then
+        echo "deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"" >> "$VARIABLES_FILE"
+    else
+        sed -i "s|^deployment_account_role_arn[[:space:]]*=.*|deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"|" "$VARIABLES_FILE"
+    fi
+    # Add or update deployment_account_external_id
+    if ! grep -q "^deployment_account_external_id" "$VARIABLES_FILE"; then
+        echo "deployment_account_external_id = \"${EXTERNAL_ID}\"" >> "$VARIABLES_FILE"
+    else
+        sed -i "s|^deployment_account_external_id[[:space:]]*=.*|deployment_account_external_id = \"${EXTERNAL_ID}\"|" "$VARIABLES_FILE"
+    fi
+fi
+
+print_success "Updated ${VARIABLES_FILE}"
+echo ""
 print_success "Configuration files updated successfully!"
 echo ""
 print_info "Backend file: ${BACKEND_FILE}"
 print_info "  - bucket: ${BUCKET_NAME}"
-print_info "  - key: ${APPLICATION_PREFIX}"
+print_info "  - key: ${BACKEND_PREFIX}"
 print_info "  - region: ${AWS_REGION}"
 echo ""
-
-# Assume State Account role for backend operations
-if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "setup-application"; then
-    exit 1
-fi
-
+print_info "Variables file: ${VARIABLES_FILE}"
+print_info "  - env: ${ENVIRONMENT}"
+print_info "  - region: ${AWS_REGION}"
 echo ""
 
 # Terraform workspace name
@@ -483,50 +467,20 @@ terraform init -backend-config="${BACKEND_FILE}"
 
 # Terraform workspace
 print_info "Selecting or creating workspace: ${WORKSPACE_NAME}..."
-terraform workspace select "${WORKSPACE_NAME}" 2>/dev/null || terraform workspace new "${WORKSPACE_NAME}"
+terraform workspace select "${WORKSPACE_NAME}" || terraform workspace new "${WORKSPACE_NAME}"
 
 # Terraform validate
 print_info "Running terraform validate..."
 terraform validate
 
-# Set Kubernetes environment variables
-print_info "Setting Kubernetes environment variables..."
-if [ ! -f "set-k8s-env.sh" ]; then
-    print_error "set-k8s-env.sh not found."
-    exit 1
-fi
+# Terraform plan destroy
+print_info "Running terraform plan destroy..."
+terraform plan -var-file="${VARIABLES_FILE}" -destroy -out terraform.tfplan
 
-# Make sure the script is executable
-chmod +x ./set-k8s-env.sh
-
-# Source the script to set environment variables
-# The script uses environment variables (Deployment Account credentials for EKS, State Account credentials for S3)
-source ./set-k8s-env.sh
-
-if [ -z "$KUBERNETES_MASTER" ]; then
-    print_error "Failed to set KUBERNETES_MASTER environment variable."
-    exit 1
-fi
-
-print_success "Kubernetes environment variables set"
-print_info "  - KUBERNETES_MASTER: ${KUBERNETES_MASTER}"
-print_info "  - KUBE_CONFIG_PATH: ${KUBE_CONFIG_PATH}"
-echo ""
-
-# Assume State Account role for backend operations
-if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "setup-application"; then
-    exit 1
-fi
-
-echo ""
-
-# Terraform plan
-print_info "Running terraform plan..."
-terraform plan -var-file="${VARIABLES_FILE}" -out terraform.tfplan
-
-# Terraform apply
-print_info "Running terraform apply..."
+# Terraform apply (destroy)
+print_warning "Applying destroy plan. This will DESTROY all infrastructure..."
 terraform apply -auto-approve terraform.tfplan
 
 echo ""
-print_success "Script completed successfully!"
+print_success "Destroy operation completed successfully!"
+print_info "All infrastructure in ${AWS_REGION} (${ENVIRONMENT}) has been destroyed."

@@ -65,6 +65,4 @@ resource "kubernetes_manifest" "argocd_app" {
       revisionHistoryLimit = var.revision_history_limit
     }
   }
-
-  depends_on = var.depends_on_resources
 }

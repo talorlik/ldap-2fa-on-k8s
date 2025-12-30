@@ -246,11 +246,21 @@ role:
          "Principal": {
            "AWS": "arn:aws:iam::STATE_ACCOUNT_ID:role/github-actions-state-role"
          },
-         "Action": "sts:AssumeRole"
+         "Action": "sts:AssumeRole",
+         "Condition": {
+           "StringEquals": {
+             "sts:ExternalId": "<generated-external-id>"
+           }
+         }
        }
      ]
    }
    ```
+
+   Replace `<generated-external-id>` with the ExternalId value (generate using
+   `openssl rand -hex 32`). This ExternalId must match the value stored in
+   `AWS_ASSUME_EXTERNAL_ID` secret (for GitHub Actions) or AWS Secrets Manager
+   (for local deployment).
 
 2. Attach permissions policy with full resource deployment permissions
 
@@ -260,6 +270,72 @@ role:
 
 5. Copy the Development account role ARN → Set as
 `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` secret
+
+#### State Account Role Trust Relationship Update
+
+> [!IMPORTANT]
+>
+> In addition to the deployment account roles trusting the state account role, the
+> state account role's Trust Relationship must also be updated to allow the
+> deployment account roles. This bidirectional trust is required for proper
+> cross-account role assumption.
+>
+> **Note:** The ExternalId security mechanism is still required when the state
+> account role assumes deployment account roles. The ExternalId condition must be
+> present in the deployment account roles' Trust Relationships (as documented
+> above), and the state account role must provide the ExternalId when assuming
+> those roles.
+
+Update the state account role's (`github-actions-state-role`) Trust Relationship
+to include the deployment account roles:
+
+1. Navigate to the state account role in IAM Console
+2. Go to **Trust relationships** tab
+3. Click **Edit trust policy**
+4. Add the deployment account role ARNs to the trust policy:
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Principal": {
+           "Federated": "arn:aws:iam::STATE_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+         },
+         "Action": "sts:AssumeRoleWithWebIdentity",
+         "Condition": {
+           "StringLike": {
+             "token.actions.githubusercontent.com:sub": "repo:YOUR_ORG/YOUR_REPO:*"
+           }
+         }
+       },
+       {
+         "Effect": "Allow",
+         "Principal": {
+           "AWS": [
+             "arn:aws:iam::PRODUCTION_ACCOUNT_ID:role/github-role",
+             "arn:aws:iam::DEVELOPMENT_ACCOUNT_ID:role/github-role"
+           ]
+         },
+         "Action": "sts:AssumeRole"
+       }
+     ]
+   }
+   ```
+
+   Replace `PRODUCTION_ACCOUNT_ID` and `DEVELOPMENT_ACCOUNT_ID` with your actual
+   account IDs, and `github-role` with your actual deployment role names.
+
+5. Click **Update policy**
+
+> [!NOTE]
+>
+> Remember that the deployment account roles' Trust Relationships must still
+> include the ExternalId condition (as shown in step 1 above), and the state
+> account role must provide this ExternalId when assuming the deployment account
+> roles. The ExternalId is retrieved from `AWS_ASSUME_EXTERNAL_ID` secret (for
+> GitHub Actions) or AWS Secrets Manager (for local deployment).
 
 > [!NOTE]
 >
@@ -271,6 +347,8 @@ state operations (S3)
 on whether `prod` or `dev` environment is chosen
 > - For single-account setups, you can use the same role ARN for state and
 deployment, but multi-account is recommended for better security isolation
+> - **Bidirectional Trust**: Both the deployment account roles and the state
+account role must trust each other in their respective Trust Relationships
 
 ## Secrets Configuration
 

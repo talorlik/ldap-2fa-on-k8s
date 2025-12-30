@@ -1,16 +1,16 @@
 output "argocd_server_url" {
-  description = "Managed Argo CD UI/API endpoint"
-  value       = aws_eks_capability.argocd.server_url
+  description = "Managed Argo CD UI/API endpoint (automatically retrieved via AWS CLI)"
+  value       = data.external.argocd_capability.result.server_url != "" ? data.external.argocd_capability.result.server_url : null
 }
 
 output "argocd_capability_name" {
   description = "Name of the ArgoCD capability"
-  value       = aws_eks_capability.argocd.name
+  value       = local.argocd_capability_name
 }
 
 output "argocd_capability_status" {
-  description = "Status of the ArgoCD capability"
-  value       = aws_eks_capability.argocd.status
+  description = "Status of the ArgoCD capability (automatically retrieved via AWS CLI)"
+  value       = data.external.argocd_capability.result.status != "" ? data.external.argocd_capability.result.status : null
 }
 
 output "argocd_iam_role_arn" {

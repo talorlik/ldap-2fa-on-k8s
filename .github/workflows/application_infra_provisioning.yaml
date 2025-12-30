@@ -77,43 +77,41 @@ jobs:
         with:
           terraform_version: 1.14.0
 
+      - name: Export environment variables for set-k8s-env.sh
+        run: |
+          # Export required variables for set-k8s-env.sh (matching setup-application.sh)
+          echo "BACKEND_FILE=backend.hcl" >> $GITHUB_ENV
+          echo "VARIABLES_FILE=variables.tfvars" >> $GITHUB_ENV
+          echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
+          # Determine deployment account role ARN based on environment
+          if [ "${{ inputs.environment }}" = "prod" ]; then
+            echo "DEPLOYMENT_ROLE_ARN=${{ secrets.AWS_PRODUCTION_ACCOUNT_ROLE_ARN }}" >> $GITHUB_ENV
+          else
+            echo "DEPLOYMENT_ROLE_ARN=${{ secrets.AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN }}" >> $GITHUB_ENV
+          fi
+          echo "EXTERNAL_ID=${{ secrets.AWS_ASSUME_EXTERNAL_ID }}" >> $GITHUB_ENV
+
       - name: Configure AWS credentials (State Account)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_STATE_ACCOUNT_ROLE_ARN }}
-          role-session-name: GitHubActions-ApplicationInfraProvision
+          role-session-name: GitHubActions-ApplicationInfraProvision-State
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Create backend.hcl from placeholder
         run: |
-          cp tfstate-backend-values-template.hcl backend.hcl
-          sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
-          -e "s|<APPLICATION_PREFIX>|${{ vars.APPLICATION_PREFIX }}|g" \
-          -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
-          backend.hcl
-          echo "Created backend.hcl:"
-          cat backend.hcl
-
-      - name: Update variables.tfvars
-        run: |
-          sed -i "s|^env[[:space:]]*=.*|env = \"${{ inputs.environment }}\"|" variables.tfvars
-          sed -i "s|^region[[:space:]]*=.*|region = \"${{ env.AWS_REGION }}\"|" variables.tfvars
-          # Set deployment account role ARN based on environment
-          DEPLOYMENT_ROLE_ARN="${{ inputs.environment == 'prod' && secrets.AWS_PRODUCTION_ACCOUNT_ROLE_ARN || secrets.AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN }}"
-          if ! grep -q "^deployment_account_role_arn" variables.tfvars; then
-            echo "deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"" >> variables.tfvars
+          # Only create if it doesn't exist (matching setup-application.sh behavior)
+          if [ ! -f "backend.hcl" ]; then
+            cp tfstate-backend-values-template.hcl backend.hcl
+            sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
+            -e "s|<APPLICATION_PREFIX>|${{ vars.APPLICATION_PREFIX }}|g" \
+            -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
+            backend.hcl
+            echo "Created backend.hcl:"
+            cat backend.hcl
           else
-            sed -i "s|^deployment_account_role_arn[[:space:]]*=.*|deployment_account_role_arn = \"${DEPLOYMENT_ROLE_ARN}\"|" variables.tfvars
+            echo "backend.hcl already exists. Skipping creation."
           fi
-          # Set ExternalId for cross-account role assumption security
-          EXTERNAL_ID="${{ secrets.AWS_ASSUME_EXTERNAL_ID }}"
-          if ! grep -q "^deployment_account_external_id" variables.tfvars; then
-            echo "deployment_account_external_id = \"${EXTERNAL_ID}\"" >> variables.tfvars
-          else
-            sed -i "s|^deployment_account_external_id[[:space:]]*=.*|deployment_account_external_id = \"${EXTERNAL_ID}\"|" variables.tfvars
-          fi
-          echo "Updated variables.tfvars:"
-          cat variables.tfvars
 
       - name: Terraform init
         run: terraform init -backend-config=backend.hcl
@@ -128,10 +126,19 @@ jobs:
 
       - name: Set Kubernetes environment variables
         run: |
+          # set-k8s-env.sh expects State Account credentials to be active for S3 operations
+          # It will assume Deployment Account role internally for EKS operations
           chmod +x ./set-k8s-env.sh
           source ./set-k8s-env.sh
           echo "KUBERNETES_MASTER=$KUBERNETES_MASTER" >> $GITHUB_ENV
           echo "KUBE_CONFIG_PATH=$KUBE_CONFIG_PATH" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials (State Account for Terraform)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_STATE_ACCOUNT_ROLE_ARN }}
+          role-session-name: GitHubActions-ApplicationInfraProvision-Terraform
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform plan
         run: terraform plan -var-file="variables.tfvars" -out terraform.tfplan

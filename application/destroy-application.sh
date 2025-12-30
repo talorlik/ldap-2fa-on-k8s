@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Script to configure backend.hcl and variables.tfvars with user-selected region and environment
-# and run Terraform commands
-# Usage: ./setup-application.sh
+# and run Terraform destroy commands
+# Usage: ./destroy-application.sh
 
 set -euo pipefail
 
@@ -32,6 +32,10 @@ print_success() {
 
 print_info() {
     echo -e "${YELLOW}INFO:${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}WARNING:${NC} $1"
 }
 
 # Check if AWS CLI is installed
@@ -196,12 +200,12 @@ get_secret_key_value() {
 #   role_arn: The ARN of the role to assume (required)
 #   external_id: Optional external ID for cross-account role assumption
 #   role_description: Optional description for logging (defaults to "role")
-#   session_name_suffix: Optional suffix for session name (defaults to "setup-application")
+#   session_name_suffix: Optional suffix for session name (defaults to "destroy-application")
 assume_aws_role() {
     local role_arn=$1
     local external_id=${2:-}
     local role_description=${3:-"role"}
-    local session_name_suffix=${4:-"setup-application"}
+    local session_name_suffix=${4:-"destroy-application"}
 
     if [ -z "$role_arn" ]; then
         print_error "Role ARN is required for assume_aws_role"
@@ -277,6 +281,24 @@ assume_aws_role() {
     return 0
 }
 
+# Warning about destructive operation
+echo ""
+print_warning "=========================================="
+print_warning "  DESTRUCTIVE OPERATION WARNING"
+print_warning "=========================================="
+print_warning "This script will DESTROY all application"
+print_warning "infrastructure in the selected region and environment."
+print_warning ""
+print_warning "This action CANNOT be undone!"
+print_warning "=========================================="
+echo ""
+read -p "Are you sure you want to continue? (type 'yes' to confirm): " confirmation
+
+if [ "$confirmation" != "yes" ]; then
+    print_info "Operation cancelled."
+    exit 0
+fi
+
 # Interactive prompts
 echo ""
 print_info "Select AWS Region:"
@@ -324,6 +346,18 @@ esac
 print_success "Selected environment: ${ENVIRONMENT}"
 export ENVIRONMENT
 echo ""
+
+# Final confirmation with environment details
+print_warning "You are about to DESTROY application infrastructure in:"
+print_warning "  Region: ${AWS_REGION}"
+print_warning "  Environment: ${ENVIRONMENT}"
+echo ""
+read -p "Type 'DESTROY' to confirm: " final_confirmation
+
+if [ "$final_confirmation" != "DESTROY" ]; then
+    print_info "Operation cancelled."
+    exit 0
+fi
 
 # Retrieve role ARNs from AWS Secrets Manager in a single call
 # This minimizes AWS CLI calls by fetching all required role ARNs at once
@@ -468,7 +502,7 @@ print_info "  - region: ${AWS_REGION}"
 echo ""
 
 # Assume State Account role for backend operations
-if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "setup-application"; then
+if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "destroy-application"; then
     exit 1
 fi
 
@@ -513,20 +547,21 @@ print_info "  - KUBERNETES_MASTER: ${KUBERNETES_MASTER}"
 print_info "  - KUBE_CONFIG_PATH: ${KUBE_CONFIG_PATH}"
 echo ""
 
-# Assume State Account role for backend operations
-if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "setup-application"; then
+# Assume State Account role again for Terraform operations
+if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "destroy-application"; then
     exit 1
 fi
 
 echo ""
 
-# Terraform plan
-print_info "Running terraform plan..."
-terraform plan -var-file="${VARIABLES_FILE}" -out terraform.tfplan
+# Terraform plan destroy
+print_info "Running terraform plan destroy..."
+terraform plan -var-file="${VARIABLES_FILE}" -destroy -out terraform.tfplan
 
-# Terraform apply
-print_info "Running terraform apply..."
+# Terraform apply (destroy)
+print_warning "Applying destroy plan. This will DESTROY all application infrastructure..."
 terraform apply -auto-approve terraform.tfplan
 
 echo ""
-print_success "Script completed successfully!"
+print_success "Destroy operation completed successfully!"
+print_info "All application infrastructure in ${AWS_REGION} (${ENVIRONMENT}) has been destroyed."

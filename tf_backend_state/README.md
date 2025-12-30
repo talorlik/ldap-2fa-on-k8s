@@ -554,6 +554,54 @@ role will be "assigned" to the Identity Provider through its trust policy.
    - Format: `arn:aws:iam::ACCOUNT_A_ID:role/github-actions-state-role`
    - Copy this ARN → Set as `AWS_STATE_ACCOUNT_ROLE_ARN` GitHub secret
 
+8. **Update Trust Relationship for Deployment Accounts** (Required for
+   Multi-Account Setup):
+   - After creating deployment account roles (see main [README.md](../README.md)),
+   you must update the state account role's Trust Relationship to allow the
+   deployment account roles
+   - **Important:** The ExternalId security mechanism is still required when the
+     state account role assumes deployment account roles. The deployment account
+     roles' Trust Relationships must include the ExternalId condition, and the
+     state account role must provide the ExternalId when assuming those roles
+   - Navigate to the state account role in IAM Console
+   - Go to **Trust relationships** tab
+   - Click **Edit trust policy**
+   - Add the deployment account role ARNs to the trust policy:
+
+     ```json
+     {
+       "Version": "2012-10-17",
+       "Statement": [
+         {
+           "Effect": "Allow",
+           "Principal": {
+             "Federated": "arn:aws:iam::STATE_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+           },
+           "Action": "sts:AssumeRoleWithWebIdentity",
+           "Condition": {
+             "StringLike": {
+               "token.actions.githubusercontent.com:sub": "repo:YOUR_ORG/YOUR_REPO:*"
+             }
+           }
+         },
+         {
+           "Effect": "Allow",
+           "Principal": {
+             "AWS": [
+               "arn:aws:iam::PRODUCTION_ACCOUNT_ID:role/github-role",
+               "arn:aws:iam::DEVELOPMENT_ACCOUNT_ID:role/github-role"
+             ]
+           },
+           "Action": "sts:AssumeRole"
+         }
+       ]
+     }
+     ```
+
+   - Replace `PRODUCTION_ACCOUNT_ID` and `DEVELOPMENT_ACCOUNT_ID` with your actual
+   account IDs, and `github-role` with your actual deployment role names
+   - Click **Update policy**
+
 **Understanding the Relationship:**
 
 - **Identity Provider**: Establishes trust with GitHub (created first)
@@ -562,6 +610,9 @@ role will be "assigned" to the Identity Provider through its trust policy.
 trust policy, which references the Identity Provider's ARN
 - When GitHub Actions runs, it presents an OIDC token, which AWS validates
 against the Identity Provider, then allows assuming the role
+- **Bidirectional Trust**: For multi-account setups, both the deployment account
+roles and the state account role must trust each other in their respective Trust
+Relationships
 
 **Important Notes:**
 
@@ -574,6 +625,8 @@ your specific repository for security
 conditions
 - The role ARN is what you'll use in GitHub Secrets, not the Identity Provider
 ARN
+- **For multi-account setups**: The state account role's Trust Relationship must
+also include the deployment account role ARNs to enable bidirectional trust
 
 #### Step 3: S3 Bucket Policy (Automatic)
 

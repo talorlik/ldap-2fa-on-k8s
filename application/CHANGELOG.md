@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - GitHub Actions workflow (`application_infra_provisioning.yaml`) updated to use
   `AWS_ASSUME_EXTERNAL_ID` secret
   - Deployment account roles must have ExternalId condition in Trust Relationship
+  - **Bidirectional Trust Relationships**: Both deployment account roles and state
+    account role must trust each other in their respective Trust Relationships
+  - State account role's Trust Relationship must include deployment account role
+    ARNs to enable proper cross-account role assumption
   - Prevents confused deputy attacks in multi-account deployments
   - ExternalId generation: `openssl rand -hex 32`
 

@@ -124,9 +124,9 @@ data "aws_eks_cluster" "this" {
 
 # EKS Capability for ArgoCD
 resource "aws_eks_capability" "argocd" {
-  cluster_name = var.cluster_name
-  name         = local.argocd_capability_name
-  type         = "ARGOCD"
+  cluster_name    = var.cluster_name
+  capability_name = local.argocd_capability_name
+  type            = "ARGOCD"
 
   role_arn                  = aws_iam_role.argocd_capability.arn
   delete_propagation_policy = var.delete_propagation_policy
@@ -140,16 +140,16 @@ resource "aws_eks_capability" "argocd" {
         idc_region       = var.idc_region
       }
 
-      dynamic "rbac_role_mappings" {
+      dynamic "rbac_role_mapping" {
         for_each = var.rbac_role_mappings
         content {
-          role = rbac_role_mappings.value.role
+          role = rbac_role_mapping.value.role
 
-          dynamic "identities" {
-            for_each = rbac_role_mappings.value.identities
+          dynamic "identity" {
+            for_each = rbac_role_mapping.value.identities
             content {
-              id   = identities.value.id
-              type = identities.value.type
+              id   = identity.value.id
+              type = identity.value.type
             }
           }
         }
@@ -176,6 +176,39 @@ resource "aws_eks_capability" "argocd" {
   depends_on = [
     aws_iam_role.argocd_capability
   ]
+}
+
+# External data source to query ArgoCD capability details via AWS CLI
+# This automatically retrieves server_url and status without manual CLI commands
+data "external" "argocd_capability" {
+  program = ["bash", "-c", <<-EOT
+    # Check if jq is available
+    if ! command -v jq &> /dev/null; then
+      echo '{"server_url":"","status":"","error":"jq is required but not installed"}' >&2
+      exit 1
+    fi
+
+    # Query the capability
+    result=$(aws eks describe-capability \
+      --cluster-name "${var.cluster_name}" \
+      --capability-name "${local.argocd_capability_name}" \
+      --capability-type ARGOCD \
+      --region "${var.region}" \
+      2>&1) || {
+      # If capability doesn't exist yet or command failed, return empty values
+      echo '{"server_url":"","status":""}'
+      exit 0
+    }
+
+    # Extract and format as JSON using jq
+    echo "$result" | jq -c '{
+      server_url: (.capability.configuration.argoCd.serverUrl // .configuration.argoCd.serverUrl // ""),
+      status: (.capability.status // .status // "")
+    }' 2>/dev/null || echo '{"server_url":"","status":""}'
+  EOT
+  ]
+
+  depends_on = [aws_eks_capability.argocd]
 }
 
 # Cluster Registration Secret
