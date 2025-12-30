@@ -304,7 +304,7 @@ p:last-child {
     margin-top: 15px;
 }
 
-#security p:last-child {
+#security p:last-child, #getting-started p:last-child {
     margin-top: 15px;
 }
 
