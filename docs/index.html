@@ -14,6 +14,7 @@
             <a href="#hero" class="nav-logo">LDAP 2FA on K8s</a>
             <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
             <ul class="nav-menu" id="navMenu">
+                <li><a href="#content-index">Content Index</a></li>
                 <li><a href="#overview">Overview</a></li>
                 <li><a href="#getting-started">Getting Started</a></li>
                 <li><a href="#architecture">Architecture</a></li>
@@ -30,7 +31,6 @@
             </ul>
         </div>
     </nav>
-
     <!-- Hero Section -->
     <section id="hero" class="hero">
         <div class="hero-content">
@@ -39,15 +39,98 @@
             <img src="header_banner.png" alt="Project Banner" class="hero-banner">
         </div>
     </section>
-
+    <!-- Content Index -->
+    <section id="content-index">
+        <h2>Content Index</h2>
+        <div class="card">
+            <ul>
+                <li><a href="#overview">Project Overview</a>
+                    <ul>
+                        <li><a href="#core-infrastructure">Core Infrastructure</a></li>
+                        <li><a href="#ldap-stack">LDAP Stack</a></li>
+                        <li><a href="#2fa-application">2FA Application</a></li>
+                        <li><a href="#supporting-infrastructure">Supporting Infrastructure</a></li>
+                        <li><a href="#devops-security">DevOps & Security</a></li>
+                        <li><a href="#key-features">Key Features</a></li>
+                    </ul>
+                </li>
+                <li><a href="#getting-started">Getting Started</a>
+                    <ul>
+                        <li><a href="#prerequisites">Prerequisites</a></li>
+                        <li><a href="#deployment-options">Deployment Options</a>
+                            <ul>
+                                <li><a href="#local-deployment">Local Deployment</a>
+                                    <ul>
+                                        <li><a href="#local-step-1">Step 1: Deploy Terraform Backend State Infrastructure</a></li>
+                                        <li><a href="#local-step-2">Step 2: Deploy Backend Infrastructure</a></li>
+                                        <li><a href="#local-step-3">Step 3: Deploy Application Infrastructure</a></li>
+                                        <li><a href="#local-destroy">Destroying Infrastructure (Local)</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="#github-actions-deployment">GitHub Actions Deployment</a>
+                                    <ul>
+                                        <li><a href="#github-step-1">Step 1: Deploy Terraform Backend State Infrastructure</a></li>
+                                        <li><a href="#github-step-2">Step 2: Deploy Backend Infrastructure</a></li>
+                                        <li><a href="#github-step-3">Step 3: Deploy Application Infrastructure</a></li>
+                                        <li><a href="#github-destroy">Destroying Infrastructure (GitHub Actions)</a></li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li><a href="#deployment-comparison">Deployment Comparison</a></li>
+                        <li><a href="#deployment-order">Deployment Order</a></li>
+                    </ul>
+                </li>
+                <li><a href="#architecture">Architecture</a>
+                    <ul>
+                        <li><a href="#multi-account-architecture">Multi-Account Architecture</a></li>
+                        <li><a href="#how-it-works">How It Works</a></li>
+                        <li><a href="#project-structure">Project Structure</a></li>
+                        <li><a href="#backend-infrastructure-components">Backend Infrastructure Components</a></li>
+                        <li><a href="#application-infrastructure-components">Application Infrastructure Components</a></li>
+                    </ul>
+                </li>
+                <li><a href="#documentation">Documentation</a>
+                    <ul>
+                        <li><a href="#infrastructure-documentation">Infrastructure Documentation</a></li>
+                        <li><a href="#application-documentation">Application Documentation</a></li>
+                        <li><a href="#module-documentation">Module Documentation</a></li>
+                        <li><a href="#configuration-documentation">Configuration Documentation</a></li>
+                        <li><a href="#security-operations">Security & Operations</a></li>
+                    </ul>
+                </li>
+                <li><a href="#access">Accessing the Services</a>
+                    <ul>
+                        <li><a href="#2fa-application-access">2FA Application</a></li>
+                        <li><a href="#phpldapadmin-access">PhpLdapAdmin</a></li>
+                        <li><a href="#ltb-passwd-access">LTB-passwd</a></li>
+                        <li><a href="#argocd-access">ArgoCD</a></li>
+                        <li><a href="#ldap-service-access">LDAP Service</a></li>
+                        <li><a href="#mfa-methods">MFA Methods</a></li>
+                    </ul>
+                </li>
+                <li><a href="#security">Security Considerations</a>
+                    <ul>
+                        <li><a href="#key-security-features">Key Security Features</a></li>
+                    </ul>
+                </li>
+                <li><a href="#support">Contributing & Support</a>
+                    <ul>
+                        <li><a href="#troubleshooting">Troubleshooting</a></li>
+                        <li><a href="#repository">Repository</a></li>
+                        <li><a href="#license">License</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </section>
     <!-- Project Overview -->
     <section id="overview">
         <h2>Project Overview</h2>
         <div class="card">
             <p>This project deploys a complete LDAP authentication solution with two-factor authentication (2FA), self-service password management, and GitOps capabilities on Amazon EKS using Terraform.</p>
         </div>
-
-        <h3>Core Infrastructure</h3>
+        <h3 id="core-infrastructure">Core Infrastructure</h3>
         <div class="card">
             <ul>
                 <li><strong>EKS Cluster</strong> (Auto Mode) with IRSA for secure pod-to-AWS-service authentication</li>
@@ -57,8 +140,7 @@
                 <li><strong>ACM Certificates</strong> for HTTPS/TLS termination</li>
             </ul>
         </div>
-
-        <h3>LDAP Stack</h3>
+        <h3 id="ldap-stack">LDAP Stack</h3>
         <div class="card">
             <ul>
                 <li><strong>OpenLDAP Stack</strong> with high availability and multi-master replication</li>
@@ -66,8 +148,7 @@
                 <li><strong>LTB-passwd</strong> self-service password management UI</li>
             </ul>
         </div>
-
-        <h3>2FA Application</h3>
+        <h3 id="2fa-application">2FA Application</h3>
         <div class="card">
             <ul>
                 <li><strong>Full-stack 2FA application</strong> with Python FastAPI backend and static HTML/JS/CSS frontend</li>
@@ -79,18 +160,16 @@
                 <li><strong>Interactive API documentation</strong> via Swagger UI and ReDoc (always enabled)</li>
             </ul>
         </div>
-
-        <h3>Supporting Infrastructure</h3>
+        <h3 id="supporting-infrastructure">Supporting Infrastructure</h3>
         <div class="card">
             <ul>
-                <li><strong>PostgreSQL</strong> for user registration and verification token storage (Bitnami Helm chart)</li>
-                <li><strong>Redis</strong> for SMS OTP code storage with TTL-based automatic expiration</li>
-                <li><strong>AWS SES</strong> for email verification and notifications (IRSA-based access)</li>
-                <li><strong>AWS SNS</strong> for SMS-based 2FA verification (optional, requires VPC endpoint)</li>
+                <li><strong>PostgreSQL</strong> (Bitnami Helm chart) for user registration data and email verification token storage with persistent EBS-backed storage</li>
+                <li><strong>Redis</strong> (Bitnami Helm chart) for SMS OTP code storage with TTL-based automatic expiration and shared state across replicas</li>
+                <li><strong>AWS SES</strong> for email verification and notifications with IRSA-based access (no hardcoded credentials)</li>
+                <li><strong>AWS SNS</strong> for SMS-based 2FA verification (optional, requires SNS VPC endpoint enabled in backend infrastructure)</li>
             </ul>
         </div>
-
-        <h3>DevOps & Security</h3>
+        <h3 id="devops-security">DevOps & Security</h3>
         <div class="card">
             <ul>
                 <li><strong>ArgoCD</strong> (AWS EKS managed service) for GitOps deployments with AWS Identity Center authentication</li>
@@ -102,8 +181,7 @@
                 <li><strong>S3 File-Based Locking</strong> for Terraform state management (migrated from DynamoDB)</li>
             </ul>
         </div>
-
-        <h3>Key Features</h3>
+        <h3 id="key-features">Key Features</h3>
         <div class="card">
             <ul>
                 <li><strong>EKS Auto Mode</strong>: Simplified cluster management with automatic load balancer provisioning and built-in EBS CSI driver</li>
@@ -115,133 +193,222 @@
                 <li><strong>GitOps Ready</strong>: ArgoCD (AWS managed service) for declarative, Git-driven deployments</li>
                 <li><strong>Multi-Account Architecture</strong>: Separation of state storage (Account A) and resource deployment (Account B) for enhanced security</li>
                 <li><strong>API Documentation</strong>: Interactive Swagger UI and ReDoc always available at <code>/api/docs</code> and <code>/api/redoc</code></li>
-                <li><strong>Password Management</strong>: Secrets managed via GitHub repository secrets with automated retrieval</li>
+                <li><strong>Secrets Management</strong>: Passwords managed via GitHub repository secrets (for CI/CD) or AWS Secrets Manager (for local deployment) with automated retrieval</li>
             </ul>
         </div>
     </section>
-
     <!-- Getting Started -->
     <section id="getting-started">
         <h2>Getting Started</h2>
-
-        <h3>Prerequisites</h3>
+        <h3 id="prerequisites">Prerequisites</h3>
         <div class="card">
             <ul>
-                <li>AWS Account(s) with appropriate permissions
+                <li><strong>AWS Account(s)</strong> with appropriate permissions
                     <ul>
                         <li><strong>State Account (Account A)</strong>: For Terraform state storage (S3)</li>
                         <li><strong>Deployment Account (Account B)</strong>: For infrastructure resources (EKS, ALB, Route53, etc.)</li>
                     </ul>
                 </li>
-                <li>GitHub Account</li>
-                <li>Fork the repository: <a href="https://github.com/talorlik/ldap-2fa-on-k8s.git" target="_blank">ldap-2fa-on-k8s</a></li>
-                <li>AWS SSO/OIDC configured (see <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a>)</li>
-                <li>Route53 hosted zone must already exist (or create it manually)</li>
-                <li>ACM certificate must already exist and be validated in the same region as the EKS cluster</li>
-                <li><strong>GitHub Secrets and Variables</strong> (required for both local and GitHub Actions deployments):
+                <li><strong>GitHub Account</strong> and repository fork: <a href="https://github.com/talorlik/ldap-2fa-on-k8s.git" target="_blank">ldap-2fa-on-k8s</a></li>
+                <li><strong>AWS SSO/OIDC</strong> configured (see <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a>)</li>
+                <li><strong>Route53 hosted zone</strong> must already exist (or create it manually)</li>
+                <li><strong>ACM certificate</strong> must already exist and be validated in the same region as the EKS cluster</li>
+                <li><strong>GitHub Secrets and Variables</strong> configured (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a> for complete details):
                     <ul>
                         <li><strong>Required Secrets:</strong>
                             <ul>
-                                <li><code>AWS_STATE_ACCOUNT_ROLE_ARN</code> - IAM role ARN for state account (backend operations)</li>
-                                <li><code>AWS_PRODUCTION_ACCOUNT_ROLE_ARN</code> - IAM role ARN for production deployments</li>
-                                <li><code>AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN</code> - IAM role ARN for development deployments</li>
-                                <li><code>AWS_ASSUME_EXTERNAL_ID</code> - ExternalId for cross-account role assumption security (must match deployment account role Trust Relationship). <strong>Note:</strong> Bidirectional trust relationships required - both deployment account roles and state account role must trust each other.</li>
-                                <li><code>TF_VAR_OPENLDAP_ADMIN_PASSWORD</code> - OpenLDAP admin password (exported as <code>TF_VAR_openldap_admin_password</code>)</li>
-                                <li><code>TF_VAR_OPENLDAP_CONFIG_PASSWORD</code> - OpenLDAP config password (exported as <code>TF_VAR_openldap_config_password</code>)</li>
-                                <li><code>TF_VAR_REDIS_PASSWORD</code> - Redis password (minimum 8 characters, exported as <code>TF_VAR_redis_password</code>)</li>
-                                <li><code>TF_VAR_POSTGRES_PASSWORD</code> - PostgreSQL database password (exported as <code>TF_VAR_postgresql_database_password</code>)</li>
-                                <li><code>GH_TOKEN</code> - GitHub Personal Access Token with <code>repo</code> scope</li>
+                                <li><code>AWS_STATE_ACCOUNT_ROLE_ARN</code></li>
+                                <li><code>AWS_PRODUCTION_ACCOUNT_ROLE_ARN</code></li>
+                                <li><code>AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN</code></li>
+                                <li><code>AWS_ASSUME_EXTERNAL_ID</code></li>
+                                <li><code>TF_VAR_OPENLDAP_ADMIN_PASSWORD</code></li>
+                                <li><code>TF_VAR_OPENLDAP_CONFIG_PASSWORD</code></li>
+                                <li><code>TF_VAR_REDIS_PASSWORD</code></li>
+                                <li><code>TF_VAR_POSTGRESQL_PASSWORD</code></li>
+                                <li><code>GH_TOKEN</code></li>
                             </ul>
                         </li>
                         <li><strong>Required Variables:</strong>
                             <ul>
-                                <li><code>AWS_REGION</code> - AWS region where resources will be created</li>
-                                <li><code>BACKEND_PREFIX</code> - Prefix for state file path in bucket</li>
+                                <li><code>AWS_REGION</code></li>
+                                <li><code>BACKEND_PREFIX</code></li>
+                                <li><code>APPLICATION_PREFIX</code></li>
                             </ul>
                         </li>
                     </ul>
-                    <p><strong>Note:</strong> Setup scripts automatically retrieve secrets from GitHub. For local deployment, secrets can be accessed via GitHub CLI or set as environment variables. For GitHub Actions, configure them in Repository Settings → Secrets and Variables → Actions.</p>
-                    <p><strong>For detailed setup instructions:</strong> <a href="../README.md#secrets-configuration">Secrets Configuration</a> | <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
                 </li>
+                <li><strong>For Local Deployment:</strong> GitHub CLI (<code>gh</code>), AWS CLI, Terraform, kubectl, and <code>jq</code> installed and configured</li>
+                <li><strong>For Local Deployment:</strong> AWS Secrets Manager configured with <code>github-role</code>, <code>tf-vars</code>, and <code>external-id</code> secrets (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>)</li>
             </ul>
+            <p><strong>For detailed prerequisites and setup:</strong> <a href="../README.md#prerequisites">Prerequisites</a> | <a href="../README.md#secrets-configuration">Secrets Configuration</a> | <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
         </div>
-
-        <h3>Deployment Options</h3>
+        <h3 id="deployment-options">Deployment Options</h3>
         <div class="deployment-options">
             <div class="deployment-card">
-                <h4>Local Deployment</h4>
+                <h4 id="local-deployment">Local Deployment</h4>
                 <p><strong>Recommended for:</strong> Development, testing, and local experimentation</p>
-                <p><strong>Requirements:</strong></p>
+                <h5 id="local-step-1">Step 1: Deploy Terraform Backend State Infrastructure</h5>
+                <p>Deploy the S3 bucket for Terraform state storage:</p>
+                <pre><code>cd tf_backend_state
+./set-state.sh</code></pre>
+                <p><strong>What the script does:</strong></p>
                 <ul>
-                    <li>GitHub CLI (<code>gh</code>) installed and authenticated</li>
-                    <li>AWS CLI configured</li>
-                    <li>Terraform installed</li>
-                    <li>Kubectl configured</li>
+                    <li>Retrieves <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> from AWS Secrets Manager</li>
+                    <li>Retrieves <code>AWS_REGION</code> and <code>BACKEND_PREFIX</code> from GitHub repository variables</li>
+                    <li>Assumes the IAM role and verifies credentials</li>
+                    <li>Checks if infrastructure exists (via <code>BACKEND_BUCKET_NAME</code> variable)</li>
+                    <li>If new: Runs Terraform init, validate, plan, and apply to create S3 bucket</li>
+                    <li>If exists: Downloads existing state file from S3 (if available)</li>
+                    <li>Saves/updates <code>BACKEND_BUCKET_NAME</code> to GitHub repository variables</li>
+                    <li>Uploads state file to S3</li>
                 </ul>
-                <p><strong>Steps:</strong></p>
+                <p><strong>Alternative:</strong> Use <code>./get-state.sh</code> to download existing state file without provisioning</p>
+                <h5 id="local-step-2">Step 2: Deploy Backend Infrastructure</h5>
+                <p>Deploy VPC, EKS cluster, VPC endpoints, IRSA, and ECR:</p>
+                <pre><code>cd backend_infra
+./setup-backend.sh</code></pre>
+                <p><strong>What the script does:</strong></p>
+                <ul>
+                    <li>Prompts for AWS region (us-east-1 or us-east-2) and environment (prod or dev)</li>
+                    <li>Retrieves repository variables from GitHub (<code>BACKEND_BUCKET_NAME</code>, <code>BACKEND_PREFIX</code>)</li>
+                    <li>Retrieves role ARNs from AWS Secrets Manager (<code>github-role</code> secret)</li>
+                    <li>Retrieves ExternalId from AWS Secrets Manager (<code>external-id</code> secret)</li>
+                    <li>Assumes State Account role for backend operations</li>
+                    <li>Generates <code>backend.hcl</code> from template (if it doesn't exist)</li>
+                    <li>Updates <code>variables.tfvars</code> with selected region, environment, deployment account role ARN, and ExternalId</li>
+                    <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
+                </ul>
+                <h5 id="local-step-3">Step 3: Deploy Application Infrastructure</h5>
+                <p>Deploy OpenLDAP stack, 2FA application, ALB, Route53 records, and supporting services:</p>
+                <pre><code>cd application
+./setup-application.sh</code></pre>
+                <p><strong>What the script does:</strong></p>
+                <ul>
+                    <li>Prompts for AWS region (us-east-1 or us-east-2) and environment (prod or dev)</li>
+                    <li>Retrieves repository variables from GitHub (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_PREFIX</code>)</li>
+                    <li>Retrieves role ARNs and ExternalId from AWS Secrets Manager</li>
+                    <li>Retrieves password secrets from AWS Secrets Manager (<code>tf-vars</code> secret) and exports as environment variables:
+                        <ul>
+                            <li><code>TF_VAR_openldap_admin_password</code></li>
+                            <li><code>TF_VAR_openldap_config_password</code></li>
+                            <li><code>TF_VAR_postgresql_database_password</code></li>
+                            <li><code>TF_VAR_redis_password</code></li>
+                        </ul>
+                    </li>
+                    <li>Assumes State Account role for backend operations</li>
+                    <li>Generates <code>backend.hcl</code> from template (if it doesn't exist)</li>
+                    <li>Updates <code>variables.tfvars</code> with selected values</li>
+                    <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code></li>
+                    <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
+                </ul>
+                <h5 id="local-destroy">Destroying Infrastructure (Local)</h5>
+                <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order.</p>
                 <ol>
-                    <li>Clone the repository</li>
-                    <li>Ensure GitHub Secrets and Variables are configured (see Prerequisites section)</li>
-                    <li>For local use, export OpenLDAP passwords as environment variables (scripts can also retrieve from GitHub Secrets):
-                        <ul>
-                            <li><code>export TF_VAR_openldap_admin_password="YourSecurePassword123!"</code> (Note: lowercase to match variables.tf)</li>
-                            <li><code>export TF_VAR_openldap_config_password="YourSecurePassword123!"</code> (Note: lowercase to match variables.tf)</li>
-                            <li><code>export TF_VAR_postgresql_database_password="YourSecurePostgresPassword123!"</code> (Note: lowercase to match variables.tf)</li>
-                            <li><code>export TF_VAR_redis_password="YourSecureRedisPassword123!"</code> (Note: lowercase to match variables.tf)</li>
-                        </ul>
+                    <li><strong>Destroy Application Infrastructure:</strong>
+                        <pre><code>cd application
+./destroy-application.sh</code></pre>
+                        <p>Script will prompt for region and environment, then require confirmation ('yes', then 'DESTROY')</p>
                     </li>
-                    <li>Run setup scripts:
-                        <ul>
-                            <li><code>backend_infra/setup-backend.sh</code> - Deploy backend infrastructure</li>
-                            <li><code>application/setup-application.sh</code> - Deploy application infrastructure</li>
-                        </ul>
+                    <li><strong>Destroy Backend Infrastructure:</strong>
+                        <pre><code>cd backend_infra
+./destroy-backend.sh</code></pre>
+                        <p>Script will prompt for region and environment, then require confirmation ('yes', then 'DESTROY')</p>
                     </li>
-                    <li>Scripts automatically handle:
-                        <ul>
-                            <li>Backend configuration setup</li>
-                            <li>GitHub repository variable retrieval</li>
-                            <li>Terraform initialization and workspace management</li>
-                            <li>Deployment execution</li>
-                        </ul>
+                    <li><strong>Destroy State Backend (if needed):</strong>
+                        <pre><code>cd tf_backend_state
+./get-state.sh  # Download state file first
+terraform plan -var-file="variables.tfvars" -destroy -out terraform.tfplan
+terraform apply -auto-approve terraform.tfplan</code></pre>
                     </li>
                 </ol>
-                <p><strong>Destroying Infrastructure:</strong></p>
-                <ul>
-                    <li><code>application/destroy-application.sh</code> - Destroy application infrastructure (requires confirmation)</li>
-                    <li><code>backend_infra/destroy-backend.sh</code> - Destroy backend infrastructure (requires confirmation)</li>
-                </ul>
-                <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order: Application → Backend → State.</p>
-                <p><strong>For detailed local setup instructions:</strong> <a href="../README.md#local-development-setup">Local Development Setup</a></p>
+                <p><strong>For detailed local setup instructions:</strong> <a href="../README.md#method-2-local-development">Local Development Setup</a> | <a href="../tf_backend_state/README.md#option-2-local-execution">Terraform Backend State Local Execution</a></p>
             </div>
-
             <div class="deployment-card">
-                <h4>GitHub Actions Deployment</h4>
+                <h4 id="github-actions-deployment">GitHub Actions Deployment</h4>
                 <p><strong>Recommended for:</strong> Production deployments, CI/CD pipelines, automated workflows</p>
-                <p><strong>Requirements:</strong></p>
-                <ul>
-                    <li>GitHub repository with Actions enabled</li>
-                    <li>GitHub Secrets and Variables configured (see Prerequisites above)</li>
-                    <li>AWS IAM roles set up for OIDC</li>
-                </ul>
-                <p><strong>Steps:</strong></p>
+                <h5 id="github-step-1">Step 1: Deploy Terraform Backend State Infrastructure</h5>
                 <ol>
-                    <li>Ensure all GitHub Secrets and Variables are configured (see Prerequisites section)</li>
-                    <li>Run the <code>tfstate_infra_provisioning.yaml</code> workflow to deploy state backend</li>
-                    <li>Run backend infrastructure workflow</li>
-                    <li>Run application infrastructure workflow</li>
+                    <li>Go to GitHub → <strong>Actions</strong> tab</li>
+                    <li>Select <strong>"TF Backend State Provisioning"</strong> workflow</li>
+                    <li>Click <strong>"Run workflow"</strong> → <strong>"Run workflow"</strong></li>
+                    <li>Monitor the workflow execution</li>
                 </ol>
-                <p><strong>Destroying Infrastructure:</strong></p>
+                <p><strong>What the workflow does:</strong></p>
                 <ul>
-                    <li><code>application_infra_destroying.yaml</code> - Destroy application infrastructure</li>
-                    <li><code>backend_infra_destroying.yaml</code> - Destroy backend infrastructure</li>
-                    <li><code>tfstate_infra_destroying.yaml</code> - Destroy state backend infrastructure</li>
+                    <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> secret for OIDC authentication</li>
+                    <li>Validates Terraform configuration</li>
+                    <li>Creates S3 bucket with versioning and encryption</li>
+                    <li>Saves bucket name as <code>BACKEND_BUCKET_NAME</code> repository variable</li>
+                    <li>Uploads state file to S3</li>
                 </ul>
-                <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order: Application → Backend → State.</p>
-                <p><strong>For detailed GitHub Actions setup:</strong> <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a></p>
+                <h5 id="github-step-2">Step 2: Deploy Backend Infrastructure</h5>
+                <ol>
+                    <li>Go to GitHub → <strong>Actions</strong> tab</li>
+                    <li>Select <strong>"Backend Infra Provisioning"</strong> workflow</li>
+                    <li>Click <strong>"Run workflow"</strong></li>
+                    <li>Select <strong>region</strong> (us-east-1: N. Virginia or us-east-2: Ohio)</li>
+                    <li>Select <strong>environment</strong> (prod or dev)</li>
+                    <li>Click <strong>"Run workflow"</strong></li>
+                    <li>Monitor the workflow execution</li>
+                </ol>
+                <p><strong>What the workflow does:</strong></p>
+                <ul>
+                    <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> for backend state operations</li>
+                    <li>Uses environment-specific deployment account role ARN (<code>AWS_PRODUCTION_ACCOUNT_ROLE_ARN</code> or <code>AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN</code>)</li>
+                    <li>Uses <code>AWS_ASSUME_EXTERNAL_ID</code> for cross-account role assumption</li>
+                    <li>Runs Terraform operations to deploy VPC, EKS, VPC endpoints, IRSA, and ECR</li>
+                </ul>
+                <h5 id="github-step-3">Step 3: Deploy Application Infrastructure</h5>
+                <ol>
+                    <li>Go to GitHub → <strong>Actions</strong> tab</li>
+                    <li>Select <strong>"Application Infra Provisioning"</strong> workflow</li>
+                    <li>Click <strong>"Run workflow"</strong></li>
+                    <li>Select <strong>region</strong> (us-east-1: N. Virginia or us-east-2: Ohio)</li>
+                    <li>Select <strong>environment</strong> (prod or dev)</li>
+                    <li>Click <strong>"Run workflow"</strong></li>
+                    <li>Monitor the workflow execution</li>
+                </ol>
+                <p><strong>What the workflow does:</strong></p>
+                <ul>
+                    <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> for backend state operations</li>
+                    <li>Uses environment-specific deployment account role ARN</li>
+                    <li>Uses <code>AWS_ASSUME_EXTERNAL_ID</code> for cross-account role assumption</li>
+                    <li>Retrieves password secrets from GitHub repository secrets</li>
+                    <li>Runs Terraform operations to deploy OpenLDAP, 2FA app, ALB, Route53, and supporting services</li>
+                </ul>
+                <h5 id="github-destroy">Destroying Infrastructure (GitHub Actions)</h5>
+                <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order.</p>
+                <ol>
+                    <li><strong>Destroy Application Infrastructure:</strong>
+                        <ul>
+                            <li>Go to GitHub → <strong>Actions</strong> tab</li>
+                            <li>Select <strong>"Application Infra Destroying"</strong> workflow</li>
+                            <li>Click <strong>"Run workflow"</strong></li>
+                            <li>Select environment (prod or dev) and region</li>
+                            <li>Click <strong>"Run workflow"</strong></li>
+                        </ul>
+                    </li>
+                    <li><strong>Destroy Backend Infrastructure:</strong>
+                        <ul>
+                            <li>Go to GitHub → <strong>Actions</strong> tab</li>
+                            <li>Select <strong>"Backend Infra Destroying"</strong> workflow</li>
+                            <li>Click <strong>"Run workflow"</strong></li>
+                            <li>Select environment (prod or dev) and region</li>
+                            <li>Click <strong>"Run workflow"</strong></li>
+                        </ul>
+                    </li>
+                    <li><strong>Destroy State Backend (if needed):</strong>
+                        <ul>
+                            <li>Go to GitHub → <strong>Actions</strong> tab</li>
+                            <li>Select <strong>"TF Backend State Destroying"</strong> workflow</li>
+                            <li>Click <strong>"Run workflow"</strong> → <strong>"Run workflow"</strong></li>
+                        </ul>
+                    </li>
+                </ol>
+                <p><strong>For detailed GitHub Actions setup:</strong> <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a> | <a href="../README.md#method-1-github-actions-cicd">GitHub Actions Deployment</a></p>
             </div>
         </div>
-
-        <h3>Deployment Comparison</h3>
+        <h3 id="deployment-comparison">Deployment Comparison</h3>
         <table>
             <thead>
                 <tr>
@@ -278,36 +445,52 @@
                 </tr>
             </tbody>
         </table>
-
-        <h3>Deployment Order</h3>
+        <h3 id="deployment-order">Deployment Order</h3>
         <div class="card">
+            <p>The deployment follows a <strong>three-tier approach</strong> that must be executed in order. Each tier depends on the previous one:</p>
             <ol>
                 <li><strong>Deploy Terraform Backend State Infrastructure</strong>
                     <ul>
-                        <li>See: <a href="../tf_backend_state/README.md">Terraform Backend State README</a></li>
+                        <li><strong>Purpose:</strong> Creates S3 bucket for storing Terraform state files</li>
+                        <li><strong>Components:</strong> S3 bucket with versioning, encryption, and file-based locking</li>
+                        <li><strong>Account:</strong> State Account (Account A)</li>
+                        <li><strong>Local:</strong> <code>cd tf_backend_state && ./set-state.sh</code></li>
+                        <li><strong>GitHub Actions:</strong> "TF Backend State Provisioning" workflow</li>
+                        <li><strong>See:</strong> <a href="../tf_backend_state/README.md">Terraform Backend State README</a></li>
                     </ul>
                 </li>
                 <li><strong>Deploy Backend Infrastructure</strong>
                     <ul>
-                        <li>VPC, EKS cluster, VPC endpoints, IRSA, ECR</li>
-                        <li>See: <a href="../backend_infra/README.md">Backend Infrastructure README</a></li>
+                        <li><strong>Purpose:</strong> Creates foundational AWS infrastructure for Kubernetes workloads</li>
+                        <li><strong>Components:</strong> VPC with public/private subnets, EKS cluster (Auto Mode), VPC endpoints (SSM, STS, SNS), IRSA (OIDC provider), ECR repository</li>
+                        <li><strong>Account:</strong> Deployment Account (Account B)</li>
+                        <li><strong>Prerequisites:</strong> Terraform backend state must be deployed first</li>
+                        <li><strong>Local:</strong> <code>cd backend_infra && ./setup-backend.sh</code></li>
+                        <li><strong>GitHub Actions:</strong> "Backend Infra Provisioning" workflow</li>
+                        <li><strong>See:</strong> <a href="../backend_infra/README.md">Backend Infrastructure README</a></li>
                     </ul>
                 </li>
                 <li><strong>Deploy Application Infrastructure</strong>
                     <ul>
-                        <li>OpenLDAP stack, 2FA application, ALB, Route53 records, ArgoCD</li>
-                        <li>See: <a href="../application/README.md">Application Infrastructure README</a></li>
+                        <li><strong>Purpose:</strong> Deploys LDAP stack, 2FA application, and supporting services on the EKS cluster</li>
+                        <li><strong>Components:</strong> OpenLDAP stack (HA), PhpLdapAdmin, LTB-passwd, 2FA application (backend + frontend), ALB, Route53 records, PostgreSQL, Redis, SES, SNS (optional), ArgoCD (optional)</li>
+                        <li><strong>Account:</strong> Deployment Account (Account B)</li>
+                        <li><strong>Prerequisites:</strong> Backend infrastructure (EKS cluster) must be deployed first</li>
+                        <li><strong>Additional Requirements:</strong> Route53 hosted zone and ACM certificate must exist</li>
+                        <li><strong>Local:</strong> <code>cd application && ./setup-application.sh</code></li>
+                        <li><strong>GitHub Actions:</strong> "Application Infra Provisioning" workflow</li>
+                        <li><strong>See:</strong> <a href="../application/README.md">Application Infrastructure README</a></li>
                     </ul>
                 </li>
             </ol>
+            <p><strong>Destroy Order:</strong> Always destroy in <strong>reverse order</strong>: Application → Backend → State</p>
+            <p><strong>For detailed deployment information:</strong> <a href="../README.md#deployment-methods">Deployment Methods</a> | <a href="../README.md#deployment-overview">Deployment Overview</a></p>
         </div>
     </section>
-
     <!-- Architecture -->
     <section id="architecture">
         <h2>Architecture</h2>
-
-        <h3>Multi-Account Architecture</h3>
+        <h3 id="multi-account-architecture">Multi-Account Architecture</h3>
         <div class="card">
             <p>This project uses a <strong>multi-account architecture</strong> for enhanced security:</p>
             <ul>
@@ -331,18 +514,18 @@
             </ul>
             <p><strong>For detailed architecture documentation:</strong> <a href="../README.md#multi-account-architecture">Multi-Account Architecture</a> | <a href="../tf_backend_state/README.md">Terraform Backend State README</a></p>
         </div>
-
-        <h3>How It Works</h3>
+        <h3 id="how-it-works">How It Works</h3>
         <div class="card">
+            <p>The multi-account architecture enables secure separation of concerns:</p>
             <ol>
-                <li><strong>GitHub Actions</strong> assumes Account A role (via OIDC) for Terraform backend access</li>
-                <li><strong>Terraform backend</strong> uses Account A credentials to read/write state files</li>
-                <li><strong>Terraform AWS provider</strong> assumes Account B role (via <code>assume_role</code>) for resource deployment</li>
-                <li><strong>Remote state</strong> data sources use Account A credentials to read state from Account A</li>
+                <li><strong>GitHub Actions</strong> authenticates with Account A via OIDC (no access keys required) for Terraform backend access</li>
+                <li><strong>Terraform backend</strong> uses Account A credentials to read/write state files in S3</li>
+                <li><strong>Terraform AWS provider</strong> assumes Account B role (via <code>assume_role</code> with ExternalId) for resource deployment</li>
+                <li><strong>Remote state</strong> data sources use Account A credentials to read state from Account A, enabling cross-tier dependencies</li>
             </ol>
+            <p>This architecture ensures state files are isolated in a dedicated account while resource deployment uses separate credentials, providing enhanced security and better compliance capabilities.</p>
         </div>
-
-        <h3>Project Structure</h3>
+        <h3 id="project-structure">Project Structure</h3>
         <pre><code>ldap-2fa-on-k8s/
 ├── SECRETS_REQUIREMENTS.md  # Secrets management documentation (AWS Secrets Manager & GitHub Secrets)
 ├── tf_backend_state/      # Terraform state backend infrastructure (S3) - Account A
@@ -353,8 +536,7 @@
 │   ├── helm/              # Helm values for OpenLDAP stack
 │   └── modules/           # Terraform modules (ALB, ArgoCD, SNS, cert-manager, etc.)
 └── .github/workflows/     # GitHub Actions workflows for CI/CD</code></pre>
-
-        <h3>Backend Infrastructure Components</h3>
+        <h3 id="backend-infrastructure-components">Backend Infrastructure Components</h3>
         <div class="card">
             <ul>
                 <li><strong>VPC</strong> with public and private subnets across multiple availability zones</li>
@@ -368,11 +550,10 @@
                     </ul>
                 </li>
                 <li><strong>ECR Repository</strong> for container image storage with lifecycle policies</li>
-                <li><strong>Terraform State Backend</strong> using S3 with file-based locking (v1.0.0, migrated from DynamoDB)</li>
+                <li><strong>Terraform State Backend</strong> using S3 with file-based locking for state concurrency control (migrated from DynamoDB for simplicity and cost efficiency)</li>
             </ul>
         </div>
-
-        <h3>Application Infrastructure Components</h3>
+        <h3 id="application-infrastructure-components">Application Infrastructure Components</h3>
         <div class="card">
             <ul>
                 <li><strong>OpenLDAP Stack HA</strong> deployed via Helm chart with:
@@ -413,12 +594,10 @@
             <p><strong>For detailed architecture documentation:</strong> <a href="../backend_infra/README.md">Backend Infrastructure README</a> | <a href="../application/README.md">Application Infrastructure README</a></p>
         </div>
     </section>
-
     <!-- Documentation Index -->
     <section id="documentation">
         <h2>Documentation</h2>
-
-        <h3>Infrastructure Documentation</h3>
+        <h3 id="infrastructure-documentation">Infrastructure Documentation</h3>
         <div class="doc-grid">
             <div class="doc-item">
                 <a href="../tf_backend_state/README.md">Terraform Backend State</a>
@@ -433,8 +612,7 @@
                 <p>OpenLDAP, 2FA app, ALB, ArgoCD, and deployment instructions</p>
             </div>
         </div>
-
-        <h3>Application Documentation</h3>
+        <h3 id="application-documentation">Application Documentation</h3>
         <div class="doc-grid">
             <div class="doc-item">
                 <a href="../application/PRD-2FA-APP.md">2FA Application PRD</a>
@@ -461,8 +639,7 @@
                 <p>Complete guide for managing secrets via GitHub and AWS Secrets Manager</p>
             </div>
         </div>
-
-        <h3>Module Documentation</h3>
+        <h3 id="module-documentation">Module Documentation</h3>
         <div class="doc-grid">
             <div class="doc-item">
                 <a href="../application/modules/alb/README.md">ALB Module</a>
@@ -513,8 +690,7 @@
                 <p>EBS storage configuration</p>
             </div>
         </div>
-
-        <h3>Configuration Documentation</h3>
+        <h3 id="configuration-documentation">Configuration Documentation</h3>
         <div class="doc-grid">
             <div class="doc-item">
                 <a href="../application/PRD-ALB.md">ALB Configuration PRD</a>
@@ -533,8 +709,7 @@
                 <p>Application requirements document</p>
             </div>
         </div>
-
-        <h3>Security & Operations</h3>
+        <h3 id="security-operations">Security & Operations</h3>
         <div class="doc-grid">
             <div class="doc-item">
                 <a href="../application/SECURITY-IMPROVEMENTS.md">Security Improvements</a>
@@ -558,60 +733,59 @@
             </div>
         </div>
     </section>
-
     <!-- Access Information -->
     <section id="access">
         <h2>Accessing the Services</h2>
-
         <p>After deployment, the following services are available:</p>
-
-        <h3>2FA Application</h3>
+        <h3 id="2fa-application-access">2FA Application</h3>
         <div class="card">
-            <p><strong>URL:</strong> <code>https://app.${domain_name}</code> (e.g., <code>https://app.talorlik.com</code>)</p>
+            <p><strong>URL:</strong> <code>https://app.&lt;your-domain&gt;</code> (e.g., <code>https://app.example.com</code>)</p>
+            <p>The full-stack 2FA application provides:</p>
             <ul>
-                <li>Self-service user registration with email/phone verification</li>
-                <li>Two-factor authentication enrollment and login</li>
-                <li>TOTP setup with QR code or SMS verification</li>
-                <li>User profile management</li>
-                <li>Admin dashboard (for LDAP admin group members only)</li>
-                <li><strong>API Documentation:</strong> (Always enabled in production)
+                <li>Self-service user registration with email/phone verification and profile state management (PENDING → COMPLETE → ACTIVE)</li>
+                <li>Two-factor authentication enrollment and login with dual MFA methods (TOTP and SMS)</li>
+                <li>TOTP setup with QR code generation for authenticator apps</li>
+                <li>SMS verification with 6-digit OTP codes sent via AWS SNS</li>
+                <li>User profile management with edit restrictions for verified fields</li>
+                <li>Admin dashboard for user management, group CRUD operations, and approval workflows (visible to LDAP admin group members only)</li>
+                <li><strong>Interactive API Documentation</strong> (always enabled):
                     <ul>
-                        <li><a href="https://app.${domain_name}/api/docs" target="_blank">Swagger UI</a> - Interactive API documentation and testing interface</li>
-                        <li><a href="https://app.${domain_name}/api/redoc" target="_blank">ReDoc</a> - Alternative API documentation interface</li>
-                        <li><code>/api/openapi.json</code> - OpenAPI schema endpoint</li>
+                        <li><code>/api/docs</code> - Swagger UI for interactive API exploration and testing</li>
+                        <li><code>/api/redoc</code> - ReDoc alternative API documentation interface</li>
+                        <li><code>/api/openapi.json</code> - OpenAPI schema in JSON format</li>
                     </ul>
                 </li>
             </ul>
         </div>
-
-        <h3>PhpLdapAdmin</h3>
+        <h3 id="phpldapadmin-access">PhpLdapAdmin</h3>
         <div class="card">
-            <p><strong>URL:</strong> <code>https://phpldapadmin.${domain_name}</code> (e.g., <code>https://phpldapadmin.talorlik.com</code>)</p>
+            <p><strong>URL:</strong> <code>https://phpldapadmin.&lt;your-domain&gt;</code> (e.g., <code>https://phpldapadmin.example.com</code>)</p>
             <ul>
-                <li>LDAP administration interface</li>
-                <li>Internet-facing access via ALB</li>
+                <li>Web-based LDAP administration interface for managing directory entries</li>
+                <li>Internet-facing access via Application Load Balancer with HTTPS/TLS termination</li>
+                <li>Requires OpenLDAP admin credentials for authentication</li>
             </ul>
         </div>
-
-        <h3>LTB-passwd</h3>
+        <h3 id="ltb-passwd-access">LTB-passwd</h3>
         <div class="card">
-            <p><strong>URL:</strong> <code>https://passwd.${domain_name}</code> (e.g., <code>https://passwd.talorlik.com</code>)</p>
+            <p><strong>URL:</strong> <code>https://passwd.&lt;your-domain&gt;</code> (e.g., <code>https://passwd.example.com</code>)</p>
             <ul>
-                <li>Self-service password management for LDAP users</li>
-                <li>Internet-facing access via ALB</li>
+                <li>Self-service password management UI for LDAP users</li>
+                <li>Allows users to reset their LDAP passwords without administrator intervention</li>
+                <li>Internet-facing access via Application Load Balancer with HTTPS/TLS termination</li>
             </ul>
         </div>
-
-        <h3>ArgoCD</h3>
+        <h3 id="argocd-access">ArgoCD</h3>
         <div class="card">
-            <p><strong>URL:</strong> Retrieved from Terraform output <code>argocd_server_url</code></p>
+            <p><strong>URL:</strong> Retrieved from Terraform output <code>argocd_server_url</code> (if ArgoCD is enabled)</p>
             <ul>
-                <li>GitOps deployment management</li>
-                <li>AWS Identity Center authentication</li>
+                <li>AWS EKS managed ArgoCD service for GitOps deployments</li>
+                <li>Declarative, Git-driven application deployments</li>
+                <li>AWS Identity Center (SSO) authentication for secure access</li>
+                <li>Automatic synchronization and self-healing capabilities</li>
             </ul>
         </div>
-
-        <h3>LDAP Service</h3>
+        <h3 id="ldap-service-access">LDAP Service</h3>
         <div class="card">
             <p><strong>Access:</strong> Cluster-internal only (ClusterIP service)</p>
             <ul>
@@ -619,8 +793,7 @@
                 <li><strong>Not Exposed:</strong> LDAP ports are not accessible outside the cluster</li>
             </ul>
         </div>
-
-        <h3>MFA Methods</h3>
+        <h3 id="mfa-methods">MFA Methods</h3>
         <table>
             <thead>
                 <tr>
@@ -643,37 +816,33 @@
             </tbody>
         </table>
     </section>
-
     <!-- Security Considerations -->
     <section id="security">
         <h2>Security Considerations</h2>
-
-        <h3>Key Security Features</h3>
+        <h3 id="key-security-features">Key Security Features</h3>
         <div class="card">
+            <p>This project implements defense-in-depth security across multiple layers:</p>
             <ul>
-                <li><strong>Secrets Management</strong>: Passwords managed via GitHub repository secrets with automated retrieval (never committed to git)</li>
-                <li><strong>IRSA</strong>: Pods assume IAM roles via OIDC—no long-lived AWS credentials required</li>
-                <li><strong>VPC Endpoints</strong>: AWS service access (SSM, STS, SNS) goes through private endpoints—no public internet exposure</li>
-                <li><strong>TLS Termination</strong>: HTTPS at ALB using ACM certificates; internal TLS via cert-manager</li>
-                <li><strong>LDAP Security</strong>: ClusterIP only (not exposed externally), cross-namespace access on secure ports only (443, 636, 8443)</li>
-                <li><strong>Network Policies</strong>: Pod-to-pod communication restricted to encrypted ports with cross-namespace support</li>
-                <li><strong>Storage Encryption</strong>: EBS volumes encrypted by default; S3 state files encrypted with AES256</li>
-                <li><strong>Network Isolation</strong>: EKS nodes run in private subnets</li>
-                <li><strong>Multi-Account Isolation</strong>: State storage (Account A) separated from resource deployment (Account B)</li>
-                <li><strong>State Locking</strong>: S3 file-based locking for Terraform state concurrency control</li>
-                <li><strong>OIDC Authentication</strong>: GitHub Actions uses OIDC for AWS authentication (no access keys)</li>
-                <li><strong>ExternalId Security</strong>: Cross-account role assumption requires ExternalId to prevent confused deputy attacks. The ExternalId condition must be present in deployment account roles' Trust Relationships, and the state account role must provide the ExternalId when assuming those roles</li>
-                <li><strong>Bidirectional Trust Relationships</strong>: Both deployment account roles and state account role must trust each other in their respective Trust Relationships for proper cross-account access. ExternalId is still required when the state account role assumes deployment account roles</li>
+                <li><strong>Secrets Management</strong>: Passwords managed via GitHub repository secrets (CI/CD) or AWS Secrets Manager (local) with automated retrieval—never committed to version control</li>
+                <li><strong>IRSA (IAM Roles for Service Accounts)</strong>: Pods assume IAM roles via OIDC—no long-lived AWS credentials stored in containers or environment variables</li>
+                <li><strong>VPC Endpoints</strong>: AWS service access (SSM, STS, SNS) routed through private endpoints—no public internet exposure for sensitive operations</li>
+                <li><strong>TLS/HTTPS</strong>: TLS termination at ALB using ACM certificates; internal cluster communication secured via cert-manager</li>
+                <li><strong>LDAP Security</strong>: ClusterIP service only (not exposed externally); cross-namespace access restricted to secure ports (443, 636, 8443)</li>
+                <li><strong>Network Policies</strong>: Kubernetes Network Policies restrict pod-to-pod communication to encrypted ports with cross-namespace support for authorized services</li>
+                <li><strong>Storage Encryption</strong>: EBS volumes encrypted by default; S3 state files encrypted with AES256 server-side encryption</li>
+                <li><strong>Network Isolation</strong>: EKS nodes deployed in private subnets with no public IPs; access via SSM Session Manager</li>
+                <li><strong>Multi-Account Architecture</strong>: State storage (Account A) isolated from resource deployment (Account B) for enhanced security and compliance</li>
+                <li><strong>State Locking</strong>: S3 file-based locking prevents concurrent Terraform operations and state corruption</li>
+                <li><strong>OIDC Authentication</strong>: GitHub Actions authenticates with AWS via OIDC—no access keys required</li>
+                <li><strong>Cross-Account Security</strong>: ExternalId required for cross-account role assumption to prevent confused deputy attacks; bidirectional trust relationships</li>
             </ul>
             <p><strong>For detailed security documentation:</strong> <a href="../application/SECURITY-IMPROVEMENTS.md">Security Improvements</a></p>
         </div>
     </section>
-
     <!-- Contributing & Support -->
     <section id="support">
         <h2>Contributing & Support</h2>
-
-        <h3>Troubleshooting</h3>
+        <h3 id="troubleshooting">Troubleshooting</h3>
         <div class="card">
             <p>For troubleshooting guides, see:</p>
             <ul>
@@ -681,36 +850,30 @@
                 <li><a href="../application/README.md#troubleshooting">Application Infrastructure Troubleshooting</a></li>
             </ul>
         </div>
-
-        <h3>Repository</h3>
+        <h3 id="repository">Repository</h3>
         <div class="card">
             <p>GitHub Repository: <a href="https://github.com/talorlik/ldap-2fa-on-k8s" target="_blank">ldap-2fa-on-k8s</a></p>
         </div>
-
-        <h3>License</h3>
+        <h3 id="license">License</h3>
         <div class="card">
             <p>This project is licensed under the <strong>MIT License</strong>.</p>
             <p>See the <a href="../LICENSE">LICENSE</a> file for details.</p>
             <p>Copyright (c) 2025 Tal Orlik</p>
         </div>
     </section>
-
     <!-- Footer -->
     <footer>
         <p>&copy; 2025 Tal Orlik. Licensed under MIT License.</p>
         <p>LDAP Authentication with 2FA on Kubernetes (EKS)</p>
     </footer>
-
     <script>
         // Theme management
         const themeStylesheet = document.getElementById('theme-stylesheet');
         const themeToggle = document.getElementById('themeToggle');
         const sunIcon = document.getElementById('sunIcon');
         const moonIcon = document.getElementById('moonIcon');
-
         // Get saved theme or default to light
         const currentTheme = localStorage.getItem('theme') || 'light';
-
         function setTheme(theme) {
             if (theme === 'dark') {
                 themeStylesheet.href = 'dark-theme.css';
@@ -730,24 +893,19 @@
                 localStorage.setItem('theme', 'light');
             }
         }
-
         // Initialize theme on page load
         setTheme(currentTheme);
-
         // Toggle theme on button click
         themeToggle.addEventListener('click', () => {
             const newTheme = themeStylesheet.href.includes('dark-theme.css') ? 'light' : 'dark';
             setTheme(newTheme);
         });
-
         // Mobile menu toggle
         const mobileMenuToggle = document.getElementById('mobileMenuToggle');
         const navMenu = document.getElementById('navMenu');
-
         mobileMenuToggle.addEventListener('click', () => {
             navMenu.classList.toggle('active');
         });
-
         // Close mobile menu when clicking on a link
         const navLinks = document.querySelectorAll('.nav-menu a');
         navLinks.forEach(link => {
@@ -755,19 +913,15 @@
                 navMenu.classList.remove('active');
             });
         });
-
         // Active section highlighting
         const sections = document.querySelectorAll('section[id]');
         const navLinksArray = Array.from(navLinks);
-
         function highlightActiveSection() {
             const scrollY = window.pageYOffset;
-
             sections.forEach(section => {
                 const sectionHeight = section.offsetHeight;
                 const sectionTop = section.offsetTop - 150;
                 const sectionId = section.getAttribute('id');
-
                 if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
                     navLinksArray.forEach(link => {
                         link.classList.remove('active');
@@ -778,10 +932,52 @@
                 }
             });
         }
-
         window.addEventListener('scroll', highlightActiveSection);
         window.addEventListener('load', highlightActiveSection);
-
+    </script>
+    <!-- Scroll to Top Button -->
+    <button id="scrollToTopButton" class="scroll-to-top" aria-label="Scroll to top" title="Scroll to top">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="16 12 12 8 8 12"></polyline>
+            <line x1="12" y1="8" x2="12" y2="16"></line>
+        </svg>
+    </button>
+    <script>
+        // Initialize scroll to top button after DOM is ready
+        function initScrollToTop() {
+            const scrollToTopButton = document.getElementById('scrollToTopButton');
+            if (!scrollToTopButton) {
+                console.error('Scroll to top button not found');
+                return;
+            }
+            // Check scroll position on load
+            function checkScroll() {
+                if (window.pageYOffset > 100 || document.documentElement.scrollTop > 100) {
+                    scrollToTopButton.classList.add('visible');
+                } else {
+                    scrollToTopButton.classList.remove('visible');
+                }
+            }
+            // Initial check
+            checkScroll();
+            // Handle scroll events
+            window.addEventListener('scroll', checkScroll);
+            // Handle click
+            scrollToTopButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+        }
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initScrollToTop);
+        } else {
+            initScrollToTop();
+        }
         // Smooth scroll for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {

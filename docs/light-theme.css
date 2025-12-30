@@ -153,6 +153,32 @@ body {
     color: var(--text-color);
 }
 
+/* Ensure all headings are properly sized */
+h1 {
+    font-size: 2.5em;
+    font-weight: 600;
+}
+
+h2 {
+    font-size: 2em;
+    font-weight: 600;
+}
+
+h3 {
+    font-size: 1.5em;
+    font-weight: 600;
+}
+
+h4 {
+    font-size: 1.25em;
+    font-weight: 600;
+}
+
+h5 {
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
 .hero p {
     font-size: 1.2em;
     margin-bottom: 30px;
@@ -187,6 +213,7 @@ section:last-child {
 
 section h2 {
     font-size: 2em;
+    font-weight: 600;
     margin-bottom: 20px;
     padding-bottom: 10px;
     border-bottom: 2px solid var(--border-color);
@@ -195,15 +222,25 @@ section h2 {
 
 section h3 {
     font-size: 1.5em;
+    font-weight: 600;
     margin-top: 30px;
     margin-bottom: 15px;
     color: var(--text-color);
 }
 
 section h4 {
-    font-size: 1.2em;
+    font-size: 1.25em;
+    font-weight: 600;
     margin-top: 20px;
     margin-bottom: 10px;
+    color: var(--text-color);
+}
+
+section h5 {
+    font-size: 1.1em;
+    font-weight: 600;
+    margin-top: 15px;
+    margin-bottom: 8px;
     color: var(--text-color);
 }
 
@@ -465,9 +502,81 @@ footer {
     section h2 {
         font-size: 1.5em;
     }
+
+    section h3 {
+        font-size: 1.3em;
+    }
+
+    section h4 {
+        font-size: 1.15em;
+    }
+
+    section h5 {
+        font-size: 1.05em;
+    }
 }
 
 /* Smooth scroll */
 html {
     scroll-behavior: smooth;
+}
+
+/* Scroll to Top Button */
+.scroll-to-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: rgba(3, 102, 214, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 2px solid rgba(3, 102, 214, 0.3);
+    color: var(--primary-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.scroll-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.scroll-to-top:hover {
+    background-color: rgba(3, 102, 214, 0.25);
+    border-color: rgba(3, 102, 214, 0.5);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.scroll-to-top:active {
+    transform: translateY(-1px);
+}
+
+.scroll-to-top svg {
+    width: 24px;
+    height: 24px;
+}
+
+@media (max-width: 768px) {
+    .scroll-to-top {
+        bottom: 20px;
+        right: 20px;
+        width: 45px;
+        height: 45px;
+    }
+    .scroll-to-top svg {
+        width: 20px;
+        height: 20px;
+    }
 }
