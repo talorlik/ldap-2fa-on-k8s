@@ -174,6 +174,54 @@ backend_infra/
         └── README.md
 ```
 
+## Destroying Infrastructure
+
+> [!WARNING]
+>
+> Destroying infrastructure is a **destructive operation** that permanently
+> deletes all resources. This action **cannot be undone**. Always ensure you have
+> backups and understand the consequences before proceeding.
+
+### Option 1: Using Destroy Script (Local)
+
+```bash
+cd backend_infra
+./destroy-backend.sh
+```
+
+The script will:
+
+- Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
+- Retrieve repository variables from GitHub
+- Retrieve role ARNs and ExternalId from AWS Secrets Manager
+- Generate `backend.hcl` from template (if it doesn't exist)
+- Update `variables.tfvars` with selected region, environment, deployment account
+  role ARN, and ExternalId
+- Run Terraform destroy commands (init, workspace, validate, plan destroy, apply
+  destroy) automatically
+- **Requires confirmation**: Type 'yes' to confirm, then 'DESTROY' to proceed
+
+### Option 2: Using GitHub Actions Workflow
+
+1. Go to GitHub → Actions tab
+2. Select "Backend Infrastructure Destroying" workflow
+3. Click "Run workflow"
+4. Select environment (prod or dev) and region
+5. Click "Run workflow"
+
+The workflow will:
+
+- Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations
+- Use environment-specific deployment account role ARN
+- Use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
+- Run Terraform destroy operations automatically
+
+> [!IMPORTANT]
+>
+> **Destroy Order**: Backend infrastructure should be destroyed after application
+> infrastructure. Ensure all application resources are destroyed first before
+> destroying the backend infrastructure.
+
 ## Prerequisites
 
 1. **Terraform Backend**: The Terraform state backend must be provisioned first

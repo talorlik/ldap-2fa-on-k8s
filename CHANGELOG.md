@@ -33,6 +33,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive documentation updates across all README files,
   SECURITY-IMPROVEMENTS.md, and docs/index.html
 
+- **Destroy Scripts for Infrastructure Cleanup**
+  - Created `application/destroy-application.sh` script for destroying application
+  infrastructure
+  - Created `backend_infra/destroy-backend.sh` script for destroying backend
+  infrastructure
+  - Both scripts support interactive region and environment selection
+  - Automatic retrieval of role ARNs, ExternalId, and secrets from AWS Secrets
+  Manager
+  - Automatic backend configuration and variables.tfvars updates
+  - Kubernetes environment setup for application destroy script
+  - Safety confirmations required before destruction (type 'yes' then 'DESTROY')
+  - Comprehensive error handling and user guidance
+  - Updated GitHub Actions destroying workflows with ExternalId support
+  - Documentation updates in README files and docs/index.html
+
 ### Changed
 
 - **Documentation Improvements**
@@ -47,13 +62,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added links to PRD documents for detailed feature specifications
   - Updated changelog references in main README
 
+- **Setup Script Improvements**
+  - Enhanced `backend_infra/setup-backend.sh` with improved error handling and
+  ExternalId support
+  - Enhanced `application/setup-application.sh` with improved error handling,
+  ExternalId support, and Kubernetes environment setup
+  - Both scripts now automatically retrieve ExternalId from AWS Secrets Manager
+  - Improved role assumption logic with better error messages
+  - Enhanced secret retrieval with validation and error handling
+  - Better integration with GitHub repository variables and secrets
+  - Improved user guidance and confirmation prompts
+
 - **GitHub Actions Workflow Updates**
   - Updated `application_infra_provisioning.yaml` with new environment variables
   for Redis, PostgreSQL, and SES
+  - Updated `application_infra_destroying.yaml` with ExternalId support and
+  improved error handling
+  - Updated `backend_infra_provisioning.yaml` with ExternalId support
+  - Updated `backend_infra_destroying.yaml` with ExternalId support and
+  improved error handling
   - Workflows now pass Redis password via `TF_VAR_redis_password` environment
   variable (from GitHub Secret `TF_VAR_REDIS_PASSWORD`)
   - Workflows now pass PostgreSQL password via `TF_VAR_postgresql_database_password`
   environment variable (from GitHub Secret `TF_VAR_POSTGRES_PASSWORD`)
+  - All workflows now use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state
+  operations
+  - All workflows now use `AWS_ASSUME_EXTERNAL_ID` for cross-account role
+  assumption security
   - Maintains backward compatibility with existing OpenLDAP password secrets
 
 - **Comprehensive Product Requirements Documents**

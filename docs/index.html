@@ -205,6 +205,12 @@
                         </ul>
                     </li>
                 </ol>
+                <p><strong>Destroying Infrastructure:</strong></p>
+                <ul>
+                    <li><code>application/destroy-application.sh</code> - Destroy application infrastructure (requires confirmation)</li>
+                    <li><code>backend_infra/destroy-backend.sh</code> - Destroy backend infrastructure (requires confirmation)</li>
+                </ul>
+                <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order: Application → Backend → State.</p>
                 <p><strong>For detailed local setup instructions:</strong> <a href="../README.md#local-development-setup">Local Development Setup</a></p>
             </div>
 
@@ -224,6 +230,13 @@
                     <li>Run backend infrastructure workflow</li>
                     <li>Run application infrastructure workflow</li>
                 </ol>
+                <p><strong>Destroying Infrastructure:</strong></p>
+                <ul>
+                    <li><code>application_infra_destroying.yaml</code> - Destroy application infrastructure</li>
+                    <li><code>backend_infra_destroying.yaml</code> - Destroy backend infrastructure</li>
+                    <li><code>tfstate_infra_destroying.yaml</code> - Destroy state backend infrastructure</li>
+                </ul>
+                <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order: Application → Backend → State.</p>
                 <p><strong>For detailed GitHub Actions setup:</strong> <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a></p>
             </div>
         </div>

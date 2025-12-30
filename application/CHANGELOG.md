@@ -31,7 +31,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prevents confused deputy attacks in multi-account deployments
   - ExternalId generation: `openssl rand -hex 32`
 
+- **Destroy Script for Application Infrastructure**
+  - Created `destroy-application.sh` script for destroying application
+  infrastructure
+  - Interactive region and environment selection
+  - Automatic retrieval of role ARNs, ExternalId, and password secrets from AWS
+  Secrets Manager
+  - Automatic backend configuration and variables.tfvars updates
+  - Kubernetes environment setup using `set-k8s-env.sh`
+  - Safety confirmations required before destruction (type 'yes' then 'DESTROY')
+  - Comprehensive error handling and user guidance
+  - Updated GitHub Actions destroying workflow with ExternalId support
+
 ### Changed
+
+- **Setup Script Improvements**
+  - Enhanced `setup-application.sh` with improved error handling and ExternalId
+  support
+  - Automatic ExternalId retrieval from AWS Secrets Manager
+  - Improved role assumption logic with better error messages
+  - Enhanced secret retrieval with validation and error handling
+  - Better integration with GitHub repository variables and secrets
+  - Improved Kubernetes environment setup using `set-k8s-env.sh`
+  - Enhanced user guidance and confirmation prompts
+
+- **GitHub Actions Workflow Updates**
+  - Updated `application_infra_provisioning.yaml` with ExternalId support and
+  improved error handling
+  - Updated `application_infra_destroying.yaml` with ExternalId support and
+  improved error handling
+  - Workflows now use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations
+  - Workflows now use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
+  security
+  - Improved environment variable handling for password secrets
 
 - **Documentation Improvements**
   - Removed duplication by replacing detailed module descriptions with links to
