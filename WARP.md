@@ -225,6 +225,17 @@ terraform apply -auto-approve "terraform.tfplan"
 
 ```bash
 cd backend_infra
+
+# Option 1: Automated destroy script (recommended)
+# This script will:
+# - Prompt for region and environment selection
+# - Retrieve role ARNs and ExternalId from AWS Secrets Manager
+# - Configure backend and variables automatically
+# - Require safety confirmations (type 'yes' then 'DESTROY')
+# - Run Terraform destroy commands
+./destroy-backend.sh
+
+# Option 2: Manual destroy
 terraform plan -var-file="variables.tfvars" -destroy -out "terraform.tfplan"
 terraform apply -auto-approve "terraform.tfplan"
 ```
@@ -237,8 +248,11 @@ Ensure you have:
 - A registered domain name (e.g., `talorlik.com`)
 - An existing Route53 hosted zone for your domain
 - A validated ACM certificate for your domain
-- **For local backend state scripts**: AWS Secrets Manager secret named `github-role`
-with JSON containing `AWS_STATE_ACCOUNT_ROLE_ARN` (see tf_backend_state/README.md)
+- **For local scripts**: AWS Secrets Manager secrets configured:
+  - `github-role`: Contains `AWS_STATE_ACCOUNT_ROLE_ARN` and deployment account role ARNs
+  - `external-id`: Contains `AWS_ASSUME_EXTERNAL_ID`
+  - `tf-vars`: Contains OpenLDAP, PostgreSQL, and Redis passwords
+  - See `SECRETS_REQUIREMENTS.md` for detailed setup instructions
 
 **Deploy OpenLDAP Application:**
 
@@ -269,9 +283,24 @@ apply)
 
 > [!NOTE]
 >
-> The script automatically retrieves OpenLDAP passwords from GitHub
-> repository secrets. For local use, you need to export them as environment
-> variables since GitHub CLI cannot read secret values directly.
+> The script automatically retrieves OpenLDAP passwords from AWS Secrets Manager
+> (for local use). For GitHub Actions workflows, passwords are retrieved from
+> GitHub repository secrets.
+
+**Destroy Application Infrastructure:**
+
+```bash
+cd application
+
+# Automated destroy script with comprehensive safety checks
+# This script will:
+# - Prompt for region and environment selection
+# - Retrieve role ARNs, ExternalId, and passwords from AWS Secrets Manager
+# - Configure backend, variables, and Kubernetes environment automatically
+# - Require safety confirmations (type 'yes' then 'DESTROY')
+# - Run Terraform destroy commands
+./destroy-application.sh
+```
 
 ### Kubernetes Operations
 
@@ -314,10 +343,11 @@ docker push <ecr_url>:<tag>
 ### Backend State
 
 - `tf_backend_state/variables.tfvars` - Configure `env`, `region`, `prefix`
-(principal_arn is optional and auto-detected)
+(principal_arn automatically detected via `data.aws_caller_identity`)
 - `tf_backend_state/README.md` - Detailed setup instructions for GitHub
 secrets/variables and AWS Secrets Manager configuration
-- `tf_backend_state/set-state.sh` - Automated provisioning and state upload script
+- `tf_backend_state/set-state.sh` - Enhanced automated provisioning and state upload
+script with intelligent infrastructure detection
 - `tf_backend_state/get-state.sh` - Automated state download script
 - `tf_backend_state/CHANGELOG.md` - Detailed changelog for backend state infrastructure
 
@@ -337,6 +367,8 @@ config
 VPC endpoints, ECR
 - `backend_infra/setup-backend.sh` - Automated setup script with role assumption
 and Terraform execution
+- `backend_infra/destroy-backend.sh` - Automated destroy script with safety
+confirmations
 
 ### Application Layer
 
@@ -347,6 +379,8 @@ and Terraform execution
   - Passwords retrieved automatically by setup-application.sh from AWS Secrets Manager
 - `application/setup-application.sh` - Unified setup script for application
 deployment (retrieves secrets from AWS Secrets Manager)
+- `application/destroy-application.sh` - Automated destroy script with safety
+confirmations and Kubernetes environment setup
 - `application/set-k8s-env.sh` - Kubernetes environment variable configuration
 - `application/helm/openldap-values.tpl.yaml` - Helm chart values template with
 osixia/openldap:1.5.0 image (used by OpenLDAP module)
@@ -658,7 +692,46 @@ workflows)
 
 ## Recent Changes (December 2025 - January 2026)
 
-### ExternalId Security Feature for Cross-Account Role Assumption (Dec 29, 2025)
+### Destroy Scripts for Infrastructure Cleanup (December 30, 2025)
+
+- **Automated Destroy Scripts**:
+  - Created `backend_infra/destroy-backend.sh` for destroying backend infrastructure
+  - Created `application/destroy-application.sh` for destroying application infrastructure
+  - Both scripts support interactive region and environment selection
+  - Automatic retrieval of role ARNs, ExternalId, and secrets from AWS Secrets Manager
+  - Automatic backend configuration and variables.tfvars updates
+  - Kubernetes environment setup for application destroy script (via `set-k8s-env.sh`)
+  - Comprehensive error handling and user guidance
+- **Safety Features**:
+  - Double confirmation required before destruction (type 'yes' then 'DESTROY')
+  - Clear warnings about irreversible actions
+  - Validation of user input before proceeding
+  - Color-coded output for better visibility
+- **GitHub Actions Integration**:
+  - Updated destroying workflows with ExternalId support
+  - Workflows use same role assumption pattern as provisioning workflows
+  - Proper permissions declarations for security compliance
+
+### Terraform Backend State Enhancements (December 30, 2025)
+
+- **Simplified Terraform Configuration**:
+  - Removed `principal_arn` variable - bucket policy now automatically uses current
+  caller's ARN via `data.aws_caller_identity.current.arn`
+  - Eliminates need to pass principal ARN as a variable, simplifying configuration
+  - Reduces user configuration burden and potential errors
+- **Enhanced set-state.sh Script**:
+  - Automatic role assumption from AWS Secrets Manager (secret: `github-role`)
+  - Intelligent infrastructure provisioning detection via `BACKEND_BUCKET_NAME`
+  repository variable
+  - Automatic state file download from S3 when bucket exists
+  - Terraform validation, plan, and apply workflow integration
+  - Bucket name verification and GitHub repository variable management
+  - Comprehensive error handling with colored output (INFO, SUCCESS, ERROR)
+  - Always updates bucket name and state file to ensure synchronization
+  - Enhanced credential extraction with jq fallback to sed for broader compatibility
+  - Improved user feedback throughout the process
+
+### ExternalId Security Feature for Cross-Account Role Assumption (December 29, 2025)
 
 - **ExternalId Support**:
   - Added ExternalId requirement for enhanced security when assuming deployment
@@ -674,15 +747,23 @@ workflows)
   and `backend_infra/variables.tf`
   - Setup scripts (`setup-application.sh` and `setup-backend.sh`) automatically
   retrieve ExternalId from AWS Secrets Manager
+  - Destroy scripts (`destroy-application.sh` and `destroy-backend.sh`) also
+  retrieve ExternalId from AWS Secrets Manager
   - GitHub Actions workflows updated to use `AWS_ASSUME_EXTERNAL_ID` secret
   - Deployment account roles must have ExternalId condition in Trust Relationship
+  - **Bidirectional Trust Relationships**: Both deployment account roles and state
+  account role must trust each other in their respective Trust Relationships
+  - State account role's Trust Relationship must include deployment account role
+  ARNs to enable proper cross-account role assumption
   - ExternalId generation: `openssl rand -hex 32`
 - **Documentation Updates**:
   - Updated `SECRETS_REQUIREMENTS.md` with comprehensive ExternalId setup instructions
-  - Updated all README files with ExternalId configuration steps
+  and bidirectional trust relationship requirements
+  - Updated all README files with ExternalId configuration steps and destroy script
+  usage
   - Updated `SECURITY-IMPROVEMENTS.md` with ExternalId security benefits
   - Updated GitHub Pages documentation (`docs/index.html`)
-  - Updated CHANGELOG.md files across all layers
+  - Updated CHANGELOG.md files across all layers with destroy script additions
 
 ### Security Enhancements and Code Scanning Fixes (December 28, 2025)
 
@@ -1045,6 +1126,23 @@ workspace, validate, plan, apply, and Kubernetes environment setup)
 with different selections
 6. Review `CHANGELOG.md`, `backend_infra/CHANGELOG.md`, and
 `application/CHANGELOG.md` for recent changes and verification steps
+
+### Destroying Infrastructure
+
+1. **Application Layer**:
+   - Run `./destroy-application.sh` from the `application/` directory
+   - Script automatically retrieves credentials and configurations
+   - Requires double confirmation (type 'yes' then 'DESTROY')
+   - Handles Kubernetes environment setup automatically
+2. **Backend Infrastructure**:
+   - Run `./destroy-backend.sh` from the `backend_infra/` directory
+   - Script automatically retrieves credentials and configurations
+   - Requires double confirmation (type 'yes' then 'DESTROY')
+3. **Backend State**:
+   - Use GitHub Actions workflow "TF Backend State Destroying" (recommended)
+   - Or manually destroy using Terraform commands after assuming IAM role
+4. **Destroy Order**: Always destroy in reverse order of creation:
+   - Application layer → Backend infrastructure → Backend state
 
 ### Developing 2FA Application
 
