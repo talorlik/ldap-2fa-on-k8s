@@ -545,6 +545,12 @@ fi
 print_success "Kubernetes environment variables set"
 print_info "  - KUBERNETES_MASTER: ${KUBERNETES_MASTER}"
 print_info "  - KUBE_CONFIG_PATH: ${KUBE_CONFIG_PATH}"
+
+# Export as TF_VAR_ environment variables for Terraform
+export TF_VAR_kubernetes_master="$KUBERNETES_MASTER"
+export TF_VAR_kube_config_path="$KUBE_CONFIG_PATH"
+print_info "  - TF_VAR_kubernetes_master: ${TF_VAR_kubernetes_master}"
+print_info "  - TF_VAR_kube_config_path: ${TF_VAR_kube_config_path}"
 echo ""
 
 # Assume State Account role again for Terraform operations

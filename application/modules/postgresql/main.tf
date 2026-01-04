@@ -16,7 +16,7 @@ locals {
       database                  = var.database_name
       username                  = var.database_username
       enablePostgresUser        = false
-      existingSecretPasswordKey = "postgresql-password"
+      existingSecretPasswordKey = "password"
     }
 
     primary = {
@@ -82,7 +82,7 @@ resource "kubernetes_secret" "postgresql_password" {
   }
 
   data = {
-    "postgresql-password" = var.database_password
+    "password" = var.database_password
   }
 
   type = "Opaque"

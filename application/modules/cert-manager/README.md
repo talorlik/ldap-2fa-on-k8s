@@ -10,19 +10,22 @@ to enable secure LDAP connections (StartTLS/LDAPS).
 
 ## What it Creates
 
-1. **cert-manager** - Installed via kubectl apply
+1. **cert-manager** - Installed via Helm chart
    - Deployed in `cert-manager` namespace
+   - Automatically installs CRDs
    - Manages certificate lifecycle automatically
 
 2. **ClusterIssuer** (`selfsigned-issuer`) - Creates self-signed certificates
    - Cluster-wide resource
    - Uses self-signed certificate authority
+   - Managed via `kubernetes_manifest` resource
 
 3. **Certificate** (`openldap-tls`) - TLS certificate for OpenLDAP
-   - Creates a Kubernetes secret named `openldap-tls` in the `ldap` namespace
+   - Creates a Kubernetes secret named `openldap-tls` in the specified namespace
    - Valid for 10 years
    - Auto-renews 30 days before expiration
    - Includes DNS names for all OpenLDAP service endpoints
+   - Managed via `kubernetes_manifest` resources
 
 ## Certificate DNS Names
 
@@ -105,7 +108,8 @@ kubectl get secret -n ldap openldap-tls
 
 ## Notes
 
-- Uses `null_resource` with `local-exec` provisioners because cert-manager CRDs
-are not natively supported by Terraform Kubernetes provider
-- Requires `kubectl` to be configured with access to the EKS cluster
+- Uses Helm provider to install cert-manager (no kubectl required)
+- Uses `kubernetes_manifest` resources for cert-manager CRDs (ClusterIssuer, Issuer, Certificate)
+- All resources are managed natively by Terraform with proper state tracking
 - cert-manager version: v1.13.2
+- Requires Helm provider to be configured with access to the EKS cluster

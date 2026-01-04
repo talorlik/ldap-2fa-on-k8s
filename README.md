@@ -315,7 +315,8 @@ to include the deployment account roles:
          "Principal": {
            "AWS": [
              "arn:aws:iam::PRODUCTION_ACCOUNT_ID:role/github-role",
-             "arn:aws:iam::DEVELOPMENT_ACCOUNT_ID:role/github-role"
+             "arn:aws:iam::DEVELOPMENT_ACCOUNT_ID:role/github-role",
+             "arn:aws:iam::STATE_ACCOUNT_ID:role/github-role"
            ]
          },
          "Action": "sts:AssumeRole"
@@ -326,6 +327,13 @@ to include the deployment account roles:
 
    Replace `PRODUCTION_ACCOUNT_ID` and `DEVELOPMENT_ACCOUNT_ID` with your actual
    account IDs, and `github-role` with your actual deployment role names.
+
+   > [!IMPORTANT]
+   >
+   > **Self-Assumption Statement**: The last statement allows the role to assume itself. This is required when:
+   > - The State Account role is used for both backend state operations and Route53/ACM access
+   > - Terraform providers need to assume the same role that was already assumed by the initial authentication
+   > - You encounter errors like "User: arn:aws:sts::ACCOUNT_ID:assumed-role/github-role/SESSION is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::ACCOUNT_ID:role/github-role"
 
 5. Click **Update policy**
 

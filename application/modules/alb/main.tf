@@ -83,16 +83,28 @@ locals {
 #   }
 # }
 
-# The IngressClassParams resources is _not_ a standard Kubernetes resource, therefore it gets created as a
-# custom resource in Kubernetes.
+# The IngressClassParams resource is a custom Kubernetes resource (CRD) provided by EKS Auto Mode.
+# We use the `kubernetes_manifest` resource to manage it in a Terraform-native way.
 #
-# There is no Terraform resource in the Kubernetes provider to create it
+# ⚠️ RISKS AND MITIGATION:
 #
-# A cleaner, more Terraform-native solution is to use the `kubernetes_manifest` resource to create the IngressClassParams resource.
-# However, this resource just assumes the EKS cluster already exists and fails with error during `terraform plan`.
+# 1. CRD Availability Risk:
+#    - The IngressClassParams CRD is installed by EKS Auto Mode when the cluster is created
+#    - If Terraform runs before Auto Mode finishes initializing, the CRD may not exist
+#    - This causes failures during `terraform apply` (not plan, since we can't check CRD existence in plan)
 #
-# Therefore, we go with the less elegant solution below
-# *** This requires the aws cli to be installed and configured with the correct AWS credentials.
+# 2. Mitigation Strategies:
+#    a) Ensure cluster is fully ready: The Kubernetes provider uses data sources that require
+#       the cluster to exist, but doesn't guarantee CRD availability
+#    b) Use time_sleep for initial deployments: Adds a delay to allow Auto Mode to initialize
+#    c) Retry logic: Terraform will retry on apply, but you may need to run apply multiple times
+#    d) Manual verification: Check CRD exists: `kubectl get crd ingressclassparams.eks.amazonaws.com`
+#
+# 3. Alternative Approach:
+#    If you experience frequent CRD availability issues, consider:
+#    - Using the original null_resource + kubectl approach (more forgiving)
+#    - Adding a data source to check CRD existence first (requires kubectl provider)
+#    - Using a Helm chart that handles CRD installation
 #
 # Annotation Strategy (cluster-wide defaults):
 # - IngressClassParams defines cluster-wide defaults that apply to all Ingresses using this IngressClass
@@ -101,55 +113,76 @@ locals {
 #   should be defined at the Ingress level via annotations
 # - All Ingresses using this IngressClass inherit cluster-wide settings from IngressClassParams
 
-resource "null_resource" "apply_ingressclassparams_manifest" {
-  provisioner "local-exec" {
-    command = <<EOT
-    # Set Kubernetes environment variables for Helm/Kubernetes providers
-    export KUBERNETES_MASTER=$(aws eks describe-cluster --name ${var.cluster_name} --region ${var.region} --query 'cluster.endpoint' --output text)
-    export KUBE_CONFIG_PATH=~/.kube/config
+# Optional: Add a delay for initial cluster setup to allow EKS Auto Mode to install CRDs
+#
+# IMPORTANT: There is NO Terraform resource that represents "CRD is installed"
+# The IngressClassParams CRD is installed asynchronously by EKS Auto Mode after cluster creation.
+# The cluster resource (module.eks in backend_infra) completes before CRDs are guaranteed to exist.
+#
+# What we're actually waiting for:
+# - NOT a Terraform resource (there isn't one for CRD availability)
+# - The asynchronous EKS Auto Mode process to install the CRD
+# - This typically happens within seconds of cluster creation, but isn't guaranteed
+#
+# Set wait_for_crd = true for initial deployments, false after cluster is established
+resource "time_sleep" "wait_for_eks_auto_mode" {
+  # Always create the resource, but use 0s duration when wait_for_crd is false
+  # This allows us to always reference it in depends_on (which requires a static list)
+  create_duration = var.wait_for_crd ? "30s" : "0s"
 
-    # Check if kubeconfig is already configured for this cluster
-    if ! kubectl config get-contexts -o name | grep -q "arn:aws:eks:${var.region}:.*:cluster/${var.cluster_name}" 2>/dev/null; then
-      echo "Configuring kubeconfig for cluster ${var.cluster_name}..."
-      aws eks --region ${var.region} update-kubeconfig --name ${var.cluster_name}
-    else
-      echo "Kubeconfig already configured for cluster ${var.cluster_name}"
-    fi
-
-    # Apply IngressClassParams (kubectl apply is idempotent)
-    # EKS Auto Mode IngressClassParams supports: scheme, ipAddressType, group.name, and certificateARNs (cluster-wide defaults)
-    # Note: Unlike AWS Load Balancer Controller, EKS Auto Mode does NOT support subnets, security groups, or tags in IngressClassParams
-    kubectl apply -f - <<EOF
-apiVersion: eks.amazonaws.com/v1
-kind: IngressClassParams
-metadata:
-  name: "${local.ingressclassparams_alb_name}"
-spec:
-  # Cluster-wide defaults: scheme, ipAddressType, group.name, and certificateARNs
-  # These settings are inherited by all Ingresses that use this IngressClass
-  scheme: ${var.alb_scheme}
-  ipAddressType: ${var.alb_ip_address_type}
-  group:
-    name: "${var.alb_group_name}"
-  certificateARNs:
-    - "${var.acm_certificate_arn}"
-EOF
-    EOT
-  }
-
-  # Trigger recreation when ALB configuration changes
+  # Trigger recreation if cluster changes (helps with new cluster deployments)
   triggers = {
-    cluster_name        = var.cluster_name
-    region              = var.region
-    alb_scheme          = var.alb_scheme
-    alb_ip_address_type = var.alb_ip_address_type
+    cluster_name = var.cluster_name
   }
+}
+
+resource "kubernetes_manifest" "ingressclassparams_alb" {
+  # Wait for:
+  # 1. The Kubernetes provider to be configured (implicit via data.aws_eks_cluster)
+  # 2. Optionally, a delay to allow EKS Auto Mode to install the CRD
+  #
+  # Note: We can't explicitly depend on the CRD existing because there's no Terraform
+  # resource for it. The time_sleep is a workaround for the asynchronous CRD installation.
+  # When wait_for_crd is false, time_sleep has 0s duration (no actual delay).
+  depends_on = [time_sleep.wait_for_eks_auto_mode]
+
+  manifest = {
+    apiVersion = "eks.amazonaws.com/v1"
+    kind       = "IngressClassParams"
+    metadata = {
+      name = local.ingressclassparams_alb_name
+    }
+    spec = merge(
+      {
+        scheme         = var.alb_scheme
+        ipAddressType  = var.alb_ip_address_type
+        group = {
+          name = var.alb_group_name
+        }
+      },
+      var.acm_certificate_arn != null && var.acm_certificate_arn != "" ? {
+        certificateARNs = [var.acm_certificate_arn]
+      } : {}
+    )
+  }
+
+  # Wait for the resource to be created and ready
+  # This ensures the resource exists before dependent resources are created
+  wait {
+    fields = {
+      "metadata.name" = local.ingressclassparams_alb_name
+    }
+  }
+
+  # Use server-side apply to handle conflicts better
+  # This is safer for custom resources that might be managed elsewhere
+  computed_fields = ["metadata.labels", "metadata.annotations"]
 }
 
 # IngressClass binds Ingress resources to EKS Auto Mode controller
 # and references IngressClassParams for cluster-wide ALB defaults
 resource "kubernetes_ingress_class_v1" "ingressclass_alb" {
-  depends_on = [null_resource.apply_ingressclassparams_manifest]
+  depends_on = [kubernetes_manifest.ingressclassparams_alb]
   metadata {
     name = local.ingressclass_alb_name
 

@@ -74,3 +74,23 @@ variable "alb_group_name" {
   type        = string
   default     = null # If null, will be derived from app_name
 }
+
+variable "kubernetes_master" {
+  description = "Kubernetes API server endpoint (KUBERNETES_MASTER environment variable). Set by set-k8s-env.sh or GitHub workflow."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "kube_config_path" {
+  description = "Path to kubeconfig file (KUBE_CONFIG_PATH environment variable). Set by set-k8s-env.sh or GitHub workflow."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "wait_for_crd" {
+  description = "Whether to wait for EKS Auto Mode CRD to be available before creating IngressClassParams. Set to true for initial cluster deployments, false after cluster is established."
+  type        = bool
+  default     = false
+}

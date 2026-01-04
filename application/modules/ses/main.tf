@@ -32,13 +32,15 @@ resource "aws_ses_domain_identity" "sender" {
 }
 
 # Domain verification DNS record (if using domain verification and Route53)
+# Note: Provider is passed from parent module via providers block
 resource "aws_route53_record" "ses_verification" {
-  count   = var.sender_domain != null && var.route53_zone_id != null ? 1 : 0
-  zone_id = var.route53_zone_id
-  name    = "_amazonses.${var.sender_domain}"
-  type    = "TXT"
-  ttl     = 600
-  records = [aws_ses_domain_identity.sender[0].verification_token]
+  provider = aws.state_account
+  count    = var.sender_domain != null && var.route53_zone_id != null ? 1 : 0
+  zone_id  = var.route53_zone_id
+  name     = "_amazonses.${var.sender_domain}"
+  type     = "TXT"
+  ttl      = 600
+  records  = [aws_ses_domain_identity.sender[0].verification_token]
 }
 
 # DKIM for domain (if using domain verification)
@@ -48,13 +50,15 @@ resource "aws_ses_domain_dkim" "sender" {
 }
 
 # DKIM DNS records (if using domain verification and Route53)
+# Note: Provider is passed from parent module via providers block
 resource "aws_route53_record" "ses_dkim" {
-  count   = var.sender_domain != null && var.route53_zone_id != null ? 3 : 0
-  zone_id = var.route53_zone_id
-  name    = "${aws_ses_domain_dkim.sender[0].dkim_tokens[count.index]}._domainkey.${var.sender_domain}"
-  type    = "CNAME"
-  ttl     = 600
-  records = ["${aws_ses_domain_dkim.sender[0].dkim_tokens[count.index]}.dkim.amazonses.com"]
+  provider = aws.state_account
+  count    = var.sender_domain != null && var.route53_zone_id != null ? 3 : 0
+  zone_id  = var.route53_zone_id
+  name     = "${aws_ses_domain_dkim.sender[0].dkim_tokens[count.index]}._domainkey.${var.sender_domain}"
+  type     = "CNAME"
+  ttl      = 600
+  records  = ["${aws_ses_domain_dkim.sender[0].dkim_tokens[count.index]}.dkim.amazonses.com"]
 }
 
 # IAM policy for SES send email

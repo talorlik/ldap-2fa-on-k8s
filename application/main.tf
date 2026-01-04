@@ -8,14 +8,16 @@ locals {
 }
 
 data "aws_route53_zone" "this" {
-  name         = var.domain_name
+  provider    = aws.state_account
+  name        = var.domain_name
   private_zone = false
 }
 
 data "aws_acm_certificate" "this" {
-  domain      = var.domain_name
+  provider   = aws.state_account
+  domain     = var.domain_name
   most_recent = true
-  statuses    = ["ISSUED"]
+  statuses   = ["ISSUED"]
 }
 
 # Create StorageClass for OpenLDAP PVC
@@ -123,6 +125,8 @@ module "alb" {
   alb_scheme                  = var.alb_scheme
   alb_ip_address_type         = var.alb_ip_address_type
   alb_group_name              = local.alb_group_name
+
+  wait_for_crd = var.wait_for_crd
 }
 
 # Query AWS for ALB DNS name using the load balancer name.
@@ -170,11 +174,19 @@ module "openldap" {
     kubernetes_storage_class_v1.this,
     module.alb,
   ]
+
+  # Pass state account provider for Route53 resources
+  # If state_account_role_arn is null, state_account provider uses default credentials
+  # Note: openldap module only needs aws.state_account (not aws)
+  providers = {
+    aws.state_account = aws.state_account
+  }
 }
 
 # Route53 A (alias) record for 2FA application
 resource "aws_route53_record" "twofa_app" {
-  count = var.twofa_app_host != null ? 1 : 0
+  count    = var.twofa_app_host != null ? 1 : 0
+  provider = aws.state_account
 
   zone_id = data.aws_route53_zone.this.zone_id
   name    = var.twofa_app_host
@@ -239,6 +251,14 @@ module "ses" {
   route53_zone_id           = var.ses_route53_zone_id != null ? var.ses_route53_zone_id : data.aws_route53_zone.this.zone_id
 
   tags = local.tags
+
+  # Pass state account provider for Route53 resources
+  # If state_account_role_arn is null, state_account provider uses default credentials
+  # Note: ses module needs both aws and aws.state_account
+  providers = {
+    aws             = aws
+    aws.state_account = aws.state_account
+  }
 }
 
 ##################### SNS for SMS 2FA ##########################

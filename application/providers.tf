@@ -12,6 +12,10 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.0"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.9"
+    }
   }
 
   backend "s3" {
@@ -35,6 +39,23 @@ provider "aws" {
     content {
       role_arn    = var.deployment_account_role_arn
       external_id = var.deployment_account_external_id
+    }
+  }
+}
+
+# Provider alias for state account (where Route53 hosted zone and ACM certificate reside)
+provider "aws" {
+  alias  = "state_account"
+  region = var.region
+
+  # Assume role in state account if role ARN is provided
+  # This allows querying Route53 hosted zones and ACM certificates from the state account
+  # while deploying resources to the deployment account
+  # Note: ExternalId is not used for state account role assumption (by design)
+  dynamic "assume_role" {
+    for_each = var.state_account_role_arn != null ? [1] : []
+    content {
+      role_arn = var.state_account_role_arn
     }
   }
 }

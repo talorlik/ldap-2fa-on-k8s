@@ -211,8 +211,19 @@
                 </li>
                 <li><strong>GitHub Account</strong> and repository fork: <a href="https://github.com/talorlik/ldap-2fa-on-k8s.git" target="_blank">ldap-2fa-on-k8s</a></li>
                 <li><strong>AWS SSO/OIDC</strong> configured (see <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a>)</li>
-                <li><strong>Route53 hosted zone</strong> must already exist (or create it manually)</li>
-                <li><strong>ACM certificate</strong> must already exist and be validated in the same region as the EKS cluster</li>
+                <li><strong>Route53 hosted zone</strong> must already exist (or create it manually)
+                    <ul>
+                        <li>Can be in State Account (different from deployment account) - automatically accessed via <code>state_account_role_arn</code></li>
+                        <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
+                    </ul>
+                </li>
+                <li><strong>ACM certificate</strong> must already exist and be validated in the same region as the EKS cluster
+                    <ul>
+                        <li>Can be in State Account (different from deployment account) - automatically accessed via <code>state_account_role_arn</code></li>
+                        <li>ALB in deployment account can use ACM certificate from State Account (same region required)</li>
+                        <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
+                    </ul>
+                </li>
                 <li><strong>GitHub Secrets and Variables</strong> configured (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a> for complete details):
                     <ul>
                         <li><strong>Required Secrets:</strong>
@@ -476,7 +487,13 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li><strong>Components:</strong> OpenLDAP stack (HA), PhpLdapAdmin, LTB-passwd, 2FA application (backend + frontend), ALB, Route53 records, PostgreSQL, Redis, SES, SNS (optional), ArgoCD (optional)</li>
                         <li><strong>Account:</strong> Deployment Account (Account B)</li>
                         <li><strong>Prerequisites:</strong> Backend infrastructure (EKS cluster) must be deployed first</li>
-                        <li><strong>Additional Requirements:</strong> Route53 hosted zone and ACM certificate must exist</li>
+                        <li><strong>Additional Requirements:</strong> Route53 hosted zone and ACM certificate must exist
+                            <ul>
+                                <li>Route53 hosted zone and ACM certificate can be in State Account (different from deployment account)</li>
+                                <li>Automatically accessed via <code>state_account_role_arn</code> (injected by scripts/workflows)</li>
+                                <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for configuration details</li>
+                            </ul>
+                        </li>
                         <li><strong>Local:</strong> <code>cd application && ./setup-application.sh</code></li>
                         <li><strong>GitHub Actions:</strong> "Application Infra Provisioning" workflow</li>
                         <li><strong>See:</strong> <a href="../application/README.md">Application Infrastructure README</a></li>

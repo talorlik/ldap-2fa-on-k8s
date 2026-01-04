@@ -9,8 +9,8 @@ infrastructure.
 
 The application infrastructure provisions:
 
-- **Route53 Hosted Zone** for domain management
-- **ACM Certificate** with DNS validation for HTTPS
+- **Route53 Hosted Zone** for domain management (can be in State Account)
+- **ACM Certificate** with DNS validation for HTTPS (can be in State Account)
 - **Helm Release** for OpenLDAP Stack HA (High Availability)
 - **Application Load Balancer (ALB)** via EKS Auto Mode Ingress
 - **Persistent Storage** using EBS-backed PVCs
@@ -108,6 +108,12 @@ certificate management)
 > **commented out** in `main.tf`. The code uses **data sources** to reference
 > existing Route53 hosted zone and ACM certificate resources that must already
 > exist.
+>
+> **Cross-Account Access**: Route53 hosted zone and ACM certificate can be in
+> the State Account (different from deployment account). When
+> `state_account_role_arn` is configured, Terraform automatically queries these
+> resources from the State Account. See [Cross-Account Access
+> Documentation](./CROSS-ACCOUNT-ACCESS.md) for details.
 
 **Current Implementation (Data Sources):**
 
@@ -557,6 +563,7 @@ application/
 ├── OPENLDAP-README.md          # OpenLDAP deployment documentation
 ├── OSIXIA-OPENLDAP-REQUIREMENTS.md  # OpenLDAP requirements documentation
 ├── SECURITY-IMPROVEMENTS.md   # Security improvements documentation
+├── CROSS-ACCOUNT-ACCESS.md    # Cross-account Route53/ACM access documentation
 └── README.md                   # This file
 ```
 
@@ -565,11 +572,21 @@ application/
 1. **Backend Infrastructure**: The backend infrastructure must be deployed first
 (see [backend_infra/README.md](../backend_infra/README.md))
 2. **Multi-Account Setup**:
-   - **Account A (State Account)**: Stores Terraform state in S3
-   - **Account B (Deployment Account)**: Contains application resources (ALB,
-   Route53, etc.)
-   - GitHub Actions uses Account A role for backend access
+   - **Account A (State Account)**: Stores Terraform state in S3, Route53
+     hosted zones, and ACM certificates
+   - **Account B (Deployment Account)**: Contains application resources (EKS,
+     ALB, etc.)
+   - Route53 hosted zone and ACM certificate can be in State Account
+     (accessed via `state_account_role_arn`)
+   - Route53 records are created in State Account while ALB is deployed in
+     Deployment Account
+   - ALB in Deployment Account can use ACM certificate from State Account
+     (same region required)
+   - GitHub Actions uses Account A role for backend access and Route53/ACM
+     access
    - Terraform provider assumes Account B role for resource deployment
+   - See [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) for
+     details
 3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main
 [README.md](../README.md))
 4. **EKS Cluster**: The EKS cluster must be running with Auto Mode enabled
@@ -615,6 +632,14 @@ cross-account role assumption
   - Must match the ExternalId configured in the deployment account role's
   Trust Relationship
   - Generated using: `openssl rand -hex 32`
+- `state_account_role_arn`: (Optional) ARN of IAM role in State Account for
+  Route53/ACM access
+  - Automatically injected by `setup-application.sh` and `set-k8s-env.sh`
+    scripts
+  - Automatically injected by GitHub workflows
+  - Required when Route53 hosted zone and ACM certificate are in a different account
+  - Format: `arn:aws:iam::STATE_ACCOUNT_ID:role/terraform-state-role`
+  - See [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) for details
 
 #### Cluster Name Injection
 
@@ -635,6 +660,34 @@ the cluster name directly in `variables.tfvars`:
 ```hcl
 cluster_name = "talo-tf-us-east-1-kc-prod"
 ```
+
+#### Kubernetes Kubeconfig Auto-Update
+
+The `set-k8s-env.sh` script automatically updates the kubeconfig file on every run to
+ensure it always contains the latest cluster endpoint. This prevents issues with
+stale kubeconfig entries that can occur when:
+
+- The EKS cluster is recreated (new cluster endpoint)
+- The cluster endpoint changes due to AWS infrastructure updates
+- Kubeconfig becomes stale between deployment runs
+
+**Behavior**:
+
+- **Automatic Update**: The script runs `aws eks update-kubeconfig` on every execution
+- **Uses Deployment Account Credentials**: The update uses the deployment account role
+  credentials (already assumed by the script)
+- **Creates Directory if Needed**: Automatically creates the kubeconfig directory if it
+  doesn't exist
+- **Error Handling**: Script exits with error if kubeconfig update fails
+
+**Kubeconfig Path**:
+
+- Default: `~/.kube/config`
+- Can be overridden via `KUBE_CONFIG_PATH` environment variable
+- Path is exported as `KUBE_CONFIG_PATH` for use by Terraform and kubectl commands
+
+This ensures that all `kubectl` commands (including those executed by Terraform
+provisioners) use the current cluster endpoint, preventing DNS lookup errors.
 
 #### OpenLDAP Passwords (Environment Variables)
 
@@ -853,9 +906,11 @@ The script will:
 
 The workflow will:
 
-- Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations
+- Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
+  Route53/ACM access
 - Use environment-specific deployment account role ARN
 - Use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
+- Export `STATE_ACCOUNT_ROLE_ARN` for automatic injection into `variables.tfvars`
 - Retrieve password secrets from GitHub repository secrets
 - Run Terraform destroy operations automatically
 
@@ -905,7 +960,8 @@ This script will:
 - Prompt you to select an AWS region (us-east-1 or us-east-2)
 - Prompt you to select an environment (prod or dev)
 - Retrieve repository variables from GitHub
-- Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state
+- Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state and
+  Route53/ACM access
 operations
 - Retrieve the appropriate deployment account role ARN from AWS Secrets Manager
 based on the selected environment:

@@ -10,6 +10,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **State Account Role ARN Support for Route53/ACM Cross-Account Access**
+  - Added support for querying Route53 hosted zones and ACM certificates from
+    State Account
+  - New variable `state_account_role_arn` for assuming role in State Account
+    (where Route53/ACM reside)
+  - State account provider alias (`aws.state_account`) configured in
+    `providers.tf`
+  - All Route53 data sources and resources now use state account provider when
+    configured
+  - Route53 records (phpldapadmin, ltb_passwd, twofa_app, SES
+    verification/DKIM) created in State Account
+  - ALB can use ACM certificates from State Account (same region required)
+  - Scripts automatically inject `state_account_role_arn` into
+    `variables.tfvars`:
+    - `setup-application.sh` exports `STATE_ACCOUNT_ROLE_ARN` environment
+      variable
+    - `set-k8s-env.sh` injects `state_account_role_arn` into
+      `variables.tfvars`
+  - GitHub Actions workflows export `STATE_ACCOUNT_ROLE_ARN` for automatic
+    injection
+  - No ExternalId required for state account role assumption (by design)
+  - Comprehensive cross-account access documentation in
+    `CROSS-ACCOUNT-ACCESS.md`
+  - Updated ALB module to handle null certificate ARN gracefully
+  - Added certificate ARN to ALB module triggers for proper
+    IngressClassParams updates
+
 - **ExternalId Support for Cross-Account Role Assumption**
   - Added ExternalId requirement for enhanced security when assuming deployment
   account roles
@@ -54,14 +81,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Better integration with GitHub repository variables and secrets
   - Improved Kubernetes environment setup using `set-k8s-env.sh`
   - Enhanced user guidance and confirmation prompts
+  - Automatic injection of `state_account_role_arn` for Route53/ACM access
 
 - **GitHub Actions Workflow Updates**
   - Updated `application_infra_provisioning.yaml` with ExternalId support and
   improved error handling
   - Updated `application_infra_destroying.yaml` with ExternalId support and
   improved error handling
-  - Workflows now use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations
-  - Workflows now use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
+  - Workflows now use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state
+    operations
+  - Workflows now export `STATE_ACCOUNT_ROLE_ARN` for Route53/ACM
+    cross-account access
+  - Workflows now use `AWS_ASSUME_EXTERNAL_ID` for cross-account role
+    assumption
   security
   - Improved environment variable handling for password secrets
 
@@ -76,6 +108,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backend API Configuration**
   - Removed debug mode condition for API documentation endpoints
   - Swagger UI, ReDoc UI, and OpenAPI schema are now always accessible in production
+
+### Fixed
+
+- **Kubeconfig Auto-Update to Prevent Stale Cluster Endpoints**
+  - Fixed issue where kubeconfig could contain stale cluster endpoints after cluster
+    recreation or endpoint changes
+  - `set-k8s-env.sh` now automatically updates kubeconfig on every run using
+    `aws eks update-kubeconfig`
+  - Ensures kubeconfig always contains the latest cluster endpoint before any kubectl
+    commands are executed
+  - Prevents DNS lookup errors like: `dial tcp: lookup
+    26A3426590C00FBB5A84A506D1F8B14A.gr7.us-east-1.eks.amazonaws.com: no such host`
+  - Uses deployment account credentials (already assumed by the script) for kubeconfig
+    update
+  - Automatically creates kubeconfig directory if it doesn't exist
+  - Script exits with error if kubeconfig update fails, preventing deployment with
+    incorrect configuration
+  - Fixes issues with Terraform provisioners (e.g., ALB IngressClassParams) that use
+    kubectl commands
 
 ## [2025-12-20] - Swagger UI for API Documentation
 

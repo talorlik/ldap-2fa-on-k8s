@@ -28,6 +28,13 @@ variable "deployment_account_external_id" {
   sensitive   = true
 }
 
+variable "state_account_role_arn" {
+  description = "ARN of the IAM role to assume in the state account (where Route53 hosted zone and ACM certificate reside). Required when Route53 and ACM resources are in a different account than the deployment account."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
 ##################### OpenLDAP ##########################
 variable "app_name" {
   description = "Application name"
@@ -206,6 +213,26 @@ variable "cluster_name_component" {
   description = "Name component for cluster (used only if cluster_name not provided and remote state unavailable). Full name format: prefix-region-cluster_name_component-env"
   type        = string
   default     = "kc"
+}
+
+variable "kubernetes_master" {
+  description = "Kubernetes API server endpoint (KUBERNETES_MASTER environment variable). Set by set-k8s-env.sh or GitHub workflow. Can be set via TF_VAR_kubernetes_master."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "kube_config_path" {
+  description = "Path to kubeconfig file (KUBE_CONFIG_PATH environment variable). Set by set-k8s-env.sh or GitHub workflow. Can be set via TF_VAR_kube_config_path."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "wait_for_crd" {
+  description = "Whether to wait for EKS Auto Mode CRD to be available before creating IngressClassParams. Set to true for initial cluster deployments, false after cluster is established."
+  type        = bool
+  default     = false
 }
 
 ##################### PostgreSQL User Storage ##########################

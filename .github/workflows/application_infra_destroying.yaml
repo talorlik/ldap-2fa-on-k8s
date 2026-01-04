@@ -90,6 +90,8 @@ jobs:
             echo "DEPLOYMENT_ROLE_ARN=${{ secrets.AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN }}" >> $GITHUB_ENV
           fi
           echo "EXTERNAL_ID=${{ secrets.AWS_ASSUME_EXTERNAL_ID }}" >> $GITHUB_ENV
+          # Export state account role ARN for Route53/ACM access
+          echo "STATE_ACCOUNT_ROLE_ARN=${{ secrets.AWS_STATE_ACCOUNT_ROLE_ARN }}" >> $GITHUB_ENV
 
       - name: Configure AWS credentials (State Account)
         uses: aws-actions/configure-aws-credentials@v4
@@ -130,8 +132,9 @@ jobs:
           # It will assume Deployment Account role internally for EKS operations
           chmod +x ./set-k8s-env.sh
           source ./set-k8s-env.sh
-          echo "KUBERNETES_MASTER=$KUBERNETES_MASTER" >> $GITHUB_ENV
-          echo "KUBE_CONFIG_PATH=$KUBE_CONFIG_PATH" >> $GITHUB_ENV
+          # Export as TF_VAR_ environment variables for Terraform
+          echo "TF_VAR_kubernetes_master=$KUBERNETES_MASTER" >> $GITHUB_ENV
+          echo "TF_VAR_kube_config_path=$KUBE_CONFIG_PATH" >> $GITHUB_ENV
 
       - name: Configure AWS credentials (State Account for Terraform)
         uses: aws-actions/configure-aws-credentials@v4

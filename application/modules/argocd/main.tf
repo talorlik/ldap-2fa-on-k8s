@@ -18,7 +18,7 @@ resource "aws_iam_role" "argocd_capability" {
       {
         Effect = "Allow"
         Principal = {
-          Service = "capabilities.eks.amazonaws.com"
+          Service = "eks.amazonaws.com"
         }
         Action = [
           "sts:AssumeRole",

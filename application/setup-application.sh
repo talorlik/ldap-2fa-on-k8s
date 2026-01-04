@@ -334,12 +334,13 @@ if [ -z "$ROLE_SECRET_JSON" ]; then
     exit 1
 fi
 
-# Extract STATE_ACCOUNT_ROLE_ARN for backend state operations
+# Extract STATE_ACCOUNT_ROLE_ARN for backend state operations and Route53/ACM access
 STATE_ROLE_ARN=$(get_secret_key_value "$ROLE_SECRET_JSON" "AWS_STATE_ACCOUNT_ROLE_ARN" || echo "")
 if [ -z "$STATE_ROLE_ARN" ]; then
     print_error "Failed to retrieve AWS_STATE_ACCOUNT_ROLE_ARN from secret"
     exit 1
 fi
+export STATE_ACCOUNT_ROLE_ARN="$STATE_ROLE_ARN"
 print_success "Retrieved AWS_STATE_ACCOUNT_ROLE_ARN"
 
 # Determine which deployment account role ARN to use based on environment
@@ -511,6 +512,12 @@ fi
 print_success "Kubernetes environment variables set"
 print_info "  - KUBERNETES_MASTER: ${KUBERNETES_MASTER}"
 print_info "  - KUBE_CONFIG_PATH: ${KUBE_CONFIG_PATH}"
+
+# Export as TF_VAR_ environment variables for Terraform
+export TF_VAR_kubernetes_master="$KUBERNETES_MASTER"
+export TF_VAR_kube_config_path="$KUBE_CONFIG_PATH"
+print_info "  - TF_VAR_kubernetes_master: ${TF_VAR_kubernetes_master}"
+print_info "  - TF_VAR_kube_config_path: ${TF_VAR_kube_config_path}"
 echo ""
 
 # Assume State Account role for backend operations

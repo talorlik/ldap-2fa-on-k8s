@@ -324,7 +324,8 @@ account role ARNs:
       "Principal": {
         "AWS": [
           "arn:aws:iam::PRODUCTION_ACCOUNT_ID:role/github-role",
-          "arn:aws:iam::DEVELOPMENT_ACCOUNT_ID:role/github-role"
+          "arn:aws:iam::DEVELOPMENT_ACCOUNT_ID:role/github-role",
+          "arn:aws:iam::STATE_ACCOUNT_ID:role/github-role"
         ]
       },
       "Action": "sts:AssumeRole"
@@ -335,6 +336,15 @@ account role ARNs:
 
 Replace `PRODUCTION_ACCOUNT_ID` and `DEVELOPMENT_ACCOUNT_ID` with your actual
 account IDs, and `github-role` with your actual deployment role names.
+
+> [!IMPORTANT]
+>
+> **Self-Assumption Statement**: The last statement allows the role to assume itself. This is required when:
+> - The State Account role is used for both backend state operations and Route53/ACM access (when `state_account_role_arn` points to the same role)
+> - Terraform providers need to assume the same role that was already assumed by the initial authentication
+> - You encounter errors like "User: arn:aws:sts::ACCOUNT_ID:assumed-role/github-role/SESSION is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::ACCOUNT_ID:role/github-role"
+>
+> Without this statement, if a session is already running under `github-role` and Terraform tries to assume the same role again (via `assume_role` in `providers.tf`), the operation will fail with an `AccessDenied` error.
 
 **ExternalId Generation**:
 
@@ -348,6 +358,86 @@ account IDs, and `github-role` with your actual deployment role names.
 unauthorized role assumption attempts. Both the deployment account roles and the
 state account role must trust each other in their respective Trust
 Relationships for proper bidirectional cross-account access.
+
+#### ✅ Route53/ACM Cross-Account Access
+
+- **Added**: Support for accessing Route53 hosted zones and ACM certificates from State Account
+- **Location**: `application/providers.tf`, `application/main.tf`, `application/modules/openldap/`, `application/modules/ses/`
+- **Implementation**:
+  - State account provider alias (`aws.state_account`) configured in `providers.tf`
+  - Route53 hosted zone data source queries from State Account when `state_account_role_arn` is provided
+  - ACM certificate data source queries from State Account when `state_account_role_arn` is provided
+  - All Route53 record resources use state account provider for creating records in State Account
+  - ALB in deployment account can use ACM certificate from State Account (same region required)
+  - Scripts automatically inject `state_account_role_arn` into `variables.tfvars`
+  - No ExternalId required for state account role assumption (by design)
+
+**Key Security Features**:
+
+- **Cross-Account Resource Access**: Route53 and ACM resources can reside in State Account while ALB is deployed in Deployment Account
+- **Automatic Provider Selection**: Terraform automatically uses state account provider when `state_account_role_arn` is configured
+- **No ExternalId Required**: State account role assumption does not require ExternalId (by design, different security model)
+- **Comprehensive Documentation**: See `CROSS-ACCOUNT-ACCESS.md` for complete configuration details
+
+**State Account Role Permissions**:
+
+The State Account role must have the following permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "route53:GetHostedZone",
+        "route53:ListHostedZones",
+        "route53:ChangeResourceRecordSets",
+        "route53:GetChange"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "acm:ListCertificates",
+        "acm:DescribeCertificate"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+**State Account Role Trust Relationship**:
+
+The State Account role must trust the Deployment Account role (or GitHub Actions OIDC provider):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::DEPLOYMENT_ACCOUNT_ID:role/github-role",
+          "arn:aws:iam::STATE_ACCOUNT_ID:role/github-role"
+        ]
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+**Note**: ExternalId is **not required** for State Account role assumption (by design).
+
+> [!IMPORTANT]
+>
+> **Self-Assumption Statement**: The second statement allows the role to assume itself. This is required when the State Account role is used for both backend state operations and Route53/ACM access (when `state_account_role_arn` points to the same role). Without this statement, if a session is already running under `github-role` and Terraform tries to assume the same role again via `assume_role` in `providers.tf`, the operation will fail with an `AccessDenied` error.
+
+**Result**: Enables secure cross-account access to Route53 hosted zones and ACM certificates while maintaining separation between state storage and resource deployment accounts. ALB in deployment account can use certificates from State Account without additional IAM permissions (AWS built-in feature).
 
 ## Security Compliance
 

@@ -61,6 +61,8 @@ alb_ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 # Otherwise, provide cluster name directly:
 # cluster_name = "talo-tf-us-east-1-kc-prod"
 
+wait_for_crd = true
+
 ##################### PostgreSQL User Storage ##########################
 enable_postgresql            = true
 postgresql_namespace         = "ldap-2fa"
@@ -158,3 +160,9 @@ argocd_app_frontend_namespace = "2fa-app"
 # argocd_app_sync_policy_self_heal  = true
 deployment_account_role_arn = "arn:aws:iam::944880695150:role/github-role"
 deployment_account_external_id = "5f8697f36412ae83d62efc0a2ebd898fbb4a1721f0da986d9fa1ea7769223f47"
+
+# State account configuration (where Route53 hosted zone and ACM certificate reside)
+# Required when Route53 and ACM resources are in a different account than deployment account
+# This is automatically injected by setup-application.sh and set-k8s-env.sh scripts
+# state_account_role_arn = "arn:aws:iam::STATE_ACCOUNT_ID:role/terraform-state-role"
+state_account_role_arn = "arn:aws:iam::395323424870:role/github-role"

@@ -45,8 +45,8 @@ BACKEND_FILE="${BACKEND_FILE:-backend.hcl}"
 
 # Check if backend file exists
 if [ ! -f "$BACKEND_FILE" ]; then
-  echo "ERROR: $BACKEND_FILE not found. Run ./setup-application.sh or the application_infra_provisioning GitHub workflow first."
-  exit 1
+    echo "ERROR: $BACKEND_FILE not found. Run ./setup-application.sh or the application_infra_provisioning GitHub workflow first."
+    exit 1
 fi
 
 # Parse backend configuration
@@ -63,9 +63,9 @@ echo "Terraform workspace: $WORKSPACE"
 
 # Fetch cluster name from backend_infra state
 if [ "$WORKSPACE" = "default" ]; then
-  STATE_KEY="$BACKEND_KEY"
+    STATE_KEY="$BACKEND_KEY"
 else
-  STATE_KEY="env:/$WORKSPACE/$BACKEND_KEY"
+    STATE_KEY="env:/$WORKSPACE/$BACKEND_KEY"
 fi
 
 echo "Fetching cluster name from s3://$BACKEND_BUCKET/$STATE_KEY"
@@ -74,9 +74,9 @@ echo "Fetching cluster name from s3://$BACKEND_BUCKET/$STATE_KEY"
 CLUSTER_NAME=$(aws s3 cp "s3://$BACKEND_BUCKET/$STATE_KEY" - 2>/dev/null | jq -r '.outputs.cluster_name.value' || echo "")
 
 if [ -z "$CLUSTER_NAME" ] || [ "$CLUSTER_NAME" = "null" ]; then
-  echo "ERROR: Could not retrieve cluster name from backend_infra state."
-  echo "Make sure backend_infra has been deployed and outputs cluster_name."
-  exit 1
+    echo "ERROR: Could not retrieve cluster name from backend_infra state."
+    echo "Make sure backend_infra has been deployed and outputs cluster_name."
+    exit 1
 fi
 
 echo "Cluster name: $CLUSTER_NAME"
@@ -170,6 +170,14 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     else
         sed -i '' "s|^deployment_account_external_id[[:space:]]*=.*|deployment_account_external_id = \"${EXTERNAL_ID}\"|" "$VARIABLES_FILE"
     fi
+    # Add or update state_account_role_arn (if provided)
+    if [ -n "${STATE_ACCOUNT_ROLE_ARN:-}" ]; then
+        if ! grep -q "^state_account_role_arn" "$VARIABLES_FILE"; then
+            echo "state_account_role_arn = \"${STATE_ACCOUNT_ROLE_ARN}\"" >> "$VARIABLES_FILE"
+        else
+            sed -i '' "s|^state_account_role_arn[[:space:]]*=.*|state_account_role_arn = \"${STATE_ACCOUNT_ROLE_ARN}\"|" "$VARIABLES_FILE"
+        fi
+    fi
 else
     # Linux sed
     sed -i "s|^env[[:space:]]*=.*|env                    = \"${ENVIRONMENT:-prod}\"|" "$VARIABLES_FILE"
@@ -186,6 +194,14 @@ else
     else
         sed -i "s|^deployment_account_external_id[[:space:]]*=.*|deployment_account_external_id = \"${EXTERNAL_ID}\"|" "$VARIABLES_FILE"
     fi
+    # Add or update state_account_role_arn (if provided)
+    if [ -n "${STATE_ACCOUNT_ROLE_ARN:-}" ]; then
+        if ! grep -q "^state_account_role_arn" "$VARIABLES_FILE"; then
+            echo "state_account_role_arn = \"${STATE_ACCOUNT_ROLE_ARN}\"" >> "$VARIABLES_FILE"
+        else
+            sed -i "s|^state_account_role_arn[[:space:]]*=.*|state_account_role_arn = \"${STATE_ACCOUNT_ROLE_ARN}\"|" "$VARIABLES_FILE"
+        fi
+    fi
 fi
 
 print_success "Updated ${VARIABLES_FILE}"
@@ -201,8 +217,8 @@ echo "Fetching cluster endpoint..."
 KUBERNETES_MASTER=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --query 'cluster.endpoint' --output text 2>/dev/null || echo "")
 
 if [ -z "$KUBERNETES_MASTER" ]; then
-  echo "ERROR: Could not retrieve cluster endpoint. Make sure the cluster exists and you have AWS credentials configured."
-  exit 1
+    print_error "Could not retrieve cluster endpoint. Make sure the cluster exists and you have AWS credentials configured."
+    exit 1
 fi
 
 echo "Kubernetes Master: $KUBERNETES_MASTER"
@@ -210,6 +226,85 @@ echo "Kubernetes Master: $KUBERNETES_MASTER"
 # Export environment variables
 export KUBERNETES_MASTER
 export KUBE_CONFIG_PATH="${KUBE_CONFIG_PATH:-$HOME/.kube/config}"
+
+# Update kubeconfig with latest cluster endpoint
+# This MUST happen on every run to ensure kubeconfig is current
+# Use deployment account credentials (already set via environment variables)
+print_info "Updating kubeconfig for cluster: $CLUSTER_NAME"
+print_info "Region: $AWS_REGION"
+
+# Ensure kubeconfig directory exists
+KUBE_CONFIG_DIR=$(dirname "$KUBE_CONFIG_PATH")
+if [ ! -d "$KUBE_CONFIG_DIR" ]; then
+    mkdir -p "$KUBE_CONFIG_DIR"
+    print_info "Created kubeconfig directory: $KUBE_CONFIG_DIR"
+fi
+
+# Configure kubeconfig to use AWS CLI exec plugin for dynamic token generation
+# This ensures kubectl always gets fresh tokens from whatever AWS credentials are in the environment
+# Terraform's AWS provider will assume the deployment role, and kubectl will inherit those credentials
+print_info "Configuring kubeconfig with AWS CLI exec plugin for dynamic authentication..."
+
+# Fetch cluster certificate authority data
+CLUSTER_CA_DATA=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --query 'cluster.certificateAuthority.data' --output text 2>/dev/null)
+
+if [ -z "$CLUSTER_CA_DATA" ]; then
+    print_error "Failed to retrieve cluster certificate authority data"
+    exit 1
+fi
+
+# Create/update kubeconfig with exec plugin configuration
+cat > "$KUBE_CONFIG_PATH" <<'EOF'
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    certificate-authority-data: CLUSTER_CA_DATA_PLACEHOLDER
+    server: KUBERNETES_MASTER_PLACEHOLDER
+  name: CLUSTER_NAME_PLACEHOLDER
+contexts:
+- context:
+    cluster: CLUSTER_NAME_PLACEHOLDER
+    user: CLUSTER_NAME_PLACEHOLDER
+  name: CLUSTER_NAME_PLACEHOLDER
+current-context: CLUSTER_NAME_PLACEHOLDER
+users:
+- name: CLUSTER_NAME_PLACEHOLDER
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      command: aws
+      args:
+      - eks
+      - get-token
+      - --cluster-name
+      - CLUSTER_NAME_PLACEHOLDER
+      - --region
+      - AWS_REGION_PLACEHOLDER
+      # AWS CLI will automatically use credentials from environment variables
+      # (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
+      # These are set by Terraform's AWS provider assume_role block
+      env: null
+EOF
+
+# Replace placeholders with actual values (avoids shell variable expansion issues)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS sed
+    sed -i '' "s|CLUSTER_CA_DATA_PLACEHOLDER|$CLUSTER_CA_DATA|g" "$KUBE_CONFIG_PATH"
+    sed -i '' "s|KUBERNETES_MASTER_PLACEHOLDER|$KUBERNETES_MASTER|g" "$KUBE_CONFIG_PATH"
+    sed -i '' "s|CLUSTER_NAME_PLACEHOLDER|$CLUSTER_NAME|g" "$KUBE_CONFIG_PATH"
+    sed -i '' "s|AWS_REGION_PLACEHOLDER|$AWS_REGION|g" "$KUBE_CONFIG_PATH"
+else
+    # Linux sed
+    sed -i "s|CLUSTER_CA_DATA_PLACEHOLDER|$CLUSTER_CA_DATA|g" "$KUBE_CONFIG_PATH"
+    sed -i "s|KUBERNETES_MASTER_PLACEHOLDER|$KUBERNETES_MASTER|g" "$KUBE_CONFIG_PATH"
+    sed -i "s|CLUSTER_NAME_PLACEHOLDER|$CLUSTER_NAME|g" "$KUBE_CONFIG_PATH"
+    sed -i "s|AWS_REGION_PLACEHOLDER|$AWS_REGION|g" "$KUBE_CONFIG_PATH"
+fi
+
+print_success "Kubeconfig configured with exec plugin"
+print_info "Kubeconfig path: $KUBE_CONFIG_PATH"
+print_info "kubectl will dynamically fetch tokens using current AWS credentials"
 
 echo ""
 echo "✅ Environment variables set successfully!"

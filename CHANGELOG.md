@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **State Account Role ARN Support for Route53/ACM Cross-Account Access**
+  - Added support for querying Route53 hosted zones and ACM certificates from
+    State Account
+  - New variable `state_account_role_arn` in `application/variables.tf` for
+    assuming role in State Account
+  - State account provider alias (`aws.state_account`) configured in
+    `application/providers.tf`
+  - All Route53 data sources and resources use state account provider when
+    configured
+  - Route53 records created in State Account while ALB deployed in Deployment
+    Account
+  - ALB can use ACM certificates from State Account (same region required)
+  - Scripts automatically inject `state_account_role_arn`:
+    - `application/setup-application.sh` exports `STATE_ACCOUNT_ROLE_ARN`
+    - `application/set-k8s-env.sh` injects into `variables.tfvars`
+  - GitHub Actions workflows export `STATE_ACCOUNT_ROLE_ARN` for automatic
+    injection
+  - No ExternalId required for state account role assumption (by design)
+  - Comprehensive cross-account access documentation in
+    `application/CROSS-ACCOUNT-ACCESS.md`
+  - Updated ALB module to handle null certificate ARN and include in triggers
+
 - **ExternalId Support for Cross-Account Role Assumption**
   - Added ExternalId requirement for enhanced security when assuming deployment
   account roles

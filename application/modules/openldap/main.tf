@@ -116,10 +116,12 @@ data "kubernetes_ingress_v1" "ltb_passwd" {
 }
 
 # Route53 A (alias) records for subdomains pointing to ALB
+# Note: Provider is passed from parent module via providers block
 resource "aws_route53_record" "phpldapadmin" {
-  zone_id = var.route53_zone_id
-  name    = var.phpldapadmin_host
-  type    = "A"
+  provider = aws.state_account
+  zone_id  = var.route53_zone_id
+  name     = var.phpldapadmin_host
+  type     = "A"
 
   alias {
     name                   = try(data.kubernetes_ingress_v1.phpldapadmin.status[0].load_balancer[0].ingress[0].hostname, data.kubernetes_ingress_v1.ltb_passwd.status[0].load_balancer[0].ingress[0].hostname, "")
@@ -135,9 +137,10 @@ resource "aws_route53_record" "phpldapadmin" {
 }
 
 resource "aws_route53_record" "ltb_passwd" {
-  zone_id = var.route53_zone_id
-  name    = var.ltb_passwd_host
-  type    = "A"
+  provider = aws.state_account
+  zone_id  = var.route53_zone_id
+  name     = var.ltb_passwd_host
+  type     = "A"
 
   alias {
     name                   = try(data.kubernetes_ingress_v1.phpldapadmin.status[0].load_balancer[0].ingress[0].hostname, data.kubernetes_ingress_v1.ltb_passwd.status[0].load_balancer[0].ingress[0].hostname, "")
