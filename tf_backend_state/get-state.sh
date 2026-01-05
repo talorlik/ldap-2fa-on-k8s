@@ -7,6 +7,13 @@
 
 set -euo pipefail
 
+# Clean up any existing AWS credentials from environment to prevent conflicts
+# This ensures the script starts with a clean slate and uses the correct credentials
+unset AWS_ACCESS_KEY_ID 2>/dev/null || true
+unset AWS_SECRET_ACCESS_KEY 2>/dev/null || true
+unset AWS_SESSION_TOKEN 2>/dev/null || true
+unset AWS_PROFILE 2>/dev/null || true
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -93,8 +100,10 @@ get_aws_secret() {
     local exit_code
 
     # Retrieve secret from AWS Secrets Manager
+    # Use AWS_REGION if set, otherwise default to us-east-1
     secret_json=$(aws secretsmanager get-secret-value \
         --secret-id "$secret_name" \
+        --region "${AWS_REGION:-us-east-1}" \
         --query SecretString \
         --output text 2>&1)
 

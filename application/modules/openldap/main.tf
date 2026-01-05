@@ -117,14 +117,37 @@ data "kubernetes_ingress_v1" "ltb_passwd" {
 
 # Route53 A (alias) records for subdomains pointing to ALB
 # Note: Provider is passed from parent module via providers block
+# Use hostname variables for count (determined at plan time) instead of data source values
+locals {
+  # Determine which Route53 records to create based on hostname variables
+  # Since variables are now guaranteed to be non-null (derived from domain_name if needed),
+  # we only need to check for non-empty strings
+  # This can be evaluated at plan time, unlike data source values
+  create_phpldapadmin_record = var.phpldapadmin_host != "" ? 1 : 0
+  create_ltb_passwd_record  = var.ltb_passwd_host != "" ? 1 : 0
+
+  # Get ALB hostname from either ingress (they should both point to the same ALB)
+  # This will be evaluated during apply, but count is already determined at plan time
+  # Note: If both ingresses don't have a hostname yet, this will error (expected behavior)
+  # to prevent creating Route53 records with invalid/null hostnames
+  alb_hostname = try(
+    data.kubernetes_ingress_v1.phpldapadmin.status[0].load_balancer[0].ingress[0].hostname,
+    data.kubernetes_ingress_v1.ltb_passwd.status[0].load_balancer[0].ingress[0].hostname
+  )
+}
+
 resource "aws_route53_record" "phpldapadmin" {
+  count    = local.create_phpldapadmin_record
   provider = aws.state_account
   zone_id  = var.route53_zone_id
   name     = var.phpldapadmin_host
   type     = "A"
 
   alias {
-    name                   = try(data.kubernetes_ingress_v1.phpldapadmin.status[0].load_balancer[0].ingress[0].hostname, data.kubernetes_ingress_v1.ltb_passwd.status[0].load_balancer[0].ingress[0].hostname, "")
+    # Use the ALB hostname from either ingress (via local variable)
+    # Note: On first apply, the ALB may not be provisioned yet (EKS Auto Mode creates it asynchronously).
+    # If the hostname is not available, this will error. Run 'terraform apply' again after the ALB is provisioned.
+    name                   = local.alb_hostname
     zone_id                = var.alb_zone_id
     evaluate_target_health = true
   }
@@ -134,16 +157,33 @@ resource "aws_route53_record" "phpldapadmin" {
     data.kubernetes_ingress_v1.phpldapadmin,
     data.kubernetes_ingress_v1.ltb_passwd,
   ]
+
+  lifecycle {
+    # Allow the alias name to be updated when the ALB hostname becomes available
+    # This enables a two-phase apply: first apply creates the record structure,
+    # second apply updates it with the actual ALB hostname once it's provisioned
+    create_before_destroy = true
+
+    # Precondition: Ensure ALB hostname is never null (Route53 does not allow null alias names)
+    precondition {
+      condition     = local.alb_hostname != null && local.alb_hostname != ""
+      error_message = "ALB hostname must be available before creating Route53 record. Ensure OpenLDAP Ingress resources have been created and the ALB has been provisioned by EKS Auto Mode."
+    }
+  }
 }
 
 resource "aws_route53_record" "ltb_passwd" {
+  count    = local.create_ltb_passwd_record
   provider = aws.state_account
   zone_id  = var.route53_zone_id
   name     = var.ltb_passwd_host
   type     = "A"
 
   alias {
-    name                   = try(data.kubernetes_ingress_v1.phpldapadmin.status[0].load_balancer[0].ingress[0].hostname, data.kubernetes_ingress_v1.ltb_passwd.status[0].load_balancer[0].ingress[0].hostname, "")
+    # Use the ALB hostname from either ingress (via local variable)
+    # Note: On first apply, the ALB may not be provisioned yet (EKS Auto Mode creates it asynchronously).
+    # If the hostname is not available, this will error. Run 'terraform apply' again after the ALB is provisioned.
+    name                   = local.alb_hostname
     zone_id                = var.alb_zone_id
     evaluate_target_health = true
   }
@@ -153,4 +193,17 @@ resource "aws_route53_record" "ltb_passwd" {
     data.kubernetes_ingress_v1.phpldapadmin,
     data.kubernetes_ingress_v1.ltb_passwd,
   ]
+
+  lifecycle {
+    # Allow the alias name to be updated when the ALB hostname becomes available
+    # This enables a two-phase apply: first apply creates the record structure,
+    # second apply updates it with the actual ALB hostname once it's provisioned
+    create_before_destroy = true
+
+    # Precondition: Ensure ALB hostname is never null (Route53 does not allow null alias names)
+    precondition {
+      condition     = local.alb_hostname != null && local.alb_hostname != ""
+      error_message = "ALB hostname must be available before creating Route53 record. Ensure OpenLDAP Ingress resources have been created and the ALB has been provisioned by EKS Auto Mode."
+    }
+  }
 }

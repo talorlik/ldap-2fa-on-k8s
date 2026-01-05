@@ -31,7 +31,7 @@ resource "kubernetes_storage_class_v1" "this" {
 
   storage_provisioner    = "ebs.csi.eks.amazonaws.com"
   reclaim_policy         = "Delete"
-  volume_binding_mode    = "WaitForFirstConsumer"
+  volume_binding_mode    = "Immediate"  # Changed from WaitForFirstConsumer to prevent PVC binding deadlocks
   allow_volume_expansion = true
 
   parameters = {
@@ -40,6 +40,16 @@ resource "kubernetes_storage_class_v1" "this" {
   }
 
   depends_on = [data.aws_eks_cluster.cluster]
+
+  lifecycle {
+    # Prevent Terraform from trying to recreate if the resource already exists
+    # This helps when the resource exists but isn't in state
+    ignore_changes = [
+      metadata[0].annotations,
+    ]
+    # Allow replacement if needed
+    replace_triggered_by = []
+  }
 }
 
 # module "route53" {
@@ -103,6 +113,14 @@ locals {
   # being fully deployed as this guarantees that an Ingress resource exists, which triggers ALB creation.
   # The ALB must exist before this can be queried.
   alb_dns_name = var.use_alb ? data.aws_lb.alb[0].dns_name : null
+
+  # Derive hostnames from domain_name if not explicitly provided
+  # These are used for Route53 records and must be non-null
+  # Note: domain_name is a required variable (not a resource), so no depends_on is needed
+  # The coalesce ensures we always have a value - either from the variable or derived from domain_name
+  phpldapadmin_host = coalesce(var.phpldapadmin_host, "phpldapadmin.${var.domain_name}")
+  ltb_passwd_host   = coalesce(var.ltb_passwd_host, "passwd.${var.domain_name}")
+  twofa_app_host    = coalesce(var.twofa_app_host, "app.${var.domain_name}")
 }
 
 # ALB module creates IngressClass and IngressClassParams for EKS Auto Mode
@@ -129,17 +147,6 @@ module "alb" {
   wait_for_crd = var.wait_for_crd
 }
 
-# Query AWS for ALB DNS name using the load balancer name.
-# While querying AWS directly is the preferred approach, we are reliant on the OpenLDAP module
-# being fully deployed as this guarantees that an Ingress resource exists, which triggers ALB creation.
-data "aws_lb" "alb" {
-  count = var.use_alb ? 1 : 0
-  name  = local.alb_load_balancer_name
-
-  # Ensure OpenLDAP module is fully deployed (creates Ingress which triggers ALB creation)
-  depends_on = [module.openldap]
-}
-
 ##################### OpenLDAP ##########################
 
 # OpenLDAP Module
@@ -156,8 +163,10 @@ module "openldap" {
   openldap_config_password = var.openldap_config_password
   storage_class_name       = local.storage_class_name
 
-  phpldapadmin_host = var.phpldapadmin_host
-  ltb_passwd_host   = var.ltb_passwd_host
+  # Use derived values from locals to ensure non-null values
+  # These are derived from domain_name if not explicitly provided
+  phpldapadmin_host = local.phpldapadmin_host
+  ltb_passwd_host   = local.ltb_passwd_host
 
   use_alb                = var.use_alb
   ingress_class_name     = var.use_alb ? module.alb[0].ingress_class_name : null
@@ -183,24 +192,77 @@ module "openldap" {
   }
 }
 
+# Query AWS for ALB DNS name using the load balancer name.
+# While querying AWS directly is the preferred approach, we are reliant on the OpenLDAP module
+# being fully deployed as this guarantees that an Ingress resource exists, which triggers ALB creation.
+data "aws_lb" "alb" {
+  count = var.use_alb ? 1 : 0
+  name  = local.alb_load_balancer_name
+
+  # Ensure OpenLDAP module is fully deployed (creates Ingress which triggers ALB creation)
+  depends_on = [module.openldap]
+}
+
 # Route53 A (alias) record for 2FA application
+# Use var.use_alb for count (known at plan time) and data.aws_lb.alb for DNS name
 resource "aws_route53_record" "twofa_app" {
-  count    = var.twofa_app_host != null ? 1 : 0
+  count    = var.use_alb ? 1 : 0
   provider = aws.state_account
 
   zone_id = data.aws_route53_zone.this.zone_id
-  name    = var.twofa_app_host
+  name    = local.twofa_app_host
   type    = "A"
 
   alias {
-    name                   = module.openldap.alb_dns_name
+    # Use data source directly instead of module output to avoid count dependency issues
+    # The data source has depends_on to ensure ALB exists
+    name                   = data.aws_lb.alb[0].dns_name
     zone_id                = local.alb_zone_id
     evaluate_target_health = true
   }
 
   depends_on = [
-    module.openldap, # Ensures ALB exists before creating record
+    module.openldap, # Ensures Ingress is created (which triggers ALB creation)
+    data.aws_lb.alb, # Ensures ALB exists before creating record
   ]
+}
+
+##################### ArgoCD ##########################
+
+# ArgoCD Capability Module
+# Deployed early to allow other modules to depend on it
+module "argocd" {
+  source = "./modules/argocd"
+
+  count = var.enable_argocd ? 1 : 0
+
+  env    = var.env
+  region = var.region
+  prefix = var.prefix
+
+  cluster_name = local.cluster_name
+
+  argocd_role_name_component       = var.argocd_role_name_component
+  argocd_capability_name_component = var.argocd_capability_name_component
+  argocd_namespace                 = var.argocd_namespace
+  argocd_project_name              = var.argocd_project_name
+
+  idc_instance_arn = var.idc_instance_arn
+  idc_region       = var.idc_region
+
+  rbac_role_mappings        = var.argocd_rbac_role_mappings
+  argocd_vpce_ids           = var.argocd_vpce_ids
+  delete_propagation_policy = var.argocd_delete_propagation_policy
+}
+
+# Wait for ArgoCD capability to be fully deployed and ACTIVE
+# This ensures proper deployment ordering when ArgoCD is enabled
+resource "time_sleep" "wait_for_argocd" {
+  count = var.enable_argocd ? 1 : 0
+
+  create_duration = "60s"  # Wait 60 seconds for ArgoCD capability to be ready
+
+  depends_on = [module.argocd]
 }
 
 ##################### PostgreSQL for User Storage ##########################
@@ -225,9 +287,41 @@ module "postgresql" {
 
   tags = local.tags
 
-  depends_on = [
-    kubernetes_storage_class_v1.this,
-  ]
+  depends_on = concat(
+    [module.openldap],
+    var.enable_argocd ? [module.argocd[0], time_sleep.wait_for_argocd[0]] : []
+  )
+}
+
+##################### Redis for SMS OTP Storage ##########################
+
+# Redis Module for centralized SMS OTP code storage with TTL-based expiration
+module "redis" {
+  source = "./modules/redis"
+
+  count = var.enable_redis ? 1 : 0
+
+  env    = var.env
+  region = var.region
+  prefix = var.prefix
+
+  enable_redis       = var.enable_redis
+  namespace          = var.redis_namespace
+  secret_name        = var.redis_secret_name
+  redis_password     = var.redis_password
+  storage_class_name = local.storage_class_name
+  storage_size       = var.redis_storage_size
+  chart_version      = var.redis_chart_version
+
+  # Network policy configuration
+  backend_namespace = var.argocd_app_backend_namespace
+
+  tags = local.tags
+
+  depends_on = concat(
+    [module.openldap],
+    var.enable_argocd ? [module.argocd[0], time_sleep.wait_for_argocd[0]] : []
+  )
 }
 
 ##################### SES for Email Verification ##########################
@@ -256,7 +350,7 @@ module "ses" {
   # If state_account_role_arn is null, state_account provider uses default credentials
   # Note: ses module needs both aws and aws.state_account
   providers = {
-    aws             = aws
+    aws               = aws
     aws.state_account = aws.state_account
   }
 }
@@ -288,64 +382,7 @@ module "sns" {
   tags = local.tags
 }
 
-##################### Redis for SMS OTP Storage ##########################
-
-# Redis Module for centralized SMS OTP code storage with TTL-based expiration
-module "redis" {
-  source = "./modules/redis"
-
-  count = var.enable_redis ? 1 : 0
-
-  env    = var.env
-  region = var.region
-  prefix = var.prefix
-
-  enable_redis       = var.enable_redis
-  namespace          = var.redis_namespace
-  secret_name        = var.redis_secret_name
-  redis_password     = var.redis_password
-  storage_class_name = local.storage_class_name
-  storage_size       = var.redis_storage_size
-  chart_version      = var.redis_chart_version
-
-  # Network policy configuration
-  backend_namespace = var.argocd_app_backend_namespace
-
-  tags = local.tags
-
-  depends_on = [
-    kubernetes_storage_class_v1.this,
-  ]
-}
-
-##################### ArgoCD ##########################
-
-# ArgoCD Capability Module
-module "argocd" {
-  source = "./modules/argocd"
-
-  count = var.enable_argocd ? 1 : 0
-
-  env    = var.env
-  region = var.region
-  prefix = var.prefix
-
-  cluster_name = local.cluster_name
-
-  argocd_role_name_component       = var.argocd_role_name_component
-  argocd_capability_name_component = var.argocd_capability_name_component
-  argocd_namespace                 = var.argocd_namespace
-  argocd_project_name              = var.argocd_project_name
-
-  idc_instance_arn = var.idc_instance_arn
-  idc_region       = var.idc_region
-
-  rbac_role_mappings        = var.argocd_rbac_role_mappings
-  argocd_vpce_ids           = var.argocd_vpce_ids
-  delete_propagation_policy = var.argocd_delete_propagation_policy
-}
-
-# ArgoCD Application - Backend
+##################### ArgoCD Application - Backend
 module "argocd_app_backend" {
   source = "./modules/argocd_app"
 

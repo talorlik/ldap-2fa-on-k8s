@@ -153,12 +153,14 @@ variable "phpldapadmin_host" {
   description = "Hostname for phpLDAPadmin ingress (e.g., phpldapadmin.talorlik.com). If null, will be derived from domain_name"
   type        = string
   default     = null
+  nullable    = true
 }
 
 variable "ltb_passwd_host" {
   description = "Hostname for ltb-passwd ingress (e.g., passwd.talorlik.com). If null, will be derived from domain_name"
   type        = string
   default     = null
+  nullable    = true
 }
 
 variable "twofa_app_host" {

@@ -53,12 +53,12 @@ variable "namespace" {
 }
 
 variable "phpldapadmin_host" {
-  description = "Hostname for phpLDAPadmin ingress (e.g., phpldapadmin.talorlik.com)"
+  description = "Hostname for phpLDAPadmin ingress (e.g., phpldapadmin.talorlik.com). Derived from domain_name if not provided."
   type        = string
 }
 
 variable "ltb_passwd_host" {
-  description = "Hostname for ltb-passwd ingress (e.g., passwd.talorlik.com)"
+  description = "Hostname for ltb-passwd ingress (e.g., passwd.talorlik.com). Derived from domain_name if not provided."
   type        = string
 }
 

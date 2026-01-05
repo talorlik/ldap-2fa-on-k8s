@@ -34,12 +34,12 @@ output "alb_dns_name" {
 
 output "phpldapadmin_route53_record_name" {
   description = "Route53 record name for phpLDAPadmin"
-  value       = aws_route53_record.phpldapadmin.name
+  value       = length(aws_route53_record.phpldapadmin) > 0 ? aws_route53_record.phpldapadmin[0].name : null
 }
 
 output "ltb_passwd_route53_record_name" {
   description = "Route53 record name for ltb-passwd"
-  value       = aws_route53_record.ltb_passwd.name
+  value       = length(aws_route53_record.ltb_passwd) > 0 ? aws_route53_record.ltb_passwd[0].name : null
 }
 
 ##################### Network Policies ##########################

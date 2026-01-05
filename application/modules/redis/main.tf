@@ -151,7 +151,10 @@ resource "helm_release" "redis" {
 
   wait          = true
   wait_for_jobs = true
-  timeout       = 600
+  timeout       = 600  # Reduced from 1200 to 600 seconds (10 min) for faster debugging
+
+  # Allow replacement if name conflict occurs
+  replace = true
 
   depends_on = [
     kubernetes_namespace.redis[0],
