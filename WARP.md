@@ -19,18 +19,20 @@ ACM certificate (Account B - Deployment Account)
 
 **Multi-Account Architecture:**
 
-- **Account A (State Account)**: Stores Terraform state files in S3
+- **Account A (State Account)**: Stores Terraform state files in S3, Route53 hosted zones, and ACM certificates
 - **Account B (Deployment Accounts)**: Contains all infrastructure resources
   - **Production Account**: Separate account for production infrastructure
   - **Development Account**: Separate account for development infrastructure
 - GitHub Actions uses OIDC to assume Account A role for backend state operations
 - Terraform provider assumes Account B role (prod or dev) via `assume_role` for
 resource deployment with ExternalId for enhanced security
+- **State Account provider** (`aws.state_account`) assumes Account A role for
+Route53 and ACM operations (no ExternalId required)
 - Environment-based role selection: workflows and scripts automatically select
 the appropriate deployment role ARN based on the selected environment (`prod` or
 `dev`)
 - **ExternalId Security**: Cross-account role assumption uses ExternalId to
-prevent confused deputy attacks
+prevent confused deputy attacks (for deployment account roles only)
 
 ## Architecture
 
@@ -55,17 +57,23 @@ SSM, STS (IRSA), and SNS (SMS 2FA) access
 - **Storage**: StorageClass created in application layer (gp3, encrypted), PVCs
 created by Helm chart
 - **Container Registry**: ECR repository for Docker images with lifecycle
-policies (immutable tags)
+policies (immutable tags). All third-party images (Redis, PostgreSQL, OpenLDAP)
+are automatically mirrored from Docker Hub to ECR during deployment
 - **DNS & Certificates**: Uses existing Route53 hosted zone and validated ACM
-certificate (via data sources)
+certificate (via data sources). Supports cross-account access when Route53/ACM
+are in State Account
 - **Load Balancer**: AWS ALB automatically created via Ingress resources for
 exposing web UIs (phpLdapAdmin, LTB-passwd, and 2FA application)
 - **IngressClass/IngressClassParams**: Created by ALB module to configure EKS
 Auto Mode ALB behavior (scheme, IP address type, certificate ARN, group name)
 - **Network Policies**: Kubernetes NetworkPolicies for secure internal cluster
 communication with cross-namespace access for LDAP service
-- **OpenLDAP Image**: osixia/openldap:1.5.0 (overriding chart's default bitnami
-image which doesn't exist)
+- **Container Image Management**: All third-party images (OpenLDAP, Redis,
+PostgreSQL) are mirrored to ECR to eliminate Docker Hub rate limits and external
+dependencies. Images are pulled from ECR during deployment
+  - OpenLDAP: osixia/openldap:1.5.0 → ECR tag `openldap-1.5.0`
+  - Redis: bitnami/redis:8.4.0-debian-12-r6 → ECR tag `redis-8.4.0`
+  - PostgreSQL: bitnami/postgresql:18.1.0-debian-12-r4 → ECR tag `postgresql-18.1.0`
 - **2FA Application**: Full-stack application with Python FastAPI backend and
 static HTML/JS/CSS frontend, supporting TOTP and SMS MFA methods
 - **User Signup Management**: Self-service registration with email/phone
@@ -108,16 +116,18 @@ ldap-2fa-on-k8s/
 │   │   ├── Dockerfile
 │   │   └── nginx.conf
 │   ├── helm/                   # Helm values templates (OpenLDAP, Redis)
+│   ├── mirror-images-to-ecr.sh # ECR image mirroring script
 │   └── modules/                # Terraform modules
 │       ├── alb/                # IngressClass and IngressClassParams
 │       ├── argocd/             # ArgoCD capability (AWS managed)
 │       ├── argocd_app/         # ArgoCD Application CRD
 │       ├── cert-manager/       # TLS certificate management
 │       ├── network-policies/   # Kubernetes NetworkPolicies
-│       ├── openldap/           # OpenLDAP Stack HA deployment module (NEW)
+│       ├── openldap/           # OpenLDAP Stack HA deployment module
 │       ├── postgresql/         # PostgreSQL database (Bitnami Helm)
 │       ├── redis/              # Redis cache for SMS OTP
 │       ├── route53/            # Route53 hosted zone (commented out)
+│       ├── route53_record/     # Route53 A (alias) record creation (NEW)
 │       ├── ses/                # SES for email verification
 │       └── sns/                # SNS for SMS 2FA
 ├── .github/workflows/          # CI/CD workflows
@@ -277,6 +287,10 @@ This script will:
 environment variables
 - Create backend.hcl from template if it doesn't exist
 - Update variables.tfvars with selected values
+- **Mirror third-party Docker images to ECR** (OpenLDAP, Redis, PostgreSQL)
+  - Checks which images already exist in ECR
+  - Only mirrors missing images from Docker Hub
+  - Uses Deployment Account credentials for ECR operations
 - Set Kubernetes environment variables using set-k8s-env.sh
 - Run all Terraform commands automatically (init, workspace, validate, plan,
 apply)
@@ -327,7 +341,30 @@ aws ssm start-session --target <instance-id>
 
 ### ECR Operations
 
-**Push Docker image to ECR:**
+**Mirror Third-Party Images to ECR:**
+
+The `mirror-images-to-ecr.sh` script automatically mirrors third-party images
+from Docker Hub to ECR. This eliminates Docker Hub rate limits and external
+dependencies.
+
+```bash
+cd application
+
+# Run manually (if needed)
+./mirror-images-to-ecr.sh
+```
+
+The script:
+- Fetches ECR repository URL from backend_infra Terraform state
+- Assumes Deployment Account role for ECR operations
+- Checks which images already exist in ECR
+- Pulls missing images from Docker Hub
+- Tags and pushes them to ECR with consistent naming:
+  - `redis-8.4.0` (bitnami/redis:8.4.0-debian-12-r6)
+  - `postgresql-18.1.0` (bitnami/postgresql:18.1.0-debian-12-r4)
+  - `openldap-1.5.0` (osixia/openldap:1.5.0)
+
+**Push Custom Docker Image to ECR:**
 
 ```bash
 # Authenticate Docker to ECR
@@ -337,6 +374,9 @@ aws ecr get-login-password --region <region> | docker login --username AWS --pas
 docker tag <image>:<tag> <ecr_url>:<tag>
 docker push <ecr_url>:<tag>
 ```
+
+**Note**: The `setup-application.sh` script automatically runs the image
+mirroring script, so manual execution is typically not needed.
 
 ## Key Configuration Files
 
@@ -378,13 +418,16 @@ confirmations
   - SNS/SMS 2FA configuration (enable_sms_2fa)
   - Passwords retrieved automatically by setup-application.sh from AWS Secrets Manager
 - `application/setup-application.sh` - Unified setup script for application
-deployment (retrieves secrets from AWS Secrets Manager)
+deployment (retrieves secrets from AWS Secrets Manager, mirrors ECR images)
 - `application/destroy-application.sh` - Automated destroy script with safety
 confirmations and Kubernetes environment setup
 - `application/set-k8s-env.sh` - Kubernetes environment variable configuration
-- `application/helm/openldap-values.tpl.yaml` - Helm chart values template with
-osixia/openldap:1.5.0 image (used by OpenLDAP module)
+- `application/mirror-images-to-ecr.sh` - ECR image mirroring script (called by
+setup-application.sh)
+- `application/helm/openldap-values.tpl.yaml` - Helm chart values template
+configured to pull OpenLDAP image from ECR (openldap-1.5.0)
 - `application/helm/redis-values.tpl.yaml` - Redis Helm chart values template
+(image configuration in module, pulls from ECR)
 - `application/providers.tf` - Retrieves cluster name from backend_infra remote
 state (with fallback options)
 - `application/main.tf` - Creates:
@@ -521,8 +564,9 @@ practices
 
 - Deployed via `application/modules/openldap/` Terraform module
 - OpenLDAP chart version: 4.0.1 from `https://jp-gouin.github.io/helm-openldap`
-- Uses osixia/openldap:1.5.0 Docker image (chart's default bitnami image doesn't
-exist)
+- Uses osixia/openldap:1.5.0 Docker image mirrored to ECR (chart's default
+bitnami image doesn't exist)
+- Image pulled from ECR with tag `openldap-1.5.0` instead of Docker Hub
 - **Multi-master replication**: 3 replicas for high availability
 - **Kubernetes secrets**: Admin and config passwords stored in Kubernetes secrets,
 not plain-text in Helm values
@@ -543,8 +587,10 @@ resources
   - Self-service user signup with email/phone verification
   - Admin dashboard for user and group management
   - User profile management
-  - PostgreSQL for user registration and profile data (with Kubernetes secrets)
-  - Redis for SMS OTP code caching (with Kubernetes secrets)
+  - PostgreSQL for user registration and profile data (with Kubernetes secrets,
+  image pulled from ECR)
+  - Redis for SMS OTP code caching (with Kubernetes secrets, image pulled from
+  ECR)
   - AWS SES for email verification and notifications (via IRSA)
   - AWS SNS for SMS verification codes (via IRSA)
   - Exposed at `/api/*` path on `app.<domain>`
@@ -578,7 +624,26 @@ cluster-wide ALB configuration
 - Certificate ARN configured once in IngressClassParams and inherited by all
 Ingresses using this IngressClass
 
-### CRITICAL: OpenLDAP Environment Variables**
+### ECR Image Mirroring Pattern
+
+- **All third-party images mirrored to ECR**: OpenLDAP, Redis, PostgreSQL images
+are automatically pulled from Docker Hub and pushed to ECR during deployment
+- **Eliminates external dependencies**: No reliance on Docker Hub availability or
+rate limits during pod startup
+- **Faster image pulls**: Images pulled from same AWS region as EKS cluster
+- **Version pinning**: Specific image versions are tagged and stored in ECR:
+  - `redis-8.4.0` (bitnami/redis:8.4.0-debian-12-r6)
+  - `postgresql-18.1.0` (bitnami/postgresql:18.1.0-debian-12-r4)
+  - `openldap-1.5.0` (osixia/openldap:1.5.0)
+- **Automatic mirroring**: `setup-application.sh` and GitHub Actions workflow
+automatically check and mirror images before Terraform deployment
+- **Idempotent operation**: Script only mirrors images that don't already exist
+in ECR
+- **Multi-account support**: Script properly handles credential switching between
+State Account (for reading backend_infra state) and Deployment Account (for ECR
+operations)
+
+### CRITICAL: OpenLDAP Environment Variables
 
 - The jp-gouin/helm-openldap chart does NOT properly pass `global.ldapDomain` to
 the osixia/openldap container
@@ -692,6 +757,79 @@ workflows)
 
 ## Recent Changes (December 2025 - January 2026)
 
+### Cross-Account Access for Route53 and ACM (January 5, 2026)
+
+- **State Account Role ARN Support**:
+  - Added support for querying Route53 hosted zones and ACM certificates from State Account
+  - New variable `state_account_role_arn` for assuming role in State Account (where Route53/ACM reside)
+  - State account provider alias (`aws.state_account`) configured in `providers.tf`
+  - All Route53 data sources and resources now use state account provider when configured
+  - Route53 records (phpldapadmin, ltb_passwd, twofa_app, SES verification/DKIM) created in State Account
+  - ALB can use ACM certificates from State Account (same region required)
+  - Scripts automatically inject `state_account_role_arn` into `variables.tfvars`
+  - No ExternalId required for state account role assumption (by design)
+  - Comprehensive cross-account access documentation in `application/CROSS-ACCOUNT-ACCESS.md`
+  - Self-assumption support: State Account role can assume itself when needed
+
+### Route53 Record Module Separation (January 5, 2026)
+
+- **Dedicated Route53 Record Module**:
+  - Separated Route53 record creation from OpenLDAP module into dedicated `route53_record` module
+  - New module located at `application/modules/route53_record/` for per-record creation
+  - Module uses state account provider (`aws.state_account`) for cross-account access
+  - Route53 records created in State Account while ALB deployed in Deployment Account
+  - Three separate module calls in `main.tf`:
+    - `module.route53_record_phpldapadmin` - Creates A record for phpLDAPadmin
+    - `module.route53_record_ltb_passwd` - Creates A record for ltb-passwd
+    - `module.route53_record_twofa_app` - Creates A record for 2FA application
+  - Module outputs: `record_name`, `record_fqdn`, `record_id`
+  - Precondition ensures ALB DNS name is available before record creation
+  - Comprehensive ALB zone_id mapping by region (13 AWS regions supported)
+  - Proper dependency chain: OpenLDAP module → ALB data source → Route53 records
+  - Lifecycle block with `create_before_destroy` for safe updates
+  - Comprehensive module documentation in `application/modules/route53_record/README.md`
+
+### ECR Image Mirroring for Third-Party Container Images (January 5, 2026)
+
+- **Automated Image Mirroring Script**:
+  - Created `application/mirror-images-to-ecr.sh` script (290+ lines) to eliminate Docker Hub rate limiting and external dependencies
+  - Automatically mirrors third-party container images from Docker Hub to ECR:
+    - `bitnami/redis:8.4.0-debian-12-r6` → `redis-8.4.0`
+    - `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-18.1.0`
+    - `osixia/openldap:1.5.0` → `openldap-1.5.0`
+  - Checks if images exist in ECR before mirroring (skips if already present)
+  - Uses State Account credentials to fetch ECR URL from backend_infra state
+  - Assumes Deployment Account role for ECR operations (with ExternalId)
+  - Authenticates Docker to ECR automatically using `aws ecr get-login-password`
+  - Cleans up local images after pushing to save disk space
+  - Lists all images in ECR repository after completion
+  - Integrated into `application/setup-application.sh` (runs before Terraform operations)
+  - Integrated into GitHub Actions workflow (runs after Terraform validate)
+  - Requires Docker to be installed and running
+  - Requires `jq` for JSON parsing (with fallback to sed for compatibility)
+  - Prevents Docker Hub rate limiting (200 pulls per 6 hours for anonymous) and external dependencies
+  - Comprehensive error handling and user feedback
+  - Proper credential switching for multi-account architecture
+- **ECR Image Support for All Modules**:
+  - All three modules (OpenLDAP, PostgreSQL, Redis) now use ECR images instead of Docker Hub
+  - New variables in `application/variables.tf`: `openldap_image_tag`, `postgresql_image_tag`, `redis_image_tag`
+  - ECR registry and repository computed from backend_infra state (`ecr_url`)
+  - All modules updated with ECR configuration variables (registry, repository, tag)
+  - Helm values templates updated to use ECR images
+  - Image tags correspond to tags created by `mirror-images-to-ecr.sh`
+- **Application main.tf Enhancements**:
+  - Retrieves ECR URL from backend_infra remote state
+  - Parses ECR URL to extract registry and repository name
+  - Passes ECR configuration to OpenLDAP, Redis, and PostgreSQL modules
+- **GitHub Actions Workflow Updates**:
+  - Added Docker Buildx setup to `application_infra_provisioning.yaml`
+  - Integrated `mirror-images-to-ecr.sh` execution before Terraform deployment
+  - Follows same multi-account credential flow as local scripts
+- **EKS ECR Permissions**:
+  - EKS Auto Mode automatically provides ECR pull permissions to nodes
+  - No additional IAM policy configuration required
+  - Nodes can pull images from ECR without hardcoded credentials
+
 ### Destroy Scripts for Infrastructure Cleanup (December 30, 2025)
 
 - **Automated Destroy Scripts**:
@@ -802,13 +940,13 @@ workflows)
 
 ### Kubernetes Secrets Integration and OpenLDAP Module (December 27-28, 2025)
 
-- **OpenLDAP Module (`application/modules/openldap/`)**: NEW
+- **OpenLDAP Module (`application/modules/openldap/`)**:
   - Modularized OpenLDAP Stack HA deployment with comprehensive configuration
   - Includes phpLDAPadmin and ltb-passwd web interfaces
   - Manages Kubernetes secrets for OpenLDAP passwords
   - Handles Helm release deployment with templated values
-  - Creates Route53 DNS records for web UIs
   - Creates ALB Ingress resources for public access
+  - Route53 DNS records now created separately via `route53_record` module
   - See [OpenLDAP Module Documentation](application/modules/openldap/README.md)
   for details
 - **Kubernetes Secrets for All Components**:
