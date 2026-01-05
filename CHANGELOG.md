@@ -70,6 +70,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated GitHub Actions destroying workflows with ExternalId support
   - Documentation updates in README files and docs/index.html
 
+- **Route53 Record Module Separation**
+  - Separated Route53 record creation from OpenLDAP module into dedicated
+    `route53_record` module
+  - New module located at `application/modules/route53_record/` for per-record
+    creation
+  - Module uses state account provider for cross-account access (Route53 records
+    created in State Account)
+  - Three separate module calls: `route53_record_phpldapadmin`,
+    `route53_record_ltb_passwd`, `route53_record_twofa_app`
+  - Module outputs: `record_name`, `record_fqdn`, `record_id`
+  - Precondition ensures ALB DNS name is available before record creation
+  - Comprehensive ALB zone_id mapping by region (13 AWS regions supported)
+  - Proper dependency chain: OpenLDAP module → ALB data source → Route53 records
+  - All records use consistent ALB data source approach to avoid timing issues
+  - Comprehensive module documentation in `application/modules/route53_record/README.md`
+
+- **ECR Image Mirroring Script**
+  - Created `application/mirror-images-to-ecr.sh` script to eliminate Docker Hub
+    rate limiting and external dependencies
+  - Automatically mirrors third-party container images from Docker Hub to ECR:
+    - `bitnami/redis:8.4.0-debian-12-r6` → `redis-8.4.0`
+    - `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-18.1.0`
+    - `osixia/openldap:1.5.0` → `openldap-1.5.0`
+  - Checks if images exist in ECR before mirroring (skips if already present)
+  - Uses State Account credentials to fetch ECR URL from backend_infra state
+  - Assumes Deployment Account role for ECR operations (with ExternalId)
+  - Authenticates Docker to ECR automatically
+  - Cleans up local images after pushing to save space
+  - Lists all images in ECR repository after completion
+  - Integrated into `application/setup-application.sh` (runs before Terraform
+    operations)
+  - Integrated into GitHub Actions workflow (runs after Terraform validate, before
+    set-k8s-env.sh)
+  - Requires Docker to be installed and running
+  - Requires `jq` for JSON parsing
+  - Prevents Docker Hub rate limiting and external dependencies during deployments
+
+- **ECR Image Support for Modules**
+  - OpenLDAP, PostgreSQL, and Redis modules now use ECR images instead of Docker Hub
+  - New variables in `application/variables.tf`:
+    - `openldap_image_tag` (default: "openldap-1.5.0")
+    - `postgresql_image_tag` (default: "postgresql-18.1.0")
+    - `redis_image_tag` (default: "redis-8.4.0")
+  - ECR registry and repository computed from backend_infra state (`ecr_url`)
+  - All modules updated with ECR configuration variables:
+    - `ecr_registry`: ECR registry URL
+    - `ecr_repository`: ECR repository name
+    - `image_tag` or module-specific tag variable
+  - Helm values templates updated to use ECR images
+  - Image tags correspond to tags created by `mirror-images-to-ecr.sh`
+
 ### Changed
 
 - **Documentation Improvements**
@@ -94,10 +145,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced secret retrieval with validation and error handling
   - Better integration with GitHub repository variables and secrets
   - Improved user guidance and confirmation prompts
+  - Improved credential handling to prevent conflicts between different AWS
+    credentials
+  - Better dependency chain organization to prevent failures
+  - Enhanced script error handling in destroy scripts
 
 - **GitHub Actions Workflow Updates**
   - Updated `application_infra_provisioning.yaml` with new environment variables
   for Redis, PostgreSQL, and SES
+  - Added Docker Buildx setup step for image operations
+  - Added "Mirror Docker images to ECR" step (runs after Terraform validate, before
+    set-k8s-env.sh)
+  - Workflow now handles image mirroring automatically
+  - Improved credential handling to prevent conflicts between different AWS
+    credentials
   - Updated `application_infra_destroying.yaml` with ExternalId support and
   improved error handling
   - Updated `backend_infra_provisioning.yaml` with ExternalId support

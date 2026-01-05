@@ -32,14 +32,14 @@ The module creates the following VPC endpoints:
 
 #### STS Endpoint (Optional, Default: Enabled)
 
-4. **STS Endpoint** (`com.amazonaws.<region>.sts`)
+1. **STS Endpoint** (`com.amazonaws.<region>.sts`)
    - **Required for IRSA** (IAM Roles for Service Accounts)
    - Allows pods to call `sts:AssumeRoleWithWebIdentity`
    - Enable with `enable_sts_endpoint = true`
 
 #### SNS Endpoint (Optional, Default: Disabled)
 
-5. **SNS Endpoint** (`com.amazonaws.<region>.sns`)
+1. **SNS Endpoint** (`com.amazonaws.<region>.sns`)
    - **Required for SMS 2FA** functionality
    - Allows pods to send SMS via SNS
    - Enable with `enable_sns_endpoint = true`
@@ -62,7 +62,7 @@ The module creates the following VPC endpoints:
 ## Variables
 
 | Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
+| ---------- | ------------- | ---------- | --------- |
 | `env` | Deployment environment (e.g., prod, dev) | Yes | - |
 | `region` | AWS region | Yes | - |
 | `prefix` | Prefix added to all resource names | Yes | - |
@@ -98,7 +98,8 @@ module "endpoints" {
 
 When `enable_sts_endpoint = true`, pods can assume IAM roles using service accounts:
 
-1. The EKS cluster must have OIDC provider enabled (`enable_irsa = true` in EKS module)
+1. The EKS cluster must have OIDC provider enabled
+(`enable_irsa = true` in EKS module)
 2. Create an IAM role with a trust policy for the service account
 3. Annotate the Kubernetes service account with the IAM role ARN
 4. Pods using that service account can call AWS APIs
@@ -127,7 +128,7 @@ When `enable_sns_endpoint = true`, pods can send SMS via SNS:
 ## Outputs
 
 | Output | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `vpc_endpoint_sg_id` | Security group ID for VPC endpoints |
 | `vpc_endpoint_ssm_id` | VPC endpoint ID for SSM |
 | `vpc_endpoint_ssmmessages_id` | VPC endpoint ID for SSM Messages |

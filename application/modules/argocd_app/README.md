@@ -164,7 +164,7 @@ module "argocd_app_manual" {
 ## Inputs
 
 | Name | Description | Type | Required | Default |
-|------|-------------|------|----------|---------|
+| ------ | ------------- | ------ | ---------- | --------- |
 | app_name | Name of the ArgoCD Application | string | yes | - |
 | argocd_namespace | Kubernetes namespace for ArgoCD Application | string | no | "argocd" |
 | argocd_project_name | ArgoCD project name | string | no | "default" |
@@ -187,7 +187,7 @@ module "argocd_app_manual" {
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ------ | ------------- |
 | app_name | Name of the ArgoCD Application |
 | app_namespace | Namespace where Application is deployed |
 | app_uid | UID of the Application resource |

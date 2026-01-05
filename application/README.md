@@ -148,6 +148,40 @@ If you want to create Route53 zone and ACM certificate via Terraform, uncomment
 the Route53 module in `main.tf` (lines 43-53) and update the code to use module
 outputs instead of data sources.
 
+### 1a. Route53 Record Module
+
+The `modules/route53_record/` module creates Route53 A (alias) records pointing
+to the ALB. This module is called separately for each subdomain (phpldapadmin,
+ltb_passwd, twofa_app) to create individual DNS records.
+
+> [!NOTE]
+>
+> For detailed Route53 record module documentation, including cross-account
+> access, ALB zone_id mapping, dependencies, and usage examples, see the
+> [Route53 Record Module Documentation](modules/route53_record/README.md).
+
+**Key Features:**
+
+- **Cross-Account Support**: Uses state account provider to create records in
+  State Account while ALB is in Deployment Account
+- **ALB Alias Records**: Creates A (alias) records for optimal performance
+- **Health Check Integration**: Supports target health evaluation
+- **Precondition Validation**: Ensures ALB DNS name is available before record
+  creation
+- **Safe Updates**: Uses `create_before_destroy` lifecycle to prevent DNS
+  downtime
+
+**Module Calls in main.tf:**
+
+- `module.route53_record_phpldapadmin` - Creates A record for phpLDAPadmin
+- `module.route53_record_ltb_passwd` - Creates A record for ltb-passwd
+- `module.route53_record_twofa_app` - Creates A record for 2FA application
+
+**Dependencies:**
+
+- OpenLDAP module (ensures Ingress is created, which triggers ALB creation)
+- ALB data source (ensures ALB exists before creating record)
+
 ### 2. OpenLDAP Stack HA Helm Release
 
 Deploys the complete OpenLDAP stack using the
@@ -166,6 +200,10 @@ Deploys the complete OpenLDAP stack using the
 - Storage: Creates a new PVC using a StorageClass created by this Terraform
 configuration (see Storage Configuration section below)
 - LDAP Ports: Standard ports (389 for LDAP, 636 for LDAPS)
+- **ECR Images**: Uses ECR images instead of Docker Hub (images mirrored via
+  `mirror-images-to-ecr.sh`)
+- **Route53 Records**: Route53 record creation has been moved to the dedicated
+  `route53_record` module (see Route53 Record Module section above)
 
 ### 3. 2FA Application (Backend + Frontend)
 
@@ -383,10 +421,18 @@ monthly spend limits.
 The `modules/postgresql/` module deploys PostgreSQL for storing user registration
 and verification data using the Bitnami Helm chart with persistent EBS-backed storage.
 
+**ECR Image Support:**
+
+- Uses ECR images instead of Docker Hub (images mirrored via
+  `mirror-images-to-ecr.sh`)
+- Image tag: `postgresql-18.1.0` (default, corresponds to
+  `bitnami/postgresql:18.1.0-debian-12-r4`)
+- ECR registry and repository computed from backend_infra state
+
 > [!NOTE]
 >
 > For detailed PostgreSQL configuration, connection strings, database schema,
-> and usage examples, see the [PostgreSQL Module Documentation](modules/postgresql/README.md).
+> ECR image setup, and usage examples, see the [PostgreSQL Module Documentation](modules/postgresql/README.md).
 
 ### 11. SES Module (Email Verification)
 
@@ -405,10 +451,18 @@ The `modules/redis/` module deploys Redis for SMS OTP code storage using the
 Bitnami Helm chart with TTL-based expiration, shared state across replicas, and
 persistent storage.
 
+**ECR Image Support:**
+
+- Uses ECR images instead of Docker Hub (images mirrored via
+  `mirror-images-to-ecr.sh`)
+- Image tag: `redis-8.4.0` (default, corresponds to
+  `bitnami/redis:8.4.0-debian-12-r6`)
+- ECR registry and repository computed from backend_infra state
+
 > [!NOTE]
 >
-> For detailed Redis architecture, key schema, debugging commands, and configuration
-> options, see the [Redis Module Documentation](modules/redis/README.md).
+> For detailed Redis architecture, key schema, debugging commands, ECR image setup,
+> and configuration options, see the [Redis Module Documentation](modules/redis/README.md).
 
 ## Module Structure
 
@@ -542,6 +596,12 @@ application/
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
+│   ├── route53_record/         # Route53 Record module - A (alias) records for ALB
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   ├── providers.tf
+│   │   └── README.md
 │   ├── ses/                    # SES module - Email verification
 │   │   ├── main.tf
 │   │   ├── variables.tf
@@ -605,6 +665,12 @@ variables (see Configuration section)
 backend_infra
 12. **Secrets Configuration**: All required secrets must be configured.
 See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete setup instructions.
+13. **Docker (for Local Deployment)**: Docker must be installed and running for
+ECR image mirroring. The `mirror-images-to-ecr.sh` script requires Docker to
+pull images from Docker Hub and push them to ECR.
+14. **jq (for Local Deployment)**: The `jq` command-line tool is required for
+JSON parsing in the image mirroring script (with fallback to sed for
+compatibility).
 
 ## Configuration
 
@@ -663,9 +729,9 @@ cluster_name = "talo-tf-us-east-1-kc-prod"
 
 #### Kubernetes Kubeconfig Auto-Update
 
-The `set-k8s-env.sh` script automatically updates the kubeconfig file on every run to
-ensure it always contains the latest cluster endpoint. This prevents issues with
-stale kubeconfig entries that can occur when:
+The `set-k8s-env.sh` script automatically updates the kubeconfig file on every
+run to ensure it always contains the latest cluster endpoint. This prevents issues
+with stale kubeconfig entries that can occur when:
 
 - The EKS cluster is recreated (new cluster endpoint)
 - The cluster endpoint changes due to AWS infrastructure updates
@@ -674,10 +740,10 @@ stale kubeconfig entries that can occur when:
 **Behavior**:
 
 - **Automatic Update**: The script runs `aws eks update-kubeconfig` on every execution
-- **Uses Deployment Account Credentials**: The update uses the deployment account role
-  credentials (already assumed by the script)
-- **Creates Directory if Needed**: Automatically creates the kubeconfig directory if it
-  doesn't exist
+- **Uses Deployment Account Credentials**: The update uses the deployment account
+role credentials (already assumed by the script)
+- **Creates Directory if Needed**: Automatically creates the kubeconfig directory
+if it doesn't exist
 - **Error Handling**: Script exits with error if kubeconfig update fails
 
 **Kubeconfig Path**:
@@ -816,6 +882,28 @@ defaults to `app_name`)
 > (minimum 8 characters). See [Secrets Requirements](../SECRETS_REQUIREMENTS.md)
 > for configuration details.
 
+#### ECR Image Tag Variables
+
+These variables specify the image tags for container images stored in ECR. The
+images are automatically mirrored from Docker Hub to ECR by the
+`mirror-images-to-ecr.sh` script before Terraform operations.
+
+- `openldap_image_tag`: OpenLDAP image tag in ECR (default: `"openldap-1.5.0"`)
+  - Corresponds to `osixia/openldap:1.5.0` from Docker Hub
+  - Tag created by `mirror-images-to-ecr.sh`
+- `postgresql_image_tag`: PostgreSQL image tag in ECR (default: `"postgresql-18.1.0"`)
+  - Corresponds to `bitnami/postgresql:18.1.0-debian-12-r4` from Docker Hub
+  - Tag created by `mirror-images-to-ecr.sh`
+- `redis_image_tag`: Redis image tag in ECR (default: `"redis-8.4.0"`)
+  - Corresponds to `bitnami/redis:8.4.0-debian-12-r6` from Docker Hub
+  - Tag created by `mirror-images-to-ecr.sh`
+
+> [!NOTE]
+>
+> The ECR registry and repository are automatically computed from the
+> `backend_infra` Terraform state (`ecr_url`). You don't need to configure these
+> manually.
+
 ### Example Configuration
 
 **variables.tfvars:**
@@ -946,7 +1034,62 @@ instructions, including:
 - Secret names and descriptions
 - Troubleshooting guide
 
-### Step 3: Deploy Application Infrastructure
+### Step 3: ECR Image Mirroring (Automatic)
+
+> [!NOTE]
+>
+> The `setup-application.sh` script automatically runs `mirror-images-to-ecr.sh`
+> before Terraform operations. This step is documented here for reference.
+
+**Purpose:**
+
+The `mirror-images-to-ecr.sh` script eliminates Docker Hub rate limiting and
+external dependencies by mirroring third-party container images to a private
+ECR repository. This ensures reliable deployments without depending on Docker
+Hub availability or rate limits.
+
+**Images Mirrored:**
+
+- `bitnami/redis:8.4.0-debian-12-r6` → `redis-8.4.0`
+- `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-18.1.0`
+- `osixia/openldap:1.5.0` → `openldap-1.5.0`
+
+**How It Works:**
+
+1. **ECR Discovery**: Uses State Account credentials to fetch ECR URL from
+   `backend_infra` Terraform state
+2. **Image Check**: Checks if images already exist in ECR (skips mirroring if
+   present)
+3. **Docker Authentication**: Assumes Deployment Account role (with ExternalId)
+   and authenticates Docker to ECR
+4. **Image Pull**: Pulls images from Docker Hub
+5. **Image Push**: Tags and pushes images to ECR with standardized tags
+6. **Cleanup**: Removes local images after pushing to save disk space
+7. **Verification**: Lists all images in ECR repository after completion
+
+**Requirements:**
+
+- Docker must be installed and running
+- `jq` command-line tool (with fallback to sed for compatibility)
+- AWS credentials configured (State Account for S3, Deployment Account for ECR)
+- ECR repository must exist (created by `backend_infra`)
+
+**Manual Execution (if needed):**
+
+```bash
+cd application
+chmod +x ./mirror-images-to-ecr.sh
+./mirror-images-to-ecr.sh
+```
+
+**Integration:**
+
+- **Local Deployment**: Automatically executed by `setup-application.sh` before
+  Terraform operations
+- **GitHub Actions**: Automatically executed in workflow after Terraform
+  validate, before `set-k8s-env.sh`
+
+### Step 4: Deploy Application Infrastructure
 
 #### Option 1: Using GitHub CLI (Recommended)
 
@@ -969,6 +1112,19 @@ based on the selected environment:
   - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
 - Retrieve ExternalId from AWS Secrets Manager (secret: `external-id`) for
 cross-account role assumption security
+- **Mirror Docker images to ECR** (runs `mirror-images-to-ecr.sh` before
+  Terraform operations):
+  - Checks if images exist in ECR before mirroring (skips if already present)
+  - Pulls images from Docker Hub: `bitnami/redis:8.4.0-debian-12-r6`,
+    `bitnami/postgresql:18.1.0-debian-12-r4`, `osixia/openldap:1.5.0`
+  - Pushes images to ECR with tags: `redis-8.4.0`, `postgresql-18.1.0`,
+    `openldap-1.5.0`
+  - Uses State Account credentials to fetch ECR URL from backend_infra state
+  - Assumes Deployment Account role for ECR operations (with ExternalId)
+  - Authenticates Docker to ECR automatically
+  - Cleans up local images after pushing to save disk space
+  - Requires Docker to be installed and running
+  - Requires `jq` for JSON parsing (with fallback to sed for compatibility)
 - Retrieve password secrets from AWS Secrets Manager and export them as
 environment variables
 - Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the

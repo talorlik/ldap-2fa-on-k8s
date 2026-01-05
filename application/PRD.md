@@ -8,6 +8,8 @@ Target state:
 - PhpLdapAdmin UI exposed via ALB.
 - LTB-passwd UI exposed via ALB (self-service password).
 - No external exposure of the LDAP ports themselves.
+- **ECR Image Support**: Container images are pulled from ECR (not Docker Hub)
+to eliminate rate limiting and external dependencies.
 
 The chart already supports:
 
@@ -35,6 +37,14 @@ adjusted.
 
 ### 2.1 Global LDAP and credentials
 
+> [!NOTE]
+>
+> **ECR Image Configuration**: The current implementation uses ECR images instead of Docker Hub.
+> The `imageRegistry` and `repository` fields in the Helm values template are automatically
+> configured to use ECR. Images are automatically mirrored from Docker Hub to ECR
+> by the `mirror-images-to-ecr.sh` script before Terraform operations.
+> See [ECR Image Mirroring](#ecr-image-mirroring) section for details.
+
 Defaults you currently have:
 
 ```yaml
@@ -53,14 +63,20 @@ Change to something like:
 
 ```yaml
 global:
-  imageRegistry: ""
+  imageRegistry: "${ecr_registry}"        # ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)
   imagePullSecrets: []
-  storageClass: ""              # leave empty, use persistence.storageClass instead
-  ldapDomain: "ldap.talorlik.internal"   # or whatever LDAP base you want
+  storageClass: ""                        # leave empty, use persistence.storageClass instead
+  ldapDomain: "ldap.talorlik.internal"     # or whatever LDAP base you want
   adminPassword:  "${TF_VAR_openldap_admin_password}"
   configPassword: "${TF_VAR_openldap_config_password}"
-  ldapPort: 389                 # standard LDAP
-  sslLdapPort: 636              # standard LDAPS
+  ldapPort: 389                           # standard LDAP
+  sslLdapPort: 636                        # standard LDAPS
+
+# Image configuration for ECR
+image:
+  registry: "${ecr_registry}"
+  repository: "${ecr_repository}"
+  tag: "${openldap_image_tag}"            # e.g., "openldap-1.5.0"
 ```
 
 In Terraform you will not literally hardcode `${TF_VAR_openldap_admin_password}`
@@ -301,12 +317,19 @@ Values go into `variables.tfvars` or GitHub Actions env/vars.
 
 ### 3.3 Template the values file
 
-Create `backend_infra/helm/openldap-values.tpl.yaml` and move your adjusted YAML
+Create `application/helm/openldap-values.tpl.yaml` and move your adjusted YAML
 there, replacing literal values with interpolation placeholders:
+
+> [!NOTE]
+>
+> **ECR Image Configuration**: The template includes ECR registry and repository
+> configuration. These values are automatically computed from `backend_infra`
+> Terraform state. Images must be mirrored to ECR before deployment
+> (handled automatically by `mirror-images-to-ecr.sh`).
 
 ```yaml
 global:
-  imageRegistry: ""
+  imageRegistry: "${ecr_registry}"        # ECR registry URL
   imagePullSecrets: []
   storageClass: ""
   ldapDomain: "${openldap_ldap_domain}"
@@ -314,6 +337,12 @@ global:
   configPassword: "${openldap_config_password}"
   ldapPort: 389
   sslLdapPort: 636
+
+# ECR image configuration for OpenLDAP
+image:
+  registry: "${ecr_registry}"
+  repository: "${ecr_repository}"
+  tag: "${openldap_image_tag}"            # e.g., "openldap-1.5.0"
 
 persistence:
   enabled: true
@@ -366,10 +395,20 @@ phpldapadmin:
 
 ### 3.4 Helm release resource
 
-In `backend_infra/main.tf` or a dedicated module:
+In `application/main.tf` or a dedicated module:
+
+> [!NOTE]
+>
+> **ECR Configuration**: The template includes ECR registry, repository, and
+> image tag variables. These are computed from `backend_infra` Terraform state.
+> Ensure images are mirrored to ECR before deployment.
 
 ```hcl
 locals {
+  # Compute ECR registry and repository from backend_infra state
+  ecr_registry   = replace(data.terraform_remote_state.backend_infra.outputs.ecr_url, "/^https?://([^/]+).*$/", "$1")
+  ecr_repository = replace(data.terraform_remote_state.backend_infra.outputs.ecr_url, "/^https?://[^/]+/(.+)$/", "$1")
+
   openldap_values = templatefile(
     "${path.module}/helm/openldap-values.tpl.yaml",
     {
@@ -379,6 +418,9 @@ locals {
       acm_cert_arn             = var.acm_cert_arn
       phpldapadmin_host        = var.phpldapadmin_host
       ltb_passwd_host          = var.ltb_passwd_host
+      ecr_registry             = local.ecr_registry
+      ecr_repository           = local.ecr_repository
+      openldap_image_tag       = var.openldap_image_tag
     }
   )
 }
@@ -423,6 +465,74 @@ You now have:
 - LDAP reachable only inside the cluster via ClusterIP service.
 - Two GUIs reachable via ALB on the hostnames you specified, for manual
 management and self service.
+
+## ECR Image Mirroring
+
+### Overview
+
+The application infrastructure uses **ECR (Elastic Container Registry)** images
+instead of Docker Hub to eliminate rate limiting and external dependencies.
+All third-party container images are automatically mirrored from Docker Hub to
+ECR before deployment.
+
+### Supported Images
+
+The following images are automatically mirrored to ECR:
+
+| Docker Hub Image | ECR Tag | Purpose |
+| ----------------- | --------- | --------- |
+| `osixia/openldap:1.5.0` | `openldap-1.5.0` | OpenLDAP directory service |
+| `bitnami/postgresql:18.1.0-debian-12-r4` | `postgresql-18.1.0` | PostgreSQL database |
+| `bitnami/redis:8.4.0-debian-12-r6` | `redis-8.4.0` | Redis cache |
+
+### Automatic Mirroring Process
+
+The `mirror-images-to-ecr.sh` script automatically:
+
+1. **Checks ECR**: Verifies if images already exist in ECR (skips if present)
+2. **Fetches ECR URL**: Uses State Account credentials to retrieve ECR URL from
+`backend_infra` Terraform state
+3. **Assumes Deployment Role**: Assumes Deployment Account role (with ExternalId)
+for ECR operations
+4. **Authenticates Docker**: Authenticates Docker to ECR using `aws ecr get-login-password`
+5. **Pulls Images**: Pulls images from Docker Hub
+6. **Tags and Pushes**: Tags images with standardized tags and pushes to ECR
+7. **Cleans Up**: Removes local images after pushing to save disk space
+8. **Verifies**: Lists all images in ECR repository after completion
+
+### Integration
+
+- **Local Deployment**: Automatically executed by `setup-application.sh` before
+Terraform operations
+- **GitHub Actions**: Automatically executed in workflow after Terraform validate,
+before `set-k8s-env.sh`
+
+### Requirements
+
+- Docker must be installed and running
+- `jq` command-line tool (with fallback to sed for compatibility)
+- AWS credentials configured (State Account for S3, Deployment Account for ECR)
+- ECR repository must exist (created by `backend_infra`)
+
+### Configuration
+
+ECR registry and repository are automatically computed from `backend_infra`
+Terraform state (`ecr_url`). The Helm values template uses these values:
+
+```yaml
+global:
+  imageRegistry: "${ecr_registry}"    # e.g., account.dkr.ecr.region.amazonaws.com
+
+image:
+  registry: "${ecr_registry}"
+  repository: "${ecr_repository}"
+  tag: "${openldap_image_tag}"       # e.g., "openldap-1.5.0"
+```
+
+> [!NOTE]
+>
+> For detailed information about ECR image mirroring,
+> see the [Application Infrastructure README](README.md#ecr-image-mirroring-automatic).
 
 ## Future Improvements
 

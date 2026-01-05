@@ -2,7 +2,8 @@
 
 ## Overview
 
-This document defines the requirements for admin functionality and user profile management features in the LDAP 2FA Authentication application.
+This document defines the requirements for admin functionality and user profile
+management features in the LDAP 2FA Authentication application.
 
 ## Table of Contents
 
@@ -16,13 +17,12 @@ This document defines the requirements for admin functionality and user profile 
 8. [Admin Notifications](#8-admin-notifications)
 9. [Top Navigation Bar](#9-top-navigation-bar)
 
----
-
 ## 1. User Profile Management
 
 ### 1.1 Profile Page
 
-Users must be able to view and edit their profile details through a dedicated profile page.
+Users must be able to view and edit their profile details through a dedicated
+profile page.
 
 **Viewable Fields:**
 
@@ -38,7 +38,7 @@ Users must be able to view and edit their profile details through a dedicated pr
 **Editable Fields:**
 
 | Field | Editable | Condition |
-|-------|----------|-----------|
+| ------- | ---------- | ----------- |
 | Username | No | Never editable |
 | First Name | Yes | Always |
 | Last Name | Yes | Always |
@@ -48,11 +48,12 @@ Users must be able to view and edit their profile details through a dedicated pr
 
 ### 1.2 Edit Restrictions
 
-- **Email Address**: Can only be modified if `email_verified = false`. Once verified, email becomes read-only to prevent account takeover.
-- **Phone Number**: Can only be modified if `phone_verified = false`. Once verified, phone becomes read-only.
-- Changing email or phone resets the respective verification status and triggers a new verification flow.
-
----
+- **Email Address**: Can only be modified if `email_verified = false`. Once verified,
+email becomes read-only to prevent account takeover.
+- **Phone Number**: Can only be modified if `phone_verified = false`. Once verified,
+phone becomes read-only.
+- Changing email or phone resets the respective verification status and triggers
+a new verification flow.
 
 ## 2. SMS OTP Verification Requirements
 
@@ -64,21 +65,22 @@ Users can only use SMS OTP as their MFA method if their phone number has been ve
 
 - If a user selects SMS as MFA method during signup, phone verification is mandatory
 - SMS OTP option is disabled/hidden for users with unverified phone numbers
-- Login attempts with SMS MFA and unverified phone display error: "Phone verification required for SMS authentication"
+- Login attempts with SMS MFA and unverified phone display error:
+"Phone verification required for SMS authentication"
 
 ### 2.2 Implementation Rules
 
 - During MFA enrollment: SMS option only available if `phone_verified = true`
-- During login: If `mfa_method = 'sms'` and `phone_verified = false`, reject with appropriate error
+- During login: If `mfa_method = 'sms'` and `phone_verified = false`,
+reject with appropriate error
 - UI should grey out or hide SMS option for unverified users
-
----
 
 ## 3. Admin Dashboard
 
 ### 3.1 Access Control
 
-The Admin tab/section is only visible and accessible to users who are members of the LDAP admin group.
+The Admin tab/section is only visible and accessible to users who are members of
+the LDAP admin group.
 
 **Visibility Rules:**
 
@@ -112,8 +114,6 @@ The Admin tab/section is only visible and accessible to users who are members of
 - Delete groups
 - View group members
 
----
-
 ## 4. Group Management
 
 ### 4.1 Group CRUD Operations
@@ -146,7 +146,7 @@ Admins must have full CRUD (Create, Read, Update, Delete) capabilities for group
 
 ### 4.2 Group Data Model
 
-```
+```text
 Group:
   - id: UUID (primary key)
   - name: string (unique)
@@ -155,8 +155,6 @@ Group:
   - created_at: timestamp
   - updated_at: timestamp
 ```
-
----
 
 ## 5. User-Group Assignment
 
@@ -182,15 +180,13 @@ Admins can manage user-group relationships with the following operations:
 
 ### 5.2 User-Group Data Model
 
-```
+```text
 UserGroup:
   - user_id: UUID (foreign key to users)
   - group_id: UUID (foreign key to groups)
   - assigned_at: timestamp
   - assigned_by: string (admin username)
 ```
-
----
 
 ## 6. Approve/Revoke Workflow
 
@@ -209,7 +205,8 @@ When an admin approves a user:
    - Welcome email is sent to user
    - Activation timestamp and admin recorded
 
-**Note:** Group assignment is required for approval - at least one group must be selected.
+**Note:** Group assignment is required for approval - at least one group must
+be selected.
 
 ### 6.2 User Revocation
 
@@ -223,8 +220,6 @@ When an admin revokes an active user:
    - User is deleted from LDAP
    - User status changes to 'revoked' OR user is deleted from database
    - Revocation is logged for audit
-
----
 
 ## 7. List Features
 
@@ -258,8 +253,6 @@ All displayable lists (users, groups) must support:
 - Sortable column headers with sort indicators
 - Pagination for large lists (optional, based on data volume)
 
----
-
 ## 8. Admin Notifications
 
 ### 8.1 New User Signup Notification
@@ -286,8 +279,6 @@ When a new user signs up, all admin users receive an email notification.
 - Use existing AWS SES email infrastructure
 - Query LDAP admin group for member emails
 - Send notification asynchronously (don't block signup response)
-
----
 
 ## 9. Top Navigation Bar
 
@@ -323,8 +314,6 @@ After successful login, the UI must display a persistent top navigation bar.
 - Consistent across all authenticated pages
 - Dropdown menu appears on click/hover
 - Visual distinction for admin menu items
-
----
 
 ## Technical Requirements
 
@@ -369,8 +358,6 @@ After successful login, the UI must display a persistent top navigation bar.
 - Email/phone changes only allowed before verification
 - Rate limiting on admin operations
 - Audit logging for admin actions
-
----
 
 ## Success Criteria
 

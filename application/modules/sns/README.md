@@ -52,15 +52,15 @@ The IAM role is configured for IAM Roles for Service Accounts (IRSA). To use it:
 
 1. Add the annotation to your Kubernetes service account:
 
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: ldap-2fa-backend
-  namespace: 2fa-app
-  annotations:
-    eks.amazonaws.com/role-arn: <iam_role_arn from outputs>
-```
+    ```yaml
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+    name: ldap-2fa-backend
+    namespace: 2fa-app
+    annotations:
+        eks.amazonaws.com/role-arn: <iam_role_arn from outputs>
+    ```
 
 2. The backend application will automatically assume this role when making
    AWS SDK calls.
@@ -109,6 +109,7 @@ sns.publish(
 ## Phone Number Format
 
 All phone numbers must be in E.164 format:
+
 - Start with `+`
 - Country code
 - No spaces, dashes, or parentheses
@@ -122,7 +123,7 @@ All phone numbers must be in E.164 format:
 ## Outputs
 
 | Output | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `sns_topic_arn` | ARN of the SNS topic |
 | `sns_topic_name` | Name of the SNS topic |
 | `iam_role_arn` | ARN of the IAM role for IRSA |

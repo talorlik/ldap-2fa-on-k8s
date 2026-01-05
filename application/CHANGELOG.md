@@ -70,6 +70,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive error handling and user guidance
   - Updated GitHub Actions destroying workflow with ExternalId support
 
+- **Route53 Record Module Separation**
+  - Separated Route53 record creation from OpenLDAP module into dedicated
+    `route53_record` module
+  - New module located at `application/modules/route53_record/` for per-record
+    creation
+  - Module uses state account provider (`aws.state_account`) for cross-account
+    access
+  - Route53 records created in State Account while ALB deployed in Deployment
+    Account
+  - Three separate module calls in `main.tf`:
+    - `module.route53_record_phpldapadmin` - Creates A record for phpLDAPadmin
+    - `module.route53_record_ltb_passwd` - Creates A record for ltb-passwd
+    - `module.route53_record_twofa_app` - Creates A record for 2FA application
+  - Module outputs: `record_name`, `record_fqdn`, `record_id`
+  - Precondition ensures ALB DNS name is available before record creation
+  - Comprehensive ALB zone_id mapping by region (13 AWS regions supported:
+    us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-west-2, eu-west-3,
+    eu-central-1, ap-southeast-1, ap-southeast-2, ap-northeast-1,
+    ap-northeast-2, sa-east-1)
+  - Proper dependency chain: OpenLDAP module → ALB data source → Route53 records
+  - All records use consistent ALB data source approach to avoid timing issues
+  - Lifecycle block with `create_before_destroy` for safe updates
+  - Comprehensive module documentation in
+    `application/modules/route53_record/README.md`
+
+- **ECR Image Mirroring Script**
+  - Created `application/mirror-images-to-ecr.sh` script (290 lines) to eliminate
+    Docker Hub rate limiting and external dependencies
+  - Automatically mirrors third-party container images from Docker Hub to ECR:
+    - `bitnami/redis:8.4.0-debian-12-r6` → `redis-8.4.0`
+    - `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-18.1.0`
+    - `osixia/openldap:1.5.0` → `openldap-1.5.0`
+  - Checks if images exist in ECR before mirroring (skips if already present)
+  - Uses State Account credentials to fetch ECR URL from backend_infra state
+  - Assumes Deployment Account role for ECR operations (with ExternalId)
+  - Authenticates Docker to ECR automatically using `aws ecr get-login-password`
+  - Cleans up local images after pushing to save disk space
+  - Lists all images in ECR repository after completion
+  - Integrated into `application/setup-application.sh` (runs before Terraform
+    operations)
+  - Integrated into GitHub Actions workflow (runs after Terraform validate, before
+    set-k8s-env.sh)
+  - Requires Docker to be installed and running
+  - Requires `jq` for JSON parsing (with fallback to sed for compatibility)
+  - Prevents Docker Hub rate limiting and external dependencies during
+    deployments
+  - Comprehensive error handling and user feedback
+
+- **ECR Image Support for OpenLDAP, PostgreSQL, and Redis Modules**
+  - All three modules now use ECR images instead of Docker Hub
+  - New variables in `application/variables.tf`:
+    - `openldap_image_tag` (default: "openldap-1.5.0")
+    - `postgresql_image_tag` (default: "postgresql-18.1.0")
+    - `redis_image_tag` (default: "redis-8.4.0")
+  - ECR registry and repository computed from backend_infra state (`ecr_url`)
+  - All modules updated with ECR configuration variables:
+    - `ecr_registry`: ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)
+    - `ecr_repository`: ECR repository name
+    - `image_tag` or module-specific tag variable
+  - Helm values templates updated to use ECR images
+  - Image tags correspond to tags created by `mirror-images-to-ecr.sh`
+  - **OpenLDAP module**: Updated `helm/openldap-values.tpl.yaml` to use ECR
+    registry/repository/tag
+  - **PostgreSQL module**: Updated Helm values to use ECR image configuration
+  - **Redis module**: Updated Helm values to use ECR image configuration
+
 ### Changed
 
 - **Setup Script Improvements**
@@ -82,6 +148,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved Kubernetes environment setup using `set-k8s-env.sh`
   - Enhanced user guidance and confirmation prompts
   - Automatic injection of `state_account_role_arn` for Route53/ACM access
+  - Integrated ECR image mirroring script execution (runs before Terraform
+    operations)
+  - Improved credential handling to prevent conflicts between different AWS
+    credentials
+  - Better dependency chain organization to prevent failures
+  - Enhanced script error handling in destroy scripts
 
 - **GitHub Actions Workflow Updates**
   - Updated `application_infra_provisioning.yaml` with ExternalId support and
@@ -96,14 +168,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     assumption
   security
   - Improved environment variable handling for password secrets
+  - Added Docker Buildx setup step for image operations
+  - Added "Mirror Docker images to ECR" step (runs after Terraform validate,
+    before set-k8s-env.sh)
+  - Workflow now handles image mirroring automatically
+  - Improved credential handling to prevent conflicts between different AWS
+    credentials
 
 - **Documentation Improvements**
   - Removed duplication by replacing detailed module descriptions with links to
   module READMEs
   - Enhanced cross-references to module documentation (ALB, ArgoCD, cert-manager,
-  Network Policies, PostgreSQL, Redis, SES, SNS)
+  Network Policies, PostgreSQL, Redis, SES, SNS, Route53 Record)
   - Updated component descriptions to be more concise with links to detailed documentation
   - Improved consistency across documentation files
+  - Added comprehensive documentation for Route53 record module
+  - Added documentation for ECR image mirroring script
+  - Updated module documentation to reflect ECR image usage
 
 - **Backend API Configuration**
   - Removed debug mode condition for API documentation endpoints
@@ -125,8 +206,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatically creates kubeconfig directory if it doesn't exist
   - Script exits with error if kubeconfig update fails, preventing deployment with
     incorrect configuration
-  - Fixes issues with Terraform provisioners (e.g., ALB IngressClassParams) that use
-    kubectl commands
+  - Fixes issues with Terraform provisioners (e.g., ALB IngressClassParams) that
+    use kubectl commands
 
 ## [2025-12-20] - Swagger UI for API Documentation
 

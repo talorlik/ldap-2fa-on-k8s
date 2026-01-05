@@ -1,7 +1,9 @@
 # OpenLDAP Module
 
 This module deploys OpenLDAP Stack HA using Helm, including phpLDAPadmin and
-ltb-passwd web interfaces, with ALB ingress and Route53 DNS records.
+ltb-passwd web interfaces, with ALB ingress. Route53 DNS records are created by
+the dedicated `route53_record` module (see [Route53 Record Module
+Documentation](../route53_record/README.md)).
 
 ## Features
 
@@ -16,7 +18,8 @@ secure cluster-internal access
 the osixia/openldap image
 - **Network Policies**: Optionally applies network policies for secure inter-pod
 communication
-- **Route53 Integration**: Creates DNS records pointing to ALB for public access
+- **ECR Image Support**: Uses ECR images instead of Docker Hub
+(images mirrored via `mirror-images-to-ecr.sh`)
 
 ## Usage
 
@@ -43,8 +46,10 @@ module "openldap" {
   alb_target_type        = var.alb_target_type
   acm_cert_arn           = data.aws_acm_certificate.this.arn
 
-  route53_zone_id = data.aws_route53_zone.this.zone_id
-  alb_zone_id     = var.alb_zone_id  # Computed in main.tf from region mapping
+  # ECR image configuration
+  ecr_registry       = local.ecr_registry
+  ecr_repository     = local.ecr_repository
+  openldap_image_tag = "openldap-1.5.0"  # Default, corresponds to osixia/openldap:1.5.0
 
   tags = local.tags
 
@@ -59,9 +64,9 @@ module "openldap" {
 
 - Kubernetes cluster with Helm provider configured
 - ALB Ingress Controller installed (if using ALB)
-- Route53 hosted zone
 - ACM certificate
 - StorageClass for PVCs
+- ECR repository (for container images)
 
 ## Inputs
 
@@ -78,14 +83,15 @@ module "openldap" {
 | phpldapadmin_host | Hostname for phpLDAPadmin ingress | `string` | n/a | yes |
 | ltb_passwd_host | Hostname for ltb-passwd ingress | `string` | n/a | yes |
 | acm_cert_arn | ARN of the ACM certificate for HTTPS | `string` | n/a | yes |
-| route53_zone_id | Route53 hosted zone ID for creating DNS records | `string` | n/a | yes |
 | alb_load_balancer_name | Custom name for the AWS ALB | `string` | n/a | yes |
+| ecr_registry | ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com) | `string` | n/a | yes |
+| ecr_repository | ECR repository name | `string` | n/a | yes |
+| openldap_image_tag | OpenLDAP image tag in ECR | `string` | `"openldap-1.5.0"` | no |
 | openldap_secret_name | Name of the Kubernetes secret for OpenLDAP passwords | `string` | `"openldap-secret"` | no |
 | namespace | Kubernetes namespace for OpenLDAP | `string` | `"ldap"` | no |
 | use_alb | Whether to use ALB for ingress | `bool` | `true` | no |
 | ingress_class_name | Name of the IngressClass for ALB | `string` | `null` | no |
 | alb_target_type | ALB target type: ip or instance | `string` | `"ip"` | no |
-| alb_zone_id | ALB canonical hosted zone ID for Route53 alias records | `string` | n/a | yes |
 | helm_chart_version | OpenLDAP Helm chart version | `string` | `"4.0.1"` | no |
 | helm_chart_repository | Helm chart repository URL | `string` | `"https://jp-gouin.github.io/helm-openldap"` | no |
 | helm_chart_name | Helm chart name | `string` | `"openldap-stack-ha"` | no |
@@ -104,15 +110,19 @@ module "openldap" {
 | phpldapadmin_ingress_hostname | Hostname from phpLDAPadmin ingress (ALB DNS name) |
 | ltb_passwd_ingress_hostname | Hostname from ltb-passwd ingress (ALB DNS name) |
 | alb_dns_name | ALB DNS name (from either ingress) |
-| phpldapadmin_route53_record_name | Route53 record name for phpLDAPadmin |
-| ltb_passwd_route53_record_name | Route53 record name for ltb-passwd |
 
 ## Dependencies
 
 - `kubernetes_storage_class_v1` - StorageClass for PVCs
 - `module.alb` - ALB module for ingress (if using ALB)
-- `data.aws_route53_zone` - Route53 hosted zone
 - `data.aws_acm_certificate` - ACM certificate
+- ECR repository (for container images, created by `backend_infra`)
+
+> [!NOTE]
+>
+> Route53 DNS records are created by the dedicated `route53_record` module in
+> `application/main.tf`. See [Route53 Record Module
+> Documentation](../route53_record/README.md) for details.
 
 ## High Availability Configuration
 
@@ -147,6 +157,49 @@ default: `false` to allow both LDAP and LDAPS)
 - **Access Mode**: ReadWriteOnce (each replica has its own volume)
 - **Volume Binding**: WaitForFirstConsumer (volume created when pod is scheduled)
 
+## ECR Image Configuration
+
+This module uses ECR images instead of Docker Hub to eliminate Docker Hub rate
+limiting and external dependencies. Images are automatically mirrored from Docker
+Hub to ECR by the `mirror-images-to-ecr.sh` script before Terraform operations.
+
+**Image Details:**
+
+- **Source Image**: `osixia/openldap:1.5.0` (from Docker Hub)
+- **ECR Tag**: `openldap-1.5.0` (default)
+- **ECR Registry/Repository**: Computed from `backend_infra` Terraform state
+  (`ecr_url`)
+
+**Image Mirroring:**
+
+The `mirror-images-to-ecr.sh` script automatically:
+
+1. Checks if the image exists in ECR (skips if already present)
+2. Pulls the image from Docker Hub
+3. Tags and pushes the image to ECR with the standardized tag
+4. Cleans up local images after pushing
+
+**Configuration:**
+
+The ECR registry and repository are automatically computed from the `backend_infra`
+Terraform state in the parent module (`application/main.tf`). You only need to
+specify the `openldap_image_tag` if you want to use a different tag than the
+default.
+
+The Helm values template (`helm/openldap-values.tpl.yaml`) uses these ECR
+variables to configure the image:
+
+```yaml
+image:
+  registry: "${ecr_registry}"
+  repository: "${ecr_repository}"
+  tag: "${openldap_image_tag}"
+  pullPolicy: IfNotPresent
+```
+
+For more information about image mirroring, see the [Application Infrastructure
+README](../README.md#ecr-image-mirroring-automatic).
+
 ## Internal LDAP Service
 
 The LDAP service uses ClusterIP (not LoadBalancer or NodePort) to:
@@ -163,11 +216,12 @@ Services in other namespaces can access the LDAP service using:
 
 ## Notes
 
-- The module uses the osixia/openldap image (version 1.5.0) instead of the default
-Bitnami image
+- The module uses ECR images (tag: `openldap-1.5.0`, corresponds to
+  `osixia/openldap:1.5.0` from Docker Hub) instead of Docker Hub directly
 - TLS is enabled with auto-generated self-signed certificates from the
-osixia/openldap image (generated on first startup)
+  osixia/openldap image (generated on first startup)
 - Network policies are applied by default to secure inter-pod communication
-- The module creates Route53 alias records pointing to the ALB for public access
+- Route53 DNS records are created by the dedicated `route53_record` module (see
+  [Route53 Record Module Documentation](../route53_record/README.md))
 - Chart version: 4.0.1 from `https://jp-gouin.github.io/helm-openldap`
 - Helm release name: `openldap-stack-ha` (configurable)

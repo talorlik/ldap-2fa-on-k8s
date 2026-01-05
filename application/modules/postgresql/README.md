@@ -9,6 +9,8 @@ user storage.
 - Persistent storage with configurable size
 - Configurable resources
 - ClusterIP service for internal access
+- **ECR Image Support**: Uses ECR images instead of Docker Hub
+(images mirrored via `mirror-images-to-ecr.sh`)
 
 ## Usage
 
@@ -27,6 +29,11 @@ module "postgresql" {
 
   storage_class = "gp3"
   storage_size  = "10Gi"
+
+  # ECR image configuration
+  ecr_registry   = local.ecr_registry
+  ecr_repository = local.ecr_repository
+  image_tag      = "postgresql-18.1.0"  # Default, corresponds to bitnami/postgresql:18.1.0-debian-12-r4
 }
 ```
 
@@ -45,6 +52,9 @@ module "postgresql" {
 | storage_class | Storage class for PVC | `string` | `""` | no |
 | storage_size | Storage size | `string` | `"8Gi"` | no |
 | resources | Resource limits/requests | `object` | See variables.tf | no |
+| ecr_registry | ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com) | `string` | n/a | yes |
+| ecr_repository | ECR repository name | `string` | n/a | yes |
+| image_tag | PostgreSQL image tag in ECR | `string` | `"postgresql-18.1.0"` | no |
 
 ## Outputs
 
@@ -56,6 +66,37 @@ module "postgresql" {
 | username | Database username |
 | connection_url | Connection URL (without password) |
 | namespace | Kubernetes namespace |
+
+## ECR Image Configuration
+
+This module uses ECR images instead of Docker Hub to eliminate Docker Hub rate
+limiting and external dependencies. Images are automatically mirrored from Docker
+Hub to ECR by the `mirror-images-to-ecr.sh` script before Terraform operations.
+
+**Image Details:**
+
+- **Source Image**: `bitnami/postgresql:18.1.0-debian-12-r4` (from Docker Hub)
+- **ECR Tag**: `postgresql-18.1.0` (default)
+- **ECR Registry/Repository**: Computed from `backend_infra` Terraform state
+  (`ecr_url`)
+
+**Image Mirroring:**
+
+The `mirror-images-to-ecr.sh` script automatically:
+
+1. Checks if the image exists in ECR (skips if already present)
+2. Pulls the image from Docker Hub
+3. Tags and pushes the image to ECR with the standardized tag
+4. Cleans up local images after pushing
+
+**Configuration:**
+
+The ECR registry and repository are automatically computed from the `backend_infra`
+Terraform state in the parent module (`application/main.tf`). You only need to
+specify the `image_tag` if you want to use a different tag than the default.
+
+For more information about image mirroring, see the [Application Infrastructure
+README](../README.md#ecr-image-mirroring-automatic).
 
 ## Purpose
 

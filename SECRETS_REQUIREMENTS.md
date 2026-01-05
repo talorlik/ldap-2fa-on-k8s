@@ -261,10 +261,15 @@ aws secretsmanager update-secret \
 >
 > > [!IMPORTANT]
 > >
-> > **Self-Assumption Statement**: The last statement allows the role to assume itself. This is required when:
-> > - The State Account role is used for both backend state operations and Route53/ACM access (when `state_account_role_arn` points to the same role)
-> > - Terraform providers need to assume the same role that was already assumed by the initial authentication
-> > - You encounter errors like "User: arn:aws:sts::ACCOUNT_ID:assumed-role/github-role/SESSION is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::ACCOUNT_ID:role/github-role"
+> > **Self-Assumption Statement**: The last statement allows the role to assume
+> itself. This is required when:
+>
+> - The State Account role is used for both backend state operations and
+> Route53/ACM access (when `state_account_role_arn` points to the same role)
+> - Terraform providers need to assume the same role that was already assumed
+> by the initial authentication
+> - You encounter errors like "User: arn:aws:sts::ACCOUNT_ID:assumed-role/github-role/SESSION
+> is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::ACCOUNT_ID:role/github-role"
 
 ### IAM Permissions for AWS Secrets Manager
 
@@ -355,7 +360,11 @@ backend state operations (S3 bucket access for Terraform state)
 role's Trust Relationship must include the deployment account role ARNs to enable
 bidirectional trust. See the "Bidirectional Trust Relationships Required" section
 above (in the ExternalId configuration) for configuration details.
-- **Self-Assumption Requirement:** If the State Account role is used for both backend state operations and Route53/ACM access (when `state_account_role_arn` points to the same role), the trust policy must allow the role to assume itself. See the "Bidirectional Trust Relationships Required" section above for the complete trust policy example including the self-assumption statement.
+- **Self-Assumption Requirement:** If the State Account role is used for both
+backend state operations and Route53/ACM access (when `state_account_role_arn` points
+to the same role), the trust policy must allow the role to assume itself. See the
+"Bidirectional Trust Relationships Required" section above for the complete trust
+policy example including the self-assumption statement.
 
 #### AWS_PRODUCTION_ACCOUNT_ROLE_ARN
 

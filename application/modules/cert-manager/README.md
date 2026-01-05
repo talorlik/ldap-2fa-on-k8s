@@ -62,7 +62,7 @@ module "cert_manager" {
 ## Inputs
 
 | Name | Description | Type | Required |
-|------|-------------|------|----------|
+| ------ | ------------- | ------ | ---------- |
 | cluster_name | Name of the EKS cluster | string | yes |
 | namespace | Kubernetes namespace where OpenLDAP is deployed | string | yes |
 | domain_name | Domain name for certificate DNS names | string | yes |
@@ -70,7 +70,7 @@ module "cert_manager" {
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ------ | ------------- |
 | certificate_secret_name | Kubernetes secret name for TLS cert (always `openldap-tls`) |
 
 ## How OpenLDAP Uses the Certificate
@@ -109,7 +109,8 @@ kubectl get secret -n ldap openldap-tls
 ## Notes
 
 - Uses Helm provider to install cert-manager (no kubectl required)
-- Uses `kubernetes_manifest` resources for cert-manager CRDs (ClusterIssuer, Issuer, Certificate)
+- Uses `kubernetes_manifest` resources for cert-manager CRDs
+(ClusterIssuer, Issuer, Certificate)
 - All resources are managed natively by Terraform with proper state tracking
 - cert-manager version: v1.13.2
 - Requires Helm provider to be configured with access to the EKS cluster

@@ -249,6 +249,7 @@
                     </ul>
                 </li>
                 <li><strong>For Local Deployment:</strong> GitHub CLI (<code>gh</code>), AWS CLI, Terraform, kubectl, and <code>jq</code> installed and configured</li>
+                <li><strong>For Local Deployment:</strong> <strong>Docker</strong> must be installed and running for ECR image mirroring. The <code>mirror-images-to-ecr.sh</code> script requires Docker to pull images from Docker Hub and push them to ECR. This step is automatically executed by <code>setup-application.sh</code> before Terraform operations.</li>
                 <li><strong>For Local Deployment:</strong> AWS Secrets Manager configured with <code>github-role</code>, <code>tf-vars</code>, and <code>external-id</code> secrets (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>)</li>
             </ul>
             <p><strong>For detailed prerequisites and setup:</strong> <a href="../README.md#prerequisites">Prerequisites</a> | <a href="../README.md#secrets-configuration">Secrets Configuration</a> | <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
@@ -297,6 +298,19 @@
                 <ul>
                     <li>Prompts for AWS region (us-east-1 or us-east-2) and environment (prod or dev)</li>
                     <li>Retrieves repository variables from GitHub (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_PREFIX</code>)</li>
+                    <li><strong>Mirrors Docker images to ECR</strong> (runs <code>mirror-images-to-ecr.sh</code> before Terraform operations):
+                        <ul>
+                            <li>Checks if images exist in ECR before mirroring (skips if already present)</li>
+                            <li>Pulls images from Docker Hub: <code>bitnami/redis:8.4.0-debian-12-r6</code>, <code>bitnami/postgresql:18.1.0-debian-12-r4</code>, <code>osixia/openldap:1.5.0</code></li>
+                            <li>Pushes images to ECR with tags: <code>redis-8.4.0</code>, <code>postgresql-18.1.0</code>, <code>openldap-1.5.0</code></li>
+                            <li>Uses State Account credentials to fetch ECR URL from backend_infra state</li>
+                            <li>Assumes Deployment Account role for ECR operations (with ExternalId)</li>
+                            <li>Authenticates Docker to ECR automatically</li>
+                            <li>Cleans up local images after pushing to save disk space</li>
+                            <li>Requires Docker to be installed and running</li>
+                            <li>Requires <code>jq</code> for JSON parsing (with fallback to sed for compatibility)</li>
+                        </ul>
+                    </li>
                     <li>Retrieves role ARNs and ExternalId from AWS Secrets Manager</li>
                     <li>Retrieves password secrets from AWS Secrets Manager (<code>tf-vars</code> secret) and exports as environment variables:
                         <ul>
@@ -693,6 +707,10 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             <div class="doc-item">
                 <a href="../application/modules/sns/README.md">SNS Module</a>
                 <p>SMS 2FA integration</p>
+            </div>
+            <div class="doc-item">
+                <a href="../application/modules/route53_record/README.md">Route53 Record Module</a>
+                <p>Route53 A (alias) records for ALB</p>
             </div>
             <div class="doc-item">
                 <a href="../backend_infra/modules/endpoints/README.md">VPC Endpoints Module</a>

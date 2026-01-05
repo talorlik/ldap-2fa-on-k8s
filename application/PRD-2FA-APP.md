@@ -19,7 +19,7 @@ The application supports **two MFA methods**:
 ### Routing Pattern (Pattern B - Single Domain)
 
 | Decision | Value |
-|----------|-------|
+| ---------- | ------- |
 | Public hostname | `app.<domain>` (e.g., `app.talo-ldap.com`) |
 | Frontend path | `/` |
 | Backend API path | `/api/*` |
@@ -30,7 +30,7 @@ The application supports **two MFA methods**:
 ### MFA Method Selection
 
 | Method | Use Case | Infrastructure |
-|--------|----------|----------------|
+| -------- | ---------- | ---------------- |
 | TOTP | Primary method, no network dependency | None (code generated locally) |
 | SMS | Alternative method, requires phone | AWS SNS, VPC endpoints |
 
@@ -120,7 +120,7 @@ ldap-2fa-on-k8s/
 ### Functional Requirements
 
 | ID | Requirement |
-|----|-------------|
+| ---- | ------------- |
 | BE-01 | Authenticate users against LDAP (bind operation) |
 | BE-02 | Generate TOTP secrets for MFA enrollment |
 | BE-03 | Return `otpauth://` URI for QR code generation |
@@ -133,7 +133,7 @@ ldap-2fa-on-k8s/
 ### SMS-Specific Functional Requirements
 
 | ID | Requirement |
-|----|-------------|
+| ---- | ------------- |
 | SMS-01 | Validate phone numbers in E.164 format (e.g., `+14155552671`) |
 | SMS-02 | Generate random 6-digit verification codes |
 | SMS-03 | Send verification codes via AWS SNS |
@@ -149,7 +149,7 @@ All endpoints must be served under the `/api` prefix (no path rewriting).
 #### Core Endpoints
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| -------- | ---------- | ------------- |
 | `GET` | `/api/healthz` | Liveness/readiness probe (includes SMS status) |
 | `GET` | `/api/mfa/methods` | List available MFA methods (TOTP, SMS if enabled) |
 | `GET` | `/api/mfa/status/{username}` | Get user's MFA enrollment status |
@@ -159,7 +159,7 @@ All endpoints must be served under the `/api` prefix (no path rewriting).
 #### SMS-Specific Endpoints
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| -------- | ---------- | ------------- |
 | `POST` | `/api/auth/sms/send-code` | Send SMS verification code to enrolled user |
 
 #### API Documentation Endpoints
@@ -167,12 +167,14 @@ All endpoints must be served under the `/api` prefix (no path rewriting).
 FastAPI automatically generates interactive API documentation that is always available:
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| -------- | ---------- | ------------- |
 | `GET` | `/api/docs` | Swagger UI - Interactive API documentation and testing interface |
 | `GET` | `/api/redoc` | ReDoc UI - Alternative API documentation interface |
 | `GET` | `/api/openapi.json` | OpenAPI schema in JSON format |
 
-The Swagger UI provides an interactive interface to explore all available endpoints, view request/response schemas, and test API calls directly from the browser. The documentation automatically updates when API endpoints change.
+The Swagger UI provides an interactive interface to explore all available endpoints,
+view request/response schemas, and test API calls directly from the browser.
+The documentation automatically updates when API endpoints change.
 
 ### API Request/Response Schemas
 
@@ -232,7 +234,7 @@ The Swagger UI provides an interactive interface to explore all available endpoi
 ### Configuration Requirements
 
 | Config Item | Source | Description |
-|-------------|--------|-------------|
+| ------------- | -------- | ------------- |
 | LDAP service DNS | Environment/ConfigMap | Internal Kubernetes service DNS name |
 | LDAP base DN | Environment/ConfigMap | Base distinguished name for LDAP operations |
 | LDAP admin credentials | Secret | Bind DN and password for LDAP queries |
@@ -241,7 +243,7 @@ The Swagger UI provides an interactive interface to explore all available endpoi
 #### SMS Configuration Requirements
 
 | Config Item | Source | Description |
-|-------------|--------|-------------|
+| ------------- | -------- | ------------- |
 | `ENABLE_SMS_2FA` | Environment/ConfigMap | Enable/disable SMS MFA method |
 | `AWS_REGION` | Environment/ConfigMap | AWS region for SNS |
 | `SNS_TOPIC_ARN` | Environment/ConfigMap | SNS topic ARN (optional, for subscriptions) |
@@ -254,7 +256,7 @@ The Swagger UI provides an interactive interface to explore all available endpoi
 ### Technical Requirements
 
 | ID | Requirement |
-|----|-------------|
+| ---- | ------------- |
 | BE-T01 | Built with Python (FastAPI recommended) |
 | BE-T02 | Run with production server (uvicorn/gunicorn) |
 | BE-T03 | Expose container port 8000 |
@@ -268,7 +270,7 @@ The Swagger UI provides an interactive interface to explore all available endpoi
 ### Functional Requirements
 
 | ID | Requirement |
-|----|-------------|
+| ---- | ------------- |
 | FE-01 | Display enrollment flow: username/password → MFA method selection → setup |
 | FE-02 | Display login flow: username/password + verification code → success/failure |
 | FE-03 | Render QR code from backend-provided `otpauth://` URI (TOTP) |
@@ -279,7 +281,7 @@ The Swagger UI provides an interactive interface to explore all available endpoi
 ### SMS-Specific Frontend Requirements
 
 | ID | Requirement |
-|----|-------------|
+| ---- | ------------- |
 | FE-SMS-01 | Display phone number input field for SMS enrollment |
 | FE-SMS-02 | Validate phone number format (E.164) on client side |
 | FE-SMS-03 | Show "Send SMS Code" button on login for SMS-enrolled users |
@@ -290,7 +292,7 @@ The Swagger UI provides an interactive interface to explore all available endpoi
 ### Technical Requirements
 
 | ID | Requirement |
-|----|-------------|
+| ---- | ------------- |
 | FE-T01 | Static HTML/CSS/JavaScript (no server-side rendering) |
 | FE-T02 | Call backend using relative URLs (`fetch("/api/...")`) |
 | FE-T03 | Served via nginx in container |
@@ -301,7 +303,7 @@ The Swagger UI provides an interactive interface to explore all available endpoi
 ### DNS (Route53)
 
 | Requirement |
-|-------------|
+| ------------- |
 | Create one A/ALIAS record: `app.<domain>` → existing ALB |
 | Use existing hosted zone |
 | No separate `api.<domain>` record needed |
@@ -314,7 +316,7 @@ references `IngressClassParams` containing the shared `group.name`.
 #### Backend Ingress
 
 | Setting | Value |
-|---------|-------|
+| --------- | ------- |
 | IngressClassName | `${ingressclass_alb_name}` (existing) |
 | Host | `app.<domain>` |
 | Path | `/api` |
@@ -324,7 +326,7 @@ references `IngressClassParams` containing the shared `group.name`.
 #### Frontend Ingress
 
 | Setting | Value |
-|---------|-------|
+| --------- | ------- |
 | IngressClassName | `${ingressclass_alb_name}` (existing) |
 | Host | `app.<domain>` |
 | Path | `/` |
@@ -339,7 +341,7 @@ These settings are configured once at the cluster level via the existing
 `IngressClassParams` resource and inherited by all Ingresses:
 
 | Setting | Description |
-|---------|-------------|
+| --------- | ------------- |
 | `scheme` | `internet-facing` |
 | `ipAddressType` | `ipv4` |
 | `group.name` | ALB group name (groups multiple Ingresses to single ALB) |
@@ -357,7 +359,7 @@ alb.ingress.kubernetes.io/ssl-redirect: "${app_alb_ssl_redirect}"
 ```
 
 | Annotation | Variable | Description |
-|------------|----------|-------------|
+| ------------ | ---------- | ------------- |
 | `load-balancer-name` | `${alb_load_balancer_name}` | Shared ALB name (same as OpenLDAP) |
 | `target-type` | `${app_alb_target_type}` | Target type (default: `ip`) |
 | `listen-ports` | — | HTTPS 443 only |
@@ -373,7 +375,7 @@ alb.ingress.kubernetes.io/ssl-redirect: "${app_alb_ssl_redirect}"
 #### SNS Topic
 
 | Requirement |
-|-------------|
+| ------------- |
 | Create SNS topic for SMS notifications |
 | Configure topic policy to allow IAM role to publish |
 | Set display name for SMS sender identification |
@@ -381,7 +383,7 @@ alb.ingress.kubernetes.io/ssl-redirect: "${app_alb_ssl_redirect}"
 #### IAM Role for IRSA (IAM Roles for Service Accounts)
 
 | Requirement |
-|-------------|
+| ------------- |
 | Create IAM role with trust policy for EKS OIDC provider |
 | Scope trust to specific service account and namespace |
 | Attach policy with SNS publish permissions |
@@ -429,7 +431,7 @@ alb.ingress.kubernetes.io/ssl-redirect: "${app_alb_ssl_redirect}"
 #### VPC Endpoints (Required for Private Connectivity)
 
 | Endpoint | Service | Purpose |
-|----------|---------|---------|
+| ---------- | --------- | --------- |
 | STS | `com.amazonaws.<region>.sts` | IRSA - pods assume IAM roles |
 | SNS | `com.amazonaws.<region>.sns` | Send SMS without NAT gateway |
 
@@ -450,7 +452,7 @@ metadata:
 The SNS Terraform module (`application/modules/sns/`) creates:
 
 | Resource | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `aws_sns_topic` | SNS topic for SMS |
 | `aws_sns_topic_policy` | Topic policy for IAM role access |
 | `aws_iam_role` | IAM role for IRSA |
@@ -460,7 +462,7 @@ The SNS Terraform module (`application/modules/sns/`) creates:
 #### Module Inputs
 
 | Variable | Description | Default |
-|----------|-------------|---------|
+| ---------- | ------------- | --------- |
 | `enable_sms_2fa` | Enable SMS 2FA resources | `false` |
 | `sns_topic_name` | SNS topic name component | `2fa-sms` |
 | `sns_display_name` | SMS sender display name | `2FA Verification` |
@@ -473,7 +475,7 @@ The SNS Terraform module (`application/modules/sns/`) creates:
 #### Module Outputs
 
 | Output | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `sns_topic_arn` | SNS topic ARN |
 | `iam_role_arn` | IAM role ARN for IRSA |
 | `service_account_annotation` | Annotation for K8s service account |
@@ -483,14 +485,14 @@ The SNS Terraform module (`application/modules/sns/`) creates:
 ### ArgoCD Applications
 
 | Application | Helm Chart Path | Namespace |
-|-------------|-----------------|-----------|
+| ------------- | ----------------- | ----------- |
 | `ldap-2fa-backend` | `application/backend/helm/ldap-2fa-backend` | `2fa-app` |
 | `ldap-2fa-frontend` | `application/frontend/helm/ldap-2fa-frontend` | `2fa-app` |
 
 ### Sync Configuration
 
 | Setting | Value |
-|---------|-------|
+| --------- | ------- |
 | Automated sync | Enabled |
 | Self-heal | Enabled |
 | Prune | Enabled |
@@ -519,23 +521,40 @@ serviceAccountIAM:
 ### Backend Workflow
 
 | Trigger | `application/backend/**` changes |
-|---------|----------------------------------|
+| --------- | ------------------------------- |
 | Steps | 1. Build Docker image |
-|       | 2. Tag with commit SHA |
-|       | 3. Push to ECR |
-|       | 4. Update `values.yaml` with new image tag |
-|       | 5. Commit and push changes |
+| | 2. Tag with commit SHA |
+| | 3. Push to ECR |
+| | 4. Update `values.yaml` with new image tag |
+| | 5. Commit and push changes |
 
 ### Frontend Workflow
 
 | Trigger | `application/frontend/**` changes |
-|---------|-----------------------------------|
+| --------- | ----------------------------------- |
 | Steps | Same pattern as backend |
+
+### ECR Image Mirroring for Third-Party Images
+
+> [!NOTE]
+>
+> **ECR Image Mirroring**: Third-party container images (OpenLDAP, PostgreSQL, Redis)
+> are automatically mirrored from Docker Hub to ECR by the `mirror-images-to-ecr.sh`
+> script before Terraform operations. This eliminates Docker Hub rate limiting
+> and external dependencies. The script:
+>
+> - Checks if images exist in ECR (skips if already present)
+> - Pulls images from Docker Hub
+> - Tags and pushes to ECR with standardized tags
+> - Runs automatically in `setup-application.sh` (local) and GitHub Actions workflows
+>
+> For details, see [ECR Image Mirroring](../PRD.md#ecr-image-mirroring) in the
+> main PRD.
 
 ## Security Requirements
 
 | ID | Requirement |
-|----|-------------|
+| ---- | ------------- |
 | SEC-01 | LDAP server must remain internal-only (ClusterIP, no public Ingress) |
 | SEC-02 | Backend communicates with LDAP via internal Kubernetes DNS only |
 | SEC-03 | TLS termination at ALB for all public traffic |
@@ -545,7 +564,7 @@ serviceAccountIAM:
 ### SMS Security Requirements
 
 | ID | Requirement |
-|----|-------------|
+| ---- | ------------- |
 | SEC-SMS-01 | Phone numbers must be validated (E.164 format) |
 | SEC-SMS-02 | SMS codes must expire after configurable timeout |
 | SEC-SMS-03 | Use constant-time comparison for code verification |
@@ -560,7 +579,7 @@ serviceAccountIAM:
 ### Core Acceptance Criteria
 
 | ID | Criterion |
-|----|-----------|
+| ---- | ----------- |
 | AC-01 | `https://app.<domain>` loads the frontend UI |
 | AC-02 | Enrollment flow displays a TOTP QR code scannable by Google Authenticator |
 | AC-03 | Login succeeds only with correct LDAP password AND correct TOTP code |
@@ -572,7 +591,7 @@ serviceAccountIAM:
 ### SMS Acceptance Criteria
 
 | ID | Criterion |
-|----|-----------|
+| ---- | ----------- |
 | AC-SMS-01 | `/api/mfa/methods` returns `["totp", "sms"]` when SMS is enabled |
 | AC-SMS-02 | User can enroll with SMS by providing phone number |
 | AC-SMS-03 | SMS verification code is received on enrolled phone |

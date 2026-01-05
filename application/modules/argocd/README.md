@@ -75,7 +75,7 @@ module "argocd" {
 ## Inputs
 
 | Name | Description | Type | Required | Default |
-|------|-------------|------|----------|---------|
+| ------ | ------------- | ------ | ---------- | --------- |
 | env | Deployment environment | string | yes | - |
 | region | Deployment region | string | yes | - |
 | prefix | Name added to all resources | string | yes | - |
@@ -101,7 +101,7 @@ module "argocd" {
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ------ | ------------- |
 | argocd_server_url | Managed Argo CD UI/API endpoint |
 | argocd_capability_name | Name of the ArgoCD capability |
 | argocd_capability_status | Status of the ArgoCD capability |

@@ -3,7 +3,7 @@
 ## Document Information
 
 | Field | Value |
-|-------|-------|
+| ------- | ------- |
 | Document ID | PRD-SIGNUP-MAN |
 | Version | 1.0 |
 | Status | Implemented |
@@ -13,15 +13,22 @@
 
 ### 1.1 Purpose
 
-This document defines the requirements for a self-service user signup system that allows users to register their own accounts, verify their identity through email and phone verification, and be activated by an administrator before gaining access to LDAP-authenticated resources.
+This document defines the requirements for a self-service user signup system that
+allows users to register their own accounts, verify their identity through email
+and phone verification, and be activated by an administrator before gaining access
+to LDAP-authenticated resources.
 
 ### 1.2 Background
 
-The existing LDAP 2FA application requires administrators to manually create users in LDAP. This creates a bottleneck and doesn't scale well for organizations with frequent user onboarding. A self-service signup system reduces administrative overhead while maintaining security through multi-step verification.
+The existing LDAP 2FA application requires administrators to manually create users
+in LDAP. This creates a bottleneck and doesn't scale well for organizations with
+frequent user onboarding. A self-service signup system reduces administrative overhead
+while maintaining security through multi-step verification.
 
 ### 1.3 Scope
 
 This PRD covers:
+
 - User self-registration with profile fields
 - Email verification via AWS SES
 - Phone verification via AWS SNS
@@ -38,11 +45,14 @@ This PRD covers:
 > **So that** I don't need to wait for an administrator to create my account.
 
 **Acceptance Criteria:**
+
 - User can access a signup form from the main application
-- Form collects: first name, last name, username, email, phone (with country code), password
+- Form collects: first name, last name, username, email, phone (with country code),
+password
 - User selects preferred MFA method (TOTP or SMS)
 - Password must be at least 8 characters
-- Username must be unique and follow format rules (letters, numbers, underscores, hyphens)
+- Username must be unique and follow format rules (letters, numbers, underscores,
+hyphens)
 - Email must be unique and valid format
 - Phone number validated with country code
 
@@ -53,6 +63,7 @@ This PRD covers:
 > **So that** the system can confirm I own this email.
 
 **Acceptance Criteria:**
+
 - Verification email sent automatically upon signup
 - Email contains a clickable verification link
 - Link expires after 24 hours
@@ -67,6 +78,7 @@ This PRD covers:
 > **So that** the system can confirm I own this phone.
 
 **Acceptance Criteria:**
+
 - 6-digit verification code sent via SMS upon signup
 - Code expires after 1 hour
 - User enters code in the application
@@ -81,6 +93,7 @@ This PRD covers:
 > **So that** I understand what steps I need to complete.
 
 **Acceptance Criteria:**
+
 - Users with PENDING status cannot log in
 - Error message specifies which verifications are missing (email, phone, or both)
 - Users with COMPLETE status see message about awaiting admin approval
@@ -93,6 +106,7 @@ This PRD covers:
 > **So that** I can approve or reject new user requests.
 
 **Acceptance Criteria:**
+
 - Admin tab visible only to authenticated administrators
 - Admin can filter users by status (pending, complete, active)
 - Admin can view user details (name, email, phone, verification status)
@@ -105,14 +119,14 @@ This PRD covers:
 ### 3.1 Profile States
 
 | State | Description | Allowed Actions |
-|-------|-------------|-----------------|
+| ------- | ------------- | ----------------- |
 | PENDING | User registered but verification incomplete | Verify email, verify phone, resend verification |
 | COMPLETE | All verifications complete, awaiting admin | Wait for admin activation |
 | ACTIVE | Admin activated, exists in LDAP | Login, use application |
 
 **State Transitions:**
 
-```
+```ascii
 ┌─────────────┐
 │   SIGNUP    │
 └──────┬──────┘
@@ -135,7 +149,7 @@ This PRD covers:
 ### 3.2 Signup Form Fields
 
 | Field | Type | Required | Validation |
-|-------|------|----------|------------|
+| ------- | ------ | ---------- | ------------ |
 | First Name | Text | Yes | 1-100 characters |
 | Last Name | Text | Yes | 1-100 characters |
 | Username | Text | Yes | 3-64 characters, alphanumeric + underscore/hyphen, starts with letter, unique |
@@ -149,7 +163,7 @@ This PRD covers:
 ### 3.3 Email Verification
 
 | Requirement | Specification |
-|-------------|---------------|
+| ------------- | --------------- |
 | Delivery Method | AWS SES |
 | Token Format | UUID |
 | Token Expiry | 24 hours (configurable) |
@@ -159,7 +173,7 @@ This PRD covers:
 ### 3.4 Phone Verification
 
 | Requirement | Specification |
-|-------------|---------------|
+| ------------- | --------------- |
 | Delivery Method | AWS SNS SMS |
 | Code Format | 6-digit numeric |
 | Code Expiry | 1 hour |
@@ -191,7 +205,7 @@ When an administrator activates a user:
 ### 3.6 Admin Authorization
 
 | Requirement | Specification |
-|-------------|---------------|
+| ------------- | --------------- |
 | Authentication | LDAP credentials + MFA code |
 | Authorization | Member of admin group in LDAP |
 | Admin Group DN | Configurable (default: `cn=admins,ou=groups,{base_dn}`) |
@@ -201,7 +215,7 @@ When an administrator activates a user:
 ### 4.1 Signup Endpoints
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| -------- | ---------- | ------------- |
 | POST | `/api/auth/signup` | Register new user |
 | POST | `/api/auth/verify-email` | Verify email with token |
 | POST | `/api/auth/verify-phone` | Verify phone with code |
@@ -211,7 +225,7 @@ When an administrator activates a user:
 ### 4.2 Admin Endpoints
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| -------- | ---------- | ------------- |
 | POST | `/api/admin/login` | Admin login (same as regular + admin check) |
 | GET | `/api/admin/users` | List users with optional status filter |
 | POST | `/api/admin/users/{id}/activate` | Activate user to LDAP |
@@ -220,6 +234,7 @@ When an administrator activates a user:
 ### 4.3 Request/Response Examples
 
 #### Signup Request
+
 ```json
 {
   "username": "jsmith",
@@ -234,6 +249,7 @@ When an administrator activates a user:
 ```
 
 #### Signup Response
+
 ```json
 {
   "success": true,
@@ -245,6 +261,7 @@ When an administrator activates a user:
 ```
 
 #### Login Error (Pending User)
+
 ```json
 {
   "detail": "Profile incomplete. Please verify your: email, phone"
@@ -252,6 +269,7 @@ When an administrator activates a user:
 ```
 
 #### Login Error (Complete User)
+
 ```json
 {
   "detail": "Your profile is awaiting admin approval. Please wait for activation."
@@ -303,7 +321,7 @@ CREATE TABLE verification_tokens (
 ### 6.1 Security
 
 | Requirement | Implementation |
-|-------------|----------------|
+| ------------- | ---------------- |
 | Password Storage | bcrypt hashing |
 | Token Comparison | Constant-time comparison (prevent timing attacks) |
 | Rate Limiting | Resend cooldown prevents abuse |
@@ -314,7 +332,7 @@ CREATE TABLE verification_tokens (
 ### 6.2 Performance
 
 | Metric | Target |
-|--------|--------|
+| -------- | -------- |
 | Signup Response Time | < 2 seconds |
 | Verification Email Delivery | < 30 seconds |
 | SMS Delivery | < 30 seconds |
@@ -323,7 +341,7 @@ CREATE TABLE verification_tokens (
 ### 6.3 Scalability
 
 | Component | Scaling Strategy |
-|-----------|------------------|
+| ----------- | ------------------ |
 | Backend API | Horizontal scaling (multiple pods) |
 | PostgreSQL | Single instance (upgrade to HA if needed) |
 | SES | AWS managed (scales automatically) |
@@ -332,7 +350,7 @@ CREATE TABLE verification_tokens (
 ### 6.4 Availability
 
 | Component | Target Availability |
-|-----------|---------------------|
+| ----------- | --------------------- |
 | API | 99.5% |
 | Database | 99.5% |
 | Email Delivery | 99.9% (AWS SES SLA) |
@@ -343,7 +361,7 @@ CREATE TABLE verification_tokens (
 ### 7.1 AWS Services
 
 | Service | Purpose |
-|---------|---------|
+| --------- | --------- |
 | SES | Email verification delivery |
 | SNS | SMS verification delivery |
 | IAM | IRSA roles for pod access |
@@ -351,16 +369,24 @@ CREATE TABLE verification_tokens (
 ### 7.2 Kubernetes Resources
 
 | Resource | Purpose |
-|----------|---------|
-| PostgreSQL (Helm) | User data storage |
+| ---------- | --------- |
+| PostgreSQL (Helm) | User data storage (uses ECR image `postgresql-18.1.0`) |
 | ConfigMap | Application configuration |
 | Secret | Database credentials |
 | ServiceAccount | IRSA for AWS access |
 
+> [!NOTE]
+>
+> **ECR Image Support**: PostgreSQL uses ECR images instead of Docker Hub.
+> The image `bitnami/postgresql:18.1.0-debian-12-r4` is automatically mirrored to
+> ECR with tag `postgresql-18.1.0` by the `mirror-images-to-ecr.sh` script before
+> Terraform operations. The ECR registry and repository are computed from
+> `backend_infra` Terraform state.
+
 ### 7.3 Configuration Variables
 
 | Variable | Description | Default |
-|----------|-------------|---------|
+| ---------- | ------------- | --------- |
 | `DATABASE_URL` | PostgreSQL connection string | Required |
 | `SES_SENDER_EMAIL` | Verified sender email | Required |
 | `EMAIL_VERIFICATION_EXPIRY_HOURS` | Email token expiry | 24 |
@@ -373,7 +399,7 @@ CREATE TABLE verification_tokens (
 
 ### 8.1 Tab Structure
 
-```
+```ascii
 ┌─────────┬───────────┬────────────┬─────────┐
 │  Login  │  Sign Up  │ Enroll MFA │  Admin  │
 └─────────┴───────────┴────────────┴─────────┘
@@ -383,80 +409,80 @@ CREATE TABLE verification_tokens (
 
 ### 8.2 Signup Flow
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Sign Up Form                         │
-├─────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐              │
-│  │ First Name      │  │ Last Name       │              │
-│  └─────────────────┘  └─────────────────┘              │
-│  ┌─────────────────────────────────────────┐           │
-│  │ Username                                 │           │
-│  └─────────────────────────────────────────┘           │
-│  ┌─────────────────────────────────────────┐           │
-│  │ Email                                    │           │
-│  └─────────────────────────────────────────┘           │
-│  ┌───────┐ ┌───────────────────────────────┐           │
-│  │ +1  ▼ │ │ Phone Number                  │           │
-│  └───────┘ └───────────────────────────────┘           │
-│  ┌─────────────────────────────────────────┐           │
-│  │ Password                                 │           │
-│  └─────────────────────────────────────────┘           │
-│  ┌─────────────────────────────────────────┐           │
-│  │ Confirm Password                         │           │
-│  └─────────────────────────────────────────┘           │
-│  ┌─────────────────────────────────────────┐           │
-│  │ ○ 📱 Authenticator App                  │           │
-│  │ ○ 💬 SMS                                │           │
-│  └─────────────────────────────────────────┘           │
-│           ┌─────────────────────┐                      │
-│           │   Create Account    │                      │
-│           └─────────────────────┘                      │
-└─────────────────────────────────────────────────────────┘
+```ascii
+┌───────────────────────────────────────────────┐
+│                 Sign Up Form                  │
+├───────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐     │
+│  │ First Name      │  │ Last Name       │     │
+│  └─────────────────┘  └─────────────────┘     │
+│  ┌─────────────────────────────────────────┐  │
+│  │ Username                                │  │
+│  └─────────────────────────────────────────┘  │
+│  ┌─────────────────────────────────────────┐  │
+│  │ Email                                   │  │
+│  └─────────────────────────────────────────┘  │
+│  ┌───────┐ ┌───────────────────────────────┐  │
+│  │ +1  ▼ │ │ Phone Number                  │  │
+│  └───────┘ └───────────────────────────────┘  │
+│  ┌─────────────────────────────────────────┐  │
+│  │ Password                                │  │
+│  └─────────────────────────────────────────┘  │
+│  ┌─────────────────────────────────────────┐  │
+│  │ Confirm Password                        │  │
+│  └─────────────────────────────────────────┘  │
+│  ┌─────────────────────────────────────────┐  │
+│  │ ○ 📱 Authenticator App                  │  │
+│  │ ○ 💬 SMS                                │  │
+│  └─────────────────────────────────────────┘  │
+│           ┌─────────────────────┐             │
+│           │   Create Account    │             │
+│           └─────────────────────┘             │
+└───────────────────────────────────────────────┘
 ```
 
 ### 8.3 Verification Status Panel
 
-```
-┌─────────────────────────────────────────────────────────┐
+```ascii
+┌────────────────────────────────────────────────────────┐
 │  📋 Complete Your Registration                         │
 │  Please verify your email and phone to continue        │
-├─────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────┤
 │  ┌─────────────────────────────────────────────────┐   │
-│  │ ⏳ Email Verification                 [Resend] │   │
+│  │ ⏳ Email Verification                 [Resend]  │   │
 │  │    Check your inbox                             │   │
 │  └─────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │ ⏳ Phone Verification                 [Resend] │   │
+│  │ ⏳ Phone Verification                 [Resend]  │   │
 │  │    Enter code sent to your phone                │   │
 │  └─────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │ Phone Code: [______] [Verify]                   │   │
 │  └─────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────┘
 ```
 
 ### 8.4 Admin Panel
 
-```
+```ascii
 ┌─────────────────────────────────────────────────────────┐
-│  👥 User Management                          [Logout]  │
+│  👥 User Management                          [Logout]   │
 ├─────────────────────────────────────────────────────────┤
 │  Filter: [Awaiting Approval ▼]              [🔄 Refresh]│
 ├─────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ John Smith                                      │   │
-│  │ @jsmith                                         │   │
-│  │ 📧 j***h@example.com  📱 +1***4567             │   │
-│  │ [COMPLETE] ✅ Email ✅ Phone                    │   │
-│  │ Created: Dec 18, 2024                          │   │
-│  │                    [✅ Activate] [❌ Reject]   │   │
-│  └─────────────────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ Jane Doe                                        │   │
-│  │ @jdoe                                           │   │
-│  │ ...                                             │   │
-│  └─────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │ John Smith                                      │    │
+│  │ @jsmith                                         │    │
+│  │ 📧 j***h@example.com  📱 +1***4567              │    │
+│  │ [COMPLETE] ✅ Email ✅ Phone                    │    │
+│  │ Created: Dec 18, 2024                           │    │
+│  │                    [✅ Activate] [❌ Reject]    │    │
+│  └─────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │ Jane Doe                                        │    │
+│  │ @jdoe                                           │    │
+│  │ ...                                             │    │
+│  └─────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -507,7 +533,7 @@ CREATE TABLE verification_tokens (
 ## 11. Future Enhancements
 
 | Enhancement | Priority | Description |
-|-------------|----------|-------------|
+| ------------- | ---------- | ------------- |
 | Password Reset | High | Self-service password reset via email |
 | Profile Editing | Medium | Users can update their profile info |
 | Audit Logging | Medium | Track all admin actions |

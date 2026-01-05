@@ -14,7 +14,7 @@ osixia/openldap.
 **osixia/openldap** uses different environment variable names than Bitnami:
 
 | osixia/openldap | Bitnami (chart default) | Current Config | Status |
-|----------------|------------------------|----------------|--------|
+| ---------------- | ------------------------ | ---------------- | -------- |
 | `LDAP_TLS` | `LDAP_TLS` | ❌ Missing | **NEEDS FIX** |
 | `LDAP_TLS_CRT_FILENAME` | N/A | ❌ Wrong (`LDAP_TLS_CERT_FILE`) | **NEEDS FIX** |
 | `LDAP_TLS_KEY_FILENAME` | N/A | ❌ Wrong (`LDAP_TLS_KEY_FILE`) | **NEEDS FIX** |
@@ -124,7 +124,7 @@ extraVolumeMounts:
 
 Your current ALB configuration is **correct** with the following setup:
 
-#### ✅ Correct Configuration:
+#### ✅ Correct Configuration
 
 - `group.name` and `certificateARNs` configured in IngressClassParams
 (cluster-wide)

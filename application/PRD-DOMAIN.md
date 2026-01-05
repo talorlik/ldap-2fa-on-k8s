@@ -234,44 +234,99 @@ provision an internal ALB with HTTPS listeners using `acm_cert_arn`.
 
 ## 9. Route53 records for application and GUIs
 
-Once the ALB exists, you either:
+Once the ALB exists, Route53 A (alias) records are created using the dedicated
+`route53_record` module. This module supports cross-account deployments where
+Route53 hosted zones are in a different account (State Account) than the ALB
+(Deployment Account).
 
-- Let AWS Load Balancer Controller create Route53 records via external-dns (if
-you add it), or
-- Create `A` records pointing to the ALB.
+**Current Implementation:**
 
-Manual Terraform example using the ALB DNS name:
+The `application/main.tf` uses the `route53_record` module to create separate
+A (alias) records for each subdomain:
 
 ```hcl
-data "aws_lb" "ldap_alb" {
-  # filter by tag or name corresponding to the Ingress-created ALB
-  # name = "k8s-<something>"  # adjust as needed
-}
+# Route53 record for phpLDAPadmin
+module "route53_record_phpldapadmin" {
+  source = "./modules/route53_record"
 
-resource "aws_route53_record" "phpldapadmin" {
-  zone_id = aws_route53_zone.talo_ldap.zone_id
-  name    = "phpldapadmin.${aws_route53_zone.talo_ldap.name}"
-  type    = "A"
+  count = var.use_alb && local.phpldapadmin_host != "" ? 1 : 0
 
-  alias {
-    name                   = data.aws_lb.ldap_alb.dns_name
-    zone_id                = data.aws_lb.ldap_alb.zone_id
-    evaluate_target_health = true
+  zone_id      = data.aws_route53_zone.this.zone_id
+  name         = local.phpldapadmin_host
+  alb_dns_name = data.aws_lb.alb[0].dns_name
+  alb_zone_id  = local.alb_zone_id
+
+  depends_on = [
+    module.openldap,  # Ensures Ingress is created (which triggers ALB creation)
+    data.aws_lb.alb,  # Ensures ALB exists before creating record
+  ]
+
+  providers = {
+    aws.state_account = aws.state_account
   }
 }
 
-resource "aws_route53_record" "passwd" {
-  zone_id = aws_route53_zone.talo_ldap.zone_id
-  name    = "passwd.${aws_route53_zone.talo_ldap.name}"
-  type    = "A"
+# Route53 record for ltb-passwd
+module "route53_record_ltb_passwd" {
+  source = "./modules/route53_record"
 
-  alias {
-    name                   = data.aws_lb.ldap_alb.dns_name
-    zone_id                = data.aws_lb.ldap_alb.zone_id
-    evaluate_target_health = true
+  count = var.use_alb && local.ltb_passwd_host != "" ? 1 : 0
+
+  zone_id      = data.aws_route53_zone.this.zone_id
+  name         = local.ltb_passwd_host
+  alb_dns_name = data.aws_lb.alb[0].dns_name
+  alb_zone_id  = local.alb_zone_id
+
+  depends_on = [
+    module.openldap,  # Ensures Ingress is created (which triggers ALB creation)
+    data.aws_lb.alb,  # Ensures ALB exists before creating record
+  ]
+
+  providers = {
+    aws.state_account = aws.state_account
+  }
+}
+
+# Route53 record for 2FA application
+module "route53_record_twofa_app" {
+  source = "./modules/route53_record"
+
+  count = var.use_alb && local.twofa_app_host != "" ? 1 : 0
+
+  zone_id      = data.aws_route53_zone.this.zone_id
+  name         = local.twofa_app_host
+  alb_dns_name = data.aws_lb.alb[0].dns_name
+  alb_zone_id  = local.alb_zone_id
+
+  depends_on = [
+    module.openldap,  # Ensures Ingress is created (which triggers ALB creation)
+    data.aws_lb.alb,  # Ensures ALB exists before creating record
+  ]
+
+  providers = {
+    aws.state_account = aws.state_account
   }
 }
 ```
+
+**Key Features:**
+
+- **Cross-Account Support**: Uses state account provider (`aws.state_account`) to
+  create records in State Account while ALB is in Deployment Account
+- **Precondition Validation**: Ensures ALB DNS name is available before record
+  creation
+- **Proper Dependencies**: Records are created after OpenLDAP module (ensures
+  Ingress exists, which triggers ALB creation) and ALB data source
+- **ALB Zone ID Mapping**: Automatically selects the correct ALB zone ID based
+  on region (comprehensive mapping for 13 AWS regions)
+- **Safe Updates**: Uses `create_before_destroy` lifecycle to prevent DNS
+  downtime
+
+> [!NOTE]
+>
+> For detailed Route53 record module documentation, including variables, outputs,
+> dependencies, usage examples, and ALB zone_id mapping, see the [Route53 Record
+> Module Documentation](modules/route53_record/README.md).
 
 Now:
 

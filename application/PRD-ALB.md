@@ -77,6 +77,7 @@ phpldapadmin:
 What this does:
 
 **Annotation Strategy**:
+
 - **IngressClassParams** (cluster-wide defaults): Configured once at the cluster
 level:
   - `scheme` (internet-facing)
@@ -93,6 +94,7 @@ level:
   IngressClassParams, not in annotations
 
 **How it works**:
+
 - Both Ingresses use the same `group.name` (configured in IngressClassParams),
 so the controller provisions a single ALB
 - Certificate ARN is configured once in IngressClassParams and applies to all
@@ -101,7 +103,9 @@ Ingresses using this IngressClass
 (scheme, ipAddressType, group.name, certificateARNs)
 - Each Ingress only needs to specify per-Ingress settings (load-balancer-name,
 target-type, listen-ports, ssl-redirect)
-- Route 53: create two A/AAAA alias records pointing to the same ALB:
+- Route 53: create A (alias) records pointing to the ALB using the dedicated
+  `route53_record` module (separate module calls for phpldapadmin, ltb_passwd,
+  and twofa_app subdomains):
   - `${phpldapadmin_host}` → this ALB
   - `${ltb_passwd_host}` → same ALB
 
@@ -110,7 +114,7 @@ separate hostnames for each UI, with minimal annotation duplication and
 centralized certificate/group configuration.
 
 The Helm chart can create `Ingress` objects, but it cannot magically tell
-Kubernetes *which controller- should act on them or *what ALB defaults- to use.
+Kubernetes *which controller should act on them* or *what ALB defaults to use*.
 That's exactly what `IngressClass` and `IngressClassParams` are for.
 
 Breakdown:
@@ -262,6 +266,7 @@ Breakdown:
 ## Implementation Details
 
 **Terraform creates**:
+
 - `IngressClass` resource using `kubernetes_ingress_class_v1` resource
 - `IngressClassParams` using `null_resource` with `kubectl apply` (because
 Terraform doesn't have native support for EKS Auto Mode's IngressClassParams
@@ -273,6 +278,7 @@ CRD)
     - `certificateARNs` (ACM certificate ARNs for TLS termination)
 
 **Helm chart creates**:
+
 - `Ingress` objects with host/path/service rules
 - Uses `ingressClassName` to reference the IngressClass
 - **Annotation strategy**:
@@ -286,10 +292,12 @@ CRD)
   IngressClassParams (cluster-wide), not in Ingress annotations
 
 **IngressClass is set as default**:
+
 - Uses annotation `ingressclass.kubernetes.io/is-default-class: "true"`
 - Allows Ingresses to omit `ingressClassName` if desired
 
 **Why this strategy**:
+
 - Treats IngressClassParams as cluster-wide defaults (scheme, ipAddressType,
 group.name, certificateARNs)
 - Minimizes annotation duplication across multiple Ingresses in the same group
@@ -303,7 +311,7 @@ target-type, listen-ports, ssl-redirect)
 ## Key Differences: EKS Auto Mode vs AWS Load Balancer Controller
 
 | Feature | EKS Auto Mode | AWS Load Balancer Controller |
-|---------|---------------|------------------------------|
+| --------- | --------------- | ------------------------------ |
 | Controller | `eks.amazonaws.com/alb` | `alb.ingress.kubernetes.io` |
 | API Group | `eks.amazonaws.com` | `elbv2.k8s.aws` |
 | IAM Setup | Automatic (no manual setup) | Requires IAM policy attachment |

@@ -60,6 +60,13 @@ Configuration](#github-repository-configuration))
 - Route53 hosted zone must already exist (or create it manually)
 - ACM certificate must already exist and be validated in the same region as the
 EKS cluster
+- **Docker (for Local Deployment)**: Docker must be installed and running for
+  ECR image mirroring. The `mirror-images-to-ecr.sh` script requires Docker to
+  pull images from Docker Hub and push them to ECR. This step is automatically
+  executed by `setup-application.sh` before Terraform operations.
+- **jq (for Local Deployment)**: The `jq` command-line tool is required for
+  JSON parsing in the image mirroring script (with fallback to sed for
+  compatibility).
 
 ## Project Structure
 
@@ -330,10 +337,14 @@ to include the deployment account roles:
 
    > [!IMPORTANT]
    >
-   > **Self-Assumption Statement**: The last statement allows the role to assume itself. This is required when:
-   > - The State Account role is used for both backend state operations and Route53/ACM access
-   > - Terraform providers need to assume the same role that was already assumed by the initial authentication
-   > - You encounter errors like "User: arn:aws:sts::ACCOUNT_ID:assumed-role/github-role/SESSION is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::ACCOUNT_ID:role/github-role"
+   > **Self-Assumption Statement**: The last statement allows the role to assume
+   > itself. This is required when:
+   > - The State Account role is used for both backend state operations and
+   > Route53/ACM access
+   > - Terraform providers need to assume the same role that was already assumed
+   > by the initial authentication
+   > - You encounter errors like "User: arn:aws:sts::ACCOUNT_ID:assumed-role/github-role/SESSION
+   > is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::ACCOUNT_ID:role/github-role"
 
 5. Click **Update policy**
 
@@ -843,6 +854,8 @@ verification token storage
 - [SES Module](application/modules/ses/README.md) - Email verification and
 notifications
 - [SNS Module](application/modules/sns/README.md) - SMS 2FA integration
+- [Route53 Record Module](application/modules/route53_record/README.md) - Route53
+A (alias) records for ALB
 - [VPC Endpoints Module](backend_infra/modules/endpoints/README.md) - Private
 AWS service access
 - [ECR Module](backend_infra/modules/ecr/README.md) - Container registry setup
