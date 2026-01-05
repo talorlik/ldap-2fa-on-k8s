@@ -28,7 +28,7 @@ variable "secret_name" {
 variable "chart_version" {
   description = "PostgreSQL Helm chart version"
   type        = string
-  default     = "16.2.1"
+  default     = "18.1.15"
 }
 
 variable "database_name" {
@@ -89,4 +89,20 @@ variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
   default     = {}
+}
+
+variable "ecr_registry" {
+  description = "ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)"
+  type        = string
+}
+
+variable "ecr_repository" {
+  description = "ECR repository name"
+  type        = string
+}
+
+variable "image_tag" {
+  description = "PostgreSQL image tag in ECR"
+  type        = string
+  default     = "postgresql-18.1.0"
 }

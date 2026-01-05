@@ -1,6 +1,14 @@
 locals {
   storage_class_name = "${var.prefix}-${var.region}-${var.storage_class_name}-${var.env}"
 
+  # Retrieve ECR information from backend_infra state
+  ecr_url = try(data.terraform_remote_state.backend_infra[0].outputs.ecr_url, null)
+  
+  # Parse ECR URL to extract registry and repository
+  # Format: account.dkr.ecr.region.amazonaws.com/repo-name
+  ecr_registry   = local.ecr_url != null ? regex("^([^/]+)", local.ecr_url)[0] : ""
+  ecr_repository = local.ecr_url != null ? regex("/(.+)$", local.ecr_url)[0] : ""
+
   tags = {
     Env       = "${var.env}"
     Terraform = "true"
@@ -163,6 +171,11 @@ module "openldap" {
   openldap_config_password = var.openldap_config_password
   storage_class_name       = local.storage_class_name
 
+  # ECR image configuration
+  ecr_registry       = local.ecr_registry
+  ecr_repository     = local.ecr_repository
+  openldap_image_tag = var.openldap_image_tag
+
   # Use derived values from locals to ensure non-null values
   # These are derived from domain_name if not explicitly provided
   phpldapadmin_host = local.phpldapadmin_host
@@ -174,22 +187,12 @@ module "openldap" {
   alb_target_type        = var.alb_target_type
   acm_cert_arn           = data.aws_acm_certificate.this.arn
 
-  route53_zone_id = data.aws_route53_zone.this.zone_id
-  alb_zone_id     = local.alb_zone_id
-
   tags = local.tags
 
   depends_on = [
     kubernetes_storage_class_v1.this,
     module.alb,
   ]
-
-  # Pass state account provider for Route53 resources
-  # If state_account_role_arn is null, state_account provider uses default credentials
-  # Note: openldap module only needs aws.state_account (not aws)
-  providers = {
-    aws.state_account = aws.state_account
-  }
 }
 
 # Query AWS for ALB DNS name using the load balancer name.
@@ -203,28 +206,72 @@ data "aws_lb" "alb" {
   depends_on = [module.openldap]
 }
 
-# Route53 A (alias) record for 2FA application
-# Use var.use_alb for count (known at plan time) and data.aws_lb.alb for DNS name
-resource "aws_route53_record" "twofa_app" {
-  count    = var.use_alb ? 1 : 0
-  provider = aws.state_account
+##################### Route53 Records ##########################
 
-  zone_id = data.aws_route53_zone.this.zone_id
-  name    = local.twofa_app_host
-  type    = "A"
+# Route53 A (alias) records for all subdomains pointing to ALB
+# All records use consistent ALB data source approach to avoid timing issues
 
-  alias {
-    # Use data source directly instead of module output to avoid count dependency issues
-    # The data source has depends_on to ensure ALB exists
-    name                   = data.aws_lb.alb[0].dns_name
-    zone_id                = local.alb_zone_id
-    evaluate_target_health = true
-  }
+# Route53 record for phpLDAPadmin
+module "route53_record_phpldapadmin" {
+  source = "./modules/route53_record"
+
+  count = var.use_alb && local.phpldapadmin_host != "" ? 1 : 0
+
+  zone_id  = data.aws_route53_zone.this.zone_id
+  name     = local.phpldapadmin_host
+  alb_dns_name = data.aws_lb.alb[0].dns_name
+  alb_zone_id  = local.alb_zone_id
 
   depends_on = [
     module.openldap, # Ensures Ingress is created (which triggers ALB creation)
     data.aws_lb.alb, # Ensures ALB exists before creating record
   ]
+
+  providers = {
+    aws.state_account = aws.state_account
+  }
+}
+
+# Route53 record for ltb-passwd
+module "route53_record_ltb_passwd" {
+  source = "./modules/route53_record"
+
+  count = var.use_alb && local.ltb_passwd_host != "" ? 1 : 0
+
+  zone_id  = data.aws_route53_zone.this.zone_id
+  name     = local.ltb_passwd_host
+  alb_dns_name = data.aws_lb.alb[0].dns_name
+  alb_zone_id  = local.alb_zone_id
+
+  depends_on = [
+    module.openldap, # Ensures Ingress is created (which triggers ALB creation)
+    data.aws_lb.alb, # Ensures ALB exists before creating record
+  ]
+
+  providers = {
+    aws.state_account = aws.state_account
+  }
+}
+
+# Route53 record for 2FA application
+module "route53_record_twofa_app" {
+  source = "./modules/route53_record"
+
+  count = var.use_alb && local.twofa_app_host != "" ? 1 : 0
+
+  zone_id  = data.aws_route53_zone.this.zone_id
+  name     = local.twofa_app_host
+  alb_dns_name = data.aws_lb.alb[0].dns_name
+  alb_zone_id  = local.alb_zone_id
+
+  depends_on = [
+    module.openldap, # Ensures Ingress is created (which triggers ALB creation)
+    data.aws_lb.alb, # Ensures ALB exists before creating record
+  ]
+
+  providers = {
+    aws.state_account = aws.state_account
+  }
 }
 
 ##################### ArgoCD ##########################
@@ -285,12 +332,16 @@ module "postgresql" {
   storage_class     = local.storage_class_name
   storage_size      = var.postgresql_storage_size
 
+  # ECR image configuration
+  ecr_registry  = local.ecr_registry
+  ecr_repository = local.ecr_repository
+  image_tag     = var.postgresql_image_tag
+
   tags = local.tags
 
-  depends_on = concat(
-    [module.openldap],
-    var.enable_argocd ? [module.argocd[0], time_sleep.wait_for_argocd[0]] : []
-  )
+  # Static list: always depends on OpenLDAP
+  # ArgoCD dependency is handled implicitly through module ordering (ArgoCD is defined before this module)
+  depends_on = [module.openldap]
 }
 
 ##################### Redis for SMS OTP Storage ##########################
@@ -313,15 +364,19 @@ module "redis" {
   storage_size       = var.redis_storage_size
   chart_version      = var.redis_chart_version
 
+  # ECR image configuration
+  ecr_registry   = local.ecr_registry
+  ecr_repository = local.ecr_repository
+  image_tag      = var.redis_image_tag
+
   # Network policy configuration
   backend_namespace = var.argocd_app_backend_namespace
 
   tags = local.tags
 
-  depends_on = concat(
-    [module.openldap],
-    var.enable_argocd ? [module.argocd[0], time_sleep.wait_for_argocd[0]] : []
-  )
+  # Static list: always depends on OpenLDAP
+  # ArgoCD dependency is handled implicitly through module ordering (ArgoCD is defined before this module)
+  depends_on = [module.openldap]
 }
 
 ##################### SES for Email Verification ##########################

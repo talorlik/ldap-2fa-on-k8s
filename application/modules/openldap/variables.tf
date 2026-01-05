@@ -94,15 +94,6 @@ variable "acm_cert_arn" {
   type        = string
 }
 
-variable "route53_zone_id" {
-  description = "Route53 hosted zone ID for creating DNS records"
-  type        = string
-}
-
-variable "alb_zone_id" {
-  description = "ALB canonical hosted zone ID for Route53 alias records. This should be computed in the parent module from the region mapping and passed to this module."
-  type        = string
-}
 
 variable "tags" {
   description = "Tags to apply to resources"
@@ -144,4 +135,20 @@ variable "enable_network_policies" {
   description = "Whether to enable network policies for the OpenLDAP namespace"
   type        = bool
   default     = true
+}
+
+variable "ecr_registry" {
+  description = "ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)"
+  type        = string
+}
+
+variable "ecr_repository" {
+  description = "ECR repository name"
+  type        = string
+}
+
+variable "openldap_image_tag" {
+  description = "OpenLDAP image tag in ECR"
+  type        = string
+  default     = "openldap-1.5.0"
 }

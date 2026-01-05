@@ -45,7 +45,7 @@ variable "redis_password" {
 variable "chart_version" {
   description = "Bitnami Redis Helm chart version"
   type        = string
-  default     = "19.6.4"
+  default     = "24.0.9"
 }
 
 variable "storage_class_name" {
@@ -106,4 +106,20 @@ variable "backend_namespace" {
   description = "Namespace where the backend pods are deployed (for network policy)"
   type        = string
   default     = "twofa-backend"
+}
+
+variable "ecr_registry" {
+  description = "ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)"
+  type        = string
+}
+
+variable "ecr_repository" {
+  description = "ECR repository name"
+  type        = string
+}
+
+variable "image_tag" {
+  description = "Redis image tag in ECR"
+  type        = string
+  default     = "redis-8.4.0"
 }

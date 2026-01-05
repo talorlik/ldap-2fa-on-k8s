@@ -66,6 +66,24 @@ variable "openldap_secret_name" {
   default     = "openldap-secret"
 }
 
+variable "openldap_image_tag" {
+  description = "OpenLDAP image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
+  type        = string
+  default     = "openldap-1.5.0"
+}
+
+variable "postgresql_image_tag" {
+  description = "PostgreSQL image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
+  type        = string
+  default     = "postgresql-18.1.0"
+}
+
+variable "redis_image_tag" {
+  description = "Redis image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
+  type        = string
+  default     = "redis-8.4.0"
+}
+
 ##################### Storage ##########################
 
 variable "storage_class_name" {

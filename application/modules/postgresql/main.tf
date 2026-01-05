@@ -10,6 +10,13 @@ locals {
 
   # Build PostgreSQL Helm values (without secret reference to avoid circular dependency)
   postgresql_values_base = {
+    # Configure image to pull from ECR instead of Docker Hub
+    image = {
+      registry   = var.ecr_registry
+      repository = var.ecr_repository
+      tag        = var.image_tag
+    }
+
     architecture = "standalone"
 
     auth = {

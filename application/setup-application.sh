@@ -486,6 +486,26 @@ fi
 
 echo ""
 
+# Mirror third-party images to ECR (if not already present)
+print_info "Checking if Docker images need to be mirrored to ECR..."
+if [ ! -f "mirror-images-to-ecr.sh" ]; then
+    print_error "mirror-images-to-ecr.sh not found."
+    exit 1
+fi
+
+# Make sure the script is executable
+chmod +x ./mirror-images-to-ecr.sh
+
+# Run the image mirroring script
+if ./mirror-images-to-ecr.sh; then
+    print_success "ECR image mirroring completed"
+else
+    print_error "ECR image mirroring failed"
+    exit 1
+fi
+
+echo ""
+
 # Terraform workspace name
 WORKSPACE_NAME="${AWS_REGION}-${ENVIRONMENT}"
 

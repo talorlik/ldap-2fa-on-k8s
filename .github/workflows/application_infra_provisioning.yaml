@@ -93,6 +93,9 @@ jobs:
           # Export state account role ARN for Route53/ACM access
           echo "STATE_ACCOUNT_ROLE_ARN=${{ secrets.AWS_STATE_ACCOUNT_ROLE_ARN }}" >> $GITHUB_ENV
 
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Configure AWS credentials (State Account)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -125,6 +128,16 @@ jobs:
 
       - name: Terraform validate
         run: terraform validate
+
+      - name: Mirror Docker images to ECR
+        run: |
+          # Mirror third-party images to ECR (if not already present)
+          # This script:
+          # 1. Fetches ECR URL from backend_infra state (using State Account credentials)
+          # 2. Assumes Deployment Account role for ECR operations
+          # 3. Checks if images exist, mirrors only missing ones
+          chmod +x ./mirror-images-to-ecr.sh
+          ./mirror-images-to-ecr.sh
 
       - name: Set Kubernetes environment variables
         run: |
