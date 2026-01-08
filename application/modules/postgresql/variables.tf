@@ -104,5 +104,5 @@ variable "ecr_repository" {
 variable "image_tag" {
   description = "PostgreSQL image tag in ECR"
   type        = string
-  default     = "postgresql-18.1.0"
+  default     = "postgresql-latest"
 }

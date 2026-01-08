@@ -76,9 +76,17 @@ resource "helm_release" "openldap" {
   namespace        = kubernetes_namespace.openldap.metadata[0].name
   create_namespace = false
 
+  atomic          = true
+  cleanup_on_fail = true
   # Force recreation on configuration changes
-  recreate_pods = true
-  force_update  = true
+  recreate_pods   = true
+  force_update    = true
+  wait            = true
+  wait_for_jobs   = true
+  upgrade_install = true
+
+  # Allow replacement if name conflict occurs
+  replace = true
 
   values = [local.openldap_values]
 

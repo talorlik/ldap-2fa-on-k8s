@@ -75,13 +75,13 @@ variable "openldap_image_tag" {
 variable "postgresql_image_tag" {
   description = "PostgreSQL image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
   type        = string
-  default     = "postgresql-18.1.0"
+  default     = "postgresql-latest"
 }
 
 variable "redis_image_tag" {
   description = "Redis image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
   type        = string
-  default     = "redis-8.4.0"
+  default     = "redis-latest"
 }
 
 ##################### Storage ##########################

@@ -103,6 +103,18 @@ resource "helm_release" "postgresql" {
   version    = var.chart_version
   namespace  = kubernetes_namespace.postgresql.metadata[0].name
 
+  atomic          = true
+  cleanup_on_fail = true
+  recreate_pods   = true
+  force_update    = true
+  wait            = true
+  wait_for_jobs   = true
+  timeout         = 600  # Reduced from 1200 to 600 seconds (10 min) for faster debugging
+  upgrade_install = true
+
+  # Allow replacement if name conflict occurs
+  replace = true
+
   # Use values attribute for complex nested structures (recommended approach)
   # This follows the official Bitnami PostgreSQL Helm chart values structure
   values = [
@@ -118,13 +130,6 @@ resource "helm_release" "postgresql" {
       }
     ))
   ]
-
-  wait          = true
-  wait_for_jobs = true
-  timeout       = 600  # Reduced from 1200 to 600 seconds (10 min) for faster debugging
-
-  # Allow replacement if name conflict occurs
-  replace = true
 
   depends_on = [
     kubernetes_namespace.postgresql,

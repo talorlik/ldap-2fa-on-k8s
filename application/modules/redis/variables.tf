@@ -121,5 +121,5 @@ variable "ecr_repository" {
 variable "image_tag" {
   description = "Redis image tag in ECR"
   type        = string
-  default     = "redis-8.4.0"
+  default     = "redis-latest"
 }

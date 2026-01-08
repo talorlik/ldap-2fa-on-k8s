@@ -25,9 +25,14 @@ resource "helm_release" "cert_manager" {
     value = "false"
   }
 
+  atomic          = true
+  cleanup_on_fail = true
+  recreate_pods   = true
+  force_update    = true
   # Wait for cert-manager to be ready before proceeding
-  wait = true
-  wait_for_jobs = true
+  wait            = true
+  wait_for_jobs   = true
+  upgrade_install = true
 }
 
 # Wait for cert-manager webhook to be fully ready before creating certificates

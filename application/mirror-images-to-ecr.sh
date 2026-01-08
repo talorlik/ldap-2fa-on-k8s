@@ -167,14 +167,22 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Extract Deployment Account ID from the ARN
+DEPLOYMENT_ACCOUNT_ID=$(aws sts get-caller-identity --region "$AWS_REGION" --query 'Account' --output text 2>&1)
+if [ $? -ne 0 ]; then
+    print_error "Failed to get Deployment Account ID: $DEPLOYMENT_ACCOUNT_ID"
+    exit 1
+fi
+
 print_success "Successfully assumed Deployment Account role"
 print_info "Deployment Account role identity: $DEPLOYMENT_CALLER_ARN"
+print_info "Deployment Account ID: $DEPLOYMENT_ACCOUNT_ID"
 echo ""
 
 # Function to check if an image tag exists in ECR
 check_ecr_image_exists() {
   local tag=$1
-  
+
   # Query ECR for the specific image tag
   local result
   result=$(aws ecr describe-images \
@@ -183,7 +191,7 @@ check_ecr_image_exists() {
     --image-ids imageTag="$tag" \
     --query 'imageDetails[0].imageTags[0]' \
     --output text 2>/dev/null || echo "None")
-  
+
   if [ "$result" != "None" ] && [ -n "$result" ]; then
     return 0  # Image exists
   else
@@ -191,9 +199,9 @@ check_ecr_image_exists() {
   fi
 }
 
-# Authenticate Docker to ECR
+# Authenticate Docker to ECR (using Deployment Account ID since ECR is in Deployment Account)
 info "Authenticating Docker to ECR..."
-if aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com" 2>/dev/null; then
+if aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$DEPLOYMENT_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com" 2>/dev/null; then
   print_success "Docker authenticated to ECR"
 else
   print_error "Failed to authenticate Docker to ECR"
@@ -203,9 +211,10 @@ echo ""
 
 # Define images to mirror with specific tags
 # Format: "source_image:tag ecr_tag"
+# Note: Using 'latest' tag for Bitnami images as other tags use SHA values
 IMAGES=(
-  "bitnami/redis:8.4.0-debian-12-r6 redis-8.4.0"
-  "bitnami/postgresql:18.1.0-debian-12-r4 postgresql-18.1.0"
+  "bitnami/redis:latest redis-latest"
+  "bitnami/postgresql:latest postgresql-latest"
   "osixia/openldap:1.5.0 openldap-1.5.0"
 )
 
@@ -217,7 +226,7 @@ IMAGES_ALREADY_EXIST=()
 
 for image_spec in "${IMAGES[@]}"; do
   read -r SOURCE_IMAGE ECR_TAG <<< "$image_spec"
-  
+
   if check_ecr_image_exists "$ECR_TAG"; then
     info "✓ Image already exists in ECR: $ECR_TAG"
     IMAGES_ALREADY_EXIST+=("$ECR_TAG")
@@ -244,36 +253,34 @@ echo ""
 
 for image_spec in "${IMAGES_TO_MIRROR[@]}"; do
   read -r SOURCE_IMAGE ECR_TAG <<< "$image_spec"
-  
+
   info "Processing: $SOURCE_IMAGE -> $ECR_TAG"
-  
+
   # Pull image from Docker Hub
   info "  Pulling $SOURCE_IMAGE from Docker Hub..."
-  if docker pull "$SOURCE_IMAGE"; then
-    print_success "  Successfully pulled $SOURCE_IMAGE"
-  else
+  if ! docker pull "$SOURCE_IMAGE"; then
     print_error "  Failed to pull $SOURCE_IMAGE"
-    continue
+    exit 1
   fi
-  
+  print_success "  Successfully pulled $SOURCE_IMAGE"
+
   # Tag for ECR
   ECR_IMAGE="$ECR_URL:$ECR_TAG"
   info "  Tagging as $ECR_IMAGE..."
   docker tag "$SOURCE_IMAGE" "$ECR_IMAGE"
-  
+
   # Push to ECR
   info "  Pushing to ECR..."
-  if docker push "$ECR_IMAGE"; then
-    print_success "  Successfully pushed $ECR_IMAGE"
-  else
+  if ! docker push "$ECR_IMAGE"; then
     print_error "  Failed to push $ECR_IMAGE"
-    continue
+    exit 1
   fi
-  
+  print_success "  Successfully pushed $ECR_IMAGE"
+
   # Clean up local images to save space
   info "  Cleaning up local images..."
   docker rmi "$SOURCE_IMAGE" "$ECR_IMAGE" 2>/dev/null || true
-  
+
   echo ""
 done
 
