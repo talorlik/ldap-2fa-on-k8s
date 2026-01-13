@@ -8,25 +8,28 @@ locals {
   }
 }
 
+# IAM Trust Policy for ArgoCD Capability Role
+data "aws_iam_policy_document" "argocd_assume_role" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["capabilities.eks.amazonaws.com"]
+    }
+
+    actions = [
+      "sts:AssumeRole",
+      "sts:TagSession",
+    ]
+  }
+}
+
 # IAM Role for ArgoCD Capability
 resource "aws_iam_role" "argocd_capability" {
   name = local.argocd_role_name
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "capabilities.eks.amazonaws.com"
-        }
-        Action = [
-          "sts:AssumeRole",
-          "sts:TagSession"
-        ]
-      }
-    ]
-  })
+  assume_role_policy = data.aws_iam_policy_document.argocd_assume_role.json
 
   tags = merge(
     local.tags,
@@ -34,6 +37,11 @@ resource "aws_iam_role" "argocd_capability" {
       Name = local.argocd_role_name
     }
   )
+
+  # Force replacement if trust policy changes to ensure AWS validates correctly
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # IAM Policy Document for ArgoCD Capability
@@ -174,7 +182,8 @@ resource "aws_eks_capability" "argocd" {
   )
 
   depends_on = [
-    aws_iam_role.argocd_capability
+    aws_iam_role.argocd_capability,
+    aws_iam_role_policy.argocd_capability
   ]
 }
 

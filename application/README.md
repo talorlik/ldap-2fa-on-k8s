@@ -654,6 +654,10 @@ application/
 out, code uses data sources)
 6. **ACM Certificate**: Must already exist and be validated in the same region
 as the EKS cluster
+   - Certificate should be issued from a Private CA in the State Account
+   - Certificate must exist in the Deployment Account (not State Account)
+   - See [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) for
+   Private CA setup instructions
 7. **Domain Registration**: The domain name must be registered (can be with any
 registrar)
 8. **DNS Configuration**: After deployment, point your domain registrar's NS

@@ -82,7 +82,7 @@ resource "kubernetes_secret" "postgresql_password" {
     namespace = kubernetes_namespace.postgresql.metadata[0].name
 
     labels = {
-      app         = "postgresql"
+      app         = local.name
       environment = var.env
       managed-by  = "terraform"
     }
@@ -97,7 +97,7 @@ resource "kubernetes_secret" "postgresql_password" {
 
 # PostgreSQL Helm release
 resource "helm_release" "postgresql" {
-  name       = "postgresql"
+  name       = local.name
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "postgresql"
   version    = var.chart_version
@@ -109,7 +109,7 @@ resource "helm_release" "postgresql" {
   force_update    = true
   wait            = true
   wait_for_jobs   = true
-  timeout         = 600  # Reduced from 1200 to 600 seconds (10 min) for faster debugging
+  timeout         = 600 # Reduced from 1200 to 600 seconds (10 min) for faster debugging
   upgrade_install = true
 
   # Allow replacement if name conflict occurs

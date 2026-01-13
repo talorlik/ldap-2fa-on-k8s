@@ -53,3 +53,7 @@ application/backend.hcl
 .env
 
 .DS_Store
+
+ca-config.json
+ca.csr
+ca-cert.pem

@@ -235,6 +235,13 @@ variable "cluster_name_component" {
   default     = "kc"
 }
 
+variable "terraform_workspace" {
+  description = "Terraform workspace name for remote state lookup. If null, will be derived from region and env as 'region-env'. This ensures the correct workspace state is used when fetching ECR registry information from backend_infra."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
 variable "kubernetes_master" {
   description = "Kubernetes API server endpoint (KUBERNETES_MASTER environment variable). Set by set-k8s-env.sh or GitHub workflow. Can be set via TF_VAR_kubernetes_master."
   type        = string

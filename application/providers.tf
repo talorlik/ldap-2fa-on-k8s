@@ -43,14 +43,15 @@ provider "aws" {
   }
 }
 
-# Provider alias for state account (where Route53 hosted zone and ACM certificate reside)
+# Provider alias for state account (where Route53 hosted zone and Private CA reside)
 provider "aws" {
   alias  = "state_account"
   region = var.region
 
   # Assume role in state account if role ARN is provided
-  # This allows querying Route53 hosted zones and ACM certificates from the state account
+  # This allows querying Route53 hosted zones from the state account
   # while deploying resources to the deployment account
+  # Note: ACM certificates are in deployment accounts (issued from Private CA in State Account)
   # Note: ExternalId is not used for state account role assumption (by design)
   dynamic "assume_role" {
     for_each = var.state_account_role_arn != null ? [1] : []
@@ -78,18 +79,43 @@ locals {
     regex("region\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_config.content)[0],
     var.region
   )
+
+  # Determine workspace name: use provided variable or derive from region and env
+  # This matches the workspace naming convention used in scripts: ${region}-${env}
+  # The workspace argument in terraform_remote_state will handle the workspace prefix automatically
+  terraform_workspace = coalesce(
+    var.terraform_workspace,
+    "${var.region}-${var.env}"
+  )
 }
 
 # Retrieve cluster name from backend_infra state
+# Uses the workspace argument to automatically handle workspace-prefixed state keys
+# Reference: https://developer.hashicorp.com/terraform/language/state/remote-state-data
 data "terraform_remote_state" "backend_infra" {
   count   = local.backend_bucket != null ? 1 : 0
   backend = "s3"
 
-  config = {
-    bucket = local.backend_bucket
-    key    = local.backend_key
-    region = local.backend_region
-  }
+  # Use workspace argument to specify which workspace state to access
+  # For S3 backend: "default" workspace uses base key, other workspaces use env:/${workspace}/${key}
+  # Always pass the workspace value explicitly to ensure correct state lookup
+  workspace = local.terraform_workspace
+
+  config = merge(
+    {
+      bucket = local.backend_bucket
+      key    = local.backend_key
+      region = local.backend_region
+    },
+    # Add assume_role block to assume state account role when accessing remote state
+    # This allows cross-account state access without requiring provider configuration
+    # Note: Terraform 1.6.0+ requires assume_role block instead of top-level role_arn
+    var.state_account_role_arn != null ? {
+      assume_role = {
+        role_arn = var.state_account_role_arn
+      }
+    } : {}
+  )
 }
 
 locals {
@@ -99,7 +125,6 @@ locals {
     var.cluster_name,
     "${var.prefix}-${var.region}-${var.cluster_name_component}-${var.env}"
   )
-
 }
 
 data "aws_eks_cluster" "cluster" {

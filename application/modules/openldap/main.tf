@@ -10,9 +10,9 @@ locals {
       openldap_secret_name = var.openldap_secret_name
       app_name             = var.app_name
       # ECR image configuration
-      ecr_registry        = var.ecr_registry
-      ecr_repository      = var.ecr_repository
-      openldap_image_tag  = var.openldap_image_tag
+      ecr_registry       = var.ecr_registry
+      ecr_repository     = var.ecr_repository
+      openldap_image_tag = var.openldap_image_tag
       # ALB configuration - IngressClassParams handles scheme and ipAddressType
       ingress_class_name     = var.use_alb && var.ingress_class_name != null ? var.ingress_class_name : "alb"
       alb_load_balancer_name = var.alb_load_balancer_name
@@ -38,7 +38,11 @@ resource "kubernetes_namespace" "openldap" {
   }
 
   lifecycle {
-    ignore_changes = [metadata[0].labels]
+    # Ignore changes to labels that might be modified by ArgoCD, Helm, or other controllers
+    ignore_changes = [
+      metadata[0].labels,
+      metadata[0].annotations,
+    ]
   }
 }
 
@@ -63,6 +67,17 @@ resource "kubernetes_secret" "openldap_passwords" {
 
   type = "Opaque"
 
+  lifecycle {
+    # Ignore changes to labels/annotations that might be modified by ArgoCD, Helm, or other controllers
+    # This prevents Terraform from trying to recreate the secret if it's modified externally
+    ignore_changes = [
+      metadata[0].labels,
+      metadata[0].annotations,
+    ]
+    # Create before destroy to avoid downtime if secret needs to be recreated
+    create_before_destroy = true
+  }
+
   depends_on = [kubernetes_namespace.openldap]
 }
 
@@ -84,6 +99,8 @@ resource "helm_release" "openldap" {
   wait            = true
   wait_for_jobs   = true
   upgrade_install = true
+  # 5 minute timeout as requested
+  timeout = 300 # 5 minutes in seconds
 
   # Allow replacement if name conflict occurs
   replace = true

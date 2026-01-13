@@ -38,7 +38,7 @@ resource "helm_release" "cert_manager" {
 # Wait for cert-manager webhook to be fully ready before creating certificates
 # This ensures the webhook can validate certificate resources
 resource "time_sleep" "wait_for_cert_manager_webhook" {
-  depends_on = [helm_release.cert_manager]
+  depends_on      = [helm_release.cert_manager]
   create_duration = "30s"
 }
 
@@ -78,7 +78,7 @@ resource "kubernetes_manifest" "openldap_ca" {
     spec = {
       secretName  = "openldap-ca-secret"
       duration    = "87600h" # 10 years
-      renewBefore = "720h"    # 30 days
+      renewBefore = "720h"   # 30 days
       isCA        = true
       commonName  = "OpenLDAP CA"
       privateKey = {

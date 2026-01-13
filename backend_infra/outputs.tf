@@ -123,6 +123,16 @@ output "ecr_url" {
   value       = module.ecr.ecr_url
 }
 
+output "ecr_registry" {
+  description = "ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)"
+  value       = module.ecr.ecr_registry
+}
+
+output "ecr_repository" {
+  description = "ECR repository name (without registry prefix)"
+  value       = module.ecr.ecr_repository
+}
+
 ##################### EBS ##########################
 # output "ebs_pvc_name" {
 #   value = module.ebs.ebs_pvc_name

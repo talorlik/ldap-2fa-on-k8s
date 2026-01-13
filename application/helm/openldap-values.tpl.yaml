@@ -1,9 +1,16 @@
-# Single replica deployment since we're using one ReadWriteOnce PVC
+# High availability configuration with 3 replicas
+# Note: StatefulSet creates individual PVCs for each replica, so ReadWriteOnce works fine
 replicaCount: 3
 
-# Disable replication only if using a single replica setup (replicaCount: 1)
+# Enable replication for HA multi-master setup
 replication:
   enabled: true
+  retry: 60
+  timeout: 30  # Increased from default 1 second to prevent replication failures
+  interval: "00:00:00:10"
+  starttls: "critical"
+  tls_reqcert: "never"
+  clusterName: "cluster.local"
 
 # Override default image to use ECR repository
 image:

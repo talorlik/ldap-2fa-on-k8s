@@ -366,39 +366,60 @@ unauthorized role assumption attempts. Both the deployment account roles and the
 state account role must trust each other in their respective Trust
 Relationships for proper bidirectional cross-account access.
 
-#### ✅ Route53/ACM Cross-Account Access
+#### ✅ Route53 Cross-Account Access
 
-- **Added**: Support for accessing Route53 hosted zones and ACM certificates from
-State Account
-- **Location**: `application/providers.tf`, `application/main.tf`, `application/modules/openldap/`,
+- **Added**: Support for accessing Route53 hosted zones from State Account
+- **Location**: `application/providers.tf`, `application/main.tf`, `application/modules/route53_record/`,
 `application/modules/ses/`
 - **Implementation**:
   - State account provider alias (`aws.state_account`) configured in `providers.tf`
   - Route53 hosted zone data source queries from State Account when `state_account_role_arn`
   is provided
-  - ACM certificate data source queries from State Account when `state_account_role_arn`
-  is provided
   - All Route53 record resources use state account provider for creating records
   in State Account
-  - ALB in deployment account can use ACM certificate from State Account
-  (same region required)
   - Scripts automatically inject `state_account_role_arn` into `variables.tfvars`
   - No ExternalId required for state account role assumption (by design)
 
+#### ⚠️ ACM Certificate Architecture (EKS Auto Mode)
+
+- **Important**: EKS Auto Mode ALB controller **CANNOT** access cross-account
+ACM certificates
+- **Requirement**: ACM certificate **MUST** be in the Deployment Account
+(same account as EKS cluster)
+- **Architecture**: Private CA in State Account issues certificates for each
+deployment account
+- **Location**: `application/main.tf`
+- **Implementation**:
+  - Private CA is created in State Account
+  - Each deployment account (development, production) has its own certificate
+  issued from the Private CA
+  - ACM certificate data source uses default provider (deployment account),
+  NOT `aws.state_account`
+  - Certificate must exist in Deployment Account before ALB creation
+  - Certificate must be validated and in `ISSUED` status
+  - Certificate must be in the same region as the EKS cluster
+  - No cross-account certificate access needed (each account uses its own certificate)
+
 **Key Security Features**:
 
-- **Cross-Account Resource Access**: Route53 and ACM resources can reside in
-State Account while ALB is deployed in Deployment Account
+- **Private CA Architecture**: Private CA in State Account issues certificates
+for each deployment account
+- **No Cross-Account Certificate Access**: Each deployment account has its own
+certificate, eliminating cross-account certificate access needs
+- **Cross-Account Resource Access**: Route53 hosted zones reside in State Account
+while ALB is deployed in Deployment Account
 - **Automatic Provider Selection**: Terraform automatically uses state account
 provider when `state_account_role_arn` is configured
 - **No ExternalId Required**: State account role assumption does not require
 ExternalId (by design, different security model)
 - **Comprehensive Documentation**: See `CROSS-ACCOUNT-ACCESS.md` for complete
-configuration details
+configuration details, including step-by-step AWS CLI commands for Private CA setup
+and certificate issuance
 
 **State Account Role Permissions**:
 
-The State Account role must have the following permissions:
+The State Account role must have the following permissions (Route53 only, ACM
+certificate access not needed since each account has its own certificate):
 
 ```json
 {
@@ -413,7 +434,19 @@ The State Account role must have the following permissions:
         "route53:GetChange"
       ],
       "Resource": "*"
-    },
+    }
+  ]
+}
+```
+
+**Deployment Account Role Permissions (for ACM Certificate):**
+
+The Deployment Account role (or default credentials) must have ACM permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
     {
       "Effect": "Allow",
       "Action": [
@@ -460,10 +493,9 @@ OIDC provider):
 > `github-role` and Terraform tries to assume the same role again via `assume_role`
 > in `providers.tf`, the operation will fail with an `AccessDenied` error.
 
-**Result**: Enables secure cross-account access to Route53 hosted zones and ACM
-certificates while maintaining separation between state storage and resource deployment
-accounts. ALB in deployment account can use certificates from State Account without
-additional IAM permissions (AWS built-in feature).
+**Result**: Enables secure cross-account access to Route53 hosted zones while maintaining
+separation between state storage and resource deployment accounts. ACM certificates
+must be in the Deployment Account due to EKS Auto Mode ALB controller limitations.
 
 ## Security Compliance
 

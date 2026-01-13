@@ -117,7 +117,7 @@ resource "kubernetes_secret" "redis_password" {
     namespace = kubernetes_namespace.redis[0].metadata[0].name
 
     labels = {
-      app         = "redis"
+      app         = local.name
       environment = var.env
       managed-by  = "terraform"
     }
@@ -134,7 +134,7 @@ resource "kubernetes_secret" "redis_password" {
 resource "helm_release" "redis" {
   count = var.enable_redis ? 1 : 0
 
-  name       = "redis"
+  name       = local.name
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "redis"
   version    = var.chart_version
@@ -146,7 +146,7 @@ resource "helm_release" "redis" {
   force_update    = true
   wait            = true
   wait_for_jobs   = true
-  timeout         = 600  # Reduced from 1200 to 600 seconds (10 min) for faster debugging
+  timeout         = 600 # Reduced from 1200 to 600 seconds (10 min) for faster debugging
   upgrade_install = true
 
   # Allow replacement if name conflict occurs
@@ -184,7 +184,7 @@ resource "kubernetes_network_policy_v1" "allow_backend_to_redis" {
     namespace = kubernetes_namespace.redis[0].metadata[0].name
 
     labels = {
-      app         = "redis"
+      app         = local.name
       environment = var.env
       managed-by  = "terraform"
     }

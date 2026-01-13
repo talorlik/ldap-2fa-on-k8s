@@ -154,8 +154,8 @@ resource "kubernetes_manifest" "ingressclassparams_alb" {
     }
     spec = merge(
       {
-        scheme         = var.alb_scheme
-        ipAddressType  = var.alb_ip_address_type
+        scheme        = var.alb_scheme
+        ipAddressType = var.alb_ip_address_type
         group = {
           name = var.alb_group_name
         }

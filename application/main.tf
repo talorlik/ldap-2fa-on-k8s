@@ -2,12 +2,8 @@ locals {
   storage_class_name = "${var.prefix}-${var.region}-${var.storage_class_name}-${var.env}"
 
   # Retrieve ECR information from backend_infra state
-  ecr_url = try(data.terraform_remote_state.backend_infra[0].outputs.ecr_url, null)
-  
-  # Parse ECR URL to extract registry and repository
-  # Format: account.dkr.ecr.region.amazonaws.com/repo-name
-  ecr_registry   = local.ecr_url != null ? regex("^([^/]+)", local.ecr_url)[0] : ""
-  ecr_repository = local.ecr_url != null ? regex("/(.+)$", local.ecr_url)[0] : ""
+  ecr_registry   = try(data.terraform_remote_state.backend_infra[0].outputs.ecr_registry, "")
+  ecr_repository = try(data.terraform_remote_state.backend_infra[0].outputs.ecr_repository, "")
 
   tags = {
     Env       = "${var.env}"
@@ -16,16 +12,23 @@ locals {
 }
 
 data "aws_route53_zone" "this" {
-  provider    = aws.state_account
-  name        = var.domain_name
+  provider     = aws.state_account
+  name         = var.domain_name
   private_zone = false
 }
 
+# ACM Certificate must be in the deployment account (not state account)
+# EKS Auto Mode ALB controller cannot access cross-account certificates
+# The certificate must exist in the same account where the ALB is created
+# Certificate is issued from Private CA in State Account but stored in Deployment Account
+# Each deployment account (development, production) has its own certificate
 data "aws_acm_certificate" "this" {
-  provider   = aws.state_account
-  domain     = var.domain_name
+  # Use default provider (deployment account) instead of state_account
+  # EKS Auto Mode ALB controller requires certificate in the same account
+  # Certificate is issued from Private CA in State Account but stored here
+  domain      = var.domain_name
   most_recent = true
-  statuses   = ["ISSUED"]
+  statuses    = ["ISSUED"]
 }
 
 # Create StorageClass for OpenLDAP PVC
@@ -39,7 +42,7 @@ resource "kubernetes_storage_class_v1" "this" {
 
   storage_provisioner    = "ebs.csi.eks.amazonaws.com"
   reclaim_policy         = "Delete"
-  volume_binding_mode    = "Immediate"  # Changed from WaitForFirstConsumer to prevent PVC binding deadlocks
+  volume_binding_mode    = "Immediate" # Changed from WaitForFirstConsumer to prevent PVC binding deadlocks
   allow_volume_expansion = true
 
   parameters = {
@@ -217,8 +220,8 @@ module "route53_record_phpldapadmin" {
 
   count = var.use_alb && local.phpldapadmin_host != "" ? 1 : 0
 
-  zone_id  = data.aws_route53_zone.this.zone_id
-  name     = local.phpldapadmin_host
+  zone_id      = data.aws_route53_zone.this.zone_id
+  name         = local.phpldapadmin_host
   alb_dns_name = data.aws_lb.alb[0].dns_name
   alb_zone_id  = local.alb_zone_id
 
@@ -238,8 +241,8 @@ module "route53_record_ltb_passwd" {
 
   count = var.use_alb && local.ltb_passwd_host != "" ? 1 : 0
 
-  zone_id  = data.aws_route53_zone.this.zone_id
-  name     = local.ltb_passwd_host
+  zone_id      = data.aws_route53_zone.this.zone_id
+  name         = local.ltb_passwd_host
   alb_dns_name = data.aws_lb.alb[0].dns_name
   alb_zone_id  = local.alb_zone_id
 
@@ -259,8 +262,8 @@ module "route53_record_twofa_app" {
 
   count = var.use_alb && local.twofa_app_host != "" ? 1 : 0
 
-  zone_id  = data.aws_route53_zone.this.zone_id
-  name     = local.twofa_app_host
+  zone_id      = data.aws_route53_zone.this.zone_id
+  name         = local.twofa_app_host
   alb_dns_name = data.aws_lb.alb[0].dns_name
   alb_zone_id  = local.alb_zone_id
 
@@ -307,7 +310,7 @@ module "argocd" {
 resource "time_sleep" "wait_for_argocd" {
   count = var.enable_argocd ? 1 : 0
 
-  create_duration = "60s"  # Wait 60 seconds for ArgoCD capability to be ready
+  create_duration = "3m" # Wait 60 seconds for ArgoCD capability to be ready
 
   depends_on = [module.argocd]
 }
@@ -333,15 +336,18 @@ module "postgresql" {
   storage_size      = var.postgresql_storage_size
 
   # ECR image configuration
-  ecr_registry  = local.ecr_registry
+  ecr_registry   = local.ecr_registry
   ecr_repository = local.ecr_repository
-  image_tag     = var.postgresql_image_tag
+  image_tag      = var.postgresql_image_tag
 
   tags = local.tags
 
   # Static list: always depends on OpenLDAP
   # ArgoCD dependency is handled implicitly through module ordering (ArgoCD is defined before this module)
-  depends_on = [module.openldap]
+  depends_on = [
+    module.openldap,
+    data.aws_lb.alb
+  ]
 }
 
 ##################### Redis for SMS OTP Storage ##########################
@@ -376,7 +382,10 @@ module "redis" {
 
   # Static list: always depends on OpenLDAP
   # ArgoCD dependency is handled implicitly through module ordering (ArgoCD is defined before this module)
-  depends_on = [module.openldap]
+  depends_on = [
+    module.openldap,
+    data.aws_lb.alb
+  ]
 }
 
 ##################### SES for Email Verification ##########################
