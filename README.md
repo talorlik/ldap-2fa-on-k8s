@@ -58,8 +58,16 @@ HTML/JS/CSS frontend
 - AWS SSO/OIDC configured (see [GitHub Repository
 Configuration](#github-repository-configuration))
 - Route53 hosted zone must already exist (or create it manually)
+- **Private CA Setup**: A central Private Certificate Authority (PCA) must be
+  created in the State Account, and ACM certificates must be issued for each
+  deployment account. See [Private CA Setup and Certificate Issuance](application/CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance)
+  for detailed setup instructions.
 - ACM certificate must already exist and be validated in the same region as the
-EKS cluster
+  EKS cluster
+  - Certificate must be issued from the Private CA in the State Account
+  - Certificate must exist in the Deployment Account (not State Account)
+  - See [Cross-Account Access Documentation](application/CROSS-ACCOUNT-ACCESS.md)
+    for details
 - **Docker (for Local Deployment)**: Docker must be installed and running for
   ECR image mirroring. The `mirror-images-to-ecr.sh` script requires Docker to
   pull images from Docker Hub and push them to ECR. This step is automatically

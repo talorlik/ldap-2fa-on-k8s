@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Private CA Architecture for ACM Certificates**
+  - Migrated from public ACM certificates to Private CA-based certificate
+    architecture
+  - Central Private CA created in State Account for certificate issuance
+  - Each deployment account (development, production) receives its own ACM
+    certificate issued from the Private CA
+  - Certificates stored in respective deployment accounts (not State Account)
+  - Eliminates cross-account certificate access complexity
+  - Compatible with EKS Auto Mode ALB controller requirements (certificate must
+    be in same account as ALB)
+  - Comprehensive Private CA setup documentation in
+    `CROSS-ACCOUNT-ACCESS.md` with step-by-step AWS CLI commands
+  - Includes Resource Access Manager (RAM) sharing configuration
+  - Certificate issuance workflow documented for both production and development
+    accounts
+  - Updated all documentation to reflect Private CA architecture
+  - Updated PRD-ALB.md and PRD-DOMAIN.md to reflect certificate architecture
+
 - **State Account Role ARN Support for Route53/ACM Cross-Account Access**
   - Added support for querying Route53 hosted zones and ACM certificates from
     State Account
@@ -21,7 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     configured
   - Route53 records (phpldapadmin, ltb_passwd, twofa_app, SES
     verification/DKIM) created in State Account
-  - ALB can use ACM certificates from State Account (same region required)
+  - ACM certificates are issued from Private CA in State Account but stored in
+    Deployment Account (no cross-account certificate access needed)
   - Scripts automatically inject `state_account_role_arn` into
     `variables.tfvars`:
     - `setup-application.sh` exports `STATE_ACCOUNT_ROLE_ARN` environment

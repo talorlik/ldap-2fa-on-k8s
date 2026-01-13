@@ -300,6 +300,10 @@ variable "openldap_ldap_domain" {
   type = string
 }
 
+# ACM certificate issued from Private CA in State Account, stored in Deployment Account
+# See CROSS-ACCOUNT-ACCESS.md for Private CA setup instructions
+# ACM certificate issued from Private CA in State Account, stored in Deployment Account
+# See CROSS-ACCOUNT-ACCESS.md for Private CA setup instructions
 variable "acm_cert_arn" {
   type = string
 }

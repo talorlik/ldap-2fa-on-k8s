@@ -217,10 +217,17 @@
                         <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
                     </ul>
                 </li>
+                <li><strong>Private CA Setup</strong>: A central Private Certificate Authority (PCA) must be created in the State Account, and ACM certificates must be issued for each deployment account
+                    <ul>
+                        <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance">Private CA Setup and Certificate Issuance</a> for detailed setup instructions</li>
+                        <li>Includes step-by-step AWS CLI commands for creating the Private CA, sharing via RAM, and issuing certificates</li>
+                    </ul>
+                </li>
                 <li><strong>ACM certificate</strong> must already exist and be validated in the same region as the EKS cluster
                     <ul>
-                        <li>Can be in State Account (different from deployment account) - automatically accessed via <code>state_account_role_arn</code></li>
-                        <li>ALB in deployment account can use ACM certificate from State Account (same region required)</li>
+                        <li>Certificate must be issued from the Private CA in the State Account</li>
+                        <li>Certificate must exist in the Deployment Account (not State Account)</li>
+                        <li>Each deployment account (development, production) has its own certificate issued from the Private CA</li>
                         <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
                     </ul>
                 </li>

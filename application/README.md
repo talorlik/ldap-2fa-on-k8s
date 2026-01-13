@@ -10,7 +10,8 @@ infrastructure.
 The application infrastructure provisions:
 
 - **Route53 Hosted Zone** for domain management (can be in State Account)
-- **ACM Certificate** with DNS validation for HTTPS (can be in State Account)
+- **ACM Certificate** with DNS validation for HTTPS (issued from Private CA in
+  State Account, stored in Deployment Account)
 - **Helm Release** for OpenLDAP Stack HA (High Availability)
 - **Application Load Balancer (ALB)** via EKS Auto Mode Ingress
 - **Persistent Storage** using EBS-backed PVCs
@@ -123,14 +124,23 @@ The code references existing resources using data sources:
 `data.aws_route53_zone`)
 - **ACM Certificate**: Must already exist and be validated (referenced via
 `data.aws_acm_certificate`)
+  - Certificate must be issued from a Private CA in the State Account
+  - Certificate must exist in the Deployment Account (not State Account)
+  - See [Private CA Setup and Certificate Issuance](./CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance)
+    for setup instructions
 - The certificate must be in the same region as the EKS cluster
 
 **Prerequisites:**
 
 - Route53 hosted zone must be created beforehand (manually or via another
 Terraform configuration)
-- ACM certificate must be created and validated beforehand
+- **Private CA Setup**: A central Private CA must be created in the State Account
+  and shared via RAM. See [Private CA Setup and Certificate Issuance](./CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance)
+  for detailed instructions.
+- ACM certificate must be requested from the Private CA in each deployment
+  account and validated beforehand
 - Certificate must be in `ISSUED` status
+- Certificate must be in the same region as the EKS cluster
 
 **Outputs:**
 
@@ -652,12 +662,20 @@ application/
 4. **EKS Cluster**: The EKS cluster must be running with Auto Mode enabled
 5. **Route53 Hosted Zone**: Must already exist (the Route53 module is commented
 out, code uses data sources)
-6. **ACM Certificate**: Must already exist and be validated in the same region
-as the EKS cluster
-   - Certificate should be issued from a Private CA in the State Account
+6. **Private CA Setup**: A central Private Certificate Authority (PCA) must be
+   created in the State Account, and ACM certificates must be issued for each
+   deployment account
+   - See [Private CA Setup and Certificate Issuance](./CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance)
+     for detailed setup instructions with step-by-step AWS CLI commands
+   - Includes Resource Access Manager (RAM) sharing configuration
+   - Certificate issuance workflow for both production and development accounts
+7. **ACM Certificate**: Must already exist and be validated in the same region
+   as the EKS cluster
+   - Certificate must be issued from the Private CA in the State Account
    - Certificate must exist in the Deployment Account (not State Account)
+   - Each deployment account has its own certificate issued from the Private CA
    - See [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) for
-   Private CA setup instructions
+     details
 7. **Domain Registration**: The domain name must be registered (can be with any
 registrar)
 8. **DNS Configuration**: After deployment, point your domain registrar's NS

@@ -34,6 +34,36 @@ If the domain is registered elsewhere, point the registrar's NS records at
 
 ALB needs an ACM cert in the same region as the ALB / EKS cluster.
 
+> [!IMPORTANT]
+>
+> **Private CA Architecture**: The current implementation uses a **Private CA**
+> architecture where:
+>
+> - A central Private CA is created in the **State Account**
+> - Each deployment account (development, production) requests its own ACM
+>   certificate from the Private CA
+> - Certificates are stored in their respective deployment accounts (not State
+>   Account)
+> - This eliminates cross-account certificate access complexity
+>
+> See [Private CA Setup and Certificate Issuance](./CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance)
+> for detailed setup instructions with step-by-step AWS CLI commands.
+
+**For Private CA-based certificates** (current implementation):
+
+Certificates are requested in each deployment account using the Private CA ARN:
+
+```bash
+# In production account
+aws acm request-certificate \
+    --domain-name "talorlik.com" \
+    --subject-alternative-names "*.talorlik.com" \
+    --certificate-authority-arn <PRIVATE_CA_ARN> \
+    --region us-east-1
+```
+
+**For public ACM certificates** (alternative approach, not currently used):
+
 ```hcl
 resource "aws_acm_certificate" "talo_ldap" {
   domain_name               = "talorlik.com"
