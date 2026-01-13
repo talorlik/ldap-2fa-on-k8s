@@ -172,6 +172,7 @@ module "openldap" {
   openldap_ldap_domain     = var.openldap_ldap_domain
   openldap_admin_password  = var.openldap_admin_password
   openldap_config_password = var.openldap_config_password
+  openldap_secret_name     = var.openldap_secret_name
   storage_class_name       = local.storage_class_name
 
   # ECR image configuration
@@ -188,6 +189,7 @@ module "openldap" {
   ingress_class_name     = var.use_alb ? module.alb[0].ingress_class_name : null
   alb_load_balancer_name = local.alb_load_balancer_name
   alb_target_type        = var.alb_target_type
+  alb_ssl_policy         = var.alb_ssl_policy
   acm_cert_arn           = data.aws_acm_certificate.this.arn
 
   tags = local.tags

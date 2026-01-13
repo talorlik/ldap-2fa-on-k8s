@@ -21,6 +21,7 @@ locals {
       ltb_passwd_host        = var.ltb_passwd_host
       # Per-Ingress annotations still needed for grouping, TLS, ports, etc.
       alb_target_type = var.alb_target_type
+      alb_ssl_policy  = var.alb_ssl_policy
     }
   )
 }

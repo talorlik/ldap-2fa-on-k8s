@@ -15,17 +15,30 @@ to enable secure LDAP connections (StartTLS/LDAPS).
    - Automatically installs CRDs
    - Manages certificate lifecycle automatically
 
-2. **ClusterIssuer** (`selfsigned-issuer`) - Creates self-signed certificates
+2. **ClusterIssuer** (`selfsigned-issuer`) - Creates self-signed certificate authority
    - Cluster-wide resource
    - Uses self-signed certificate authority
    - Managed via `kubernetes_manifest` resource
 
-3. **Certificate** (`openldap-tls`) - TLS certificate for OpenLDAP
+3. **CA Certificate** (`openldap-ca`) - Certificate Authority certificate
+   - Creates a Kubernetes secret named `openldap-ca-secret` in the specified namespace
+   - Valid for 10 years
+   - Used as the root CA for signing OpenLDAP certificates
+   - Managed via `kubernetes_manifest` resource
+
+4. **Issuer** (`openldap-ca-issuer`) - Issuer based on the CA certificate
+   - Namespace-scoped resource
+   - References the CA certificate secret
+   - Used to sign the OpenLDAP TLS certificate
+   - Managed via `kubernetes_manifest` resource
+
+5. **Certificate** (`openldap-tls`) - TLS certificate for OpenLDAP
    - Creates a Kubernetes secret named `openldap-tls` in the specified namespace
+   - Signed by the CA issuer
    - Valid for 10 years
    - Auto-renews 30 days before expiration
    - Includes DNS names for all OpenLDAP service endpoints
-   - Managed via `kubernetes_manifest` resources
+   - Managed via `kubernetes_manifest` resource
 
 ## Certificate DNS Names
 
@@ -95,6 +108,12 @@ kubectl get pods -n cert-manager
 
 # Check ClusterIssuer
 kubectl get clusterissuer selfsigned-issuer
+
+# Check CA Certificate
+kubectl get certificate -n ldap openldap-ca
+
+# Check Issuer
+kubectl get issuer -n ldap openldap-ca-issuer
 
 # Check Certificate status
 kubectl get certificate -n ldap openldap-tls

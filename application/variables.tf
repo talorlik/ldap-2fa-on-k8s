@@ -210,7 +210,7 @@ variable "alb_target_type" {
 variable "alb_ssl_policy" {
   description = "ALB SSL policy for HTTPS listeners"
   type        = string
-  default     = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  default     = "ELBSecurityPolicy-TLS13-1-0-PQ-2025-09"
 }
 
 variable "alb_ip_address_type" {

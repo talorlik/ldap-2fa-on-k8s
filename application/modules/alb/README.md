@@ -99,6 +99,7 @@ but you can override `alb_group_name` if needed.
 - AWS CLI installed and configured with cluster access
 - ACM certificate for HTTPS/TLS termination
 - `kubectl` configured with cluster access
+- EKS Auto Mode CRD (`ingressclassparams.eks.amazonaws.com`) must be available (use `wait_for_crd = true` for initial deployments)
 
 ## Usage
 
@@ -119,6 +120,9 @@ module "alb" {
   alb_ip_address_type = "ipv4"
   alb_group_name      = "my-app-alb-group"
   acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/abc123"
+
+  # Set to true for initial cluster deployments to wait for CRD
+  wait_for_crd = false
 }
 ```
 
@@ -137,6 +141,7 @@ module "alb" {
 | alb_scheme | ALB scheme (`internet-facing` or `internal`) | string | no | "internet-facing" |
 | alb_ip_address_type | IP address type (`ipv4` or `dualstack`) | string | no | "ipv4" |
 | alb_group_name | ALB group name (max 63 chars) | string | no | null |
+| wait_for_crd | Whether to wait for EKS Auto Mode CRD before creating IngressClassParams | bool | no | false |
 
 ## Outputs
 
@@ -242,14 +247,15 @@ accessible only from within the VPC.
 
 ## Notes
 
-- IngressClassParams is created via `kubectl apply` because there's no native
-Terraform resource for EKS Auto Mode IngressClassParams
+- IngressClassParams is created via `kubernetes_manifest` resource (native Terraform support)
 - The IngressClass is set as the default class for the cluster
 - ALB is automatically provisioned when Ingress resources are created
 - Changes to IngressClassParams trigger resource recreation
 - The actual ALB is created automatically by EKS Auto Mode when the Helm chart
 creates Ingress resources that reference the IngressClass
 - Multiple Ingresses can share a single ALB by using the same `group.name` in IngressClassParams
+- For initial cluster deployments, set `wait_for_crd = true` to allow EKS Auto Mode to install the IngressClassParams CRD
+- The module includes a `time_sleep` resource to handle CRD availability timing issues
 
 ## References
 

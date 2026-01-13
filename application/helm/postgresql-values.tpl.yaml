@@ -1,0 +1,56 @@
+# PostgreSQL Helm Values Template
+# Used by Terraform to configure Bitnami PostgreSQL deployment
+# for user storage in the LDAP 2FA application signup system
+# Based on official Bitnami PostgreSQL Helm chart values structure
+
+# Allow non-standard images (ECR) to bypass Bitnami image verification
+global:
+  security:
+    allowInsecureImages: true
+
+# Override default image to use ECR repository
+image:
+  registry: "${ecr_registry}"
+  repository: "${ecr_repository}"
+  tag: "${image_tag}"
+  pullPolicy: IfNotPresent
+
+# Standalone architecture
+architecture: standalone
+
+# Authentication configuration
+auth:
+  database: "${database_name}"
+  username: "${database_username}"
+  enablePostgresUser: false
+  # Reference Kubernetes secret created by Terraform
+  # (password sourced from GitHub Secrets → TF_VAR_postgresql_database_password)
+  existingSecret: "${secret_name}"
+  existingSecretPasswordKey: "password"
+
+# Primary (master) configuration
+primary:
+  # Persistence for data recovery across restarts
+  persistence:
+    enabled: true
+%{ if storage_class != "" ~}
+    storageClass: "${storage_class}"
+%{ endif ~}
+    size: "${storage_size}"
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: "${resources_requests_cpu}"
+      memory: "${resources_requests_memory}"
+    limits:
+      cpu: "${resources_limits_cpu}"
+      memory: "${resources_limits_memory}"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+
+# Metrics (disabled by default)
+metrics:
+  enabled: false

@@ -106,3 +106,9 @@ variable "image_tag" {
   type        = string
   default     = "postgresql-latest"
 }
+
+variable "values_template_path" {
+  description = "Path to the PostgreSQL values template file"
+  type        = string
+  default     = null
+}

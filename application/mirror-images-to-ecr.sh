@@ -258,7 +258,7 @@ for image_spec in "${IMAGES_TO_MIRROR[@]}"; do
 
   # Pull image from Docker Hub
   info "  Pulling $SOURCE_IMAGE from Docker Hub..."
-  if ! docker pull "$SOURCE_IMAGE"; then
+  if ! docker pull --platform linux/amd64 "$SOURCE_IMAGE"; then
     print_error "  Failed to pull $SOURCE_IMAGE"
     exit 1
   fi

@@ -837,7 +837,7 @@ defaults to `app_name`)
 `ipv4`)
 - `alb_target_type`: ALB target type - `ip` or `instance` (default: `ip`)
 - `alb_ssl_policy`: ALB SSL policy for HTTPS listeners (default:
-`ELBSecurityPolicy-TLS13-1-2-2021-06`)
+`ELBSecurityPolicy-TLS13-1-0-PQ-2025-09`)
 - `phpldapadmin_host`: Hostname for PhpLdapAdmin ingress (optional, defaults to
 `phpldapadmin.${domain_name}`)
 - `ltb_passwd_host`: Hostname for LTB-passwd ingress (optional, defaults to

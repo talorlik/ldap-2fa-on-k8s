@@ -9,83 +9,29 @@
 locals {
   name = "${var.prefix}-${var.region}-redis-${var.env}"
 
-  # Build Redis Helm values (without secret reference to avoid circular dependency)
-  redis_values_base = {
-    # Configure image to pull from ECR instead of Docker Hub
-    image = {
-      registry   = var.ecr_registry
-      repository = var.ecr_repository
-      tag        = var.image_tag
+  # Determine values template path
+  values_template_path = var.values_template_path != null ? var.values_template_path : "${path.module}/../../helm/redis-values.tpl.yaml"
+
+  # Build Redis Helm values using templatefile
+  # Note: We pass the secret name variable (not resource) to avoid circular dependency
+  # The secret resource is created separately with the same name
+  redis_values = templatefile(
+    local.values_template_path,
+    {
+      secret_name              = var.secret_name
+      persistence_enabled      = var.persistence_enabled
+      storage_class_name       = var.storage_class_name
+      storage_size             = var.storage_size
+      resources_requests_cpu   = var.resources.requests.cpu
+      resources_requests_memory = var.resources.requests.memory
+      resources_limits_cpu     = var.resources.limits.cpu
+      resources_limits_memory  = var.resources.limits.memory
+      metrics_enabled          = var.metrics_enabled
+      ecr_registry             = var.ecr_registry
+      ecr_repository           = var.ecr_repository
+      image_tag                = var.image_tag
     }
-
-    architecture = "standalone"
-
-    auth = {
-      enabled                   = true
-      existingSecretPasswordKey = "redis-password"
-    }
-
-    master = {
-      persistence = merge(
-        {
-          enabled = var.persistence_enabled
-          size    = var.storage_size
-        },
-        var.storage_class_name != "" ? { storageClass = var.storage_class_name } : {}
-      )
-
-      resources = {
-        limits = {
-          cpu    = var.resources.limits.cpu
-          memory = var.resources.limits.memory
-        }
-        requests = {
-          cpu    = var.resources.requests.cpu
-          memory = var.resources.requests.memory
-        }
-      }
-
-      containerSecurityContext = {
-        enabled                  = true
-        runAsUser                = 1001
-        runAsNonRoot             = true
-        allowPrivilegeEscalation = false
-      }
-
-      podSecurityContext = {
-        enabled = true
-        fsGroup = 1001
-      }
-
-      service = {
-        type = "ClusterIP"
-        ports = {
-          redis = 6379
-        }
-      }
-    }
-
-    replica = {
-      replicaCount = 0
-    }
-
-    metrics = {
-      enabled = var.metrics_enabled
-    }
-
-    commonConfiguration = <<-EOT
-      # Enable RDB persistence for data recovery
-      save 900 1
-      save 300 10
-      save 60 10000
-      # Disable AOF (not needed for OTP cache)
-      appendonly no
-      # Max memory policy - evict keys with TTL first
-      maxmemory-policy volatile-lru
-      # Connection timeout
-      timeout 300
-    EOT
-  }
+  )
 }
 
 # Create namespace for Redis
@@ -152,21 +98,9 @@ resource "helm_release" "redis" {
   # Allow replacement if name conflict occurs
   replace = true
 
-  # Use values attribute for complex nested structures (recommended approach)
-  # This follows the official Bitnami Redis Helm chart values structure
-  values = [
-    yamlencode(merge(
-      local.redis_values_base,
-      {
-        auth = merge(
-          local.redis_values_base.auth,
-          {
-            existingSecret = kubernetes_secret.redis_password[0].metadata[0].name
-          }
-        )
-      }
-    ))
-  ]
+  # Use templatefile to inject values into the official Bitnami Redis Helm chart values template
+  # Note: The secret name is passed to the template, and the secret resource is created separately
+  values = [local.redis_values]
 
   depends_on = [
     kubernetes_namespace.redis[0],

@@ -19,7 +19,7 @@ resources
   - Added `alb.ingress.kubernetes.io/ssl-redirect: "443"` to automatically
   redirect HTTP to HTTPS
   - Added `alb.ingress.kubernetes.io/ssl-policy:
-  "ELBSecurityPolicy-TLS13-1-2-2021-06"` for modern TLS security
+  "ELBSecurityPolicy-TLS13-1-0-PQ-2025-09"` for modern TLS security with post-quantum cryptography support
 
 #### ✅ ALB Module HTTPS Configuration
 
@@ -74,9 +74,8 @@ your 2FA website
 
 #### ✅ Modern TLS Configuration
 
-- **SSL Policy**: `ELBSecurityPolicy-TLS13-1-2-2021-06` - Supports TLS 1.2 and
-TLS 1.3
-- **Applied to**: All ALB ingress resources (PhpLdapAdmin and LTB-passwd)
+- **SSL Policy**: `ELBSecurityPolicy-TLS13-1-0-PQ-2025-09` - Supports TLS 1.3 with post-quantum cryptography
+- **Applied to**: All ALB ingress resources (PhpLdapAdmin, LTB-passwd, and 2FA application)
 
 **Result**: Only modern, secure TLS protocols are used for external
 communication.

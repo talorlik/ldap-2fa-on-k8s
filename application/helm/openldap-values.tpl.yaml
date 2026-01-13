@@ -76,6 +76,7 @@ ltb-passwd:
       alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
       alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/ssl-policy: "${alb_ssl_policy}"
       # Note: scheme and ipAddressType are inherited from IngressClassParams
     path: /
     pathType: Prefix
@@ -99,6 +100,7 @@ phpldapadmin:
       alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
       alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/ssl-policy: "${alb_ssl_policy}"
     path: /
     pathType: Prefix
     hosts:

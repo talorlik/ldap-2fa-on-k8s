@@ -1,6 +1,14 @@
 # Redis Helm Values Template
 # Used by Terraform to configure Bitnami Redis deployment
 # for SMS OTP code storage
+# Based on official Bitnami Redis Helm chart values structure
+
+# Override default image to use ECR repository
+image:
+  registry: "${ecr_registry}"
+  repository: "${ecr_repository}"
+  tag: "${image_tag}"
+  pullPolicy: IfNotPresent
 
 # Standalone architecture (no HA needed for OTP cache)
 architecture: standalone
@@ -18,17 +26,19 @@ master:
   # Persistence for data recovery across restarts
   persistence:
     enabled: ${persistence_enabled}
+%{ if storage_class_name != "" ~}
     storageClass: "${storage_class_name}"
-    size: ${storage_size}
+%{ endif ~}
+    size: "${storage_size}"
 
   # Resource limits
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: "${resources_requests_cpu}"
+      memory: "${resources_requests_memory}"
     limits:
-      cpu: 500m
-      memory: 256Mi
+      cpu: "${resources_limits_cpu}"
+      memory: "${resources_limits_memory}"
 
   # Security context - run as non-root
   containerSecurityContext:

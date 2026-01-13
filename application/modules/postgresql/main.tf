@@ -8,53 +8,29 @@
 locals {
   name = "${var.prefix}-${var.region}-postgresql-${var.env}"
 
-  # Build PostgreSQL Helm values (without secret reference to avoid circular dependency)
-  postgresql_values_base = {
-    # Configure image to pull from ECR instead of Docker Hub
-    image = {
-      registry   = var.ecr_registry
-      repository = var.ecr_repository
-      tag        = var.image_tag
+  # Determine values template path
+  values_template_path = var.values_template_path != null ? var.values_template_path : "${path.module}/../../helm/postgresql-values.tpl.yaml"
+
+  # Build PostgreSQL Helm values using templatefile
+  # Note: We pass the secret name variable (not resource) to avoid circular dependency
+  # The secret resource is created separately with the same name
+  postgresql_values = templatefile(
+    local.values_template_path,
+    {
+      secret_name              = var.secret_name
+      database_name            = var.database_name
+      database_username        = var.database_username
+      storage_class            = var.storage_class
+      storage_size             = var.storage_size
+      resources_requests_cpu   = var.resources.requests.cpu
+      resources_requests_memory = var.resources.requests.memory
+      resources_limits_cpu     = var.resources.limits.cpu
+      resources_limits_memory  = var.resources.limits.memory
+      ecr_registry             = var.ecr_registry
+      ecr_repository           = var.ecr_repository
+      image_tag                = var.image_tag
     }
-
-    architecture = "standalone"
-
-    auth = {
-      database                  = var.database_name
-      username                  = var.database_username
-      enablePostgresUser        = false
-      existingSecretPasswordKey = "password"
-    }
-
-    primary = {
-      persistence = merge(
-        {
-          enabled = true
-          size    = var.storage_size
-        },
-        var.storage_class != "" ? { storageClass = var.storage_class } : {}
-      )
-
-      resources = {
-        limits = {
-          cpu    = var.resources.limits.cpu
-          memory = var.resources.limits.memory
-        }
-        requests = {
-          cpu    = var.resources.requests.cpu
-          memory = var.resources.requests.memory
-        }
-      }
-
-      service = {
-        type = "ClusterIP"
-      }
-    }
-
-    metrics = {
-      enabled = false
-    }
-  }
+  )
 }
 
 # Create namespace if it doesn't exist
@@ -98,7 +74,8 @@ resource "kubernetes_secret" "postgresql_password" {
 # PostgreSQL Helm release
 resource "helm_release" "postgresql" {
   name       = local.name
-  repository = "https://charts.bitnami.com/bitnami"
+  # repository = "https://charts.bitnami.com/bitnami"
+  repository = "oci://registry-1.docker.io/bitnamicharts"
   chart      = "postgresql"
   version    = var.chart_version
   namespace  = kubernetes_namespace.postgresql.metadata[0].name
@@ -115,21 +92,9 @@ resource "helm_release" "postgresql" {
   # Allow replacement if name conflict occurs
   replace = true
 
-  # Use values attribute for complex nested structures (recommended approach)
-  # This follows the official Bitnami PostgreSQL Helm chart values structure
-  values = [
-    yamlencode(merge(
-      local.postgresql_values_base,
-      {
-        auth = merge(
-          local.postgresql_values_base.auth,
-          {
-            existingSecret = kubernetes_secret.postgresql_password.metadata[0].name
-          }
-        )
-      }
-    ))
-  ]
+  # Use templatefile to inject values into the official Bitnami PostgreSQL Helm chart values template
+  # Note: The secret name is passed to the template, and the secret resource is created separately
+  values = [local.postgresql_values]
 
   depends_on = [
     kubernetes_namespace.postgresql,

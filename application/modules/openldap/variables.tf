@@ -38,7 +38,6 @@ variable "openldap_config_password" {
 variable "openldap_secret_name" {
   description = "Name of the Kubernetes secret for OpenLDAP passwords"
   type        = string
-  default     = "openldap-secret"
 }
 
 variable "storage_class_name" {
@@ -91,6 +90,11 @@ variable "alb_target_type" {
 
 variable "acm_cert_arn" {
   description = "ARN of the ACM certificate for HTTPS"
+  type        = string
+}
+
+variable "alb_ssl_policy" {
+  description = "ALB SSL policy for HTTPS listeners"
   type        = string
 }
 

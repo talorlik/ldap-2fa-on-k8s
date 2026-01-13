@@ -123,3 +123,9 @@ variable "image_tag" {
   type        = string
   default     = "redis-latest"
 }
+
+variable "values_template_path" {
+  description = "Path to the Redis values template file"
+  type        = string
+  default     = null
+}

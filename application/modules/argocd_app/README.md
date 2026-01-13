@@ -52,9 +52,8 @@ module "argocd_app_example" {
     sync_options = ["CreateNamespace=true"]
   }
 
-  depends_on_resources = [
-    module.argocd.argocd_capability_name,
-    module.argocd.local_cluster_secret_name
+  depends_on = [
+    module.argocd
   ]
 }
 ```
@@ -97,8 +96,8 @@ module "argocd_app_helm" {
     sync_options = ["CreateNamespace=true"]
   }
 
-  depends_on_resources = [
-    module.argocd.argocd_capability_name
+  depends_on = [
+    module.argocd
   ]
 }
 ```
@@ -132,8 +131,8 @@ module "argocd_app_kustomize" {
     }
   }
 
-  depends_on_resources = [
-    module.argocd.argocd_capability_name
+  depends_on = [
+    module.argocd
   ]
 }
 ```
@@ -155,8 +154,8 @@ module "argocd_app_manual" {
   # No sync_policy = manual sync only
   sync_policy = null
 
-  depends_on_resources = [
-    module.argocd.argocd_capability_name
+  depends_on = [
+    module.argocd
   ]
 }
 ```
@@ -182,7 +181,6 @@ module "argocd_app_manual" {
 | helm_config | Helm-specific configuration | object | no | null |
 | kustomize_config | Kustomize-specific configuration | object | no | null |
 | directory_config | Directory-specific configuration | object | no | null |
-| depends_on_resources | Resources this depends on | list(any) | no | [] |
 
 ## Outputs
 
@@ -275,7 +273,7 @@ module "argocd_app_service_a" {
     }
   }
 
-  depends_on_resources = [module.argocd.argocd_capability_name]
+  depends_on = [module.argocd]
 }
 
 module "argocd_app_service_b" {
@@ -295,7 +293,7 @@ module "argocd_app_service_b" {
     }
   }
 
-  depends_on_resources = [module.argocd.argocd_capability_name]
+  depends_on = [module.argocd]
 }
 ```
 
@@ -322,5 +320,4 @@ kubectl get application -n argocd example-app -o jsonpath='{.status.sync.status}
 - Sync policies can be automated or manual
 - Supports Helm, Kustomize, and plain Kubernetes manifests
 - Applications are continuously reconciled by ArgoCD based on Git state
-- Use `depends_on_resources` to ensure ArgoCD capability is ready before creating
-Applications
+- Use `depends_on` in the module block to ensure ArgoCD capability is ready before creating Applications

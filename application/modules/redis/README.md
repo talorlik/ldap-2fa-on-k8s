@@ -76,7 +76,7 @@ module "redis" {
   # ECR image configuration
   ecr_registry   = local.ecr_registry
   ecr_repository = local.ecr_repository
-  image_tag      = "redis-8.4.0"  # Default, corresponds to bitnami/redis:8.4.0-debian-12-r6
+  image_tag      = "redis-latest"  # Default, or use specific version
 }
 ```
 
@@ -88,8 +88,8 @@ Hub to ECR by the `mirror-images-to-ecr.sh` script before Terraform operations.
 
 **Image Details:**
 
-- **Source Image**: `bitnami/redis:8.4.0-debian-12-r6` (from Docker Hub)
-- **ECR Tag**: `redis-8.4.0` (default)
+- **Source Image**: `bitnami/redis:latest` (from Docker Hub, or specific version like `bitnami/redis:8.4.0-debian-12-r6`)
+- **ECR Tag**: `redis-latest` (default, or specific version like `redis-8.4.0`)
 - **ECR Registry/Repository**: Computed from `backend_infra` Terraform state
   (`ecr_url`)
 
@@ -130,7 +130,7 @@ README](../README.md#ecr-image-mirroring-automatic).
 | namespace | Kubernetes namespace | `string` | `"redis"` | no |
 | secret_name | Name of K8s secret for password | `string` | `"redis-secret"` | no |
 | redis_password | Redis password (min 8 chars) | `string` | n/a | yes |
-| chart_version | Bitnami chart version | `string` | `"19.6.4"` | no |
+| chart_version | Bitnami chart version | `string` | `"24.0.9"` | no |
 | storage_class_name | Storage class for PVC | `string` | `""` | no |
 | storage_size | Storage size for PVC | `string` | `"1Gi"` | no |
 | persistence_enabled | Enable data persistence | `bool` | `true` | no |
@@ -138,7 +138,8 @@ README](../README.md#ecr-image-mirroring-automatic).
 | metrics_enabled | Enable Prometheus metrics | `bool` | `false` | no |
 | ecr_registry | ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com) | `string` | n/a | yes |
 | ecr_repository | ECR repository name | `string` | n/a | yes |
-| image_tag | Redis image tag in ECR | `string` | `"redis-8.4.0"` | no |
+| image_tag | Redis image tag in ECR | `string` | `"redis-latest"` | no |
+| backend_namespace | Namespace where backend pods are deployed (for network policy) | `string` | `"twofa-backend"` | no |
 
 ## Outputs
 

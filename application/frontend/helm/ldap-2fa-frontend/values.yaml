@@ -60,6 +60,7 @@ ingress:
     alb.ingress.kubernetes.io/target-type: "ip"
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS13-1-0-PQ-2025-09"
     # Order annotation for path priority (higher number = lower priority, matches after /api)
     alb.ingress.kubernetes.io/group.order: "20"
   hosts:

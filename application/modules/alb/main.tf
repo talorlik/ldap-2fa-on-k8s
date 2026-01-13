@@ -29,7 +29,7 @@ locals {
 #       var.acm_certificate_arn != null ? {
 #         "alb.ingress.kubernetes.io/certificate-arn" = var.acm_certificate_arn
 #         "alb.ingress.kubernetes.io/ssl-redirect"    = "443"
-#         "alb.ingress.kubernetes.io/ssl-policy"      = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+#         "alb.ingress.kubernetes.io/ssl-policy"      = "ELBSecurityPolicy-TLS13-1-0-PQ-2025-09"
 #       } : {}
 #     )
 #   }

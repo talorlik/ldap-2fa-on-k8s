@@ -50,7 +50,7 @@ twofa_app_host    = "app.talorlik.com"
 # alb_target_type = "ip"
 
 # ALB SSL policy for HTTPS listeners
-alb_ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+alb_ssl_policy = "ELBSecurityPolicy-TLS13-1-0-PQ-2025-09"
 
 # ALB IP address type: ipv4 or dualstack
 # alb_ip_address_type = "ipv4"

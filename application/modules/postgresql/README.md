@@ -33,7 +33,7 @@ module "postgresql" {
   # ECR image configuration
   ecr_registry   = local.ecr_registry
   ecr_repository = local.ecr_repository
-  image_tag      = "postgresql-18.1.0"  # Default, corresponds to bitnami/postgresql:18.1.0-debian-12-r4
+  image_tag      = "postgresql-latest"  # Default, or use specific version like "postgresql-18.1.0"
 }
 ```
 
@@ -45,7 +45,8 @@ module "postgresql" {
 | region | Deployment region | `string` | n/a | yes |
 | prefix | Name prefix for resources | `string` | n/a | yes |
 | namespace | Kubernetes namespace | `string` | `"ldap-2fa"` | no |
-| chart_version | Helm chart version | `string` | `"16.2.1"` | no |
+| secret_name | Name of the Kubernetes secret for PostgreSQL password | `string` | `"postgresql-secret"` | no |
+| chart_version | Helm chart version | `string` | `"18.1.15"` | no |
 | database_name | Database name | `string` | `"ldap2fa"` | no |
 | database_username | Database username | `string` | `"ldap2fa"` | no |
 | database_password | Database password | `string` | n/a | yes |
@@ -54,7 +55,7 @@ module "postgresql" {
 | resources | Resource limits/requests | `object` | See variables.tf | no |
 | ecr_registry | ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com) | `string` | n/a | yes |
 | ecr_repository | ECR repository name | `string` | n/a | yes |
-| image_tag | PostgreSQL image tag in ECR | `string` | `"postgresql-18.1.0"` | no |
+| image_tag | PostgreSQL image tag in ECR | `string` | `"postgresql-latest"` | no |
 
 ## Outputs
 
@@ -75,10 +76,23 @@ Hub to ECR by the `mirror-images-to-ecr.sh` script before Terraform operations.
 
 **Image Details:**
 
-- **Source Image**: `bitnami/postgresql:18.1.0-debian-12-r4` (from Docker Hub)
-- **ECR Tag**: `postgresql-18.1.0` (default)
+- **Source Image**: `bitnami/postgresql:latest` (from Docker Hub)
+- **ECR Tag**: `postgresql-latest` (default) or specific version e.g. `postgresql-18.1.0`
 - **ECR Registry/Repository**: Computed from `backend_infra` Terraform state
   (`ecr_url`)
+
+**Implementation Note:**
+
+The image configuration (registry, repository, and tag) is set using Terraform `set` blocks
+instead of being included in the values block. This approach avoids validation issues with
+the Terraform Helm provider when using custom ECR registries.
+
+**Helm Chart Repository:**
+
+The module uses the Bitnami PostgreSQL Helm chart from the OCI registry:
+- Repository: `oci://registry-1.docker.io/bitnamicharts`
+- Chart: `postgresql`
+- Version: `18.1.15` (default)
 
 **Image Mirroring:**
 
