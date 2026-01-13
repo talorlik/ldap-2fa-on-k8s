@@ -257,7 +257,8 @@ Ensure you have:
 
 - A registered domain name (e.g., `talorlik.com`)
 - An existing Route53 hosted zone for your domain
-- A validated ACM certificate for your domain
+- A **Private CA** in State Account and **ACM certificates** issued to each deployment account
+  - See [Private CA Setup and Certificate Issuance](application/CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance) for detailed setup instructions
 - **For local scripts**: AWS Secrets Manager secrets configured:
   - `github-role`: Contains `AWS_STATE_ACCOUNT_ROLE_ARN` and deployment account role ARNs
   - `external-id`: Contains `AWS_ASSUME_EXTERNAL_ID`
@@ -360,9 +361,9 @@ The script:
 - Checks which images already exist in ECR
 - Pulls missing images from Docker Hub
 - Tags and pushes them to ECR with consistent naming:
-  - `redis-8.4.0` (bitnami/redis:8.4.0-debian-12-r6)
-  - `postgresql-18.1.0` (bitnami/postgresql:18.1.0-debian-12-r4)
-  - `openldap-1.5.0` (osixia/openldap:1.5.0)
+  - `latest` tag for Redis (bitnami/redis:latest)
+  - `latest` tag for PostgreSQL (bitnami/postgresql:latest)
+  - `openldap-1.5.0` for OpenLDAP (osixia/openldap:1.5.0)
 
 **Push Custom Docker Image to ECR:**
 
@@ -632,9 +633,9 @@ are automatically pulled from Docker Hub and pushed to ECR during deployment
 rate limits during pod startup
 - **Faster image pulls**: Images pulled from same AWS region as EKS cluster
 - **Version pinning**: Specific image versions are tagged and stored in ECR:
-  - `redis-8.4.0` (bitnami/redis:8.4.0-debian-12-r6)
-  - `postgresql-18.1.0` (bitnami/postgresql:18.1.0-debian-12-r4)
-  - `openldap-1.5.0` (osixia/openldap:1.5.0)
+  - `latest` tag for Redis (bitnami/redis:8.4.0-debian-12-r6)
+  - `latest` tag for PostgreSQL (bitnami/postgresql:18.1.0-debian-12-r4)
+  - `openldap-1.5.0` for OpenLDAP (osixia/openldap:1.5.0) - version-pinned
 - **Automatic mirroring**: `setup-application.sh` and GitHub Actions workflow
 automatically check and mirror images before Terraform deployment
 - **Idempotent operation**: Script only mirrors images that don't already exist
@@ -756,6 +757,48 @@ workflows)
 - `APPLICATION_PREFIX` - S3 prefix for application state files
 
 ## Recent Changes (December 2025 - January 2026)
+
+### Private CA Architecture for ACM Certificates (January 13, 2026)
+
+- **Private CA-Based Certificate Architecture**:
+  - Migrated from public ACM certificates to Private CA-based certificate architecture
+  - Central Private CA created in **State Account** for certificate issuance
+  - Each deployment account (development, production) receives its own **ACM certificate** issued from the Private CA
+  - Certificates stored in respective **deployment accounts** (not State Account)
+  - Eliminates cross-account certificate access complexity
+  - Compatible with **EKS Auto Mode ALB controller** requirements (certificate must be in same account as ALB)
+  - Comprehensive Private CA setup documentation in `application/CROSS-ACCOUNT-ACCESS.md` with step-by-step AWS CLI commands
+  - Includes Resource Access Manager (RAM) sharing configuration for organization-wide CA access
+  - Certificate issuance workflow documented for both production and development accounts
+  - Updated all documentation to reflect Private CA architecture (PRD-ALB.md, PRD-DOMAIN.md, README.md, docs/index.html)
+  - Prerequisites now include Private CA setup link instead of manual ACM certificate creation
+
+### Helm Release Deployment Improvements (January 13, 2026)
+
+- **Enhanced Helm Release Attributes for Safer Deployments**:
+  - Added comprehensive Helm release attributes to PostgreSQL and Redis modules:
+    - `atomic: true` - Prevents partial deployments on failure
+    - `force_update: true` - Enables forced updates when needed
+    - `replace: true` - Prevents resource name conflicts and allows reusing names
+    - `cleanup_on_fail: true` - Cleans up resources on failed deployments
+    - `recreate_pods: true` - Forces pod restart on upgrade and rollbacks
+    - `wait: true` - Waits for all resources to be ready before marking success
+    - `wait_for_jobs: true` - Waits for any jobs to complete before marking success
+    - `upgrade_install: true` - Prevents failures if pre-existing resources exist
+  - Reduced Helm release timeout from 1200s to 600s (10 minutes) for faster debugging
+  - Improved deployment reliability and rollback safety
+  - Better error handling during deployment failures
+
+### Container Image Tag Strategy Update (January 13, 2026)
+
+- **Changed Image Tags from SHA Digests to 'latest'**:
+  - PostgreSQL and Redis images now use `latest` tag instead of specific SHA digests
+  - ECR mirroring script (`mirror-images-to-ecr.sh`) updated to push images with `latest` tag
+  - Images mirrored:
+    - `bitnami/redis:8.4.0-debian-12-r6` → ECR `latest` tag
+    - `bitnami/postgresql:18.1.0-debian-12-r4` → ECR `latest` tag
+  - OpenLDAP continues to use specific tag (`openldap-1.5.0`) for version pinning
+  - Simplifies image management while maintaining ECR-based deployment
 
 ### Cross-Account Access for Route53 and ACM (January 5, 2026)
 
