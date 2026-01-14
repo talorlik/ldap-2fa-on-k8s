@@ -10,6 +10,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Helm Release Attributes for Safer Deployments**
+  - Added comprehensive Helm release attributes to all modules (OpenLDAP, PostgreSQL, Redis, cert-manager) for safer and more reliable deployments:
+    - `atomic: true` - Prevents partial deployments by rolling back on failure
+    - `force_update: true` - Enables forced updates when needed
+    - `replace: true` - Prevents resource name conflicts and allows reuse of names
+    - `cleanup_on_fail: true` - Automatically cleans up resources on failed deployments
+    - `recreate_pods: true` - Forces pod restart on upgrade and rollbacks
+    - `wait: true` - Waits for all resources to be ready before marking as successful
+    - `wait_for_jobs: true` - Waits for any jobs to be completed for success state
+    - `upgrade_install: true` - Prevents failures if there are pre-existing resources
+  - OpenLDAP module timeout set to 5 minutes (300 seconds)
+  - PostgreSQL and Redis module timeouts set to 10 minutes (600 seconds)
+  - Improves deployment reliability and prevents stuck deployments
+
+- **Standardized Helm Values Passing**
+  - Standardized how Helm values are passed through to all modules (OpenLDAP, PostgreSQL, Redis)
+  - All modules now use consistent `templatefile()` approach with `values_template_path` variable
+  - Modules can use default template path or custom path via variable
+  - Improved maintainability and consistency across all Helm chart deployments
+  - Created comprehensive Helm values templates:
+    - `helm/postgresql-values.tpl.yaml` - PostgreSQL Helm chart values template
+    - `helm/redis-values.tpl.yaml` - Updated Redis Helm chart values template
+    - `helm/openldap-values.tpl.yaml` - Updated OpenLDAP Helm chart values template
+
+- **PostgreSQL Chart Repository Fix**
+  - Fixed PostgreSQL Helm chart download issue by changing repository from `https://charts.bitnami.com/bitnami` to `oci://registry-1.docker.io/bitnamicharts`
+  - Uses OCI registry format for better compatibility and reliability
+  - Resolves chart download failures during deployment
+
+- **Image Tag Standardization**
+  - Changed Redis and PostgreSQL image tags to use 'latest' tag instead of SHA digests
+  - Redis default image tag: `redis-latest`
+  - PostgreSQL default image tag: `postgresql-latest`
+  - OpenLDAP continues to use specific version tag: `openldap-1.5.0`
+  - Image tags correspond to tags created by `mirror-images-to-ecr.sh` script
+  - Simplifies image management and updates
+
 - **Private CA Architecture for ACM Certificates**
   - Migrated from public ACM certificates to Private CA-based certificate
     architecture
@@ -156,6 +193,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Redis module**: Updated Helm values to use ECR image configuration
 
 ### Changed
+
+- **Module Documentation Updates**
+  - Updated module READMEs with standardized Helm values passing documentation
+  - Enhanced PostgreSQL module README with chart repository information
+  - Updated Redis module README with latest configuration details
+  - Improved ALB module README with latest annotation strategy
+  - Enhanced cert-manager and ArgoCD module documentation
+  - Added comprehensive Route53 module README documentation
+
+- **Helm Values Template Organization**
+  - Standardized Helm values template structure across all modules
+  - Improved template variable naming and organization
+  - Enhanced template documentation and comments
+  - Better separation of concerns between module logic and Helm values
 
 - **Setup Script Improvements**
   - Enhanced `setup-application.sh` with improved error handling and ExternalId

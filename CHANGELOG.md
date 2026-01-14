@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Helm Release Attributes for Safer Deployments**
+  - Added comprehensive Helm release attributes to all application modules (OpenLDAP, PostgreSQL, Redis, cert-manager) for safer and more reliable deployments
+  - Attributes include: atomic, force_update, replace, cleanup_on_fail, recreate_pods, wait, wait_for_jobs, upgrade_install
+  - Prevents partial deployments, enables proper rollbacks, and ensures resource readiness
+  - OpenLDAP module timeout set to 5 minutes, PostgreSQL and Redis modules set to 10 minutes
+
+- **Standardized Helm Values Passing**
+  - Standardized how Helm values are passed through to all modules using consistent `templatefile()` approach
+  - All modules now support `values_template_path` variable for custom template paths
+  - Created comprehensive Helm values templates for PostgreSQL and updated Redis/OpenLDAP templates
+  - Improved maintainability and consistency across all Helm chart deployments
+
+- **PostgreSQL Chart Repository Fix**
+  - Fixed PostgreSQL Helm chart download issue by changing to OCI registry format
+  - Changed repository from `https://charts.bitnami.com/bitnami` to `oci://registry-1.docker.io/bitnamicharts`
+  - Resolves chart download failures during deployment
+
+- **Image Tag Standardization**
+  - Changed Redis and PostgreSQL image tags to use 'latest' tag instead of SHA digests
+  - Simplifies image management and updates while maintaining version control
+
 - **Private CA Architecture for ACM Certificates**
   - Migrated from public ACM certificates to Private CA-based certificate
     architecture
@@ -142,6 +163,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Image tags correspond to tags created by `mirror-images-to-ecr.sh`
 
 ### Changed
+
+- **Module Documentation Updates**
+  - Updated all module READMEs with standardized Helm values passing documentation
+  - Enhanced PostgreSQL, Redis, OpenLDAP, ALB, cert-manager, and ArgoCD module documentation
+  - Added comprehensive Route53 module README documentation
+  - Improved consistency and clarity across all module documentation
+
+- **Helm Values Template Organization**
+  - Standardized Helm values template structure across all modules
+  - Improved template variable naming and organization
+  - Enhanced template documentation and comments
 
 - **Documentation Improvements**
   - Removed duplication across README files by replacing detailed content with
