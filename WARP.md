@@ -72,8 +72,8 @@ communication with cross-namespace access for LDAP service
 PostgreSQL) are mirrored to ECR to eliminate Docker Hub rate limits and external
 dependencies. Images are pulled from ECR during deployment
   - OpenLDAP: osixia/openldap:1.5.0 → ECR tag `openldap-1.5.0`
-  - Redis: bitnami/redis:8.4.0-debian-12-r6 → ECR tag `redis-8.4.0`
-  - PostgreSQL: bitnami/postgresql:18.1.0-debian-12-r4 → ECR tag `postgresql-18.1.0`
+  - Redis: bitnami/redis:8.4.0-debian-12-r6 → ECR tag `redis-latest`
+  - PostgreSQL: bitnami/postgresql:18.1.0-debian-12-r4 → ECR tag `postgresql-latest`
 - **2FA Application**: Full-stack application with Python FastAPI backend and
 static HTML/JS/CSS frontend, supporting TOTP and SMS MFA methods
 - **User Signup Management**: Self-service registration with email/phone
@@ -361,8 +361,8 @@ The script:
 - Checks which images already exist in ECR
 - Pulls missing images from Docker Hub
 - Tags and pushes them to ECR with consistent naming:
-  - `latest` tag for Redis (bitnami/redis:latest)
-  - `latest` tag for PostgreSQL (bitnami/postgresql:latest)
+  - `redis-latest` tag for Redis (bitnami/redis:latest)
+  - `postgresql-latest` tag for PostgreSQL (bitnami/postgresql:latest)
   - `openldap-1.5.0` for OpenLDAP (osixia/openldap:1.5.0)
 
 **Push Custom Docker Image to ECR:**
@@ -633,8 +633,8 @@ are automatically pulled from Docker Hub and pushed to ECR during deployment
 rate limits during pod startup
 - **Faster image pulls**: Images pulled from same AWS region as EKS cluster
 - **Version pinning**: Specific image versions are tagged and stored in ECR:
-  - `latest` tag for Redis (bitnami/redis:8.4.0-debian-12-r6)
-  - `latest` tag for PostgreSQL (bitnami/postgresql:18.1.0-debian-12-r4)
+  - `redis-latest` tag for Redis (bitnami/redis:latest)
+  - `postgresql-latest` tag for PostgreSQL (bitnami/postgresql:latest)
   - `openldap-1.5.0` for OpenLDAP (osixia/openldap:1.5.0) - version-pinned
 - **Automatic mirroring**: `setup-application.sh` and GitHub Actions workflow
 automatically check and mirror images before Terraform deployment
@@ -758,7 +758,7 @@ workflows)
 
 ## Recent Changes (December 2025 - January 2026)
 
-### Private CA Architecture for ACM Certificates (January 13, 2026)
+### Private CA Architecture for ACM Certificates (January 13-14, 2026)
 
 - **Private CA-Based Certificate Architecture**:
   - Migrated from public ACM certificates to Private CA-based certificate architecture
@@ -773,10 +773,10 @@ workflows)
   - Updated all documentation to reflect Private CA architecture (PRD-ALB.md, PRD-DOMAIN.md, README.md, docs/index.html)
   - Prerequisites now include Private CA setup link instead of manual ACM certificate creation
 
-### Helm Release Deployment Improvements (January 13, 2026)
+### Helm Release Deployment Improvements (January 14, 2026)
 
 - **Enhanced Helm Release Attributes for Safer Deployments**:
-  - Added comprehensive Helm release attributes to PostgreSQL and Redis modules:
+  - Added comprehensive Helm release attributes to all application modules (OpenLDAP, PostgreSQL, Redis, cert-manager):
     - `atomic: true` - Prevents partial deployments on failure
     - `force_update: true` - Enables forced updates when needed
     - `replace: true` - Prevents resource name conflicts and allows reusing names
@@ -785,20 +785,38 @@ workflows)
     - `wait: true` - Waits for all resources to be ready before marking success
     - `wait_for_jobs: true` - Waits for any jobs to complete before marking success
     - `upgrade_install: true` - Prevents failures if pre-existing resources exist
-  - Reduced Helm release timeout from 1200s to 600s (10 minutes) for faster debugging
+  - OpenLDAP module timeout set to 5 minutes (300 seconds)
+  - PostgreSQL and Redis module timeouts set to 10 minutes (600 seconds)
   - Improved deployment reliability and rollback safety
   - Better error handling during deployment failures
 
-### Container Image Tag Strategy Update (January 13, 2026)
+- **Standardized Helm Values Passing**:
+  - Standardized how Helm values are passed through to all modules (OpenLDAP, PostgreSQL, Redis)
+  - All modules now use consistent `templatefile()` approach with `values_template_path` variable
+  - Modules can use default template path or custom path via variable
+  - Improved maintainability and consistency across all Helm chart deployments
+  - Created comprehensive Helm values templates:
+    - `helm/postgresql-values.tpl.yaml` - PostgreSQL Helm chart values template
+    - `helm/redis-values.tpl.yaml` - Updated Redis Helm chart values template
+    - `helm/openldap-values.tpl.yaml` - Updated OpenLDAP Helm chart values template
 
-- **Changed Image Tags from SHA Digests to 'latest'**:
-  - PostgreSQL and Redis images now use `latest` tag instead of specific SHA digests
-  - ECR mirroring script (`mirror-images-to-ecr.sh`) updated to push images with `latest` tag
-  - Images mirrored:
-    - `bitnami/redis:8.4.0-debian-12-r6` → ECR `latest` tag
-    - `bitnami/postgresql:18.1.0-debian-12-r4` → ECR `latest` tag
-  - OpenLDAP continues to use specific tag (`openldap-1.5.0`) for version pinning
-  - Simplifies image management while maintaining ECR-based deployment
+- **PostgreSQL Chart Repository Fix**:
+  - Fixed PostgreSQL Helm chart download issue by changing repository format
+  - Changed from `https://charts.bitnami.com/bitnami` to `oci://registry-1.docker.io/bitnamicharts`
+  - Uses OCI registry format for better compatibility and reliability
+  - Resolves chart download failures during deployment
+
+### Container Image Tag Strategy Update (January 14, 2026)
+
+- **Image Tag Standardization**:
+  - Changed Redis and PostgreSQL image tags to use descriptive tags instead of SHA digests
+  - Redis default image tag: `redis-latest` (mirrors `bitnami/redis:8.4.0-debian-12-r6`)
+  - PostgreSQL default image tag: `postgresql-latest` (mirrors `bitnami/postgresql:18.1.0-debian-12-r4`)
+  - OpenLDAP continues to use specific version tag: `openldap-1.5.0` (mirrors `osixia/openldap:1.5.0`)
+  - Image tags correspond to tags created by `mirror-images-to-ecr.sh` script
+  - ECR mirroring script updated to push images with consistent naming convention
+  - Simplifies image management and updates while maintaining version control
+  - Default image tags can be overridden via `variables.tfvars`
 
 ### Cross-Account Access for Route53 and ACM (January 5, 2026)
 
