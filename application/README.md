@@ -10,8 +10,8 @@ infrastructure.
 The application infrastructure provisions:
 
 - **Route53 Hosted Zone** for domain management (can be in State Account)
-- **ACM Certificate** with DNS validation for HTTPS (issued from Private CA in
-  State Account, stored in Deployment Account)
+- **ACM Certificate** with DNS validation for HTTPS (public ACM certificate
+  requested in Deployment Account, validated via DNS records in State Account)
 - **Helm Release** for OpenLDAP Stack HA (High Availability)
 - **Application Load Balancer (ALB)** via EKS Auto Mode Ingress
 - **Persistent Storage** using EBS-backed PVCs
@@ -25,7 +25,8 @@ frontend
 - **cert-manager** module available (future improvement for automatic TLS
 certificate management)
 - **Network Policies** for securing pod-to-pod communication
-- **PostgreSQL** for user registration and verification token storage
+- **PostgreSQL** (Bitnami Helm chart, OCI registry) for user registration and
+  verification token storage
 - **Redis** for SMS OTP code storage with TTL-based expiration
 - **SES Integration** for email verification and notifications
 - **SNS Integration** for SMS-based 2FA verification (optional)
@@ -124,9 +125,13 @@ The code references existing resources using data sources:
 `data.aws_route53_zone`)
 - **ACM Certificate**: Must already exist and be validated (referenced via
 `data.aws_acm_certificate`)
-  - Certificate must be issued from a Private CA in the State Account
+  - Certificate must be a public ACM certificate (Amazon-issued) requested in
+    the Deployment Account
   - Certificate must exist in the Deployment Account (not State Account)
-  - See [Private CA Setup and Certificate Issuance](./CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance)
+  - Certificate must be validated and in `ISSUED` status
+  - DNS validation records must be created in Route53 hosted zone in the State
+    Account
+  - See [Public ACM Certificate Setup and DNS Validation](./CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
     for setup instructions
 - The certificate must be in the same region as the EKS cluster
 
@@ -134,13 +139,17 @@ The code references existing resources using data sources:
 
 - Route53 hosted zone must be created beforehand (manually or via another
 Terraform configuration)
-- **Private CA Setup**: A central Private CA must be created in the State Account
-  and shared via RAM. See [Private CA Setup and Certificate Issuance](./CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance)
-  for detailed instructions.
-- ACM certificate must be requested from the Private CA in each deployment
-  account and validated beforehand
+- **Public ACM Certificate Setup**: Public ACM certificates must be requested in
+  each deployment account and validated using DNS records in the State Account's
+  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](./CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  for detailed setup instructions with step-by-step AWS CLI commands.
+- ACM certificate must be requested in each deployment account (development,
+  production) as a public ACM certificate (Amazon-issued)
+- Certificate must be validated via DNS validation records created in Route53
+  hosted zone in the State Account
 - Certificate must be in `ISSUED` status
 - Certificate must be in the same region as the EKS cluster
+- Certificate must exist in the Deployment Account (not State Account)
 
 **Outputs:**
 
@@ -212,8 +221,12 @@ configuration (see Storage Configuration section below)
 - LDAP Ports: Standard ports (389 for LDAP, 636 for LDAPS)
 - **ECR Images**: Uses ECR images instead of Docker Hub (images mirrored via
   `mirror-images-to-ecr.sh`)
+  - Image tags: `redis-latest`, `postgresql-latest`, `openldap-1.5.0`
 - **Route53 Records**: Route53 record creation has been moved to the dedicated
   `route53_record` module (see Route53 Record Module section above)
+- **Helm Release Safety**: Comprehensive Helm release attributes (atomic,
+  force_update, replace, cleanup_on_fail, recreate_pods, wait, wait_for_jobs,
+  upgrade_install) for safer deployments
 
 ### 3. 2FA Application (Backend + Frontend)
 
@@ -288,12 +301,13 @@ infrastructure, featuring self-service user registration and admin management.
 
 **API Documentation:**
 
-FastAPI automatically generates interactive API documentation that is always available:
+FastAPI automatically generates interactive API documentation that is always
+available (not just in debug mode):
 
 | Endpoint | Description |
 | ---------- | ------------- |
-| `GET` `/api/docs` | Swagger UI - Interactive API documentation and testing interface |
-| `GET` `/api/redoc` | ReDoc UI - Alternative API documentation interface |
+| `GET` `/api/docs` | Swagger UI - Interactive API documentation and testing interface (always enabled) |
+| `GET` `/api/redoc` | ReDoc UI - Alternative API documentation interface (always enabled) |
 | `GET` `/api/openapi.json` | OpenAPI schema in JSON format |
 
 Access the Swagger UI at `https://app.<domain>/api/docs` (e.g., `https://app.talorlik.com/api/docs`)
@@ -435,9 +449,10 @@ and verification data using the Bitnami Helm chart with persistent EBS-backed st
 
 - Uses ECR images instead of Docker Hub (images mirrored via
   `mirror-images-to-ecr.sh`)
-- Image tag: `postgresql-18.1.0` (default, corresponds to
+- Image tag: `postgresql-latest` (default, corresponds to
   `bitnami/postgresql:18.1.0-debian-12-r4`)
 - ECR registry and repository computed from backend_infra state
+- PostgreSQL Helm chart uses OCI registry format (`oci://registry-1.docker.io/bitnamicharts`)
 
 > [!NOTE]
 >
@@ -465,7 +480,7 @@ persistent storage.
 
 - Uses ECR images instead of Docker Hub (images mirrored via
   `mirror-images-to-ecr.sh`)
-- Image tag: `redis-8.4.0` (default, corresponds to
+- Image tag: `redis-latest` (default, corresponds to
   `bitnami/redis:8.4.0-debian-12-r6`)
 - ECR registry and repository computed from backend_infra state
 
@@ -662,35 +677,39 @@ application/
 4. **EKS Cluster**: The EKS cluster must be running with Auto Mode enabled
 5. **Route53 Hosted Zone**: Must already exist (the Route53 module is commented
 out, code uses data sources)
-6. **Private CA Setup**: A central Private Certificate Authority (PCA) must be
-   created in the State Account, and ACM certificates must be issued for each
-   deployment account
-   - See [Private CA Setup and Certificate Issuance](./CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance)
+6. **Public ACM Certificate Setup**: Public ACM certificates must be requested in
+   each deployment account and validated using DNS records in the State Account's
+   Route53 hosted zone
+   - See [Public ACM Certificate Setup and DNS Validation](./CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
      for detailed setup instructions with step-by-step AWS CLI commands
-   - Includes Resource Access Manager (RAM) sharing configuration
-   - Certificate issuance workflow for both production and development accounts
+   - Each deployment account (development, production) has its own public ACM
+     certificate
+   - Certificates are automatically renewed by ACM
 7. **ACM Certificate**: Must already exist and be validated in the same region
    as the EKS cluster
-   - Certificate must be issued from the Private CA in the State Account
+   - Certificate must be a public ACM certificate (Amazon-issued) requested in
+     the Deployment Account
    - Certificate must exist in the Deployment Account (not State Account)
-   - Each deployment account has its own certificate issued from the Private CA
+   - Certificate must be validated and in `ISSUED` status
+   - DNS validation records must be created in Route53 hosted zone in the State
+     Account
    - See [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) for
      details
-7. **Domain Registration**: The domain name must be registered (can be with any
+8. **Domain Registration**: The domain name must be registered (can be with any
 registrar)
-8. **DNS Configuration**: After deployment, point your domain registrar's NS
+9. **DNS Configuration**: After deployment, point your domain registrar's NS
 records to the Route53 name servers (output from data source)
-9. **Environment Variables**: OpenLDAP passwords must be set via environment
+10. **Environment Variables**: OpenLDAP passwords must be set via environment
 variables (see Configuration section)
-10. **AWS Identity Center**: Required for ArgoCD RBAC configuration
-11. **VPC Endpoints (for SMS 2FA)**: STS and SNS endpoints must be enabled in
+11. **AWS Identity Center**: Required for ArgoCD RBAC configuration
+12. **VPC Endpoints (for SMS 2FA)**: STS and SNS endpoints must be enabled in
 backend_infra
-12. **Secrets Configuration**: All required secrets must be configured.
+13. **Secrets Configuration**: All required secrets must be configured.
 See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete setup instructions.
-13. **Docker (for Local Deployment)**: Docker must be installed and running for
+14. **Docker (for Local Deployment)**: Docker must be installed and running for
 ECR image mirroring. The `mirror-images-to-ecr.sh` script requires Docker to
 pull images from Docker Hub and push them to ECR.
-14. **jq (for Local Deployment)**: The `jq` command-line tool is required for
+15. **jq (for Local Deployment)**: The `jq` command-line tool is required for
 JSON parsing in the image mirroring script (with fallback to sed for
 compatibility).
 
@@ -913,12 +932,14 @@ images are automatically mirrored from Docker Hub to ECR by the
 - `openldap_image_tag`: OpenLDAP image tag in ECR (default: `"openldap-1.5.0"`)
   - Corresponds to `osixia/openldap:1.5.0` from Docker Hub
   - Tag created by `mirror-images-to-ecr.sh`
-- `postgresql_image_tag`: PostgreSQL image tag in ECR (default: `"postgresql-18.1.0"`)
+- `postgresql_image_tag`: PostgreSQL image tag in ECR (default: `"postgresql-latest"`)
   - Corresponds to `bitnami/postgresql:18.1.0-debian-12-r4` from Docker Hub
   - Tag created by `mirror-images-to-ecr.sh`
-- `redis_image_tag`: Redis image tag in ECR (default: `"redis-8.4.0"`)
+  - Uses 'latest' tag instead of SHA digests for simplified image management
+- `redis_image_tag`: Redis image tag in ECR (default: `"redis-latest"`)
   - Corresponds to `bitnami/redis:8.4.0-debian-12-r6` from Docker Hub
   - Tag created by `mirror-images-to-ecr.sh`
+  - Uses 'latest' tag instead of SHA digests for simplified image management
 
 > [!NOTE]
 >
@@ -1072,8 +1093,8 @@ Hub availability or rate limits.
 
 **Images Mirrored:**
 
-- `bitnami/redis:8.4.0-debian-12-r6` → `redis-8.4.0`
-- `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-18.1.0`
+- `bitnami/redis:8.4.0-debian-12-r6` → `redis-latest`
+- `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-latest`
 - `osixia/openldap:1.5.0` → `openldap-1.5.0`
 
 **How It Works:**
@@ -1139,7 +1160,7 @@ cross-account role assumption security
   - Checks if images exist in ECR before mirroring (skips if already present)
   - Pulls images from Docker Hub: `bitnami/redis:8.4.0-debian-12-r6`,
     `bitnami/postgresql:18.1.0-debian-12-r4`, `osixia/openldap:1.5.0`
-  - Pushes images to ECR with tags: `redis-8.4.0`, `postgresql-18.1.0`,
+  - Pushes images to ECR with tags: `redis-latest`, `postgresql-latest`,
     `openldap-1.5.0`
   - Uses State Account credentials to fetch ECR URL from backend_infra state
   - Assumes Deployment Account role for ECR operations (with ExternalId)

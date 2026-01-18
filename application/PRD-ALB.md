@@ -6,19 +6,22 @@ balancer driver), using:
 
 - Domain: `talorlik.com`
 - HTTPS on port 443
-- ACM certificate (issued from Private CA in State Account, stored in Deployment Account, already validated)
+- ACM certificate (Public ACM certificate requested in Deployment Account, validated
+via DNS in State Account Route53, already validated)
 - Multiple Ingresses from `helm-openldap` (phpLDAPadmin + ltb-passwd) sharing
 that ALB via IngressGroup.
 
 > [!NOTE]
 >
-> **Certificate Architecture**: ACM certificates are issued from a central
-> Private CA in the State Account, but each deployment account (development,
-> production) has its own certificate stored in its respective account. This
-> architecture eliminates cross-account certificate access complexity and is
-> compatible with EKS Auto Mode ALB controller requirements. See
-> [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance)
-> for Private CA setup instructions.
+> **Certificate Architecture**: ACM certificates are **Public ACM certificates**
+> (Amazon-issued) requested in each deployment account (development, production)
+> and validated via DNS records in the State Account's Route53 hosted zone.
+> Each deployment account has its own certificate stored in its respective
+> account. This architecture eliminates cross-account certificate access
+> complexity and is compatible with EKS Auto Mode ALB controller requirements.
+> Certificates are automatically renewed by ACM. See
+> [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+> for Public ACM certificate setup instructions.
 
 > [!NOTE]
 >

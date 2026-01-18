@@ -370,7 +370,7 @@ CREATE TABLE verification_tokens (
 
 | Resource | Purpose |
 | ---------- | --------- |
-| PostgreSQL (Helm) | User data storage (uses ECR image `postgresql-18.1.0`) |
+| PostgreSQL (Helm) | User data storage (uses ECR image `postgresql-latest`) |
 | ConfigMap | Application configuration |
 | Secret | Database credentials |
 | ServiceAccount | IRSA for AWS access |
@@ -379,7 +379,7 @@ CREATE TABLE verification_tokens (
 >
 > **ECR Image Support**: PostgreSQL uses ECR images instead of Docker Hub.
 > The image `bitnami/postgresql:18.1.0-debian-12-r4` is automatically mirrored to
-> ECR with tag `postgresql-18.1.0` by the `mirror-images-to-ecr.sh` script before
+> ECR with tag `postgresql-latest` by the `mirror-images-to-ecr.sh` script before
 > Terraform operations. The ECR registry and repository are computed from
 > `backend_infra` Terraform state.
 

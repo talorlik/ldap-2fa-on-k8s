@@ -36,33 +36,35 @@ ALB needs an ACM cert in the same region as the ALB / EKS cluster.
 
 > [!IMPORTANT]
 >
-> **Private CA Architecture**: The current implementation uses a **Private CA**
-> architecture where:
+> **Public ACM Certificate Architecture**: The current implementation uses
+> **Public ACM certificates** (Amazon-issued) with DNS validation:
 >
-> - A central Private CA is created in the **State Account**
-> - Each deployment account (development, production) requests its own ACM
->   certificate from the Private CA
+> - Public ACM certificates are requested in each deployment account
+>   (development, production)
+> - DNS validation records are created in Route53 hosted zone in the State Account
 > - Certificates are stored in their respective deployment accounts (not State
 >   Account)
 > - This eliminates cross-account certificate access complexity
+> - Certificates are automatically renewed by ACM (no manual intervention required)
+> - Browser-trusted certificates (no security warnings)
 >
-> See [Private CA Setup and Certificate Issuance](./CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance)
+> See [Public ACM Certificate Setup and DNS Validation](./CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
 > for detailed setup instructions with step-by-step AWS CLI commands.
 
-**For Private CA-based certificates** (current implementation):
+**For Public ACM certificates** (current implementation):
 
-Certificates are requested in each deployment account using the Private CA ARN:
+Certificates are requested in each deployment account as public ACM certificates:
 
 ```bash
 # In production account
 aws acm request-certificate \
     --domain-name "talorlik.com" \
     --subject-alternative-names "*.talorlik.com" \
-    --certificate-authority-arn <PRIVATE_CA_ARN> \
+    --validation-method DNS \
     --region us-east-1
 ```
 
-**For public ACM certificates** (alternative approach, not currently used):
+**For Private CA-based certificates** (legacy approach, deprecated):
 
 ```hcl
 resource "aws_acm_certificate" "talo_ldap" {

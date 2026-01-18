@@ -133,13 +133,13 @@ Deploy Redis as a centralized, TTL-aware cache for SMS OTP codes, enabling:
 | **Version** | Latest stable (19.x+) | Security patches, bug fixes |
 | **Architecture** | Standalone | Sufficient for OTP cache, simpler operations |
 | **Namespace** | `redis` | Dedicated namespace for isolation |
-| **Image Source** | ECR (not Docker Hub) | Eliminates rate limiting, uses `redis-8.4.0` tag |
+| **Image Source** | ECR (not Docker Hub) | Eliminates rate limiting, uses `redis-latest` tag |
 
 > [!NOTE]
 >
 > **ECR Image Support**: Redis uses ECR images instead of Docker Hub.
 > The image `bitnami/redis:8.4.0-debian-12-r6` is automatically mirrored to ECR
-> with tag `redis-8.4.0` by the `mirror-images-to-ecr.sh` script before
+> with tag `redis-latest` by the `mirror-images-to-ecr.sh` script before
 > Terraform operations. The ECR registry and repository are computed from
 > `backend_infra` Terraform state.
 

@@ -5,20 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2026-01-18] - Documentation Updates and Certificate Architecture Migration
+
+### Changed
+
+- **Certificate Architecture Migration to Public ACM**
+  - Migrated from Private CA-based certificates to Public ACM certificates
+    (Amazon-issued) for browser-trusted certificates
+  - Public ACM certificates are requested in each deployment account and
+    validated via DNS records in State Account's Route53 hosted zone
+  - Certificates are automatically renewed by ACM (no manual intervention
+    required)
+  - Eliminates browser security warnings and simplifies certificate management
+  - Updated all documentation to reflect Public ACM certificate architecture
+  - Comprehensive Public ACM certificate setup documentation in
+    `application/CROSS-ACCOUNT-ACCESS.md` with step-by-step AWS CLI commands
+  - Private CA setup moved to "Legacy" section (deprecated for public-facing
+    applications)
+
+- **Image Tag Standardization Update**
+  - Updated Redis and PostgreSQL image tags to use 'latest' tag instead of
+    version-specific tags
+  - Redis default image tag changed from `redis-8.4.0` to `redis-latest`
+  - PostgreSQL default image tag changed from `postgresql-18.1.0` to
+    `postgresql-latest`
+  - OpenLDAP continues to use specific version tag: `openldap-1.5.0`
+  - Updated ECR image mirroring script to use 'latest' tags
+  - Updated all documentation to reflect new image tag naming convention
+
+- **Comprehensive Documentation Updates**
+  - Updated `docs/index.html` with latest features and information
+  - Updated main `README.md` with Public ACM certificate prerequisites
+  - Updated `application/README.md` with latest features and certificate
+    architecture
+  - Updated `backend_infra/README.md` with ExternalId and latest changes
+  - Updated `tf_backend_state/README.md` with automatic ARN detection
+  - All documentation now reflects Public ACM certificates as the recommended
+    approach
+  - Updated API documentation references to clarify always-enabled status
+  - Added Helm release safety, ECR image support, and Kubeconfig auto-update
+    documentation
+
+### Fixed
+
+- **Documentation Consistency**
+  - Fixed inconsistent references to Private CA vs Public ACM certificates
+  - Updated all prerequisites to reference Public ACM certificate setup
+  - Corrected image tag references across all documentation files
+  - Ensured all documentation reflects current implementation state
+
+## [2026-01-15] - Helm Release Safety, ECR Image Support, and Infrastructure Improvements
 
 ### Added
 
 - **Helm Release Attributes for Safer Deployments**
-  - Added comprehensive Helm release attributes to all application modules (OpenLDAP, PostgreSQL, Redis, cert-manager) for safer and more reliable deployments
-  - Attributes include: atomic, force_update, replace, cleanup_on_fail, recreate_pods, wait, wait_for_jobs, upgrade_install
-  - Prevents partial deployments, enables proper rollbacks, and ensures resource readiness
-  - OpenLDAP module timeout set to 5 minutes, PostgreSQL and Redis modules set to 10 minutes
+  - Added comprehensive Helm release attributes to all application modules
+  (OpenLDAP, PostgreSQL, Redis, cert-manager) for safer and more reliable deployments
+  - Attributes include: atomic, force_update, replace, cleanup_on_fail,
+  recreate_pods, wait, wait_for_jobs, upgrade_install
+  - Prevents partial deployments, enables proper rollbacks, and ensures resource
+  readiness
+  - OpenLDAP module timeout set to 5 minutes, PostgreSQL and Redis modules set
+  to 10 minutes
 
 - **Standardized Helm Values Passing**
-  - Standardized how Helm values are passed through to all modules using consistent `templatefile()` approach
-  - All modules now support `values_template_path` variable for custom template paths
-  - Created comprehensive Helm values templates for PostgreSQL and updated Redis/OpenLDAP templates
+  - Standardized how Helm values are passed through to all modules using consistent
+  `templatefile()` approach
+  - All modules now support `values_template_path` variable for custom template
+  paths
+  - Created comprehensive Helm values templates for PostgreSQL and updated
+  Redis/OpenLDAP templates
   - Improved maintainability and consistency across all Helm chart deployments
 
 - **PostgreSQL Chart Repository Fix**
@@ -28,31 +84,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Image Tag Standardization**
   - Changed Redis and PostgreSQL image tags to use 'latest' tag instead of SHA digests
+  - Redis default image tag: `redis-latest`
+  - PostgreSQL default image tag: `postgresql-latest`
+  - OpenLDAP continues to use specific version tag: `openldap-1.5.0`
   - Simplifies image management and updates while maintaining version control
 
-- **Private CA Architecture for ACM Certificates**
-  - Migrated from public ACM certificates to Private CA-based certificate
-    architecture
-  - Central Private CA created in State Account for certificate issuance
-  - Each deployment account (development, production) receives its own ACM
-    certificate issued from the Private CA
+- **Public ACM Certificate Architecture**
+  - Migrated to Public ACM certificates (Amazon-issued) for browser-trusted
+    certificates
+  - Public ACM certificates requested in each deployment account (development,
+    production)
+  - DNS validation records created in Route53 hosted zone in State Account
   - Certificates stored in respective deployment accounts (not State Account)
   - Eliminates cross-account certificate access complexity
   - Compatible with EKS Auto Mode ALB controller requirements (certificate must
     be in same account as ALB)
-  - Comprehensive Private CA setup documentation in
+  - Comprehensive Public ACM certificate setup documentation in
     `application/CROSS-ACCOUNT-ACCESS.md` with step-by-step AWS CLI commands
-  - Includes Resource Access Manager (RAM) sharing configuration
-  - Certificate issuance workflow documented for both production and development
+  - Certificate validation workflow documented for both production and development
     accounts
-  - Updated all documentation to reflect Private CA architecture
-  - Updated PRD-ALB.md and PRD-DOMAIN.md to reflect certificate architecture
-  - Updated prerequisites in README.md and docs/index.html with Private CA setup
-    link
+  - Certificates automatically renewed by ACM (no manual intervention required)
+  - Browser-trusted certificates (no security warnings)
 
-- **State Account Role ARN Support for Route53/ACM Cross-Account Access**
-  - Added support for querying Route53 hosted zones and ACM certificates from
-    State Account
+- **State Account Role ARN Support for Route53 Cross-Account Access**
+  - Added support for querying Route53 hosted zones from State Account
   - New variable `state_account_role_arn` in `application/variables.tf` for
     assuming role in State Account
   - State account provider alias (`aws.state_account`) configured in
@@ -61,7 +116,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     configured
   - Route53 records created in State Account while ALB deployed in Deployment
     Account
-  - ALB can use ACM certificates from State Account (same region required)
+  - Route53 DNS validation records for Public ACM certificates created in State
+    Account
+  - ACM certificates are Public ACM certificates (Amazon-issued) requested in
+    Deployment Account (not State Account)
   - Scripts automatically inject `state_account_role_arn`:
     - `application/setup-application.sh` exports `STATE_ACCOUNT_ROLE_ARN`
     - `application/set-k8s-env.sh` injects into `variables.tfvars`
@@ -131,8 +189,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created `application/mirror-images-to-ecr.sh` script to eliminate Docker Hub
     rate limiting and external dependencies
   - Automatically mirrors third-party container images from Docker Hub to ECR:
-    - `bitnami/redis:8.4.0-debian-12-r6` → `redis-8.4.0`
-    - `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-18.1.0`
+    - `bitnami/redis:8.4.0-debian-12-r6` → `redis-latest`
+    - `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-latest`
     - `osixia/openldap:1.5.0` → `openldap-1.5.0`
   - Checks if images exist in ECR before mirroring (skips if already present)
   - Uses State Account credentials to fetch ECR URL from backend_infra state
@@ -149,11 +207,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prevents Docker Hub rate limiting and external dependencies during deployments
 
 - **ECR Image Support for Modules**
-  - OpenLDAP, PostgreSQL, and Redis modules now use ECR images instead of Docker Hub
+  - OpenLDAP, PostgreSQL, and Redis modules now use ECR images instead of
+  Docker Hub
   - New variables in `application/variables.tf`:
     - `openldap_image_tag` (default: "openldap-1.5.0")
-    - `postgresql_image_tag` (default: "postgresql-18.1.0")
-    - `redis_image_tag` (default: "redis-8.4.0")
+    - `postgresql_image_tag` (default: "postgresql-latest")
+    - `redis_image_tag` (default: "redis-latest")
   - ECR registry and repository computed from backend_infra state (`ecr_url`)
   - All modules updated with ECR configuration variables:
     - `ecr_registry`: ECR registry URL
@@ -174,6 +233,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Standardized Helm values template structure across all modules
   - Improved template variable naming and organization
   - Enhanced template documentation and comments
+
+- **Kubeconfig Auto-Update to Prevent Stale Cluster Endpoints**
+  - Fixed issue where kubeconfig could contain stale cluster endpoints after
+    cluster recreation or endpoint changes
+  - `set-k8s-env.sh` now automatically updates kubeconfig on every run using
+    `aws eks update-kubeconfig`
+  - Ensures kubeconfig always contains the latest cluster endpoint before any
+    kubectl commands are executed
+  - Prevents DNS lookup errors like: `dial tcp: lookup
+    26A3426590C00FBB5A84A506D1F8B14A.gr7.us-east-1.eks.amazonaws.com: no such host`
+  - Uses deployment account credentials (already assumed by the script) for
+    kubeconfig update
+  - Automatically creates kubeconfig directory if it doesn't exist
+  - Script exits with error if kubeconfig update fails, preventing deployment
+    with incorrect configuration
+  - Fixes issues with Terraform provisioners (e.g., ALB IngressClassParams) that
+    use kubectl commands
 
 - **Documentation Improvements**
   - Removed duplication across README files by replacing detailed content with

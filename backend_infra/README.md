@@ -11,7 +11,7 @@ The backend infrastructure provisions:
 - **EKS Cluster** (Auto Mode) for running Kubernetes workloads
 - **IRSA** (IAM Roles for Service Accounts) for secure AWS API access from pods
 - **VPC Endpoints** for secure access to AWS services (SSM, STS, SNS)
-- **ECR Repository** for container image storage
+- **ECR Repository** for container image storage with lifecycle policies
 
 > [!NOTE]
 >
@@ -96,6 +96,7 @@ Deploys an Amazon EKS cluster in Auto Mode:
   - Creates OIDC provider for the cluster
   - Allows pods to assume IAM roles for AWS service access
   - Required for secure SNS access for SMS 2FA
+  - ExternalId support for enhanced cross-account role assumption security
 - **Elastic Load Balancing**: Automatically enabled by default with Auto Mode
   - No explicit configuration needed - `elastic_load_balancing` capability is
   enabled by default
@@ -268,6 +269,20 @@ The workflow will:
 | `enable_sts_endpoint` | Whether to create STS VPC endpoint (required for IRSA) | `true` |
 | `enable_sns_endpoint` | Whether to create SNS VPC endpoint (required for SMS 2FA) | `false` |
 
+### ExternalId Configuration
+
+ExternalId is required for enhanced security when assuming deployment account roles:
+
+- **Purpose**: Prevents confused deputy attacks in multi-account deployments
+- **Generation**: `openssl rand -hex 32`
+- **Storage**:
+  - AWS Secrets Manager: Plain text secret named `external-id` (for local scripts)
+  - GitHub: Repository secret `AWS_ASSUME_EXTERNAL_ID` (for GitHub Actions)
+- **Requirement**: Must match the ExternalId configured in deployment account role
+Trust Relationships
+- **Bidirectional Trust**: Both deployment account roles and state account role
+must trust each other
+
 ### Important Configuration
 
 - **Naming Convention**: All resources follow the pattern
@@ -277,6 +292,8 @@ The workflow will:
 `false` for HA)
 - **IRSA**: Enabled by default with STS endpoint for secure AWS API access from
 pods
+- **ExternalId Security**: ExternalId required for cross-account role assumption
+  (retrieved from AWS Secrets Manager or GitHub secrets)
 
 ## Outputs
 
@@ -434,10 +451,12 @@ failure)
 - **EKS Auto Mode**: Simplified and cost-effective node management
 - **Lifecycle Policies**: ECR lifecycle policies help manage storage costs
 - **VPC Endpoints**: Consider which endpoints you need:
-  - SSM endpoints: Required for node access without bastion hosts
+  - SSM endpoints: Required for node access without bastion hosts (always enabled)
   - STS endpoint: Required for IRSA (enabled by default)
-  - SNS endpoint: Only enable if using SMS 2FA
+  - SNS endpoint: Only enable if using SMS 2FA (disabled by default)
   - Estimated cost per endpoint: ~$7-10/month per availability zone
+- **ExternalId Security**: ExternalId required for cross-account role assumption
+  to prevent confused deputy attacks
 
 ## Troubleshooting
 

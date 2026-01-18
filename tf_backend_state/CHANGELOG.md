@@ -8,7 +8,7 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2026-01-15] - Automation Improvements and Configuration Simplification
 
 ### Added
 
@@ -54,7 +54,7 @@ and this project adheres to
   - Credential verification before proceeding with operations
   - Proper error handling for failed role assumptions
 
-## [1.0.0] - 2025
+## [1.0.0] - 2025-12-19
 
 ### Added
 
@@ -114,7 +114,7 @@ and this project adheres to
 - Added support for OIDC-based authentication (no access keys
   required)
 
-## [0.1.0] - Initial Development
+## [0.1.0] - 2025-11-22
 
 ### Added
 
@@ -129,9 +129,12 @@ and this project adheres to
   instead of DynamoDB
 - **Bucket Naming**: Format is `{prefix}-{account-id}-s3-tfstate` to
   ensure global uniqueness
-- **Access Control**: By default, uses the current caller's ARN
-  automatically; can be overridden with `principal_arn` variable
+- **Access Control**: Automatically uses the current caller's ARN via
+  `data.aws_caller_identity.current.arn` (no manual configuration needed)
 - **Automation**: Supports both GitHub Actions workflows and local
   script execution
 - **Security**: All state files are encrypted, private, and
   access-controlled via IAM policies
+- **Principal ARN Variable**: The `principal_arn` variable has been removed
+  - Bucket policy now always uses current caller's ARN automatically
+  - Works seamlessly with both GitHub Actions and local execution

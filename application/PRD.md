@@ -39,7 +39,8 @@ adjusted.
 
 > [!NOTE]
 >
-> **ECR Image Configuration**: The current implementation uses ECR images instead of Docker Hub.
+> **ECR Image Configuration**: The current implementation uses ECR images instead
+> of Docker Hub.
 > The `imageRegistry` and `repository` fields in the Helm values template are automatically
 > configured to use ECR. Images are automatically mirrored from Docker Hub to ECR
 > by the `mirror-images-to-ecr.sh` script before Terraform operations.
@@ -300,10 +301,12 @@ variable "openldap_ldap_domain" {
   type = string
 }
 
-# ACM certificate issued from Private CA in State Account, stored in Deployment Account
-# See CROSS-ACCOUNT-ACCESS.md for Private CA setup instructions
-# ACM certificate issued from Private CA in State Account, stored in Deployment Account
-# See CROSS-ACCOUNT-ACCESS.md for Private CA setup instructions
+# ACM certificate is a Public ACM certificate (Amazon-issued) requested in Deployment Account
+# Certificate is validated via DNS records in State Account's Route53 hosted zone
+# See CROSS-ACCOUNT-ACCESS.md for Public ACM certificate setup instructions
+# ACM certificate is a Public ACM certificate (Amazon-issued) requested in Deployment Account
+# Certificate is validated via DNS records in State Account's Route53 hosted zone
+# See CROSS-ACCOUNT-ACCESS.md for Public ACM certificate setup instructions
 variable "acm_cert_arn" {
   type = string
 }
@@ -486,8 +489,8 @@ The following images are automatically mirrored to ECR:
 | Docker Hub Image | ECR Tag | Purpose |
 | ----------------- | --------- | --------- |
 | `osixia/openldap:1.5.0` | `openldap-1.5.0` | OpenLDAP directory service |
-| `bitnami/postgresql:18.1.0-debian-12-r4` | `postgresql-18.1.0` | PostgreSQL database |
-| `bitnami/redis:8.4.0-debian-12-r6` | `redis-8.4.0` | Redis cache |
+| `bitnami/postgresql:latest` | `postgresql-latest` | PostgreSQL database |
+| `bitnami/redis:latest` | `redis-latest` | Redis cache |
 
 ### Automatic Mirroring Process
 

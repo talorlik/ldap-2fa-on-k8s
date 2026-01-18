@@ -341,7 +341,8 @@ S3
 
 ### Security Features
 
-- **S3 Bucket Policy**: Grants access only to the specified IAM principal
+- **S3 Bucket Policy**: Automatically uses current caller's ARN via
+  `data.aws_caller_identity.current.arn` (no manual configuration needed)
 - **Public Access Block**: Prevents any public access to the S3 bucket
 - **Encryption**: All data encrypted at rest
 
@@ -633,12 +634,17 @@ also include the deployment account role ARNs to enable bidirectional trust
 The bucket policy in `main.tf` automatically uses the current caller's ARN via
 `data.aws_caller_identity.current.arn`. **No configuration needed!**
 
-- When running via GitHub Actions: The workflow automatically detects the
-assumed role's ARN and uses it
-- When running locally: The scripts automatically assume the IAM role and
-Terraform detects the assumed role's ARN
-- The bucket policy always grants access to the current caller, eliminating the
-need for manual ARN configuration
+- **Automatic Detection**: The bucket policy automatically detects and uses the
+  current caller's ARN, whether it's:
+  - GitHub Actions OIDC-assumed role
+  - Locally assumed role (via scripts)
+  - Direct AWS credentials
+- **No Manual Configuration**: The `principal_arn` variable has been removed
+  - Bucket policy always grants access to the current caller
+  - Eliminates the need for manual ARN configuration
+  - Works seamlessly with both GitHub Actions and local execution
+- **Security**: Access is automatically restricted to the caller that creates the
+  bucket, ensuring proper access control
 
 > [!NOTE]
 >

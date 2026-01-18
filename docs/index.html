@@ -163,7 +163,7 @@
         <h3 id="supporting-infrastructure">Supporting Infrastructure</h3>
         <div class="card">
             <ul>
-                <li><strong>PostgreSQL</strong> (Bitnami Helm chart) for user registration data and email verification token storage with persistent EBS-backed storage</li>
+                <li><strong>PostgreSQL</strong> (Bitnami Helm chart, OCI registry) for user registration data and email verification token storage with persistent EBS-backed storage</li>
                 <li><strong>Redis</strong> (Bitnami Helm chart) for SMS OTP code storage with TTL-based automatic expiration and shared state across replicas</li>
                 <li><strong>AWS SES</strong> for email verification and notifications with IRSA-based access (no hardcoded credentials)</li>
                 <li><strong>AWS SNS</strong> for SMS-based 2FA verification (optional, requires SNS VPC endpoint enabled in backend infrastructure)</li>
@@ -192,8 +192,10 @@
                 <li><strong>High Availability</strong>: Multi-master OpenLDAP replication with persistent storage</li>
                 <li><strong>GitOps Ready</strong>: ArgoCD (AWS managed service) for declarative, Git-driven deployments</li>
                 <li><strong>Multi-Account Architecture</strong>: Separation of state storage (Account A) and resource deployment (Account B) for enhanced security</li>
-                <li><strong>API Documentation</strong>: Interactive Swagger UI and ReDoc always available at <code>/api/docs</code> and <code>/api/redoc</code></li>
+                <li><strong>API Documentation</strong>: Interactive Swagger UI and ReDoc always available at <code>/api/docs</code> and <code>/api/redoc</code> (always enabled, not just in debug mode)</li>
                 <li><strong>Secrets Management</strong>: Passwords managed via GitHub repository secrets (for CI/CD) or AWS Secrets Manager (for local deployment) with automated retrieval</li>
+                <li><strong>Public ACM Certificates</strong>: Uses public ACM certificates (Amazon-issued) with DNS validation for browser-trusted certificates (no security warnings)</li>
+                <li><strong>Route53 Record Module</strong>: Dedicated module for Route53 A (alias) records with cross-account support and ALB zone_id mapping</li>
             </ul>
         </div>
     </section>
@@ -217,17 +219,20 @@
                         <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
                     </ul>
                 </li>
-                <li><strong>Private CA Setup</strong>: A central Private Certificate Authority (PCA) must be created in the State Account, and ACM certificates must be issued for each deployment account
+                <li><strong>Public ACM Certificate Setup</strong>: Public ACM certificates must be requested in each deployment account and validated using DNS records in the State Account's Route53 hosted zone
                     <ul>
-                        <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance">Private CA Setup and Certificate Issuance</a> for detailed setup instructions</li>
-                        <li>Includes step-by-step AWS CLI commands for creating the Private CA, sharing via RAM, and issuing certificates</li>
+                        <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation">Public ACM Certificate Setup and DNS Validation</a> for detailed setup instructions</li>
+                        <li>Includes step-by-step AWS CLI commands for requesting certificates, creating DNS validation records, and verifying certificate status</li>
+                        <li>Each deployment account (development, production) has its own public ACM certificate</li>
+                        <li>Certificates are automatically renewed by ACM</li>
                     </ul>
                 </li>
                 <li><strong>ACM certificate</strong> must already exist and be validated in the same region as the EKS cluster
                     <ul>
-                        <li>Certificate must be issued from the Private CA in the State Account</li>
+                        <li>Certificate must be a public ACM certificate (Amazon-issued) requested in the Deployment Account</li>
                         <li>Certificate must exist in the Deployment Account (not State Account)</li>
-                        <li>Each deployment account (development, production) has its own certificate issued from the Private CA</li>
+                        <li>Certificate must be validated and in <code>ISSUED</code> status</li>
+                        <li>DNS validation records must be created in Route53 hosted zone in the State Account</li>
                         <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
                     </ul>
                 </li>
@@ -309,7 +314,7 @@
                         <ul>
                             <li>Checks if images exist in ECR before mirroring (skips if already present)</li>
                             <li>Pulls images from Docker Hub: <code>bitnami/redis:8.4.0-debian-12-r6</code>, <code>bitnami/postgresql:18.1.0-debian-12-r4</code>, <code>osixia/openldap:1.5.0</code></li>
-                            <li>Pushes images to ECR with tags: <code>redis-8.4.0</code>, <code>postgresql-18.1.0</code>, <code>openldap-1.5.0</code></li>
+                            <li>Pushes images to ECR with tags: <code>redis-latest</code>, <code>postgresql-latest</code>, <code>openldap-1.5.0</code></li>
                             <li>Uses State Account credentials to fetch ECR URL from backend_infra state</li>
                             <li>Assumes Deployment Account role for ECR operations (with ExternalId)</li>
                             <li>Authenticates Docker to ECR automatically</li>
@@ -877,6 +882,9 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <li><strong>State Locking</strong>: S3 file-based locking prevents concurrent Terraform operations and state corruption</li>
                 <li><strong>OIDC Authentication</strong>: GitHub Actions authenticates with AWS via OIDC—no access keys required</li>
                 <li><strong>Cross-Account Security</strong>: ExternalId required for cross-account role assumption to prevent confused deputy attacks; bidirectional trust relationships</li>
+                <li><strong>Helm Release Safety</strong>: Comprehensive Helm release attributes (atomic, force_update, replace, cleanup_on_fail, recreate_pods, wait, wait_for_jobs, upgrade_install) for safer deployments</li>
+                <li><strong>ECR Image Support</strong>: All modules (OpenLDAP, PostgreSQL, Redis) use ECR images instead of Docker Hub to prevent rate limiting</li>
+                <li><strong>Kubeconfig Auto-Update</strong>: Automatic kubeconfig updates prevent stale cluster endpoints and DNS lookup errors</li>
             </ul>
             <p><strong>For detailed security documentation:</strong> <a href="../application/SECURITY-IMPROVEMENTS.md">Security Improvements</a></p>
         </div>

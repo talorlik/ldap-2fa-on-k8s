@@ -6,12 +6,56 @@ documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2026-01-18] - Documentation Updates and Certificate Architecture Migration
+
+### Changed
+
+- **Certificate Architecture Migration to Public ACM**
+  - Migrated from Private CA-based certificates to Public ACM certificates
+    (Amazon-issued) for browser-trusted certificates
+  - Public ACM certificates are requested in each deployment account and
+    validated via DNS records in State Account's Route53 hosted zone
+  - Certificates are automatically renewed by ACM (no manual intervention
+    required)
+  - Eliminates browser security warnings and simplifies certificate management
+  - Updated all documentation to reflect Public ACM certificate architecture
+  - Comprehensive Public ACM certificate setup documentation in
+    `CROSS-ACCOUNT-ACCESS.md` with step-by-step AWS CLI commands
+  - Private CA setup moved to "Legacy" section (deprecated for public-facing
+    applications)
+
+- **Image Tag Standardization Update**
+  - Updated Redis and PostgreSQL image tags to use 'latest' tag instead of
+    version-specific tags
+  - Redis default image tag changed from `redis-8.4.0` to `redis-latest`
+  - PostgreSQL default image tag changed from `postgresql-18.1.0` to
+    `postgresql-latest`
+  - Updated ECR image mirroring script to use 'latest' tags
+  - Updated all documentation to reflect new image tag naming convention
+
+- **Comprehensive Documentation Updates**
+  - Updated `application/README.md` with latest features and certificate
+    architecture
+  - Updated all prerequisites to reference Public ACM certificate setup
+  - Updated API documentation references to clarify always-enabled status
+  - Added Helm release safety, ECR image support, and Kubeconfig auto-update
+    documentation
+
+### Fixed
+
+- **Documentation Consistency**
+  - Fixed inconsistent references to Private CA vs Public ACM certificates
+  - Updated all prerequisites to reference Public ACM certificate setup
+  - Corrected image tag references across all documentation files
+  - Ensured all documentation reflects current implementation state
+
+## [2026-01-15] - Helm Release Safety, ECR Image Support, and Infrastructure Improvements
 
 ### Added
 
 - **Helm Release Attributes for Safer Deployments**
-  - Added comprehensive Helm release attributes to all modules (OpenLDAP, PostgreSQL, Redis, cert-manager) for safer and more reliable deployments:
+  - Added comprehensive Helm release attributes to all modules
+  (OpenLDAP, PostgreSQL, Redis, cert-manager) for safer and more reliable deployments:
     - `atomic: true` - Prevents partial deployments by rolling back on failure
     - `force_update: true` - Enables forced updates when needed
     - `replace: true` - Prevents resource name conflicts and allows reuse of names
@@ -25,8 +69,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improves deployment reliability and prevents stuck deployments
 
 - **Standardized Helm Values Passing**
-  - Standardized how Helm values are passed through to all modules (OpenLDAP, PostgreSQL, Redis)
-  - All modules now use consistent `templatefile()` approach with `values_template_path` variable
+  - Standardized how Helm values are passed through to all modules
+  (OpenLDAP, PostgreSQL, Redis)
+  - All modules now use consistent `templatefile()` approach with `values_template_path`
+  variable
   - Modules can use default template path or custom path via variable
   - Improved maintainability and consistency across all Helm chart deployments
   - Created comprehensive Helm values templates:
@@ -35,7 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `helm/openldap-values.tpl.yaml` - Updated OpenLDAP Helm chart values template
 
 - **PostgreSQL Chart Repository Fix**
-  - Fixed PostgreSQL Helm chart download issue by changing repository from `https://charts.bitnami.com/bitnami` to `oci://registry-1.docker.io/bitnamicharts`
+  - Fixed PostgreSQL Helm chart download issue by changing repository from
+  `https://charts.bitnami.com/bitnami` to `oci://registry-1.docker.io/bitnamicharts`
   - Uses OCI registry format for better compatibility and reliability
   - Resolves chart download failures during deployment
 
@@ -47,37 +94,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Image tags correspond to tags created by `mirror-images-to-ecr.sh` script
   - Simplifies image management and updates
 
-- **Private CA Architecture for ACM Certificates**
-  - Migrated from public ACM certificates to Private CA-based certificate
-    architecture
-  - Central Private CA created in State Account for certificate issuance
-  - Each deployment account (development, production) receives its own ACM
-    certificate issued from the Private CA
+- **Public ACM Certificate Architecture**
+  - Migrated to Public ACM certificates (Amazon-issued) for browser-trusted
+    certificates
+  - Public ACM certificates requested in each deployment account (development,
+    production)
+  - DNS validation records created in Route53 hosted zone in State Account
   - Certificates stored in respective deployment accounts (not State Account)
   - Eliminates cross-account certificate access complexity
   - Compatible with EKS Auto Mode ALB controller requirements (certificate must
     be in same account as ALB)
-  - Comprehensive Private CA setup documentation in
+  - Comprehensive Public ACM certificate setup documentation in
     `CROSS-ACCOUNT-ACCESS.md` with step-by-step AWS CLI commands
-  - Includes Resource Access Manager (RAM) sharing configuration
-  - Certificate issuance workflow documented for both production and development
+  - Certificate validation workflow documented for both production and development
     accounts
-  - Updated all documentation to reflect Private CA architecture
-  - Updated PRD-ALB.md and PRD-DOMAIN.md to reflect certificate architecture
+  - Certificates automatically renewed by ACM (no manual intervention required)
+  - Browser-trusted certificates (no security warnings)
 
-- **State Account Role ARN Support for Route53/ACM Cross-Account Access**
-  - Added support for querying Route53 hosted zones and ACM certificates from
-    State Account
+- **State Account Role ARN Support for Route53 Cross-Account Access**
+  - Added support for querying Route53 hosted zones from State Account
   - New variable `state_account_role_arn` for assuming role in State Account
-    (where Route53/ACM reside)
+    (where Route53 hosted zone resides)
   - State account provider alias (`aws.state_account`) configured in
     `providers.tf`
   - All Route53 data sources and resources now use state account provider when
     configured
   - Route53 records (phpldapadmin, ltb_passwd, twofa_app, SES
     verification/DKIM) created in State Account
-  - ACM certificates are issued from Private CA in State Account but stored in
-    Deployment Account (no cross-account certificate access needed)
+  - Route53 DNS validation records for Public ACM certificates created in State
+    Account
+  - ACM certificates are Public ACM certificates (Amazon-issued) requested in
+    Deployment Account (not State Account)
   - Scripts automatically inject `state_account_role_arn` into
     `variables.tfvars`:
     - `setup-application.sh` exports `STATE_ACCOUNT_ROLE_ARN` environment
@@ -155,8 +202,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created `application/mirror-images-to-ecr.sh` script (290 lines) to eliminate
     Docker Hub rate limiting and external dependencies
   - Automatically mirrors third-party container images from Docker Hub to ECR:
-    - `bitnami/redis:8.4.0-debian-12-r6` → `redis-8.4.0`
-    - `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-18.1.0`
+    - `bitnami/redis:8.4.0-debian-12-r6` → `redis-latest`
+    - `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-latest`
     - `osixia/openldap:1.5.0` → `openldap-1.5.0`
   - Checks if images exist in ECR before mirroring (skips if already present)
   - Uses State Account credentials to fetch ECR URL from backend_infra state
@@ -178,8 +225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All three modules now use ECR images instead of Docker Hub
   - New variables in `application/variables.tf`:
     - `openldap_image_tag` (default: "openldap-1.5.0")
-    - `postgresql_image_tag` (default: "postgresql-18.1.0")
-    - `redis_image_tag` (default: "redis-8.4.0")
+    - `postgresql_image_tag` (default: "postgresql-latest")
+    - `redis_image_tag` (default: "redis-latest")
   - ECR registry and repository computed from backend_infra state (`ecr_url`)
   - All modules updated with ECR configuration variables:
     - `ecr_registry`: ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)
@@ -217,7 +264,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Better integration with GitHub repository variables and secrets
   - Improved Kubernetes environment setup using `set-k8s-env.sh`
   - Enhanced user guidance and confirmation prompts
-  - Automatic injection of `state_account_role_arn` for Route53/ACM access
+  - Automatic injection of `state_account_role_arn` for Route53 access
   - Integrated ECR image mirroring script execution (runs before Terraform
     operations)
   - Improved credential handling to prevent conflicts between different AWS
@@ -232,7 +279,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   improved error handling
   - Workflows now use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state
     operations
-  - Workflows now export `STATE_ACCOUNT_ROLE_ARN` for Route53/ACM
+  - Workflows now export `STATE_ACCOUNT_ROLE_ARN` for Route53
     cross-account access
   - Workflows now use `AWS_ASSUME_EXTERNAL_ID` for cross-account role
     assumption
@@ -259,23 +306,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backend API Configuration**
   - Removed debug mode condition for API documentation endpoints
   - Swagger UI, ReDoc UI, and OpenAPI schema are now always accessible in production
-
-### Fixed
+  - API documentation always enabled (not just in debug mode)
 
 - **Kubeconfig Auto-Update to Prevent Stale Cluster Endpoints**
-  - Fixed issue where kubeconfig could contain stale cluster endpoints after cluster
-    recreation or endpoint changes
+  - Fixed issue where kubeconfig could contain stale cluster endpoints after
+    cluster recreation or endpoint changes
   - `set-k8s-env.sh` now automatically updates kubeconfig on every run using
     `aws eks update-kubeconfig`
-  - Ensures kubeconfig always contains the latest cluster endpoint before any kubectl
-    commands are executed
+  - Ensures kubeconfig always contains the latest cluster endpoint before any
+    kubectl commands are executed
   - Prevents DNS lookup errors like: `dial tcp: lookup
     26A3426590C00FBB5A84A506D1F8B14A.gr7.us-east-1.eks.amazonaws.com: no such host`
-  - Uses deployment account credentials (already assumed by the script) for kubeconfig
-    update
+  - Uses deployment account credentials (already assumed by the script) for
+    kubeconfig update
   - Automatically creates kubeconfig directory if it doesn't exist
-  - Script exits with error if kubeconfig update fails, preventing deployment with
-    incorrect configuration
+  - Script exits with error if kubeconfig update fails, preventing deployment
+    with incorrect configuration
   - Fixes issues with Terraform provisioners (e.g., ALB IngressClassParams) that
     use kubectl commands
 

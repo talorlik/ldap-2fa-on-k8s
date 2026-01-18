@@ -58,14 +58,18 @@ HTML/JS/CSS frontend
 - AWS SSO/OIDC configured (see [GitHub Repository
 Configuration](#github-repository-configuration))
 - Route53 hosted zone must already exist (or create it manually)
-- **Private CA Setup**: A central Private Certificate Authority (PCA) must be
-  created in the State Account, and ACM certificates must be issued for each
-  deployment account. See [Private CA Setup and Certificate Issuance](application/CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance)
-  for detailed setup instructions.
+- **Public ACM Certificate Setup**: Public ACM certificates must be requested in
+  each deployment account and validated using DNS records in the State Account's
+  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](application/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  for detailed setup instructions with step-by-step AWS CLI commands.
 - ACM certificate must already exist and be validated in the same region as the
   EKS cluster
-  - Certificate must be issued from the Private CA in the State Account
+  - Certificate must be a public ACM certificate (Amazon-issued) requested in
+    the Deployment Account
   - Certificate must exist in the Deployment Account (not State Account)
+  - Certificate must be validated and in `ISSUED` status
+  - DNS validation records must be created in Route53 hosted zone in the State
+    Account
   - See [Cross-Account Access Documentation](application/CROSS-ACCOUNT-ACCESS.md)
     for details
 - **Docker (for Local Deployment)**: Docker must be installed and running for
@@ -75,6 +79,10 @@ Configuration](#github-repository-configuration))
 - **jq (for Local Deployment)**: The `jq` command-line tool is required for
   JSON parsing in the image mirroring script (with fallback to sed for
   compatibility).
+- **ECR Image Tags**: Images are mirrored to ECR with standardized tags:
+  - `redis-latest` (corresponds to `bitnami/redis:8.4.0-debian-12-r6`)
+  - `postgresql-latest` (corresponds to `bitnami/postgresql:18.1.0-debian-12-r4`)
+  - `openldap-1.5.0` (corresponds to `osixia/openldap:1.5.0`)
 
 ## Project Structure
 
@@ -773,6 +781,14 @@ host-based routing
 VPC endpoints for private AWS access
 - **Multi-Account Architecture**: Separation of state storage and resource
 deployment for enhanced security
+- **Helm Release Safety**: Comprehensive Helm release attributes for safer
+deployments with automatic rollbacks and resource readiness checks
+- **ECR Image Support**: All modules use ECR images instead of Docker Hub to
+prevent rate limiting and external dependencies
+- **Public ACM Certificates**: Browser-trusted certificates with automatic renewal
+via Amazon-issued public ACM certificates
+- **Kubeconfig Auto-Update**: Automatic kubeconfig updates prevent stale cluster
+endpoints and DNS lookup errors
 
 ## MFA Methods
 
@@ -805,9 +821,12 @@ After deployment:
   - User profile management
   - Admin dashboard (for LDAP admin group members)
   - **API Documentation**: `https://app.${domain_name}/api/docs` - Interactive
-  Swagger UI for API exploration and testing
+  Swagger UI for API exploration and testing (always enabled, not just in
+  debug mode)
   - **ReDoc Documentation**: `https://app.${domain_name}/api/redoc` - Alternative
-  API documentation interface
+  API documentation interface (always enabled)
+  - **OpenAPI Schema**: `https://app.${domain_name}/api/openapi.json` - OpenAPI
+  schema in JSON format
 - **PhpLdapAdmin**: `https://phpldapadmin.${domain_name}` (e.g.,
 `https://phpldapadmin.talorlik.com`)
   - LDAP administration interface
@@ -895,6 +914,13 @@ access on secure ports only
 - **Storage Encryption**: EBS volumes encrypted by default
 - **Network Isolation**: EKS nodes run in private subnets
 - **Multi-Account Isolation**: State storage separated from resource deployment
+- **Helm Release Safety**: Comprehensive Helm release attributes for safer deployments
+with automatic rollbacks
+- **ECR Image Support**: All modules use ECR images instead of Docker Hub to prevent
+rate limiting
+- **Kubeconfig Auto-Update**: Automatic kubeconfig updates prevent stale cluster
+endpoints
+- **Public ACM Certificates**: Browser-trusted certificates with automatic renewal
 
 See [Security Improvements](application/SECURITY-IMPROVEMENTS.md) for detailed
 security documentation.
