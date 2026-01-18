@@ -486,6 +486,19 @@ fi
 
 echo ""
 
+# Terraform workspace name (same as backend_infra)
+WORKSPACE_NAME="${AWS_REGION}-${ENVIRONMENT}"
+
+# Terraform init
+print_info "Running terraform init with backend configuration..."
+terraform init -backend-config="${BACKEND_FILE}"
+
+# Terraform workspace (create/select before running mirror script)
+print_info "Selecting or creating workspace: ${WORKSPACE_NAME}..."
+terraform workspace select "${WORKSPACE_NAME}" 2>/dev/null || terraform workspace new "${WORKSPACE_NAME}"
+
+echo ""
+
 # Mirror third-party images to ECR (if not already present)
 print_info "Checking if Docker images need to be mirrored to ECR..."
 if [ ! -f "mirror-images-to-ecr.sh" ]; then
@@ -503,19 +516,6 @@ else
     print_error "ECR image mirroring failed"
     exit 1
 fi
-
-echo ""
-
-# Terraform workspace name
-WORKSPACE_NAME="${AWS_REGION}-${ENVIRONMENT}"
-
-# Terraform init
-print_info "Running terraform init with backend configuration..."
-terraform init -backend-config="${BACKEND_FILE}"
-
-# Terraform workspace
-print_info "Selecting or creating workspace: ${WORKSPACE_NAME}..."
-terraform workspace select "${WORKSPACE_NAME}" 2>/dev/null || terraform workspace new "${WORKSPACE_NAME}"
 
 # Terraform validate
 print_info "Running terraform validate..."

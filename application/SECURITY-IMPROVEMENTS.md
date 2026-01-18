@@ -379,30 +379,30 @@ Relationships for proper bidirectional cross-account access.
   - Scripts automatically inject `state_account_role_arn` into `variables.tfvars`
   - No ExternalId required for state account role assumption (by design)
 
-#### ⚠️ ACM Certificate Architecture (EKS Auto Mode)
+#### ✅ ACM Certificate Architecture (EKS Auto Mode)
 
 - **Important**: EKS Auto Mode ALB controller **CANNOT** access cross-account
 ACM certificates
 - **Requirement**: ACM certificate **MUST** be in the Deployment Account
 (same account as EKS cluster)
-- **Architecture**: Private CA in State Account issues certificates for each
-deployment account
+- **Architecture**: Public ACM certificates with DNS validation via Route53
 - **Location**: `application/main.tf`
 - **Implementation**:
-  - Private CA is created in State Account
-  - Each deployment account (development, production) has its own certificate
-  issued from the Private CA
+  - Public ACM certificates are requested in each deployment account (development, production)
+  - DNS validation records are created in Route53 hosted zone in State Account
+  - Each deployment account has its own public ACM certificate
   - ACM certificate data source uses default provider (deployment account),
   NOT `aws.state_account`
   - Certificate must exist in Deployment Account before ALB creation
   - Certificate must be validated and in `ISSUED` status
   - Certificate must be in the same region as the EKS cluster
   - No cross-account certificate access needed (each account uses its own certificate)
+  - Certificates are automatically renewed by ACM
 
 **Key Security Features**:
 
-- **Private CA Architecture**: Private CA in State Account issues certificates
-for each deployment account
+- **Public ACM Certificate Architecture**: Public ACM certificates requested in each deployment account
+- **Browser-Trusted Certificates**: Public ACM certificates are trusted by browsers without warnings
 - **No Cross-Account Certificate Access**: Each deployment account has its own
 certificate, eliminating cross-account certificate access needs
 - **Cross-Account Resource Access**: Route53 hosted zones reside in State Account
@@ -411,9 +411,10 @@ while ALB is deployed in Deployment Account
 provider when `state_account_role_arn` is configured
 - **No ExternalId Required**: State account role assumption does not require
 ExternalId (by design, different security model)
+- **Automatic Renewal**: ACM automatically renews certificates before expiration
 - **Comprehensive Documentation**: See `CROSS-ACCOUNT-ACCESS.md` for complete
-configuration details, including step-by-step AWS CLI commands for Private CA setup
-and certificate issuance
+configuration details, including step-by-step AWS CLI commands for public ACM certificate setup
+and DNS validation.
 
 **State Account Role Permissions**:
 
@@ -449,6 +450,7 @@ The Deployment Account role (or default credentials) must have ACM permissions:
     {
       "Effect": "Allow",
       "Action": [
+        "acm:RequestCertificate",
         "acm:ListCertificates",
         "acm:DescribeCertificate"
       ],

@@ -130,6 +130,16 @@ data "aws_eks_cluster" "this" {
   name = var.cluster_name
 }
 
+# Wait for IAM role to propagate before creating EKS capability
+resource "time_sleep" "wait_for_iam_propagation" {
+  depends_on = [
+    aws_iam_role.argocd_capability,
+    aws_iam_role_policy.argocd_capability
+  ]
+
+  create_duration = "30s"
+}
+
 # EKS Capability for ArgoCD
 resource "aws_eks_capability" "argocd" {
   cluster_name    = var.cluster_name
@@ -183,7 +193,8 @@ resource "aws_eks_capability" "argocd" {
 
   depends_on = [
     aws_iam_role.argocd_capability,
-    aws_iam_role_policy.argocd_capability
+    aws_iam_role_policy.argocd_capability,
+    time_sleep.wait_for_iam_propagation
   ]
 }
 
