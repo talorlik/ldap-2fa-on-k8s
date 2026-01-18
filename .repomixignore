@@ -1,0 +1,32 @@
+# Add patterns to ignore here, one per line
+# Example:
+# *.log
+# tmp/
+
+# IDEs and Editors
+.cursor/
+.vscode/
+.idea/
+.DS_Store
+
+# Sensitive/Security (Double-check these are out)
+.env
+*.pem
+*.csr
+*.json
+!repomix.config.json  # Keep the config so the AI knows how the repo was packed
+
+# Terraform Clutter
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.plan
+*.tfplan
+.terraform.tfstate.lock.info
+*.tfvars
+*.tfvars.json
+
+# Tooling/Caches
+.repomixignore
+repomix-output.md
+node_modules/
