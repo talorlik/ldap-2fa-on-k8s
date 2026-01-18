@@ -19,7 +19,8 @@ ACM certificate (Account B - Deployment Account)
 
 **Multi-Account Architecture:**
 
-- **Account A (State Account)**: Stores Terraform state files in S3, Route53 hosted zones, and ACM certificates
+- **Account A (State Account)**: Stores Terraform state files in S3, Route53
+hosted zones, and ACM certificates
 - **Account B (Deployment Accounts)**: Contains all infrastructure resources
   - **Production Account**: Separate account for production infrastructure
   - **Development Account**: Separate account for development infrastructure
@@ -257,10 +258,15 @@ Ensure you have:
 
 - A registered domain name (e.g., `talorlik.com`)
 - An existing Route53 hosted zone for your domain
-- A **Private CA** in State Account and **ACM certificates** issued to each deployment account
-  - See [Private CA Setup and Certificate Issuance](application/CROSS-ACCOUNT-ACCESS.md#private-ca-setup-and-certificate-issuance) for detailed setup instructions
+- **Public ACM certificates** requested in each deployment account and validated
+via DNS records in State Account's Route53 hosted zone
+  - See [Public ACM Certificate Setup and DNS Validation](application/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  for detailed setup instructions
+  - Certificates are browser-trusted (no security warnings) and automatically
+  renewed by ACM
 - **For local scripts**: AWS Secrets Manager secrets configured:
-  - `github-role`: Contains `AWS_STATE_ACCOUNT_ROLE_ARN` and deployment account role ARNs
+  - `github-role`: Contains `AWS_STATE_ACCOUNT_ROLE_ARN` and deployment account
+  role ARNs
   - `external-id`: Contains `AWS_ASSUME_EXTERNAL_ID`
   - `tf-vars`: Contains OpenLDAP, PostgreSQL, and Redis passwords
   - See `SECRETS_REQUIREMENTS.md` for detailed setup instructions
@@ -356,6 +362,7 @@ cd application
 ```
 
 The script:
+
 - Fetches ECR repository URL from backend_infra Terraform state
 - Assumes Deployment Account role for ECR operations
 - Checks which images already exist in ECR
@@ -758,25 +765,31 @@ workflows)
 
 ## Recent Changes (December 2025 - January 2026)
 
-### Private CA Architecture for ACM Certificates (January 13-14, 2026)
+### Public ACM Certificate Architecture Migration (January 18, 2026)
 
-- **Private CA-Based Certificate Architecture**:
-  - Migrated from public ACM certificates to Private CA-based certificate architecture
-  - Central Private CA created in **State Account** for certificate issuance
-  - Each deployment account (development, production) receives its own **ACM certificate** issued from the Private CA
+- **Public ACM Certificate Architecture**:
+  - Uses Public ACM certificates (Amazon-issued) for browser-trusted certificates
+  - Public ACM certificates requested in each deployment account (development, production)
+  - DNS validation records created in Route53 hosted zone in State Account
   - Certificates stored in respective **deployment accounts** (not State Account)
   - Eliminates cross-account certificate access complexity
-  - Compatible with **EKS Auto Mode ALB controller** requirements (certificate must be in same account as ALB)
-  - Comprehensive Private CA setup documentation in `application/CROSS-ACCOUNT-ACCESS.md` with step-by-step AWS CLI commands
-  - Includes Resource Access Manager (RAM) sharing configuration for organization-wide CA access
-  - Certificate issuance workflow documented for both production and development accounts
-  - Updated all documentation to reflect Private CA architecture (PRD-ALB.md, PRD-DOMAIN.md, README.md, docs/index.html)
-  - Prerequisites now include Private CA setup link instead of manual ACM certificate creation
+  - Compatible with **EKS Auto Mode ALB controller** requirements
+  (certificate must be in same account as ALB)
+  - Comprehensive Public ACM certificate setup documentation in `application/CROSS-ACCOUNT-ACCESS.md`
+  with step-by-step AWS CLI commands
+  - Certificate validation workflow documented for both production and
+  development accounts
+  - Certificates automatically renewed by ACM (no manual intervention required)
+  - Browser-trusted certificates (no security warnings)
+  - Updated all documentation to reflect Public ACM certificate architecture
+  (PRD-ALB.md, README.md, docs/index.html)
+  - Private CA setup moved to "Legacy" section (deprecated for public-facing applications)
 
 ### Helm Release Deployment Improvements (January 14, 2026)
 
 - **Enhanced Helm Release Attributes for Safer Deployments**:
-  - Added comprehensive Helm release attributes to all application modules (OpenLDAP, PostgreSQL, Redis, cert-manager):
+  - Added comprehensive Helm release attributes to all application modules
+  (OpenLDAP, PostgreSQL, Redis, cert-manager):
     - `atomic: true` - Prevents partial deployments on failure
     - `force_update: true` - Enables forced updates when needed
     - `replace: true` - Prevents resource name conflicts and allows reusing names
@@ -791,8 +804,10 @@ workflows)
   - Better error handling during deployment failures
 
 - **Standardized Helm Values Passing**:
-  - Standardized how Helm values are passed through to all modules (OpenLDAP, PostgreSQL, Redis)
-  - All modules now use consistent `templatefile()` approach with `values_template_path` variable
+  - Standardized how Helm values are passed through to all modules
+  (OpenLDAP, PostgreSQL, Redis)
+  - All modules now use consistent `templatefile()` approach with `values_template_path`
+  variable
   - Modules can use default template path or custom path via variable
   - Improved maintainability and consistency across all Helm chart deployments
   - Created comprehensive Helm values templates:
@@ -809,7 +824,8 @@ workflows)
 ### Container Image Tag Strategy Update (January 14, 2026)
 
 - **Image Tag Standardization**:
-  - Changed Redis and PostgreSQL image tags to use descriptive tags instead of SHA digests
+  - Changed Redis and PostgreSQL image tags to use descriptive tags instead of
+  SHA digests
   - Redis default image tag: `redis-latest` (mirrors `bitnami/redis:8.4.0-debian-12-r6`)
   - PostgreSQL default image tag: `postgresql-latest` (mirrors `bitnami/postgresql:18.1.0-debian-12-r4`)
   - OpenLDAP continues to use specific version tag: `openldap-1.5.0` (mirrors `osixia/openldap:1.5.0`)
@@ -818,15 +834,19 @@ workflows)
   - Simplifies image management and updates while maintaining version control
   - Default image tags can be overridden via `variables.tfvars`
 
-### Cross-Account Access for Route53 and ACM (January 5, 2026)
+### Cross-Account Access for Route53 (January 5, 2026)
 
 - **State Account Role ARN Support**:
-  - Added support for querying Route53 hosted zones and ACM certificates from State Account
-  - New variable `state_account_role_arn` for assuming role in State Account (where Route53/ACM reside)
+  - Added support for querying Route53 hosted zones from State Account
+  - New variable `state_account_role_arn` for assuming role in State Account
+  (where Route53 resides)
   - State account provider alias (`aws.state_account`) configured in `providers.tf`
   - All Route53 data sources and resources now use state account provider when configured
-  - Route53 records (phpldapadmin, ltb_passwd, twofa_app, SES verification/DKIM) created in State Account
-  - ALB can use ACM certificates from State Account (same region required)
+  - Route53 records (phpldapadmin, ltb_passwd, twofa_app, SES verification/DKIM)
+  created in State Account
+  - Route53 DNS validation records for Public ACM certificates created in
+  State Account
+  - Public ACM certificates are requested in Deployment Account (not State Account)
   - Scripts automatically inject `state_account_role_arn` into `variables.tfvars`
   - No ExternalId required for state account role assumption (by design)
   - Comprehensive cross-account access documentation in `application/CROSS-ACCOUNT-ACCESS.md`
@@ -835,7 +855,8 @@ workflows)
 ### Route53 Record Module Separation (January 5, 2026)
 
 - **Dedicated Route53 Record Module**:
-  - Separated Route53 record creation from OpenLDAP module into dedicated `route53_record` module
+  - Separated Route53 record creation from OpenLDAP module into dedicated `route53_record`
+  module
   - New module located at `application/modules/route53_record/` for per-record creation
   - Module uses state account provider (`aws.state_account`) for cross-account access
   - Route53 records created in State Account while ALB deployed in Deployment Account
@@ -853,7 +874,8 @@ workflows)
 ### ECR Image Mirroring for Third-Party Container Images (January 5, 2026)
 
 - **Automated Image Mirroring Script**:
-  - Created `application/mirror-images-to-ecr.sh` script (290+ lines) to eliminate Docker Hub rate limiting and external dependencies
+  - Created `application/mirror-images-to-ecr.sh` script (290+ lines) to eliminate
+  Docker Hub rate limiting and external dependencies
   - Automatically mirrors third-party container images from Docker Hub to ECR:
     - `bitnami/redis:8.4.0-debian-12-r6` → `redis-8.4.0`
     - `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-18.1.0`
@@ -868,14 +890,18 @@ workflows)
   - Integrated into GitHub Actions workflow (runs after Terraform validate)
   - Requires Docker to be installed and running
   - Requires `jq` for JSON parsing (with fallback to sed for compatibility)
-  - Prevents Docker Hub rate limiting (200 pulls per 6 hours for anonymous) and external dependencies
+  - Prevents Docker Hub rate limiting (200 pulls per 6 hours for anonymous) and
+  external dependencies
   - Comprehensive error handling and user feedback
   - Proper credential switching for multi-account architecture
 - **ECR Image Support for All Modules**:
-  - All three modules (OpenLDAP, PostgreSQL, Redis) now use ECR images instead of Docker Hub
-  - New variables in `application/variables.tf`: `openldap_image_tag`, `postgresql_image_tag`, `redis_image_tag`
+  - All three modules (OpenLDAP, PostgreSQL, Redis) now use ECR images instead of
+  Docker Hub
+  - New variables in `application/variables.tf`: `openldap_image_tag`, `postgresql_image_tag`,
+  `redis_image_tag`
   - ECR registry and repository computed from backend_infra state (`ecr_url`)
-  - All modules updated with ECR configuration variables (registry, repository, tag)
+  - All modules updated with ECR configuration variables
+  (registry, repository, tag)
   - Helm values templates updated to use ECR images
   - Image tags correspond to tags created by `mirror-images-to-ecr.sh`
 - **Application main.tf Enhancements**:
@@ -930,7 +956,7 @@ workflows)
   - Enhanced credential extraction with jq fallback to sed for broader compatibility
   - Improved user feedback throughout the process
 
-### ExternalId Security Feature for Cross-Account Role Assumption (December 29, 2025)
+### ExternalId Security Feature for Cross-Account Role Assumption (Dec 29, 2025)
 
 - **ExternalId Support**:
   - Added ExternalId requirement for enhanced security when assuming deployment
