@@ -40,7 +40,8 @@ controller requirements (certificate must be in the same account as the ALB)
 ## Public ACM Certificate Setup and DNS Validation
 
 This section provides step-by-step AWS CLI commands to request public ACM certificates
-in each deployment account and validate them using DNS records in the State Account's Route53 hosted zone.
+in each deployment account and validate them using DNS records in the State Account's
+Route53 hosted zone.
 
 ### Prerequisites
 
@@ -50,6 +51,7 @@ in each deployment account and validate them using DNS records in the State Acco
 - `jq` installed for JSON parsing (optional, for advanced parsing)
 
 **AWS SSO Profiles:**
+
 - `default` - State Account
 - `dev` - Development Deployment Account
 - `prod` - Production Deployment Account
@@ -91,7 +93,8 @@ aws --profile prod acm describe-certificate \
 ```
 
 **Expected Output:**
-```
+
+```ascii
 ----------------------------------------------------------------------------------
 ||                          DescribeCertificate                                   |
 +------------------+--------------------------------------------+-------+----------+
@@ -194,7 +197,8 @@ aws --profile prod acm describe-certificate \
 ```
 
 **Expected Output:**
-```
+
+```ascii
 ------------------------------------------
 ||       DescribeCertificate             |
 +----------+--------+--------------------+
@@ -255,13 +259,16 @@ aws --profile dev acm list-certificates --region us-east-1 \
 
 - **Region Consistency**: Ensure all commands use the same region (e.g., `us-east-1`)
 
-- **Certificate Validation**: Certificates will be automatically validated once DNS validation records are created in Route53
+- **Certificate Validation**: Certificates will be automatically validated once
+DNS validation records are created in Route53
 
-- **Certificate Status**: Wait for certificates to reach `ISSUED` status before using them with ALB
+- **Certificate Status**: Wait for certificates to reach `ISSUED` status before
+using them with ALB
 
 - **DNS Propagation**: DNS validation may take a few minutes to propagate
 
-- **Reuse Validation Records**: If multiple certificates use the same domain, they may share the same validation record
+- **Reuse Validation Records**: If multiple certificates use the same domain, they
+may share the same validation record
 
 ## Cross-Account Access Requirements
 
@@ -306,7 +313,8 @@ aws --profile dev acm list-certificates --region us-east-1 \
 
 **Certificate Architecture:**
 
-- **Public ACM certificates** are requested in each deployment account (development, production)
+- **Public ACM certificates** are requested in each deployment account
+(development, production)
 - DNS validation records are created in Route53 hosted zone in the State Account
 - Each deployment account has its own public ACM certificate
 - Certificates are stored in their respective deployment accounts (not in the
@@ -431,7 +439,8 @@ provider "aws" {
 **Data Sources:**
 
 - `data.aws_route53_zone.this` - Queries hosted zone from State Account
-- `data.aws_acm_certificate.this` - Queries public ACM certificate from Deployment Account
+- `data.aws_acm_certificate.this` - Queries public ACM certificate from
+Deployment Account
 
 **Resources:**
 
@@ -517,18 +526,21 @@ OIDC provider):
 After setting up certificates, verify:
 
 - [ ] **Production certificate validated and ISSUED**
+
   ```bash
   aws --profile prod acm list-certificates --region us-east-1 \
     --query 'CertificateSummaryList[?Type==`AMAZON_ISSUED`]' --output table
   ```
 
 - [ ] **Development certificate validated and ISSUED** (if applicable)
+
   ```bash
   aws --profile dev acm list-certificates --region us-east-1 \
     --query 'CertificateSummaryList[?Type==`AMAZON_ISSUED`]' --output table
   ```
 
 - [ ] **DNS validation records exist in Route53**
+
   ```bash
   aws --profile default route53 list-resource-record-sets \
     --hosted-zone-id $ZONE_ID \
@@ -536,6 +548,7 @@ After setting up certificates, verify:
   ```
 
 - [ ] **ALB using new public certificate**
+
   ```bash
   # Get ALB ARN
   ALB_ARN=$(aws --profile prod elbv2 describe-load-balancers \
@@ -557,7 +570,7 @@ After setting up certificates, verify:
   ```
 
 - [ ] **Browser shows secure connection** (manual check)
-  - Visit: https://phpldapadmin.talorlik.com
+  - Visit: <https://phpldapadmin.talorlik.com>
   - Check: Lock icon shows "Secure"
   - Verify: Certificate details show Amazon as issuer
   - Verify: No security warnings
@@ -616,7 +629,8 @@ The certificate must be in the Deployment Account, not the State Account.
 
    - Create DNS validation record in Route53 hosted zone in State Account
    - Wait for certificate status to be `ISSUED`
-   - Certificate will be stored in the Deployment Account (where the request is made)
+   - Certificate will be stored in the Deployment Account
+   (where the request is made)
    - **See the [Public ACM Certificate Setup and DNS Validation](#public-acm-certificate-setup-and-dns-validation) section above for complete setup instructions**
 
 3. **Update Terraform configuration:**
@@ -662,7 +676,8 @@ access it, or certificate hasn't been issued from Private CA yet
 (DNS validation records may not be created yet)
 - **"Invalid certificate ARN"**: Certificate ARN format is incorrect or certificate
 doesn't exist
-- **"Certificate not found"**: Certificate doesn't exist or hasn't been requested yet
+- **"Certificate not found"**: Certificate doesn't exist or hasn't been
+requested yet
 
 ### Issue: Route53 records cannot be created
 
@@ -672,6 +687,7 @@ permission on the hosted zone.
 ### Issue: Certificate Not Validating
 
 **Check DNS record exists:**
+
 ```bash
 aws --profile default route53 list-resource-record-sets \
   --hosted-zone-id $ZONE_ID \
@@ -680,6 +696,7 @@ aws --profile default route53 list-resource-record-sets \
 ```
 
 **Check DNS propagation:**
+
 ```bash
 # Get validation record name
 VALIDATION_NAME=$(aws --profile prod acm describe-certificate \
@@ -692,11 +709,13 @@ VALIDATION_NAME=$(aws --profile prod acm describe-certificate \
 dig $VALIDATION_NAME CNAME +short
 ```
 
-**Solution:** Ensure DNS validation record exists in Route53 and has propagated (may take a few minutes).
+**Solution:** Ensure DNS validation record exists in Route53 and has propagated
+(may take a few minutes).
 
 ### Issue: ALB Not Using New Certificate
 
 **Check current ALB certificate:**
+
 ```bash
 # Get ALB ARN
 ALB_ARN=$(aws --profile prod elbv2 describe-load-balancers \
@@ -714,6 +733,7 @@ aws --profile prod elbv2 describe-listeners \
 ```
 
 **Solution:** Delete and recreate IngressClassParams:
+
 ```bash
 kubectl delete ingressclassparams talo-tf-us-east-1-icp-alb-ldap-prod
 
@@ -724,17 +744,20 @@ kubectl delete ingressclassparams talo-tf-us-east-1-icp-alb-ldap-prod
 ### Issue: Certificate in Wrong Account
 
 **Verify certificate account from ARN:**
+
 ```bash
 # Certificate ARN format: arn:aws:acm:region:ACCOUNT_ID:certificate/...
 echo $PROD_CERT_ARN
 # Account ID should match your deployment account ID
 ```
 
-**Solution:** Ensure certificate is requested in the deployment account, not the state account.
+**Solution:** Ensure certificate is requested in the deployment account, not the
+state account.
 
 ### Issue: Cannot Delete Certificate (In Use)
 
 **Check what's using the certificate:**
+
 ```bash
 aws --profile prod acm describe-certificate \
   --certificate-arn <certificate-arn> \
@@ -767,6 +790,7 @@ export ZONE_ID="<hosted-zone-id>"
 ```
 
 Then use in commands:
+
 ```bash
 aws --profile $PROD_PROFILE acm describe-certificate \
   --certificate-arn $PROD_CERT_ARN \
@@ -777,12 +801,13 @@ aws --profile $PROD_PROFILE acm describe-certificate \
 
 > [!WARNING]
 >
-> **This section is deprecated.** The recommended approach is to use public ACM certificates
-> with DNS validation as described in the [Public ACM Certificate Setup](#public-acm-certificate-setup-and-dns-validation)
+> **This section is deprecated.** The recommended approach is to use public
+> ACM certificates with DNS validation as described in
+> the [Public ACM Certificate Setup](#public-acm-certificate-setup-and-dns-validation)
 > section above.
 
-If you need to set up Private CA certificates (not recommended for public-facing applications),
-follow these steps:
+If you need to set up Private CA certificates (not recommended for public-facing
+applications), follow these steps:
 
 ### Prerequisites
 
@@ -1018,4 +1043,5 @@ using them with ALB
 - **Resource Share**: The Private CA must be shared via RAM before deployment
 accounts can request certificates from it
 
-- **Browser Warnings**: Private CA certificates will show "Not secure" warnings in browsers
+- **Browser Warnings**: Private CA certificates will show "Not secure" warnings
+in browsers

@@ -1,16 +1,16 @@
 output "app_name" {
   description = "Name of the ArgoCD Application"
-  value       = kubernetes_manifest.argocd_app.manifest.metadata.name
+  value       = kubernetes_manifest.argocd_app.object.metadata.name
 }
 
 output "app_namespace" {
   description = "Namespace where the ArgoCD Application is deployed"
-  value       = kubernetes_manifest.argocd_app.manifest.metadata.namespace
+  value       = kubernetes_manifest.argocd_app.object.metadata.namespace
 }
 
 output "app_uid" {
   description = "UID of the ArgoCD Application resource"
-  value       = kubernetes_manifest.argocd_app.manifest.metadata.uid
+  value       = kubernetes_manifest.argocd_app.object.metadata.uid
 }
 
 output "destination_namespace" {

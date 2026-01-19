@@ -458,5 +458,38 @@ terraform plan -var-file="${VARIABLES_FILE}" -out terraform.tfplan
 print_info "Running terraform apply..."
 terraform apply -auto-approve terraform.tfplan
 
+# Get ECR repository name from Terraform outputs
+print_info "Retrieving ECR repository name from Terraform outputs..."
+ECR_REPOSITORY_NAME=$(terraform output -raw ecr_repository 2>/dev/null || echo "")
+
+if [ -z "$ECR_REPOSITORY_NAME" ] || [ "$ECR_REPOSITORY_NAME" = "null" ]; then
+    print_error "Could not retrieve ECR repository name from Terraform outputs."
+    print_error "Make sure backend_infra has been deployed and outputs ecr_repository."
+    exit 1
+fi
+
+print_success "Retrieved ECR repository name: ${ECR_REPOSITORY_NAME}"
+
+# Function to set repository variable using GitHub CLI
+set_repo_variable() {
+    local var_name=$1
+    local var_value=$2
+
+    if gh variable set "${var_name}" --body "${var_value}" --repo "${REPO_OWNER}/${REPO_NAME}" 2>/dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Save ECR repository name to GitHub repository variable
+print_info "Saving ECR repository name to GitHub repository variable..."
+if set_repo_variable "ECR_REPOSITORY_NAME" "${ECR_REPOSITORY_NAME}"; then
+    print_success "Saved ECR_REPOSITORY_NAME to GitHub repository variables"
+else
+    print_error "Failed to save ECR_REPOSITORY_NAME to GitHub repository variables"
+    exit 1
+fi
+
 echo ""
 print_success "Script completed successfully!"

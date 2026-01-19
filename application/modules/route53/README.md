@@ -1,10 +1,12 @@
 # Route53 Module
 
-This module creates a Route53 hosted zone and an ACM certificate with DNS validation for a domain.
+This module creates a Route53 hosted zone and an ACM certificate with DNS validation
+for a domain.
 
 ## Purpose
 
 The Route53 module:
+
 - Creates a Route53 hosted zone for domain management
 - Optionally uses an existing Route53 hosted zone
 - Creates an ACM certificate with DNS validation
@@ -87,11 +89,13 @@ The module automatically validates the ACM certificate using DNS validation:
 3. ACM validates the certificate
 4. Certificate becomes ready for use
 
-The module waits up to 30 minutes for validation to complete. If validation fails, Terraform will show an error.
+The module waits up to 30 minutes for validation to complete. If validation fails,
+Terraform will show an error.
 
 ## Name Server Configuration
 
-When creating a new Route53 hosted zone, you must configure your domain registrar to use the name servers from the `name_servers` output:
+When creating a new Route53 hosted zone, you must configure your domain registrar
+to use the name servers from the `name_servers` output:
 
 1. Get the name servers from the module output
 2. Update your domain registrar's DNS settings

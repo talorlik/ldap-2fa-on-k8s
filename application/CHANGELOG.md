@@ -6,6 +6,28 @@ documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-01-19] - Build Workflow Simplification and ECR Variable Requirements
+
+### Changed
+
+- **Build Workflow ECR Repository Name Resolution**
+  - Simplified ECR repository name resolution in `backend_build_push.yaml` and
+  `frontend_build_push.yaml` workflows
+  - Removed redundant PREFIX fallback logic for constructing ECR repository names
+  - Build workflows now require `ECR_REPOSITORY_NAME` GitHub repository variable
+  to be set
+  - Variable is automatically set by backend infrastructure provisioning workflow
+  or `setup-backend.sh` script
+  - Workflows fail fast with clear error message if variable is not set
+  - Error messages guide users to run backend infrastructure provisioning first
+
+### Removed
+
+- **PREFIX-based ECR Repository Name Construction**
+  - Removed manual PREFIX variable fallback logic from build workflows
+  - Removed nested conditional checks for PREFIX variable
+  - Simplified workflow logic for better maintainability
+
 ## [2026-01-18] - Documentation Updates and Certificate Architecture Migration
 
 ### Changed

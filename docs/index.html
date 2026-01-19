@@ -64,6 +64,7 @@
                                         <li><a href="#local-step-1">Step 1: Deploy Terraform Backend State Infrastructure</a></li>
                                         <li><a href="#local-step-2">Step 2: Deploy Backend Infrastructure</a></li>
                                         <li><a href="#local-step-3">Step 3: Deploy Application Infrastructure</a></li>
+                                        <li><a href="#local-step-4">Step 4: Deploy 2FA Applications (Backend and Frontend)</a></li>
                                         <li><a href="#local-destroy">Destroying Infrastructure (Local)</a></li>
                                     </ul>
                                 </li>
@@ -72,6 +73,7 @@
                                         <li><a href="#github-step-1">Step 1: Deploy Terraform Backend State Infrastructure</a></li>
                                         <li><a href="#github-step-2">Step 2: Deploy Backend Infrastructure</a></li>
                                         <li><a href="#github-step-3">Step 3: Deploy Application Infrastructure</a></li>
+                                        <li><a href="#github-step-4">Step 4: Deploy 2FA Applications (Backend and Frontend)</a></li>
                                         <li><a href="#github-destroy">Destroying Infrastructure (GitHub Actions)</a></li>
                                     </ul>
                                 </li>
@@ -116,6 +118,7 @@
                 </li>
                 <li><a href="#support">Contributing & Support</a>
                     <ul>
+                        <li><a href="#operations-monitoring">Operations & Monitoring</a></li>
                         <li><a href="#troubleshooting">Troubleshooting</a></li>
                         <li><a href="#repository">Repository</a></li>
                         <li><a href="#license">License</a></li>
@@ -258,6 +261,12 @@
                                 <li><code>APPLICATION_PREFIX</code></li>
                             </ul>
                         </li>
+                        <li><strong>Auto-generated Variables:</strong> (set automatically by workflows/scripts)
+                            <ul>
+                                <li><code>BACKEND_BUCKET_NAME</code> - Set by Terraform backend state provisioning</li>
+                                <li><code>ECR_REPOSITORY_NAME</code> - Set by backend infrastructure provisioning</li>
+                            </ul>
+                        </li>
                     </ul>
                 </li>
                 <li><strong>For Local Deployment:</strong> GitHub CLI (<code>gh</code>), AWS CLI, Terraform, kubectl, and <code>jq</code> installed and configured</li>
@@ -338,6 +347,289 @@
                     <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code></li>
                     <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
                 </ul>
+                <h5 id="local-step-4">Step 4: Deploy 2FA Applications (Backend and Frontend)</h5>
+                <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-3 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), <code>aws</code> CLI, and optionally <code>docker</code> for manual builds.</p>
+                <p><strong>Overview:</strong> The deployment process involves building and pushing Docker images, gathering configuration values, creating namespace, deploying backend and frontend Helm charts, and verifying deployment.</p>
+                <h6>4.1: Build and Push Docker Images</h6>
+                <p>You have two options for building and pushing images:</p>
+                <p><strong>Option A: Using GitHub Actions (Recommended)</strong></p>
+                <ol>
+                    <li><strong>Build and push backend image:</strong>
+                        <ul>
+                            <li>Go to GitHub → Actions → "Backend Build and Push"</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Select environment (prod or dev)</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Wait for the workflow to complete</li>
+                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-backend-&lt;commit-sha&gt;</code>)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Build and push frontend image:</strong>
+                        <ul>
+                            <li>Go to GitHub → Actions → "Frontend Build and Push"</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Select environment (prod or dev)</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Wait for the workflow to complete</li>
+                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-frontend-&lt;commit-sha&gt;</code>)</li>
+                        </ul>
+                    </li>
+                </ol>
+                <p>The GitHub Actions workflows automatically build Docker images, push to ECR, update Helm values.yaml files with new image tags, and commit changes to the repository.</p>
+                <p><strong>Option B: Manual Build and Push</strong></p>
+                <pre><code># Set variables
+export AWS_REGION="us-east-1"
+export ECR_REPO_NAME="talo-tf-us-east-1-docker-images-prod"  # Adjust based on your setup
+export AWS_ACCOUNT_ID="944880695150"  # Your deployment account ID
+
+# Get ECR login
+aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+# Build and push backend
+cd application/backend
+docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:ldap-2fa-backend-$(git rev-parse --short HEAD) .
+docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:ldap-2fa-backend-$(git rev-parse --short HEAD)
+
+# Build and push frontend
+cd ../frontend
+docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:ldap-2fa-frontend-$(git rev-parse --short HEAD) .
+docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:ldap-2fa-frontend-$(git rev-parse --short HEAD)</code></pre>
+                <h6>4.2: Gather Required Configuration Values</h6>
+                <p>Get the required values from Terraform outputs:</p>
+                <pre><code>cd application
+
+# Get IngressClass name
+INGRESS_CLASS=$(terraform output -raw alb_ingress_class_name)
+echo "IngressClass: ${INGRESS_CLASS}"
+
+# Get ALB load balancer name (from variables.tfvars or compute it)
+# Format: ${prefix}-${region}-${alb_load_balancer_name}-${env}
+PREFIX="talo-tf"
+REGION="us-east-1"
+ALB_LB_NAME="alb"
+ENV="prod"
+ALB_NAME="${PREFIX}-${REGION}-${ALB_LB_NAME}-${ENV}"
+# Truncate to 32 chars if needed
+ALB_NAME=$(echo "${ALB_NAME}" | cut -c1-32)
+echo "ALB Name: ${ALB_NAME}"
+
+# Get hostname
+HOSTNAME="app.talorlik.com"  # From variables.tfvars: twofa_app_host
+echo "Hostname: ${HOSTNAME}"
+
+# Get ECR repository URL
+ECR_URL=$(terraform output -raw ecr_url 2>/dev/null || echo "")
+if [ -z "$ECR_URL" ]; then
+  echo "ECR URL not found in Terraform outputs."
+  echo "Make sure backend_infra has been deployed and outputs ecr_url."
+  exit 1
+fi
+echo "ECR URL: ${ECR_URL}"
+
+# Get image tags (from GitHub Actions or latest commit)
+BACKEND_TAG="ldap-2fa-backend-$(git rev-parse --short HEAD)"  # Or use tag from GitHub Actions
+FRONTEND_TAG="ldap-2fa-frontend-$(git rev-parse --short HEAD)"  # Or use tag from GitHub Actions
+echo "Backend Tag: ${BACKEND_TAG}"
+echo "Frontend Tag: ${FRONTEND_TAG}"
+
+# Get SES IAM Role ARN (for IRSA)
+SES_ROLE_ARN=$(terraform output -raw ses_iam_role_arn 2>/dev/null || echo "")
+echo "SES Role ARN: ${SES_ROLE_ARN}"
+
+# Get SNS IAM Role ARN (for IRSA, if SMS 2FA is enabled)
+SNS_ROLE_ARN=$(terraform output -raw sns_iam_role_arn 2>/dev/null || echo "")
+echo "SNS Role ARN: ${SNS_ROLE_ARN}"
+
+# Get domain name
+DOMAIN_NAME=$(terraform output -raw route53_domain_name)
+echo "Domain: ${DOMAIN_NAME}"
+
+# Get PostgreSQL connection info
+POSTGRES_HOST=$(terraform output -raw postgresql_host)
+echo "PostgreSQL Host: ${POSTGRES_HOST}"
+
+# Get Redis connection info
+REDIS_HOST=$(terraform output -raw redis_host)
+REDIS_PORT=$(terraform output -raw redis_port)
+echo "Redis Host: ${REDIS_HOST}:${REDIS_PORT}"
+
+# Get SES sender email
+SES_SENDER_EMAIL=$(terraform output -raw ses_sender_email)
+echo "SES Sender: ${SES_SENDER_EMAIL}"
+
+# Get SNS topic ARN (if SMS 2FA is enabled)
+SNS_TOPIC_ARN=$(terraform output -raw sns_topic_arn 2>/dev/null || echo "")
+echo "SNS Topic ARN: ${SNS_TOPIC_ARN}"</code></pre>
+                <h6>4.3: Create Namespace</h6>
+                <pre><code>kubectl create namespace 2fa-app</code></pre>
+                <h6>4.4: Deploy Backend Application</h6>
+                <p>Create a values file for the backend deployment:</p>
+                <pre><code>cat > /tmp/backend-values.yaml <<EOF
+# Image configuration
+image:
+  repository: "${ECR_URL}"
+  tag: "${BACKEND_TAG}"
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "${INGRESS_CLASS}"
+  annotations:
+    alb.ingress.kubernetes.io/load-balancer-name: "${ALB_NAME}"
+  hosts:
+    - host: "${HOSTNAME}"
+      paths:
+        - path: /api
+          pathType: Prefix
+
+# Service account with IRSA annotation
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: "${SES_ROLE_ARN}"  # Use SES role (includes SNS if enabled)
+
+# LDAP configuration (adjust based on your LDAP setup)
+ldap:
+  host: "openldap-stack-ha.ldap.svc.cluster.local"
+  port: 389
+  baseDn: "dc=ldap,dc=talorlik,dc=internal"
+  adminDn: "cn=admin,dc=ldap,dc=talorlik,dc=internal"
+
+# Database configuration
+database:
+  url: "postgresql+asyncpg://ldap2fa:CHANGE_ME@${POSTGRES_HOST}:5432/ldap2fa"
+  externalSecret:
+    enabled: true
+    secretName: "postgresql-secret"
+    passwordKey: "password"
+
+# Email configuration
+email:
+  enabled: true
+  senderEmail: "${SES_SENDER_EMAIL}"
+  appUrl: "https://${HOSTNAME}"
+
+# SMS configuration (if enabled)
+sms:
+  enabled: true  # Set to false if SMS 2FA is not enabled
+  awsRegion: "${REGION}"
+  snsTopicArn: "${SNS_TOPIC_ARN}"
+
+# Redis configuration (if SMS is enabled)
+redis:
+  enabled: true  # Set to false if SMS 2FA is not enabled
+  host: "${REDIS_HOST}"
+  port: ${REDIS_PORT}
+  existingSecret:
+    enabled: true
+    name: "redis-secret"
+    key: "redis-password"
+EOF</code></pre>
+                <p>Deploy the backend:</p>
+                <pre><code>cd application/backend/helm
+
+helm upgrade --install ldap-2fa-backend ldap-2fa-backend \
+  --namespace 2fa-app \
+  --create-namespace \
+  --values /tmp/backend-values.yaml \
+  --wait \
+  --timeout 10m</code></pre>
+                <h6>4.5: Deploy Frontend Application</h6>
+                <p>Create a values file for the frontend deployment:</p>
+                <pre><code>cat > /tmp/frontend-values.yaml <<EOF
+# Image configuration
+image:
+  repository: "${ECR_URL}"
+  tag: "${FRONTEND_TAG}"
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "${INGRESS_CLASS}"
+  annotations:
+    alb.ingress.kubernetes.io/load-balancer-name: "${ALB_NAME}"
+  hosts:
+    - host: "${HOSTNAME}"
+      paths:
+        - path: /
+          pathType: Prefix
+EOF</code></pre>
+                <p>Deploy the frontend:</p>
+                <pre><code>cd application/frontend/helm
+
+helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
+  --namespace 2fa-app \
+  --create-namespace \
+  --values /tmp/frontend-values.yaml \
+  --wait \
+  --timeout 10m</code></pre>
+                <h6>4.6: Verify Deployment</h6>
+                <pre><code># Check pods
+kubectl get pods -n 2fa-app
+
+# Check services
+kubectl get svc -n 2fa-app
+
+# Check ingress
+kubectl get ingress -n 2fa-app
+
+# Check backend logs
+kubectl logs -n 2fa-app -l app=ldap-2fa-backend --tail=50
+
+# Check frontend logs
+kubectl logs -n 2fa-app -l app=ldap-2fa-frontend --tail=50
+
+# Test backend health endpoint
+kubectl run -it --rm test-backend --image=curlimages/curl --restart=Never -- \
+  curl -k https://${HOSTNAME}/api/healthz
+
+# Check ALB target health
+ALB_ARN=$(aws elbv2 describe-load-balancers --region ${REGION} --query "LoadBalancers[?LoadBalancerName=='${ALB_NAME}'].LoadBalancerArn" --output text)
+TARGET_GROUP_ARN=$(aws elbv2 describe-target-groups --region ${REGION} --load-balancer-arn ${ALB_ARN} --query "TargetGroups[?contains(TargetGroupName, 'backend')].TargetGroupArn" --output text | head -1)
+aws elbv2 describe-target-health --region ${REGION} --target-group-arn ${TARGET_GROUP_ARN}</code></pre>
+                <h6>4.7: Access the Application</h6>
+                <p>Once deployed, access the application at:</p>
+                <ul>
+                    <li><strong>Frontend:</strong> <code>https://${HOSTNAME}</code> (e.g., <code>https://app.talorlik.com</code>)</li>
+                    <li><strong>Backend API:</strong> <code>https://${HOSTNAME}/api</code> (e.g., <code>https://app.talorlik.com/api</code>)</li>
+                    <li><strong>API Documentation:</strong> <code>https://${HOSTNAME}/api/docs</code> (Swagger UI)</li>
+                </ul>
+                <h6>4.8: Updating Deployments</h6>
+                <p>To update the applications after code changes:</p>
+                <ol>
+                    <li><strong>Rebuild and push images</strong> (via GitHub Actions or manually)</li>
+                    <li><strong>Update Helm values</strong> with new image tags</li>
+                    <li><strong>Upgrade Helm releases:</strong>
+                        <pre><code># Update backend
+helm upgrade ldap-2fa-backend application/backend/helm/ldap-2fa-backend \
+  --namespace 2fa-app \
+  --set image.tag="${NEW_BACKEND_TAG}" \
+  --reuse-values
+
+# Update frontend
+helm upgrade ldap-2fa-frontend application/frontend/helm/ldap-2fa-frontend \
+  --namespace 2fa-app \
+  --set image.tag="${NEW_FRONTEND_TAG}" \
+  --reuse-values</code></pre>
+                    </li>
+                </ol>
+                <h6>4.9: Alternative: Enable ArgoCD Applications</h6>
+                <p>If you prefer GitOps deployment via ArgoCD:</p>
+                <ol>
+                    <li><strong>Enable ArgoCD applications</strong> in <code>variables.tfvars</code>:
+                        <pre><code>enable_argocd_apps = true</code></pre>
+                    </li>
+                    <li><strong>Configure sync policy</strong> (optional):
+                        <pre><code>argocd_app_sync_policy_automated = true
+argocd_app_sync_policy_prune     = true
+argocd_app_sync_policy_self_heal = true</code></pre>
+                    </li>
+                    <li><strong>Apply Terraform changes:</strong>
+                        <pre><code>cd application
+terraform apply</code></pre>
+                    </li>
+                    <li><strong>ArgoCD will automatically deploy</strong> the applications from Git</li>
+                </ol>
+                <p><strong>For detailed deployment instructions:</strong> <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a></p>
                 <h5 id="local-destroy">Destroying Infrastructure (Local)</h5>
                 <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order.</p>
                 <ol>
@@ -413,6 +705,117 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li>Retrieves password secrets from GitHub repository secrets</li>
                     <li>Runs Terraform operations to deploy OpenLDAP, 2FA app, ALB, Route53, and supporting services</li>
                 </ul>
+                <h5 id="github-step-4">Step 4: Deploy 2FA Applications (Backend and Frontend)</h5>
+                <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-3 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), and <code>aws</code> CLI.</p>
+                <p><strong>Overview:</strong> The deployment process involves building and pushing Docker images, gathering configuration values, creating namespace, deploying backend and frontend Helm charts, and verifying deployment.</p>
+                <h6>4.1: Build and Push Docker Images</h6>
+                <p><strong>Using GitHub Actions (Recommended)</strong></p>
+                <ol>
+                    <li><strong>Build and push backend image:</strong>
+                        <ul>
+                            <li>Go to GitHub → Actions → "Backend Build and Push"</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Select environment (prod or dev)</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Wait for the workflow to complete</li>
+                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-backend-&lt;commit-sha&gt;</code>)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Build and push frontend image:</strong>
+                        <ul>
+                            <li>Go to GitHub → Actions → "Frontend Build and Push"</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Select environment (prod or dev)</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Wait for the workflow to complete</li>
+                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-frontend-&lt;commit-sha&gt;</code>)</li>
+                        </ul>
+                    </li>
+                </ol>
+                <p>The GitHub Actions workflows automatically build Docker images, push to ECR, update Helm values.yaml files with new image tags, and commit changes to the repository.</p>
+                <h6>4.2: Gather Required Configuration Values</h6>
+                <p>Get the required values from Terraform outputs (run these commands locally or in a GitHub Actions workflow):</p>
+                <pre><code>cd application
+
+# Get IngressClass name
+INGRESS_CLASS=$(terraform output -raw alb_ingress_class_name)
+
+# Get ALB load balancer name (from variables.tfvars or compute it)
+PREFIX="talo-tf"  # From your variables
+REGION="us-east-1"  # Your region
+ALB_LB_NAME="alb"
+ENV="prod"  # or "dev"
+ALB_NAME="${PREFIX}-${REGION}-${ALB_LB_NAME}-${ENV}"
+ALB_NAME=$(echo "${ALB_NAME}" | cut -c1-32)  # Truncate to 32 chars
+
+# Get hostname (from variables.tfvars: twofa_app_host)
+HOSTNAME="app.talorlik.com"  # Adjust to your domain
+
+# Get ECR repository URL
+ECR_URL=$(terraform output -raw ecr_url)
+
+# Get image tags (from GitHub Actions workflow output)
+BACKEND_TAG="ldap-2fa-backend-&lt;commit-sha&gt;"  # From workflow output
+FRONTEND_TAG="ldap-2fa-frontend-&lt;commit-sha&gt;"  # From workflow output
+
+# Get SES IAM Role ARN (for IRSA)
+SES_ROLE_ARN=$(terraform output -raw ses_iam_role_arn)
+
+# Get SNS IAM Role ARN (for IRSA, if SMS 2FA is enabled)
+SNS_ROLE_ARN=$(terraform output -raw sns_iam_role_arn 2>/dev/null || echo "")
+
+# Get PostgreSQL connection info
+POSTGRES_HOST=$(terraform output -raw postgresql_host)
+
+# Get Redis connection info
+REDIS_HOST=$(terraform output -raw redis_host)
+REDIS_PORT=$(terraform output -raw redis_port)
+
+# Get SES sender email
+SES_SENDER_EMAIL=$(terraform output -raw ses_sender_email)
+
+# Get SNS topic ARN (if SMS 2FA is enabled)
+SNS_TOPIC_ARN=$(terraform output -raw sns_topic_arn 2>/dev/null || echo "")</code></pre>
+                <h6>4.3: Create Namespace</h6>
+                <pre><code>kubectl create namespace 2fa-app</code></pre>
+                <h6>4.4: Deploy Backend Application</h6>
+                <p>Create a values file for the backend deployment (same as local deployment) and deploy:</p>
+                <pre><code>cd application/backend/helm
+
+helm upgrade --install ldap-2fa-backend ldap-2fa-backend \
+  --namespace 2fa-app \
+  --create-namespace \
+  --values /tmp/backend-values.yaml \
+  --wait \
+  --timeout 10m</code></pre>
+                <p><strong>Note:</strong> The backend values file should include image configuration, ingress settings, service account with IRSA annotation, LDAP configuration, database configuration, email configuration, SMS configuration (if enabled), and Redis configuration (if SMS is enabled). See <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a> for the complete values file template.</p>
+                <h6>4.5: Deploy Frontend Application</h6>
+                <pre><code>cd application/frontend/helm
+
+helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
+  --namespace 2fa-app \
+  --create-namespace \
+  --values /tmp/frontend-values.yaml \
+  --wait \
+  --timeout 10m</code></pre>
+                <h6>4.6: Verify Deployment</h6>
+                <p>Check deployment status using the same verification commands as local deployment (check pods, services, ingress, logs, health endpoints, and ALB target health).</p>
+                <h6>4.7: Access the Application</h6>
+                <p>Once deployed, access the application at:</p>
+                <ul>
+                    <li><strong>Frontend:</strong> <code>https://${HOSTNAME}</code> (e.g., <code>https://app.talorlik.com</code>)</li>
+                    <li><strong>Backend API:</strong> <code>https://${HOSTNAME}/api</code> (e.g., <code>https://app.talorlik.com/api</code>)</li>
+                    <li><strong>API Documentation:</strong> <code>https://${HOSTNAME}/api/docs</code> (Swagger UI)</li>
+                </ul>
+                <h6>4.8: Updating Deployments</h6>
+                <p>To update the applications after code changes:</p>
+                <ol>
+                    <li><strong>Rebuild and push images</strong> via GitHub Actions workflows</li>
+                    <li><strong>Upgrade Helm releases</strong> with new image tags (same commands as local deployment)</li>
+                </ol>
+                <h6>4.9: Alternative: Enable ArgoCD Applications</h6>
+                <p>If you prefer GitOps deployment via ArgoCD, enable ArgoCD applications in <code>variables.tfvars</code> and apply Terraform changes. ArgoCD will automatically deploy the applications from Git.</p>
+                <p><strong>For detailed deployment instructions:</strong> <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a></p>
                 <h5 id="github-destroy">Destroying Infrastructure (GitHub Actions)</h5>
                 <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order.</p>
                 <ol>
@@ -509,8 +912,8 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 </li>
                 <li><strong>Deploy Application Infrastructure</strong>
                     <ul>
-                        <li><strong>Purpose:</strong> Deploys LDAP stack, 2FA application, and supporting services on the EKS cluster</li>
-                        <li><strong>Components:</strong> OpenLDAP stack (HA), PhpLdapAdmin, LTB-passwd, 2FA application (backend + frontend), ALB, Route53 records, PostgreSQL, Redis, SES, SNS (optional), ArgoCD (optional)</li>
+                        <li><strong>Purpose:</strong> Deploys LDAP stack, supporting services, ALB, Route53 records, and infrastructure for 2FA application on the EKS cluster</li>
+                        <li><strong>Components:</strong> OpenLDAP stack (HA), PhpLdapAdmin, LTB-passwd, ALB, Route53 records, PostgreSQL, Redis, SES, SNS (optional), ArgoCD (optional)</li>
                         <li><strong>Account:</strong> Deployment Account (Account B)</li>
                         <li><strong>Prerequisites:</strong> Backend infrastructure (EKS cluster) must be deployed first</li>
                         <li><strong>Additional Requirements:</strong> Route53 hosted zone and ACM certificate must exist
@@ -525,8 +928,29 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li><strong>See:</strong> <a href="../application/README.md">Application Infrastructure README</a></li>
                     </ul>
                 </li>
+                <li><strong>Deploy 2FA Applications (Backend and Frontend)</strong>
+                    <ul>
+                        <li><strong>Purpose:</strong> Deploys the 2FA application backend and frontend containers to the EKS cluster</li>
+                        <li><strong>Components:</strong> Backend application (Python FastAPI), Frontend application (HTML/JS/CSS + nginx), Helm charts for both applications</li>
+                        <li><strong>Account:</strong> Deployment Account (Account B)</li>
+                        <li><strong>Prerequisites:</strong> Application infrastructure (Step 3) must be deployed first, including ECR repository, ALB, Route53, PostgreSQL, Redis, SES, and SNS (if SMS is enabled)</li>
+                        <li><strong>Process:</strong>
+                            <ul>
+                                <li>Build and push Docker images to ECR (via GitHub Actions or manually)</li>
+                                <li>Gather configuration values from Terraform outputs</li>
+                                <li>Create Kubernetes namespace</li>
+                                <li>Deploy backend Helm chart with proper values</li>
+                                <li>Deploy frontend Helm chart with proper values</li>
+                                <li>Verify deployment and access the application</li>
+                            </ul>
+                        </li>
+                        <li><strong>Local:</strong> Follow Step 4 instructions in <a href="#local-step-4">Local Deployment</a> section</li>
+                        <li><strong>GitHub Actions:</strong> Use "Backend Build and Push" and "Frontend Build and Push" workflows, then follow Step 4 instructions in <a href="#github-step-4">GitHub Actions Deployment</a> section</li>
+                        <li><strong>See:</strong> <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a> for complete step-by-step guide</li>
+                    </ul>
+                </li>
             </ol>
-            <p><strong>Destroy Order:</strong> Always destroy in <strong>reverse order</strong>: Application → Backend → State</p>
+            <p><strong>Destroy Order:</strong> Always destroy in <strong>reverse order</strong>: 2FA Applications → Application Infrastructure → Backend Infrastructure → State</p>
             <p><strong>For detailed deployment information:</strong> <a href="../README.md#deployment-methods">Deployment Methods</a> | <a href="../README.md#deployment-overview">Deployment Overview</a></p>
         </div>
     </section>
@@ -676,6 +1100,10 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             <div class="doc-item">
                 <a href="../application/OPENLDAP-README.md">OpenLDAP README</a>
                 <p>OpenLDAP configuration and TLS setup</p>
+            </div>
+            <div class="doc-item">
+                <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>
+                <p>Complete step-by-step guide for deploying backend and frontend 2FA applications</p>
             </div>
             <div class="doc-item">
                 <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>
@@ -892,6 +1320,73 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
     <!-- Contributing & Support -->
     <section id="support">
         <h2>Contributing & Support</h2>
+        <h3 id="operations-monitoring">Operations & Monitoring</h3>
+        <div class="card">
+            <h4>Deployment Monitoring Script</h4>
+            <p>The project includes a comprehensive monitoring script (<code>monitor-deployments.sh</code>) located in the project root that provides health checks for all deployed components.</p>
+            <h5>Features</h5>
+            <ul>
+                <li><strong>Interactive Setup:</strong> Prompts for AWS region and environment (prod/dev)</li>
+                <li><strong>Automatic Configuration:</strong> Retrieves role ARNs and ExternalId from AWS Secrets Manager</li>
+                <li><strong>Cluster Access:</strong> Automatically retrieves cluster name from Terraform state and updates kubeconfig</li>
+                <li><strong>Comprehensive Health Checks:</strong>
+                    <ul>
+                        <li>ArgoCD capability status (if enabled)</li>
+                        <li>OpenLDAP Helm release and pod status</li>
+                        <li>PostgreSQL Helm release and pod status</li>
+                        <li>Redis Helm release and pod status</li>
+                        <li>Ingress resources across all namespaces</li>
+                        <li>Application Load Balancer status</li>
+                    </ul>
+                </li>
+                <li><strong>Color-Coded Output:</strong> Green for success, yellow for warnings, red for errors</li>
+                <li><strong>Summary Report:</strong> Overall deployment health status with exit codes</li>
+            </ul>
+            <h5>Usage</h5>
+            <pre><code>./monitor-deployments.sh</code></pre>
+            <p>The script will prompt for region and environment, then automatically perform all health checks and display a summary.</p>
+            <h5>Prerequisites</h5>
+            <ul>
+                <li><code>jq</code> command-line tool installed</li>
+                <li><code>kubectl</code> and <code>helm</code> installed</li>
+                <li>AWS CLI configured with permissions to:
+                    <ul>
+                        <li>Access AWS Secrets Manager</li>
+                        <li>Assume IAM roles in deployment accounts</li>
+                        <li>Access S3 bucket containing Terraform state</li>
+                        <li>Access EKS cluster</li>
+                    </ul>
+                </li>
+                <li>GitHub CLI (<code>gh</code>) installed (optional, for retrieving backend bucket name)</li>
+            </ul>
+            <h5>Exit Codes</h5>
+            <ul>
+                <li><code>0</code>: All deployments are healthy</li>
+                <li><code>1</code>: Some deployments have issues (check output for details)</li>
+            </ul>
+            <h5>Example Output</h5>
+            <pre><code>=========================================
+Monitoring Deployments for prod in us-east-1
+=========================================
+
+✓ Retrieved State Account role ARN
+✓ Retrieved Deployment Account role ARN (production)
+✓ Successfully assumed Deployment Account role
+✓ Cluster name: my-cluster-prod
+✓ Kubeconfig updated successfully
+
+=========================================
+Checking ArgoCD Capability
+=========================================
+ArgoCD pods: 3/3 running
+✓ ArgoCD is deployed and running
+
+=========================================
+Monitoring Summary
+=========================================
+✓ All deployments are healthy!</code></pre>
+            <p><strong>For detailed documentation:</strong> See <a href="../README.md#operations--monitoring">Operations & Monitoring</a> in the main README.</p>
+        </div>
         <h3 id="troubleshooting">Troubleshooting</h3>
         <div class="card">
             <p>For troubleshooting guides, see:</p>

@@ -138,7 +138,7 @@ argocd_delete_propagation_policy = "RETAIN"
 
 ##################### ArgoCD Applications ##########################
 # Enable ArgoCD Application deployments
-enable_argocd_apps = false
+enable_argocd_apps = true
 
 # Git repository configuration (required if enable_argocd_apps = true)
 argocd_app_repo_url        = "https://github.com/talorlik/ldap-2fa-on-k8s.git"

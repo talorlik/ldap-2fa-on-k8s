@@ -347,10 +347,20 @@ The infrastructure provides outputs for:
 | `ecr_name` | ECR repository name |
 | `ecr_arn` | ECR repository ARN |
 | `ecr_url` | ECR repository URL for Docker image push/pull operations |
+| `ecr_registry` | ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com) |
+| `ecr_repository` | ECR repository name (without registry prefix) |
 
 > [!NOTE]
 >
 > EBS outputs are commented out since the EBS module is not currently active.
+
+> [!IMPORTANT]
+>
+> The ECR repository name is automatically saved to the GitHub repository variable
+> `ECR_REPOSITORY_NAME` when you provision backend infrastructure using the `setup-backend.sh`
+> script or the `backend_infra_provisioning.yaml` workflow. This variable is required
+> by build workflows (`backend_build_push.yaml` and `frontend_build_push.yaml`)
+> to push Docker images to ECR.
 
 Use `terraform output` to view all available outputs.
 

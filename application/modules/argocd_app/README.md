@@ -26,6 +26,87 @@ The ArgoCD Application module:
 - Local cluster must be registered with ArgoCD (via cluster secret)
 - Git repository must be accessible from ArgoCD
 - Kubernetes provider must be configured with access to the EKS cluster
+- If deploying applications with Ingress resources that use ALB, the ALB module
+  must be deployed first to create the IngressClass
+
+## Integration with ALB Module
+
+Applications deployed via ArgoCD that include Ingress resources should
+reference the IngressClass created by the [ALB module](../alb/README.md). The
+ALB module creates an IngressClass and IngressClassParams for EKS Auto Mode
+ALB provisioning.
+
+### Using ALB IngressClass in ArgoCD Applications
+
+When your Git repository contains Ingress resources (e.g., in Helm charts,
+Kustomize overlays, or plain manifests), they should reference the
+IngressClass created by the ALB module:
+
+**Example Ingress in your Git repository:**
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-app-ingress
+  namespace: my-namespace
+  annotations:
+    # Per-Ingress ALB settings
+    alb.ingress.kubernetes.io/load-balancer-name: "my-app-alb"
+    alb.ingress.kubernetes.io/target-type: "ip"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+spec:
+  ingressClassName: myorg-us-east-1-ic-alb-prod  # From ALB module output
+  rules:
+    - host: app.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-service
+                port:
+                  number: 80
+```
+
+**Key Points:**
+
+- The `ingressClassName` should match the IngressClass name from the ALB
+  module output (`module.alb.ingress_class_name`)
+- Cluster-wide ALB defaults (scheme, IP type, group name, certificate ARNs)
+  are configured in IngressClassParams by the ALB module
+- Per-Ingress settings (load-balancer-name, target-type, listen-ports,
+  ssl-redirect) are specified in Ingress annotations
+- The IngressClass created by the ALB module is set as the default, so
+  `ingressClassName` can be omitted if desired
+- Multiple Ingresses can share a single ALB by using the same IngressClass
+  (which references IngressClassParams with `group.name`)
+
+**Helm Chart Example:**
+
+If your ArgoCD application deploys a Helm chart, configure the IngressClass
+in your values:
+
+```yaml
+# values.yaml
+ingress:
+  enabled: true
+  className: "myorg-us-east-1-ic-alb-prod"  # From ALB module output
+  annotations:
+    alb.ingress.kubernetes.io/load-balancer-name: "my-app-alb"
+    alb.ingress.kubernetes.io/target-type: "ip"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+  hosts:
+    - host: app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+For more details on ALB configuration, see the [ALB module documentation](../alb/README.md).
 
 ## Usage
 
@@ -320,4 +401,5 @@ kubectl get application -n argocd example-app -o jsonpath='{.status.sync.status}
 - Sync policies can be automated or manual
 - Supports Helm, Kustomize, and plain Kubernetes manifests
 - Applications are continuously reconciled by ArgoCD based on Git state
-- Use `depends_on` in the module block to ensure ArgoCD capability is ready before creating Applications
+- Use `depends_on` in the module block to ensure ArgoCD capability is ready
+  before creating Applications

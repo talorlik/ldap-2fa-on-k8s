@@ -23,10 +23,12 @@ The EKS Argo CD capability is a fully managed Argo CD service that:
 
 - **Existing workloads**: It's perfectly fine if the EKS cluster already has workloads
 - **Resource naming**: Ensure resource naming and namespaces avoid collisions
-- **Deployment order**: Deploy Argo CD capability first, then applications through Argo CD
+- **Deployment order**: Deploy Argo CD capability first, then applications through
+Argo CD
 - **Application behavior**:
   - If resources don't exist → Argo CD creates them on first sync
-  - If resources already exist → Argo CD brings them into desired state per Git repo
+  - If resources already exist → Argo CD brings them into desired state per
+  Git repo
 
 ## 2. Prerequisites
 
@@ -58,7 +60,8 @@ The EKS Argo CD capability is a fully managed Argo CD service that:
 
 - `hashicorp/aws` provider version `>= 5.60.0` (includes `aws_eks_capability` resource)
   - Used to manage EKS capability and IAM resources
-- `hashicorp/kubernetes` provider version `>= 2.30.0` (includes `kubernetes_manifest` for CRD support)
+- `hashicorp/kubernetes` provider version `>= 2.30.0` (includes `kubernetes_manifest`
+for CRD support)
   - Used to create Argo CD cluster secret and Application CRDs
 
 ## 3. Architecture & Design
@@ -70,7 +73,8 @@ The Terraform implementation requires:
 1. **Providers**: AWS and Kubernetes providers configured against the EKS cluster
 2. **IAM**: `aws_iam_role` for the Argo CD capability
 3. **Capability**: `aws_eks_capability` resource creating the managed Argo CD
-4. **Cluster Registration**: `kubernetes_secret` registering the EKS cluster with Argo CD
+4. **Cluster Registration**: `kubernetes_secret` registering the EKS cluster with
+Argo CD
 5. **Applications**: `kubernetes_manifest` resources defining Argo CD Applications
 
 ### 3.2 Dependency Chain & Resource Relationships
@@ -701,13 +705,15 @@ repository state.
 **REQ-7.2.1**: Optionally restrict Argo CD endpoint access via VPC endpoints:
 
 - Specify `argocd_vpce_ids` variable with list of VPC endpoint IDs
-- When specified, Argo CD endpoint is private and accessible only via these VPC endpoints
+- When specified, Argo CD endpoint is private and accessible only via these
+VPC endpoints
 
 ### 7.3 Additional RBAC Mappings
 
 **REQ-7.3.1**: Support multiple RBAC role mappings:
 
-- Map Identity Center groups/users to different Argo CD roles (ADMIN, READ_ONLY, etc.)
+- Map Identity Center groups/users to different Argo CD roles
+(ADMIN, READ_ONLY, etc.)
 - Configure multiple `rbac_role_mappings` blocks in capability configuration
 
 ## 8. References

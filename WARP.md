@@ -99,13 +99,19 @@ Terraform workspaces are named: `${region}-${env}` (e.g., `us-east-1-prod`,
 
 ```text
 ldap-2fa-on-k8s/
-├── SECRETS_REQUIREMENTS.md     # Secrets management documentation (root)
-├── tf_backend_state/           # Terraform state backend (S3) - Account A
-├── backend_infra/              # Core AWS infrastructure - Account B
-│   └── modules/
-│       ├── ebs/                # EBS storage (commented out)
-│       ├── ecr/                # Container registry
-│       └── endpoints/          # VPC endpoints (SSM, STS, SNS)
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.md
+│   │   └── feature_request.md
+│   └── workflows/
+│       ├── application_infra_destroying.yaml
+│       ├── application_infra_provisioning.yaml
+│       ├── backend_build_push.yaml
+│       ├── backend_infra_destroying.yaml
+│       ├── backend_infra_provisioning.yaml
+│       ├── frontend_build_push.yaml
+│       ├── tfstate_infra_destroying.yaml
+│       └── tfstate_infra_provisioning.yaml
 ├── application/                # Application infrastructure - Account B
 │   ├── backend/                # 2FA Backend (Python FastAPI)
 │   │   ├── src/                # Source code
@@ -116,29 +122,48 @@ ldap-2fa-on-k8s/
 │   │   ├── helm/               # Helm chart
 │   │   ├── Dockerfile
 │   │   └── nginx.conf
-│   ├── helm/                   # Helm values templates (OpenLDAP, Redis)
+│   ├── helm/                   # Helm values templates (OpenLDAP, Redis, PostgreSQL)
+│   ├── modules/                # Terraform modules
+│   │   ├── alb/                # IngressClass and IngressClassParams
+│   │   ├── argocd/             # ArgoCD capability (AWS managed)
+│   │   ├── argocd_app/         # ArgoCD Application CRD
+│   │   ├── cert-manager/       # TLS certificate management
+│   │   ├── network-policies/   # Kubernetes NetworkPolicies
+│   │   ├── openldap/           # OpenLDAP Stack HA deployment module
+│   │   ├── postgresql/         # PostgreSQL database (Bitnami Helm)
+│   │   ├── redis/              # Redis cache for SMS OTP
+│   │   ├── route53/            # Route53 hosted zone
+│   │   ├── route53_record/     # Route53 A (alias) record creation
+│   │   ├── ses/                # SES for email verification
+│   │   └── sns/                # SNS for SMS 2FA
+│   ├── destroy-application.sh
 │   ├── mirror-images-to-ecr.sh # ECR image mirroring script
-│   └── modules/                # Terraform modules
-│       ├── alb/                # IngressClass and IngressClassParams
-│       ├── argocd/             # ArgoCD capability (AWS managed)
-│       ├── argocd_app/         # ArgoCD Application CRD
-│       ├── cert-manager/       # TLS certificate management
-│       ├── network-policies/   # Kubernetes NetworkPolicies
-│       ├── openldap/           # OpenLDAP Stack HA deployment module
-│       ├── postgresql/         # PostgreSQL database (Bitnami Helm)
-│       ├── redis/              # Redis cache for SMS OTP
-│       ├── route53/            # Route53 hosted zone (commented out)
-│       ├── route53_record/     # Route53 A (alias) record creation (NEW)
-│       ├── ses/                # SES for email verification
-│       └── sns/                # SNS for SMS 2FA
-├── .github/workflows/          # CI/CD workflows
-│   ├── tfstate_infra_*.yaml
-│   ├── backend_infra_*.yaml
-│   ├── application_infra_*.yaml
-│   ├── backend_build_push.yaml
-│   └── frontend_build_push.yaml
-└── docs/                       # GitHub Pages documentation
-    └── index.html              # Project documentation website
+│   ├── set-k8s-env.sh
+│   ├── setup-application.sh
+│   └── [other application files...]
+├── backend_infra/              # Core AWS infrastructure - Account B
+│   ├── modules/
+│   │   ├── ebs/                # EBS storage
+│   │   ├── ecr/                # Container registry
+│   │   └── endpoints/          # VPC endpoints (SSM, STS, SNS)
+│   ├── destroy-backend.sh
+│   ├── setup-backend.sh
+│   └── [other backend_infra files...]
+├── docs/                       # GitHub Pages documentation
+│   ├── index.html              # Project documentation website
+│   ├── dark-theme.css
+│   ├── light-theme.css
+│   └── [other docs files...]
+├── tf_backend_state/           # Terraform state backend (S3) - Account A
+│   ├── get-state.sh
+│   ├── set-state.sh
+│   └── [other tf_backend_state files...]
+├── CHANGELOG.md
+├── LICENSE
+├── monitor-deployments.sh      # Deployment monitoring script
+├── README.md
+├── SECRETS_REQUIREMENTS.md     # Secrets management documentation
+└── [other root files...]
 ```
 
 ## Common Commands

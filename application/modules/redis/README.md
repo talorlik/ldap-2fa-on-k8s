@@ -88,7 +88,8 @@ Hub to ECR by the `mirror-images-to-ecr.sh` script before Terraform operations.
 
 **Image Details:**
 
-- **Source Image**: `bitnami/redis:latest` (from Docker Hub, or specific version like `bitnami/redis:8.4.0-debian-12-r6`)
+- **Source Image**: `bitnami/redis:latest` (from Docker Hub, or specific version
+like `bitnami/redis:8.4.0-debian-12-r6`)
 - **ECR Tag**: `redis-latest` (default, or specific version like `redis-8.4.0`)
 - **ECR Registry/Repository**: Computed from `backend_infra` Terraform state
   (`ecr_url`)

@@ -6,6 +6,36 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-01-19] - Automatic ECR Repository Name Variable Management
+
+### Added
+
+- **Automatic ECR Repository Name Variable Management**
+  - `setup-backend.sh` script now automatically saves ECR repository name to GitHub
+  repository variable `ECR_REPOSITORY_NAME`
+  - Script retrieves ECR repository name from Terraform outputs
+  (`terraform output -raw ecr_repository`)
+  - Uses GitHub CLI (`gh variable set`) to create/update the repository variable
+  - Includes comprehensive error handling and success messages
+  - `backend_infra_provisioning.yaml` workflow now automatically saves ECR repository
+  name to GitHub variable after provisioning
+  - Uses `GH_TOKEN` secret for GitHub API access (consistent with tfstate workflow)
+  - Variable is automatically created or updated based on whether it already exists
+
+### Changed
+
+- **Setup Script Enhancements**
+  - Enhanced `setup-backend.sh` to automatically manage ECR repository name variable
+  - Improved script output with clear success/error messages
+  - Better integration with GitHub repository variables
+
+- **Workflow Automation**
+  - `backend_infra_provisioning.yaml` workflow now includes step to save ECR
+  repository name
+  - Automatically creates or updates `ECR_REPOSITORY_NAME` variable after
+  successful provisioning
+  - Ensures build workflows have access to ECR repository name without manual configuration
+
 ## [2026-01-15] - ExternalId Security and Infrastructure Improvements
 
 ### Added

@@ -83,13 +83,14 @@ Hub to ECR by the `mirror-images-to-ecr.sh` script before Terraform operations.
 
 **Implementation Note:**
 
-The image configuration (registry, repository, and tag) is set using Terraform `set` blocks
-instead of being included in the values block. This approach avoids validation issues with
-the Terraform Helm provider when using custom ECR registries.
+The image configuration (registry, repository, and tag) is set using Terraform
+`set` blocks instead of being included in the values block. This approach avoids
+validation issues with the Terraform Helm provider when using custom ECR registries.
 
 **Helm Chart Repository:**
 
 The module uses the Bitnami PostgreSQL Helm chart from the OCI registry:
+
 - Repository: `oci://registry-1.docker.io/bitnamicharts`
 - Chart: `postgresql`
 - Version: `18.1.15` (default)

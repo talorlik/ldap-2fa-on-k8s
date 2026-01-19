@@ -947,6 +947,21 @@ images are automatically mirrored from Docker Hub to ECR by the
 > `backend_infra` Terraform state (`ecr_url`). You don't need to configure these
 > manually.
 
+> [!IMPORTANT]
+>
+> **ECR Repository Name for Build Workflows:**
+>
+> The `ECR_REPOSITORY_NAME` GitHub repository variable is automatically set when
+> you provision backend infrastructure using:
+>
+> - The `backend_infra_provisioning.yaml` workflow, or
+> - The `setup-backend.sh` script
+>
+> This variable is required by the build workflows (`backend_build_push.yaml` and
+> `frontend_build_push.yaml`) to push Docker images to ECR. If the variable is not
+> set, the build workflows will fail with a clear error message directing you to
+> provision backend infrastructure first.
+
 ### Example Configuration
 
 **variables.tfvars:**
@@ -1355,6 +1370,51 @@ global:
   existingSecret: "openldap-secrets"
   # Remove adminPassword and configPassword
 ```
+
+## Operations & Monitoring
+
+### Deployment Monitoring Script
+
+The project includes a monitoring script (`monitor-deployments.sh`) located in the
+project root that provides comprehensive health checks for all deployed application
+components. This script is particularly useful for verifying the status of
+application infrastructure deployments.
+
+**What it monitors:**
+
+- **ArgoCD Capability:** Verifies ArgoCD namespace and pod status (if enabled)
+- **OpenLDAP Stack:** Checks Helm release status and pod health in the `ldap` namespace
+- **PostgreSQL:** Verifies Helm release and pod status in the `ldap-2fa` namespace
+- **Redis:** Checks Helm release and pod status in the `redis` namespace
+- **Ingress Resources:** Lists all ingress resources across all namespaces
+- **Application Load Balancers:** Displays ALB status and configuration
+
+**Usage:**
+
+```bash
+cd /path/to/ldap-2fa-on-k8s
+./monitor-deployments.sh
+```
+
+The script will:
+
+1. Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
+2. Automatically retrieve role ARNs and ExternalId from AWS Secrets Manager
+3. Assume the appropriate deployment account role
+4. Retrieve cluster name from backend_infra Terraform state
+5. Update kubeconfig to access the EKS cluster
+6. Perform health checks on all components
+7. Display a color-coded summary report
+
+**Prerequisites:**
+
+- `jq` command-line tool installed
+- `kubectl` and `helm` installed
+- AWS CLI configured with appropriate permissions
+- GitHub CLI (`gh`) installed (optional, for retrieving backend bucket name)
+
+**For detailed documentation:** See [Deployment Monitoring Script](../README.md#operations--monitoring)
+in the main README.
 
 ## Troubleshooting
 

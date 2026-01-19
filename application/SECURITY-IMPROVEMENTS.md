@@ -19,7 +19,8 @@ resources
   - Added `alb.ingress.kubernetes.io/ssl-redirect: "443"` to automatically
   redirect HTTP to HTTPS
   - Added `alb.ingress.kubernetes.io/ssl-policy:
-  "ELBSecurityPolicy-TLS13-1-0-PQ-2025-09"` for modern TLS security with post-quantum cryptography support
+  "ELBSecurityPolicy-TLS13-1-0-PQ-2025-09"` for modern TLS security with post-quantum
+  cryptography support
 
 #### ✅ ALB Module HTTPS Configuration
 
@@ -74,7 +75,8 @@ your 2FA website
 
 #### ✅ Modern TLS Configuration
 
-- **SSL Policy**: `ELBSecurityPolicy-TLS13-1-0-PQ-2025-09` - Supports TLS 1.3 with post-quantum cryptography
+- **SSL Policy**: `ELBSecurityPolicy-TLS13-1-0-PQ-2025-09` - Supports TLS 1.3 with
+post-quantum cryptography
 - **Applied to**: All ALB ingress resources (PhpLdapAdmin, LTB-passwd, and 2FA application)
 
 **Result**: Only modern, secure TLS protocols are used for external
@@ -388,7 +390,8 @@ ACM certificates
 - **Architecture**: Public ACM certificates with DNS validation via Route53
 - **Location**: `application/main.tf`
 - **Implementation**:
-  - Public ACM certificates are requested in each deployment account (development, production)
+  - Public ACM certificates are requested in each deployment account
+  (development, production)
   - DNS validation records are created in Route53 hosted zone in State Account
   - Each deployment account has its own public ACM certificate
   - ACM certificate data source uses default provider (deployment account),
@@ -401,8 +404,10 @@ ACM certificates
 
 **Key Security Features**:
 
-- **Public ACM Certificate Architecture**: Public ACM certificates requested in each deployment account
-- **Browser-Trusted Certificates**: Public ACM certificates are trusted by browsers without warnings
+- **Public ACM Certificate Architecture**: Public ACM certificates requested in
+each deployment account
+- **Browser-Trusted Certificates**: Public ACM certificates are trusted by browsers
+without warnings
 - **No Cross-Account Certificate Access**: Each deployment account has its own
 certificate, eliminating cross-account certificate access needs
 - **Cross-Account Resource Access**: Route53 hosted zones reside in State Account
@@ -413,8 +418,8 @@ provider when `state_account_role_arn` is configured
 ExternalId (by design, different security model)
 - **Automatic Renewal**: ACM automatically renews certificates before expiration
 - **Comprehensive Documentation**: See `CROSS-ACCOUNT-ACCESS.md` for complete
-configuration details, including step-by-step AWS CLI commands for public ACM certificate setup
-and DNS validation.
+configuration details, including step-by-step AWS CLI commands for public ACM
+certificate setup and DNS validation.
 
 **State Account Role Permissions**:
 

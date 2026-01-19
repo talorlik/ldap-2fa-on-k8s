@@ -88,15 +88,135 @@ Configuration](#github-repository-configuration))
 
 ```text
 ldap-2fa-on-k8s/
-├── SECRETS_REQUIREMENTS.md  # Secrets management documentation (AWS Secrets Manager & GitHub Secrets)
-├── tf_backend_state/      # Terraform state backend infrastructure (S3) - Account A
-├── backend_infra/         # Core AWS infrastructure (VPC, EKS, VPC endpoints, IRSA) - Account B
-├── application/           # Application infrastructure and deployments - Account B
-│   ├── backend/           # 2FA Backend (Python FastAPI)
-│   ├── frontend/          # 2FA Frontend (HTML/JS/CSS + nginx)
-│   ├── helm/              # Helm values for OpenLDAP stack
-│   └── modules/           # Terraform modules (ALB, ArgoCD, SNS, cert-manager, etc.)
-└── .github/workflows/     # GitHub Actions workflows for CI/CD
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.md
+│   │   └── feature_request.md
+│   └── workflows/
+│       ├── application_infra_destroying.yaml
+│       ├── application_infra_provisioning.yaml
+│       ├── backend_build_push.yaml
+│       ├── backend_infra_destroying.yaml
+│       ├── backend_infra_provisioning.yaml
+│       ├── frontend_build_push.yaml
+│       ├── tfstate_infra_destroying.yaml
+│       └── tfstate_infra_provisioning.yaml
+├── .gitignore
+├── .markdownlint.json
+├── .repomixignore
+├── application/                    # Application infrastructure and deployments - Account B
+│   ├── backend/                    # 2FA Backend (Python FastAPI)
+│   │   ├── Dockerfile
+│   │   ├── helm/
+│   │   │   └── ldap-2fa-backend/
+│   │   │       ├── Chart.yaml
+│   │   │       ├── values.yaml
+│   │   │       └── templates/
+│   │   └── src/
+│   │       └── app/
+│   │           ├── api/
+│   │           ├── config.py
+│   │           ├── database/
+│   │           ├── email/
+│   │           ├── ldap/
+│   │           ├── main.py
+│   │           ├── mfa/
+│   │           ├── redis/
+│   │           └── sms/
+│   ├── frontend/                   # 2FA Frontend (HTML/JS/CSS + nginx)
+│   │   ├── Dockerfile
+│   │   ├── nginx.conf
+│   │   ├── helm/
+│   │   │   └── ldap-2fa-frontend/
+│   │   │       ├── Chart.yaml
+│   │   │       ├── values.yaml
+│   │   │       └── templates/
+│   │   └── src/
+│   │       ├── css/
+│   │       ├── index.html
+│   │       └── js/
+│   ├── helm/                       # Helm values for OpenLDAP stack
+│   │   ├── openldap-values.tpl.yaml
+│   │   ├── postgresql-values.tpl.yaml
+│   │   └── redis-values.tpl.yaml
+│   ├── modules/                    # Terraform modules
+│   │   ├── alb/                    # Application Load Balancer
+│   │   ├── argocd/                 # ArgoCD (AWS managed service)
+│   │   ├── argocd_app/             # ArgoCD Application
+│   │   ├── cert-manager/           # TLS certificate management
+│   │   ├── network-policies/       # Pod-to-pod security
+│   │   ├── openldap/               # OpenLDAP stack
+│   │   ├── postgresql/             # PostgreSQL database
+│   │   ├── redis/                  # Redis for SMS OTP storage
+│   │   ├── route53/                # Route53 hosted zone
+│   │   ├── route53_record/         # Route53 DNS records
+│   │   ├── ses/                    # AWS SES for email
+│   │   └── sns/                    # AWS SNS for SMS
+│   ├── CHANGELOG.md
+│   ├── CROSS-ACCOUNT-ACCESS.md
+│   ├── DEPLOY-2FA-APPS.md
+│   ├── destroy-application.sh
+│   ├── main.tf
+│   ├── mirror-images-to-ecr.sh
+│   ├── OPENLDAP-README.md
+│   ├── OSIXIA-OPENLDAP-REQUIREMENTS.md
+│   ├── outputs.tf
+│   ├── PRD-2FA-APP.md
+│   ├── PRD-ADMIN-FUNCS.md
+│   ├── PRD-ALB.md
+│   ├── PRD-ArgoCD.md
+│   ├── PRD-DOMAIN.md
+│   ├── PRD-SIGNUP-MAN.md
+│   ├── PRD-SMS-MAN.md
+│   ├── PRD.md
+│   ├── providers.tf
+│   ├── README.md
+│   ├── SECURITY-IMPROVEMENTS.md
+│   ├── set-k8s-env.sh
+│   ├── setup-application.sh
+│   ├── tfstate-backend-values-template.hcl
+│   ├── variables.tf
+│   └── variables.tfvars
+├── backend_infra/                  # Core AWS infrastructure (VPC, EKS, VPC endpoints, IRSA) - Account B
+│   ├── modules/
+│   │   ├── ebs/                    # EBS CSI driver
+│   │   ├── ecr/                    # ECR repository
+│   │   └── endpoints/              # VPC endpoints
+│   ├── CHANGELOG.md
+│   ├── destroy-backend.sh
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── providers.tf
+│   ├── README.md
+│   ├── setup-backend.sh
+│   ├── tfstate-backend-values-template.hcl
+│   ├── variables.tf
+│   └── variables.tfvars
+├── docs/                           # Documentation website
+│   ├── dark-theme.css
+│   ├── favicon.ico
+│   ├── header_banner.png
+│   ├── index.html
+│   └── light-theme.css
+├── tf_backend_state/               # Terraform state backend infrastructure (S3) - Account A
+│   ├── CHANGELOG.md
+│   ├── get-state.sh
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── providers.tf
+│   ├── README.md
+│   ├── set-state.sh
+│   ├── variables.tf
+│   └── variables.tfvars
+├── CHANGELOG.md
+├── LICENSE
+├── monitor-deployments.sh          # Deployment monitoring script
+├── README.md                       # This file
+├── repomix-instructions.md
+├── repomix-output.md
+├── repomix.config.json
+├── SECRETS_REQUIREMENTS.md         # Secrets management documentation (AWS Secrets Manager & GitHub Secrets)
+└── WARP.md
 ```
 
 For detailed information about each component, see:
@@ -556,6 +676,8 @@ The script will:
 - Update `variables.tfvars` with selected region, environment, and deployment
 account role ARN
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
+- **Automatically save ECR repository name to GitHub repository variable `ECR_REPOSITORY_NAME`**
+(required by build workflows)
 
 > [!NOTE]
 >
@@ -924,6 +1046,118 @@ endpoints
 
 See [Security Improvements](application/SECURITY-IMPROVEMENTS.md) for detailed
 security documentation.
+
+## Operations & Monitoring
+
+### Deployment Monitoring Script
+
+The project includes a monitoring script (`monitor-deployments.sh`) that provides
+comprehensive health checks for all deployed components. This script is useful for
+verifying deployment status, troubleshooting issues, and ensuring all services are
+running correctly.
+
+**Location:** `monitor-deployments.sh` (project root)
+
+**What it does:**
+
+1. **Interactive Setup:**
+   - Prompts for AWS region (us-east-1 or us-east-2)
+   - Prompts for environment (prod or dev)
+   - Retrieves role ARNs from AWS Secrets Manager (`github-role` secret)
+   - Retrieves ExternalId from AWS Secrets Manager for cross-account role assumption
+
+2. **Cluster Access:**
+   - Assumes the appropriate deployment account role (production or development)
+   - Retrieves cluster name from backend_infra Terraform state (S3)
+   - Updates kubeconfig to access the EKS cluster
+
+3. **Health Checks:**
+   - **ArgoCD Capability:** Verifies ArgoCD namespace and pod status
+   - **OpenLDAP:** Checks Helm release status and pod health
+   - **PostgreSQL:** Verifies Helm release and pod status
+   - **Redis:** Checks Helm release and pod status
+   - **Ingress Resources:** Lists all ingress resources across namespaces
+   - **Application Load Balancers:** Displays ALB status and configuration
+
+4. **Output:**
+   - Color-coded status messages (green for success, yellow for warnings, red for
+   errors)
+   - Detailed pod status with counts (running, pending, failed)
+   - Helm release status information
+   - Summary report indicating overall deployment health
+
+**Prerequisites:**
+
+- `jq` command-line tool installed
+- `kubectl` configured (script will update kubeconfig automatically)
+- `helm` installed (for Helm release checks)
+- AWS CLI configured with permissions to:
+  - Access AWS Secrets Manager (to retrieve role ARNs and ExternalId)
+  - Assume IAM roles in deployment accounts
+  - Access S3 bucket containing Terraform state
+  - Access EKS cluster
+- GitHub CLI (`gh`) installed (optional, for retrieving `BACKEND_BUCKET_NAME` from
+repository variables)
+
+**Usage:**
+
+```bash
+./monitor-deployments.sh
+```
+
+The script will:
+
+1. Prompt you to select region and environment
+2. Automatically retrieve credentials and configure access
+3. Perform health checks on all components
+4. Display a summary with exit code 0 (all healthy) or 1 (issues found)
+
+**Exit Codes:**
+
+- `0`: All deployments are healthy
+- `1`: Some deployments have issues (check output for details)
+
+**Example Output:**
+
+```text
+=========================================
+Monitoring Deployments for prod in us-east-1
+=========================================
+
+✓ Retrieved State Account role ARN
+✓ Retrieved Deployment Account role ARN (production)
+✓ Retrieved ExternalId for role assumption
+✓ Successfully assumed Deployment Account role
+✓ Cluster name: my-cluster-prod
+✓ Kubeconfig updated successfully
+
+=========================================
+Checking ArgoCD Capability
+=========================================
+ArgoCD pods: 3/3 running
+✓ ArgoCD is deployed and running
+
+=========================================
+Checking Helm Release: OpenLDAP
+=========================================
+Release: openldap-stack-ha
+STATUS: deployed
+✓ OpenLDAP is deployed
+
+=========================================
+Monitoring Summary
+=========================================
+✓ All deployments are healthy!
+```
+
+**Troubleshooting:**
+
+- If the script fails to retrieve secrets, verify AWS credentials and Secrets Manager
+permissions
+- If cluster access fails, check that the backend_infra state file exists in S3
+- If pods are not running, check pod logs: `kubectl logs -n <namespace> <pod-name>`
+- If Helm releases show incorrect status, verify Helm is installed and has cluster
+access
 
 ## Troubleshooting
 

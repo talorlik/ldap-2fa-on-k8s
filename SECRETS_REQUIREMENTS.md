@@ -576,6 +576,33 @@ env:
 | `TF_VAR_REDIS_PASSWORD` | Password | Redis password for SMS OTP storage (minimum 8 characters) |
 | `GH_TOKEN` | GitHub PAT | GitHub Personal Access Token with `repo` scope |
 
+### GitHub Repository Variables (for GitHub Actions Workflows)
+
+Variables are non-sensitive values that can be accessed by workflows. Configure
+them at:
+**Repository → Settings → Secrets and variables → Actions → Variables**
+
+| Variable Name | Type | Description | How It's Set |
+| ------------- | ------ | ------------- | ------------ |
+| `AWS_REGION` | Variable | AWS region where resources will be created | Manual |
+| `BACKEND_PREFIX` | Variable | Prefix for Terraform state file path in S3 bucket | Manual |
+| `APPLICATION_PREFIX` | Variable | Prefix for application infrastructure resources | Manual |
+| `BACKEND_BUCKET_NAME` | Variable | Dynamically generated S3 bucket name for Terraform state | **Auto-generated** by `tfstate_infra_provisioning.yaml` workflow |
+| `ECR_REPOSITORY_NAME` | Variable | ECR repository name for Docker image storage | **Auto-generated** by `backend_infra_provisioning.yaml` workflow or `setup-backend.sh` script |
+
+> [!IMPORTANT]
+>
+> **Auto-generated Variables:**
+>
+> - `BACKEND_BUCKET_NAME`: Automatically set after provisioning Terraform backend
+> state infrastructure
+> - `ECR_REPOSITORY_NAME`: Automatically set after provisioning backend infrastructure
+>   - Set by `backend_infra_provisioning.yaml` workflow after successful
+> Terraform apply
+>   - Set by `setup-backend.sh` script after successful Terraform apply
+>   - Required by build workflows (`backend_build_push.yaml` and `frontend_build_push.yaml`)
+>   - **⚠️ You don't need to create these manually** - they are created automatically
+
 ## Troubleshooting
 
 ### AWS Secrets Manager Issues (Local Scripts)

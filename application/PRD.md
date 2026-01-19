@@ -524,7 +524,12 @@ before `set-k8s-env.sh`
 ### Configuration
 
 ECR registry and repository are automatically computed from `backend_infra`
-Terraform state (`ecr_url`). The Helm values template uses these values:
+Terraform state (`ecr_url`). The ECR repository name is also automatically saved
+to the GitHub repository variable `ECR_REPOSITORY_NAME` when backend infrastructure
+is provisioned (via workflow or `setup-backend.sh` script). This variable is required
+by build workflows to push Docker images to ECR.
+
+The Helm values template uses these values:
 
 ```yaml
 global:
