@@ -350,7 +350,7 @@
                 <h5 id="local-step-4">Step 4: Deploy 2FA Applications (Backend and Frontend)</h5>
                 <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-3 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), <code>aws</code> CLI, and optionally <code>docker</code> for manual builds.</p>
                 <p><strong>Overview:</strong> The deployment process involves building and pushing Docker images, gathering configuration values, creating namespace, deploying backend and frontend Helm charts, and verifying deployment.</p>
-                <h6>4.1: Build and Push Docker Images</h6>
+                <p><strong>4.1: Build and Push Docker Images</strong></p>
                 <p>You have two options for building and pushing images:</p>
                 <p><strong>Option A: Using GitHub Actions (Recommended)</strong></p>
                 <ol>
@@ -394,7 +394,7 @@ docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAM
 cd ../frontend
 docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:ldap-2fa-frontend-$(git rev-parse --short HEAD) .
 docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:ldap-2fa-frontend-$(git rev-parse --short HEAD)</code></pre>
-                <h6>4.2: Gather Required Configuration Values</h6>
+                <p><strong>4.2: Gather Required Configuration Values</strong></p>
                 <p>Get the required values from Terraform outputs:</p>
                 <pre><code>cd application
 
@@ -460,11 +460,11 @@ echo "SES Sender: ${SES_SENDER_EMAIL}"
 # Get SNS topic ARN (if SMS 2FA is enabled)
 SNS_TOPIC_ARN=$(terraform output -raw sns_topic_arn 2>/dev/null || echo "")
 echo "SNS Topic ARN: ${SNS_TOPIC_ARN}"</code></pre>
-                <h6>4.3: Create Namespace</h6>
+                <p><strong>4.3: Create Namespace</strong></p>
                 <pre><code>kubectl create namespace 2fa-app</code></pre>
-                <h6>4.4: Deploy Backend Application</h6>
+                <p><strong>4.4: Deploy Backend Application</strong></p>
                 <p>Create a values file for the backend deployment:</p>
-                <pre><code>cat > /tmp/backend-values.yaml <<EOF
+                <pre><code>cat > /tmp/backend-values.yaml &lt;&lt;EOF
 # Image configuration
 image:
   repository: "${ECR_URL}"
@@ -533,9 +533,9 @@ helm upgrade --install ldap-2fa-backend ldap-2fa-backend \
   --values /tmp/backend-values.yaml \
   --wait \
   --timeout 10m</code></pre>
-                <h6>4.5: Deploy Frontend Application</h6>
+                <p><strong>4.5: Deploy Frontend Application</strong></p>
                 <p>Create a values file for the frontend deployment:</p>
-                <pre><code>cat > /tmp/frontend-values.yaml <<EOF
+                <pre><code>cat > /tmp/frontend-values.yaml &lt;&lt;EOF
 # Image configuration
 image:
   repository: "${ECR_URL}"
@@ -562,7 +562,7 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
   --values /tmp/frontend-values.yaml \
   --wait \
   --timeout 10m</code></pre>
-                <h6>4.6: Verify Deployment</h6>
+                <p><strong>4.6: Verify Deployment</strong></p>
                 <pre><code># Check pods
 kubectl get pods -n 2fa-app
 
@@ -586,14 +586,14 @@ kubectl run -it --rm test-backend --image=curlimages/curl --restart=Never -- \
 ALB_ARN=$(aws elbv2 describe-load-balancers --region ${REGION} --query "LoadBalancers[?LoadBalancerName=='${ALB_NAME}'].LoadBalancerArn" --output text)
 TARGET_GROUP_ARN=$(aws elbv2 describe-target-groups --region ${REGION} --load-balancer-arn ${ALB_ARN} --query "TargetGroups[?contains(TargetGroupName, 'backend')].TargetGroupArn" --output text | head -1)
 aws elbv2 describe-target-health --region ${REGION} --target-group-arn ${TARGET_GROUP_ARN}</code></pre>
-                <h6>4.7: Access the Application</h6>
+                <p><strong>4.7: Access the Application</strong></p>
                 <p>Once deployed, access the application at:</p>
                 <ul>
                     <li><strong>Frontend:</strong> <code>https://${HOSTNAME}</code> (e.g., <code>https://app.talorlik.com</code>)</li>
                     <li><strong>Backend API:</strong> <code>https://${HOSTNAME}/api</code> (e.g., <code>https://app.talorlik.com/api</code>)</li>
                     <li><strong>API Documentation:</strong> <code>https://${HOSTNAME}/api/docs</code> (Swagger UI)</li>
                 </ul>
-                <h6>4.8: Updating Deployments</h6>
+                <p><strong>4.8: Updating Deployments</strong></p>
                 <p>To update the applications after code changes:</p>
                 <ol>
                     <li><strong>Rebuild and push images</strong> (via GitHub Actions or manually)</li>
@@ -612,7 +612,7 @@ helm upgrade ldap-2fa-frontend application/frontend/helm/ldap-2fa-frontend \
   --reuse-values</code></pre>
                     </li>
                 </ol>
-                <h6>4.9: Alternative: Enable ArgoCD Applications</h6>
+                <p><strong>4.9: Alternative: Enable ArgoCD Applications</strong></p>
                 <p>If you prefer GitOps deployment via ArgoCD:</p>
                 <ol>
                     <li><strong>Enable ArgoCD applications</strong> in <code>variables.tfvars</code>:
@@ -708,7 +708,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <h5 id="github-step-4">Step 4: Deploy 2FA Applications (Backend and Frontend)</h5>
                 <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-3 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), and <code>aws</code> CLI.</p>
                 <p><strong>Overview:</strong> The deployment process involves building and pushing Docker images, gathering configuration values, creating namespace, deploying backend and frontend Helm charts, and verifying deployment.</p>
-                <h6>4.1: Build and Push Docker Images</h6>
+                <p><strong>4.1: Build and Push Docker Images</strong></p>
                 <p><strong>Using GitHub Actions (Recommended)</strong></p>
                 <ol>
                     <li><strong>Build and push backend image:</strong>
@@ -733,7 +733,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     </li>
                 </ol>
                 <p>The GitHub Actions workflows automatically build Docker images, push to ECR, update Helm values.yaml files with new image tags, and commit changes to the repository.</p>
-                <h6>4.2: Gather Required Configuration Values</h6>
+                <p><strong>4.2: Gather Required Configuration Values</strong></p>
                 <p>Get the required values from Terraform outputs (run these commands locally or in a GitHub Actions workflow):</p>
                 <pre><code>cd application
 
@@ -776,9 +776,9 @@ SES_SENDER_EMAIL=$(terraform output -raw ses_sender_email)
 
 # Get SNS topic ARN (if SMS 2FA is enabled)
 SNS_TOPIC_ARN=$(terraform output -raw sns_topic_arn 2>/dev/null || echo "")</code></pre>
-                <h6>4.3: Create Namespace</h6>
+                <p><strong>4.3: Create Namespace</strong></p>
                 <pre><code>kubectl create namespace 2fa-app</code></pre>
-                <h6>4.4: Deploy Backend Application</h6>
+                <p><strong>4.4: Deploy Backend Application</strong></p>
                 <p>Create a values file for the backend deployment (same as local deployment) and deploy:</p>
                 <pre><code>cd application/backend/helm
 
@@ -789,7 +789,7 @@ helm upgrade --install ldap-2fa-backend ldap-2fa-backend \
   --wait \
   --timeout 10m</code></pre>
                 <p><strong>Note:</strong> The backend values file should include image configuration, ingress settings, service account with IRSA annotation, LDAP configuration, database configuration, email configuration, SMS configuration (if enabled), and Redis configuration (if SMS is enabled). See <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a> for the complete values file template.</p>
-                <h6>4.5: Deploy Frontend Application</h6>
+                <p><strong>4.5: Deploy Frontend Application</strong></p>
                 <pre><code>cd application/frontend/helm
 
 helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
@@ -798,22 +798,22 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
   --values /tmp/frontend-values.yaml \
   --wait \
   --timeout 10m</code></pre>
-                <h6>4.6: Verify Deployment</h6>
+                <p><strong>4.6: Verify Deployment</strong></p>
                 <p>Check deployment status using the same verification commands as local deployment (check pods, services, ingress, logs, health endpoints, and ALB target health).</p>
-                <h6>4.7: Access the Application</h6>
+                <p><strong>4.7: Access the Application</strong></p>
                 <p>Once deployed, access the application at:</p>
                 <ul>
                     <li><strong>Frontend:</strong> <code>https://${HOSTNAME}</code> (e.g., <code>https://app.talorlik.com</code>)</li>
                     <li><strong>Backend API:</strong> <code>https://${HOSTNAME}/api</code> (e.g., <code>https://app.talorlik.com/api</code>)</li>
                     <li><strong>API Documentation:</strong> <code>https://${HOSTNAME}/api/docs</code> (Swagger UI)</li>
                 </ul>
-                <h6>4.8: Updating Deployments</h6>
+                <p><strong>4.8: Updating Deployments</strong></p>
                 <p>To update the applications after code changes:</p>
                 <ol>
                     <li><strong>Rebuild and push images</strong> via GitHub Actions workflows</li>
                     <li><strong>Upgrade Helm releases</strong> with new image tags (same commands as local deployment)</li>
                 </ol>
-                <h6>4.9: Alternative: Enable ArgoCD Applications</h6>
+                <p><strong>4.9: Alternative: Enable ArgoCD Applications</strong></p>
                 <p>If you prefer GitOps deployment via ArgoCD, enable ArgoCD applications in <code>variables.tfvars</code> and apply Terraform changes. ArgoCD will automatically deploy the applications from Git.</p>
                 <p><strong>For detailed deployment instructions:</strong> <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a></p>
                 <h5 id="github-destroy">Destroying Infrastructure (GitHub Actions)</h5>
