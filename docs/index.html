@@ -154,7 +154,12 @@
         <h3 id="2fa-application">2FA Application</h3>
         <div class="card">
             <ul>
-                <li><strong>Full-stack 2FA application</strong> with Python FastAPI backend and static HTML/JS/CSS frontend</li>
+                <li><strong>Full-stack 2FA application</strong> with Python FastAPI backend and static HTML/JS/CSS frontend
+                    <ul>
+                        <li><strong>Backend:</strong> <a href="../application/backend/README.md">Comprehensive FastAPI backend API</a> with LDAP integration, PostgreSQL, Redis, AWS SES/SNS, and complete documentation</li>
+                        <li><strong>Frontend:</strong> <a href="../application/frontend/README.md">Modern SPA frontend</a> with vanilla JavaScript, responsive design, and full feature documentation</li>
+                    </ul>
+                </li>
                 <li><strong>Dual MFA methods</strong>: TOTP (authenticator apps) and SMS (AWS SNS)</li>
                 <li><strong>LDAP integration</strong> for centralized user authentication</li>
                 <li><strong>Self-service user registration</strong> with email/phone verification and profile state management</li>
@@ -199,6 +204,7 @@
                 <li><strong>Secrets Management</strong>: Passwords managed via GitHub repository secrets (for CI/CD) or AWS Secrets Manager (for local deployment) with automated retrieval</li>
                 <li><strong>Public ACM Certificates</strong>: Uses public ACM certificates (Amazon-issued) with DNS validation for browser-trusted certificates (no security warnings)</li>
                 <li><strong>Route53 Record Module</strong>: Dedicated module for Route53 A (alias) records with cross-account support and ALB zone_id mapping</li>
+                <li><strong>Automated Configuration Management</strong>: ECR repository name automatically saved to GitHub variables during backend infrastructure provisioning (eliminates manual configuration steps)</li>
             </ul>
         </div>
     </section>
@@ -264,7 +270,7 @@
                         <li><strong>Auto-generated Variables:</strong> (set automatically by workflows/scripts)
                             <ul>
                                 <li><code>BACKEND_BUCKET_NAME</code> - Set by Terraform backend state provisioning</li>
-                                <li><code>ECR_REPOSITORY_NAME</code> - Set by backend infrastructure provisioning</li>
+                                <li><code>ECR_REPOSITORY_NAME</code> - Automatically set by backend infrastructure provisioning (eliminates manual configuration; retrieved from Terraform outputs and saved to GitHub repository variables)</li>
                             </ul>
                         </li>
                     </ul>
@@ -310,6 +316,7 @@
                     <li>Generates <code>backend.hcl</code> from template (if it doesn't exist)</li>
                     <li>Updates <code>variables.tfvars</code> with selected region, environment, deployment account role ARN, and ExternalId</li>
                     <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
+                    <li><strong>Automatically saves ECR repository name</strong> to GitHub repository variable <code>ECR_REPOSITORY_NAME</code> (eliminates manual configuration)</li>
                 </ul>
                 <h5 id="local-step-3">Step 3: Deploy Application Infrastructure</h5>
                 <p>Deploy OpenLDAP stack, 2FA application, ALB, Route53 records, and supporting services:</p>
@@ -322,8 +329,8 @@
                     <li><strong>Mirrors Docker images to ECR</strong> (runs <code>mirror-images-to-ecr.sh</code> before Terraform operations):
                         <ul>
                             <li>Checks if images exist in ECR before mirroring (skips if already present)</li>
-                            <li>Pulls images from Docker Hub: <code>bitnami/redis:8.4.0-debian-12-r6</code>, <code>bitnami/postgresql:18.1.0-debian-12-r4</code>, <code>osixia/openldap:1.5.0</code></li>
-                            <li>Pushes images to ECR with tags: <code>redis-latest</code>, <code>postgresql-latest</code>, <code>openldap-1.5.0</code></li>
+                            <li>Pulls images from Docker Hub: <code>bitnami/redis:latest</code>, <code>bitnami/postgresql:latest</code>, <code>osixia/openldap:1.5.0</code></li>
+                            <li>Pushes images to ECR with tags: <code>redis-latest</code>, <code>postgresql-latest</code>, <code>openldap-1.5.0</code> (prevents Docker Hub rate limiting by using ECR images)</li>
                             <li>Uses State Account credentials to fetch ECR URL from backend_infra state</li>
                             <li>Assumes Deployment Account role for ECR operations (with ExternalId)</li>
                             <li>Authenticates Docker to ECR automatically</li>
@@ -630,6 +637,7 @@ terraform apply</code></pre>
                     <li><strong>ArgoCD will automatically deploy</strong> the applications from Git</li>
                 </ol>
                 <p><strong>For detailed deployment instructions:</strong> <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a></p>
+                <p><strong>For backend and frontend documentation:</strong> <a href="../application/backend/README.md">Backend API Documentation</a> | <a href="../application/frontend/README.md">Frontend Application Documentation</a></p>
                 <h5 id="local-destroy">Destroying Infrastructure (Local)</h5>
                 <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order.</p>
                 <ol>
@@ -686,6 +694,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li>Uses environment-specific deployment account role ARN (<code>AWS_PRODUCTION_ACCOUNT_ROLE_ARN</code> or <code>AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN</code>)</li>
                     <li>Uses <code>AWS_ASSUME_EXTERNAL_ID</code> for cross-account role assumption</li>
                     <li>Runs Terraform operations to deploy VPC, EKS, VPC endpoints, IRSA, and ECR</li>
+                    <li><strong>Automatically saves ECR repository name</strong> to GitHub repository variable <code>ECR_REPOSITORY_NAME</code> (eliminates manual configuration)</li>
                 </ul>
                 <h5 id="github-step-3">Step 3: Deploy Application Infrastructure</h5>
                 <ol>
@@ -816,6 +825,7 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                 <p><strong>4.9: Alternative: Enable ArgoCD Applications</strong></p>
                 <p>If you prefer GitOps deployment via ArgoCD, enable ArgoCD applications in <code>variables.tfvars</code> and apply Terraform changes. ArgoCD will automatically deploy the applications from Git.</p>
                 <p><strong>For detailed deployment instructions:</strong> <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a></p>
+                <p><strong>For backend and frontend documentation:</strong> <a href="../application/backend/README.md">Backend API Documentation</a> | <a href="../application/frontend/README.md">Frontend Application Documentation</a></p>
                 <h5 id="github-destroy">Destroying Infrastructure (GitHub Actions)</h5>
                 <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order.</p>
                 <ol>
@@ -1032,8 +1042,8 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                 </li>
                 <li><strong>2FA Application</strong> with LDAP authentication integration:
                     <ul>
-                        <li>Python FastAPI backend with TOTP and SMS MFA support</li>
-                        <li>Static HTML/JS/CSS frontend with modern UI</li>
+                        <li>Python FastAPI backend with TOTP and SMS MFA support (<a href="../application/backend/README.md">Backend Documentation</a>)</li>
+                        <li>Static HTML/JS/CSS frontend with modern UI (<a href="../application/frontend/README.md">Frontend Documentation</a>)</li>
                         <li>Single domain routing (<code>app.&lt;domain&gt;</code>) with path-based access</li>
                         <li>Self-service user registration with email/phone verification</li>
                         <li>Admin dashboard for user management and group operations</li>
@@ -1081,6 +1091,14 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
         </div>
         <h3 id="application-documentation">Application Documentation</h3>
         <div class="doc-grid">
+            <div class="doc-item">
+                <a href="../application/backend/README.md">Backend API Documentation</a>
+                <p>Comprehensive FastAPI backend documentation: architecture, installation, configuration, API endpoints, deployment, and security</p>
+            </div>
+            <div class="doc-item">
+                <a href="../application/frontend/README.md">Frontend Application Documentation</a>
+                <p>Complete frontend SPA documentation: architecture, features, deployment, development, security, and troubleshooting</p>
+            </div>
             <div class="doc-item">
                 <a href="../application/PRD-2FA-APP.md">2FA Application PRD</a>
                 <p>Product requirements for the 2FA application (API specs, frontend architecture, Swagger UI)</p>
@@ -1231,6 +1249,7 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                     </ul>
                 </li>
             </ul>
+            <p><strong>Documentation:</strong> <a href="../application/backend/README.md">Backend API Documentation</a> | <a href="../application/frontend/README.md">Frontend Application Documentation</a></p>
         </div>
         <h3 id="phpldapadmin-access">PhpLdapAdmin</h3>
         <div class="card">

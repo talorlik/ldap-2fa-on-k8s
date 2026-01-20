@@ -498,11 +498,13 @@ state (with fallback options)
   - `src/` - Python FastAPI source code
   - `helm/` - Helm chart with Ingress for `/api/*`
   - `Dockerfile` - Container image definition
+  - `README.md` - Comprehensive backend API documentation
 - `application/frontend/` - 2FA frontend application:
   - `src/` - Static HTML/JS/CSS files
   - `helm/` - Helm chart with Ingress for `/`
-  - `Dockerfile` - Container image definition (nginx)
-  - `nginx.conf` - nginx configuration
+  - `Dockerfile` - Container image definition (nginx, runs as non-root user)
+  - `nginx.conf` - nginx configuration (listens on port 8080)
+  - `README.md` - Comprehensive frontend application documentation
 - `application/CHANGELOG.md` - Detailed changelog documenting all application
 changes
 - `application/PRD-2FA-APP.md` - Product requirements document for 2FA
@@ -629,6 +631,7 @@ resources
   - Exposed at `/api/*` path on `app.<domain>`
   - Uses IRSA for SNS, SES access (no hardcoded credentials)
   - Swagger UI always enabled at `/api/docs` for interactive API documentation
+  - Optimized Python code for better performance and logging efficiency
   - Helm chart includes: Deployment, Service, Ingress, ConfigMap, Secret,
   ServiceAccount
 - Frontend: Static HTML/JS/CSS served by nginx
@@ -637,6 +640,8 @@ resources
   - User profile page
   - Top navigation bar with user menu
   - Exposed at `/` path on `app.<domain>`
+  - Runs as non-root user (`appuser`, UID 1000) on port 8080
+  - Service exposes port 80 externally (forwards to container port 8080)
   - Helm chart includes: Deployment, Service, Ingress
 - Deployment method:
   - Direct Helm deployment via Terraform (default)
@@ -791,6 +796,45 @@ workflows)
 workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - January 2026)
+
+### Python Code Performance and Container Security Improvements (Jan 20, 2026)
+
+- **Python Code Optimization**:
+  - Improved logging performance across all backend modules
+  - Optimized database connection handling in `app/database/connection.py`
+  - Enhanced LDAP client operations with better error handling and performance
+  - Improved email client logging efficiency
+  - Optimized TOTP and SMS client modules for better performance
+  - Updated API routes with more efficient logging patterns
+  - Better resource management and reduced overhead
+
+- **Backend Container Security Enhancement**:
+  - Simplified multi-stage Docker build for backend application
+  - Optimized layer caching for faster builds
+  - Reduced attack surface with minimal base image
+  - Improved build efficiency and container size
+
+- **Frontend Container Security Enhancement**:
+  - Changed frontend container port from 80 to 8080 for non-root execution
+  - Frontend container now runs as non-root user (`appuser`, UID 1000)
+  - Updated nginx configuration to listen on port 8080
+  - Updated Dockerfile health check to use port 8080
+  - Kubernetes service port remains 80 (external interface unchanged)
+  - Container port 8080 is internal only; service forwards to container port 8080
+  - No impact on external access or routing (handled by ALB)
+  - Follows security best practices for containerized applications
+
+- **Comprehensive Documentation**:
+  - Added complete backend API documentation (`application/backend/README.md`)
+    with architecture overview, API endpoints, development guidelines, and
+    security considerations
+  - Added comprehensive frontend documentation (`application/frontend/README.md`)
+    with architecture diagrams, feature documentation, nginx configuration,
+    and deployment guide
+  - Updated `application/README.md` with frontend security details and port
+    configuration
+  - Enhanced security documentation in `application/SECURITY-IMPROVEMENTS.md`
+  - All documentation reflects latest backend and frontend implementation
 
 ### ECR Repository Name Automation and Build Workflow Improvements (Jan 19, 2026)
 
@@ -1441,6 +1485,8 @@ with different selections
 2. **Frontend Changes** (`application/frontend/`):
    - Make changes to HTML/JS/CSS in `src/`
    - Test locally with a simple HTTP server
+   - Frontend container runs on port 8080 as non-root user (`appuser`, UID 1000)
+   - Kubernetes service exposes port 80 externally (forwards to container port 8080)
    - Commit and push changes to `application/frontend/**`
    - GitHub Actions workflow `frontend_build_push.yaml` automatically handles
    build and push
@@ -1694,6 +1740,12 @@ via `group.name` in IngressClassParams with host-based routing
 - Repeat until no new issues are found
 - Never commit OpenLDAP passwords to version control - always use environment
 variables or GitHub Secrets
+- **Container Security**:
+  - Frontend container runs as non-root user (`appuser`, UID 1000) for improved
+  security
+  - Backend container uses multi-stage builds with minimal attack surface
+  - Both containers follow principle of least privilege
+  - No privileged ports required (frontend uses port 8080 internally)
 - **IRSA (IAM Roles for Service Accounts)**:
   - Pods assume IAM roles via OIDC—no long-lived AWS credentials
   - IAM roles scoped to specific service accounts and namespaces
