@@ -68,7 +68,7 @@ class TOTPManager:
             f"&period={self.settings.totp_interval}"
         )
 
-        logger.debug(f"Generated otpauth URI for user: {username}")
+        logger.debug("Generated otpauth URI for user: %s", username)
         return uri
 
     def _get_algorithm(self) -> str:
@@ -159,7 +159,7 @@ class TOTPManager:
             counter = current_counter + offset
             expected_code = self._generate_hotp(secret, counter)
             if hmac.compare_digest(code, expected_code):
-                logger.debug(f"TOTP verification successful (offset: {offset})")
+                logger.debug("TOTP verification successful (offset: %s)", offset)
                 return True
 
         logger.debug("TOTP verification failed")

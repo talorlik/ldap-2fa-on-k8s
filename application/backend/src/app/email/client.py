@@ -114,17 +114,17 @@ If you didn't create an account, you can safely ignore this email.
                 },
             )
             message_id = response.get("MessageId", "unknown")
-            logger.info(f"Verification email sent to {to_email}, MessageId: {message_id}")
+            logger.info("Verification email sent to %s, MessageId: %s", to_email, message_id)
             return True, f"Verification email sent successfully"
 
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             error_message = e.response.get("Error", {}).get("Message", str(e))
-            logger.error(f"Failed to send email to {to_email}: {error_code} - {error_message}")
+            logger.error("Failed to send email to %s: %s - %s", to_email, error_code, error_message)
             return False, f"Failed to send email: {error_message}"
 
         except Exception as e:
-            logger.error(f"Unexpected error sending email to {to_email}: {e}")
+            logger.error("Unexpected error sending email to %s: %s", to_email, e)
             return False, f"Failed to send email: {str(e)}"
 
     def send_welcome_email(
@@ -207,17 +207,17 @@ If you have any questions, please contact your system administrator.
                 },
             )
             message_id = response.get("MessageId", "unknown")
-            logger.info(f"Welcome email sent to {to_email}, MessageId: {message_id}")
+            logger.info("Welcome email sent to %s, MessageId: %s", to_email, message_id)
             return True, "Welcome email sent successfully"
 
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             error_message = e.response.get("Error", {}).get("Message", str(e))
-            logger.error(f"Failed to send welcome email to {to_email}: {error_code} - {error_message}")
+            logger.error("Failed to send welcome email to %s: %s - %s", to_email, error_code, error_message)
             return False, f"Failed to send email: {error_message}"
 
         except Exception as e:
-            logger.error(f"Unexpected error sending welcome email to {to_email}: {e}")
+            logger.error("Unexpected error sending welcome email to %s: %s", to_email, e)
             return False, f"Failed to send email: {str(e)}"
 
     def send_admin_notification_email(
@@ -340,15 +340,15 @@ This is an automated notification from {self.settings.totp_issuer}.
                 },
             )
             message_id = response.get("MessageId", "unknown")
-            logger.info(f"Admin notification email sent to {len(admin_emails)} admins, MessageId: {message_id}")
+            logger.info("Admin notification email sent to %s admins, MessageId: %s", len(admin_emails), message_id)
             return True, "Admin notification email sent successfully"
 
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             error_message = e.response.get("Error", {}).get("Message", str(e))
-            logger.error(f"Failed to send admin notification email: {error_code} - {error_message}")
+            logger.error("Failed to send admin notification email: %s - %s", error_code, error_message)
             return False, f"Failed to send email: {error_message}"
 
         except Exception as e:
-            logger.error(f"Unexpected error sending admin notification email: {e}")
+            logger.error("Unexpected error sending admin notification email: %s", e)
             return False, f"Failed to send email: {str(e)}"

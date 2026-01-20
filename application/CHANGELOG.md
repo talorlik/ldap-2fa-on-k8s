@@ -6,6 +6,83 @@ documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-01-20] - Comprehensive Documentation Updates for Backend and Frontend
+
+### Added
+
+- **Backend API Documentation (`application/backend/README.md`)**
+  - Comprehensive backend API documentation covering all features and endpoints
+  - Complete architecture overview with component diagrams
+  - Detailed installation and configuration instructions
+  - Docker setup guide with multi-stage build process documentation
+  - API endpoint reference with request/response schemas
+  - Development guidelines and best practices
+  - Security considerations and deployment instructions
+  - Health check and scaling documentation
+
+- **Frontend Application Documentation (`application/frontend/README.md`)**
+  - Complete frontend application documentation
+  - Architecture diagrams showing deployment flow and routing patterns
+  - Detailed feature documentation (authentication, registration, MFA enrollment,
+  profile management, admin dashboard)
+  - nginx configuration documentation
+  - Helm chart configuration reference
+  - Container image deployment guide with security features
+  - Local development setup instructions
+  - Code structure and organization documentation
+  - Security features and browser support information
+  - API integration documentation
+  - Troubleshooting guide and testing checklist
+
+### Changed
+
+- **Application Infrastructure Documentation (`application/README.md`)**
+  - Enhanced frontend port configuration documentation with security details
+  - Added explicit mention of non-root user (`appuser`, UID 1000) for frontend container
+  - Clarified service port (80) vs container port (8080) relationship
+  - Added security consideration about non-root container execution
+  - Updated frontend section with security enhancement details
+
+- **Documentation Consistency**
+  - Ensured all documentation reflects latest backend and frontend changes
+  - Updated port configurations across all relevant documentation files
+  - Verified consistency between README files and actual implementation
+  - Aligned security documentation with current container security practices
+
+### Documentation
+
+- **Comprehensive Component Documentation**
+  - Backend README provides complete reference for API development and deployment
+  - Frontend README serves as full guide for frontend development and deployment
+  - Both READMEs include troubleshooting sections and best practices
+  - Documentation covers all aspects from local development to production deployment
+
+## [2026-01-20] - Frontend Security Enhancement: Non-Root Container Port Configuration
+
+### Changed
+
+- **Frontend Container Port Configuration**
+  - Changed frontend container port from 80 to 8080 to support running as
+  non-root user
+  - Frontend container now runs as non-root user (`appuser`, UID 1000) for
+  improved security
+  - Kubernetes service port remains 80 (external interface unchanged)
+  - Container port 8080 is internal only; service port 80 forwards to container
+  port 8080
+  - Updated nginx configuration to listen on port 8080
+  - Updated Dockerfile health check to use port 8080
+  - Updated Helm values to include separate `containerPort` (8080) and `service.port`
+  (80) configuration
+  - No impact on external access or frontend-backend communication
+  (routing handled by ALB)
+
+### Security
+
+- **Non-Root Container Execution**
+  - Frontend container no longer requires root privileges to bind to port 80
+  - Reduced attack surface by running container as unprivileged user
+  - Follows security best practices for containerized applications
+
 ## [2026-01-19] - Build Workflow Simplification and ECR Variable Requirements
 
 ### Changed

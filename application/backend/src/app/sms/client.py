@@ -121,7 +121,7 @@ class SMSClient:
 
             message_id = response.get("MessageId")
             logger.info(
-                f"SMS sent successfully. MessageId: {message_id}"
+                "SMS sent successfully. MessageId: %s", message_id
             )
 
             return True, "Verification code sent", message_id
@@ -129,7 +129,7 @@ class SMSClient:
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             error_message = e.response.get("Error", {}).get("Message", str(e))
-            logger.error(f"SNS ClientError sending SMS: {error_code} - {error_message}")
+            logger.error("SNS ClientError sending SMS: %s - %s", error_code, error_message)
 
             # Handle specific error codes
             if error_code == "InvalidParameter":
@@ -142,11 +142,11 @@ class SMSClient:
                 return False, f"Failed to send SMS: {error_message}", None
 
         except BotoCoreError as e:
-            logger.error(f"BotoCoreError sending SMS: {e}")
+            logger.error("BotoCoreError sending SMS: %s", e)
             return False, "SMS service error", None
 
         except Exception as e:
-            logger.error(f"Unexpected error sending SMS: {e}")
+            logger.error("Unexpected error sending SMS: %s", e)
             return False, "Failed to send verification code", None
 
     def subscribe_phone_number(
@@ -182,18 +182,18 @@ class SMSClient:
             )
 
             subscription_arn = response.get("SubscriptionArn")
-            logger.info(f"Phone number subscribed with ARN: {subscription_arn}")
+            logger.info("Phone number subscribed with ARN: %s", subscription_arn)
 
             return True, "Phone number subscribed successfully", subscription_arn
 
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             error_message = e.response.get("Error", {}).get("Message", str(e))
-            logger.error(f"SNS subscribe error: {error_code} - {error_message}")
+            logger.error("SNS subscribe error: %s - %s", error_code, error_message)
             return False, f"Failed to subscribe: {error_message}", None
 
         except Exception as e:
-            logger.error(f"Unexpected error subscribing phone: {e}")
+            logger.error("Unexpected error subscribing phone: %s", e)
             return False, "Failed to subscribe phone number", None
 
     def unsubscribe(self, subscription_arn: str) -> tuple[bool, str]:
@@ -208,16 +208,16 @@ class SMSClient:
         """
         try:
             self.sns_client.unsubscribe(SubscriptionArn=subscription_arn)
-            logger.info(f"Unsubscribed: {subscription_arn}")
+            logger.info("Unsubscribed: %s", subscription_arn)
             return True, "Unsubscribed successfully"
 
         except ClientError as e:
             error_message = e.response.get("Error", {}).get("Message", str(e))
-            logger.error(f"SNS unsubscribe error: {error_message}")
+            logger.error("SNS unsubscribe error: %s", error_message)
             return False, f"Failed to unsubscribe: {error_message}"
 
         except Exception as e:
-            logger.error(f"Unexpected error unsubscribing: {e}")
+            logger.error("Unexpected error unsubscribing: %s", e)
             return False, "Failed to unsubscribe"
 
     def check_opt_out_status(self, phone_number: str) -> tuple[bool, bool]:
@@ -237,7 +237,7 @@ class SMSClient:
             return True, response.get("isOptedOut", False)
 
         except Exception as e:
-            logger.error(f"Error checking opt-out status: {e}")
+            logger.error("Error checking opt-out status: %s", e)
             return False, False
 
     def opt_in_phone_number(self, phone_number: str) -> tuple[bool, str]:
@@ -253,14 +253,14 @@ class SMSClient:
         try:
             self.sns_client.opt_in_phone_number(phoneNumber=phone_number)
             phone_hash = hashlib.sha256(phone_number.encode("utf-8")).hexdigest()[:8]
-            logger.info(f"Phone number opted in (hash={phone_hash})")
+            logger.info("Phone number opted in (hash=%s)", phone_hash)
             return True, "Phone number opted in successfully"
 
         except ClientError as e:
             error_message = e.response.get("Error", {}).get("Message", str(e))
-            logger.error(f"SNS opt-in error: {error_message}")
+            logger.error("SNS opt-in error: %s", error_message)
             return False, f"Failed to opt in: {error_message}"
 
         except Exception as e:
-            logger.error(f"Unexpected error opting in phone: {e}")
+            logger.error("Unexpected error opting in phone: %s", e)
             return False, "Failed to opt in phone number"

@@ -83,7 +83,7 @@ class LDAPClient:
 
             return max_uid
         except Exception as e:
-            logger.warning(f"Error getting next UID, using default: {e}")
+            logger.warning("Error getting next UID, using default: %s", e)
             return self.settings.ldap_uid_start
 
     def authenticate(self, username: str, password: str) -> tuple[bool, str]:
@@ -101,7 +101,7 @@ class LDAPClient:
             return False, "Password cannot be empty"
 
         user_dn = self._get_user_dn(username)
-        logger.debug(f"Attempting to authenticate user DN: {user_dn}")
+        logger.debug("Attempting to authenticate user DN: %s", user_dn)
 
         try:
             conn = Connection(
@@ -112,16 +112,16 @@ class LDAPClient:
                 raise_exceptions=True,
             )
             conn.unbind()
-            logger.info(f"Successfully authenticated user: {username}")
+            logger.info("Successfully authenticated user: %s", username)
             return True, "Authentication successful"
         except ldap3.core.exceptions.LDAPBindError as e:
-            logger.warning(f"Authentication failed for user {username}: {e}")
+            logger.warning("Authentication failed for user %s: %s", username, e)
             return False, "Invalid username or password"
         except LDAPException as e:
-            logger.error(f"LDAP error during authentication: {e}")
+            logger.error("LDAP error during authentication: %s", e)
             return False, f"LDAP error: {e!s}"
         except Exception as e:
-            logger.error(f"Unexpected error during authentication: {e}")
+            logger.error("Unexpected error during authentication: %s", e)
             return False, f"Authentication error: {e!s}"
 
     def user_exists(self, username: str) -> bool:
@@ -148,7 +148,7 @@ class LDAPClient:
             conn.unbind()
             return exists
         except LDAPException as e:
-            logger.error(f"LDAP error checking user existence: {e}")
+            logger.error("LDAP error checking user existence: %s", e)
             return False
 
     def get_user_attribute(
@@ -184,7 +184,7 @@ class LDAPClient:
             conn.unbind()
             return None
         except LDAPException as e:
-            logger.error(f"LDAP error getting user attribute: {e}")
+            logger.error("LDAP error getting user attribute: %s", e)
             return None
 
     def create_user(
@@ -246,20 +246,20 @@ class LDAPClient:
             success = conn.add(user_dn, attributes=attributes)
 
             if success:
-                logger.info(f"Created LDAP user: {username} (UID: {uid_number})")
+                logger.info("Created LDAP user: %s (UID: %s)", username, uid_number)
                 conn.unbind()
                 return True, f"User {username} created successfully"
             else:
                 error_msg = conn.result.get("description", "Unknown error")
-                logger.error(f"Failed to create LDAP user {username}: {error_msg}")
+                logger.error("Failed to create LDAP user %s: %s", username, error_msg)
                 conn.unbind()
                 return False, f"Failed to create user: {error_msg}"
 
         except LDAPException as e:
-            logger.error(f"LDAP error creating user {username}: {e}")
+            logger.error("LDAP error creating user %s: %s", username, e)
             return False, f"LDAP error: {e!s}"
         except Exception as e:
-            logger.error(f"Unexpected error creating user {username}: {e}")
+            logger.error("Unexpected error creating user %s: %s", username, e)
             return False, f"Error creating user: {e!s}"
 
     def delete_user(self, username: str) -> tuple[bool, str]:
@@ -280,20 +280,20 @@ class LDAPClient:
             success = conn.delete(user_dn)
 
             if success:
-                logger.info(f"Deleted LDAP user: {username}")
+                logger.info("Deleted LDAP user: %s", username)
                 conn.unbind()
                 return True, f"User {username} deleted successfully"
             else:
                 error_msg = conn.result.get("description", "Unknown error")
-                logger.error(f"Failed to delete LDAP user {username}: {error_msg}")
+                logger.error("Failed to delete LDAP user %s: %s", username, error_msg)
                 conn.unbind()
                 return False, f"Failed to delete user: {error_msg}"
 
         except LDAPException as e:
-            logger.error(f"LDAP error deleting user {username}: {e}")
+            logger.error("LDAP error deleting user %s: %s", username, e)
             return False, f"LDAP error: {e!s}"
         except Exception as e:
-            logger.error(f"Unexpected error deleting user {username}: {e}")
+            logger.error("Unexpected error deleting user %s: %s", username, e)
             return False, f"Error deleting user: {e!s}"
 
     def is_admin(self, username: str) -> bool:
@@ -320,7 +320,7 @@ class LDAPClient:
             )
 
             if not conn.entries:
-                logger.debug(f"Admin group not found: {admin_group_dn}")
+                logger.debug("Admin group not found: %s", admin_group_dn)
                 conn.unbind()
                 return False
 
@@ -349,10 +349,10 @@ class LDAPClient:
             return False
 
         except LDAPException as e:
-            logger.error(f"LDAP error checking admin status for {username}: {e}")
+            logger.error("LDAP error checking admin status for %s: %s", username, e)
             return False
         except Exception as e:
-            logger.error(f"Unexpected error checking admin status for {username}: {e}")
+            logger.error("Unexpected error checking admin status for %s: %s", username, e)
             return False
 
     def add_user_to_group(self, username: str, group_dn: str) -> tuple[bool, str]:
@@ -385,20 +385,20 @@ class LDAPClient:
                 )
 
             if success:
-                logger.info(f"Added user {username} to group {group_dn}")
+                logger.info("Added user %s to group %s", username, group_dn)
                 conn.unbind()
                 return True, f"User added to group successfully"
             else:
                 error_msg = conn.result.get("description", "Unknown error")
-                logger.error(f"Failed to add {username} to group: {error_msg}")
+                logger.error("Failed to add %s to group: %s", username, error_msg)
                 conn.unbind()
                 return False, f"Failed to add to group: {error_msg}"
 
         except LDAPException as e:
-            logger.error(f"LDAP error adding user to group: {e}")
+            logger.error("LDAP error adding user to group: %s", e)
             return False, f"LDAP error: {e!s}"
         except Exception as e:
-            logger.error(f"Unexpected error adding user to group: {e}")
+            logger.error("Unexpected error adding user to group: %s", e)
             return False, f"Error: {e!s}"
 
     def remove_user_from_group(self, username: str, group_dn: str) -> tuple[bool, str]:
@@ -431,20 +431,20 @@ class LDAPClient:
                 )
 
             if success:
-                logger.info(f"Removed user {username} from group {group_dn}")
+                logger.info("Removed user %s from group %s", username, group_dn)
                 conn.unbind()
                 return True, "User removed from group successfully"
             else:
                 error_msg = conn.result.get("description", "Unknown error")
-                logger.error(f"Failed to remove {username} from group: {error_msg}")
+                logger.error("Failed to remove %s from group: %s", username, error_msg)
                 conn.unbind()
                 return False, f"Failed to remove from group: {error_msg}"
 
         except LDAPException as e:
-            logger.error(f"LDAP error removing user from group: {e}")
+            logger.error("LDAP error removing user from group: %s", e)
             return False, f"LDAP error: {e!s}"
         except Exception as e:
-            logger.error(f"Unexpected error removing user from group: {e}")
+            logger.error("Unexpected error removing user from group: %s", e)
             return False, f"Error: {e!s}"
 
     def list_groups(self) -> list[dict]:
@@ -484,14 +484,14 @@ class LDAPClient:
                 groups.append(group_data)
 
             conn.unbind()
-            logger.info(f"Listed {len(groups)} LDAP groups")
+            logger.info("Listed %s LDAP groups", len(groups))
             return groups
 
         except LDAPException as e:
-            logger.error(f"LDAP error listing groups: {e}")
+            logger.error("LDAP error listing groups: %s", e)
             return []
         except Exception as e:
-            logger.error(f"Unexpected error listing groups: {e}")
+            logger.error("Unexpected error listing groups: %s", e)
             return []
 
     def create_group(
@@ -538,20 +538,20 @@ class LDAPClient:
             success = conn.add(group_dn, attributes=attributes)
 
             if success:
-                logger.info(f"Created LDAP group: {name}")
+                logger.info("Created LDAP group: %s", name)
                 conn.unbind()
                 return True, f"Group {name} created successfully", group_dn
             else:
                 error_msg = conn.result.get("description", "Unknown error")
-                logger.error(f"Failed to create LDAP group {name}: {error_msg}")
+                logger.error("Failed to create LDAP group %s: %s", name, error_msg)
                 conn.unbind()
                 return False, f"Failed to create group: {error_msg}", None
 
         except LDAPException as e:
-            logger.error(f"LDAP error creating group {name}: {e}")
+            logger.error("LDAP error creating group %s: %s", name, e)
             return False, f"LDAP error: {e!s}", None
         except Exception as e:
-            logger.error(f"Unexpected error creating group {name}: {e}")
+            logger.error("Unexpected error creating group %s: %s", name, e)
             return False, f"Error creating group: {e!s}", None
 
     def delete_group(self, group_dn: str) -> tuple[bool, str]:
@@ -570,20 +570,20 @@ class LDAPClient:
             success = conn.delete(group_dn)
 
             if success:
-                logger.info(f"Deleted LDAP group: {group_dn}")
+                logger.info("Deleted LDAP group: %s", group_dn)
                 conn.unbind()
                 return True, "Group deleted successfully"
             else:
                 error_msg = conn.result.get("description", "Unknown error")
-                logger.error(f"Failed to delete LDAP group {group_dn}: {error_msg}")
+                logger.error("Failed to delete LDAP group %s: %s", group_dn, error_msg)
                 conn.unbind()
                 return False, f"Failed to delete group: {error_msg}"
 
         except LDAPException as e:
-            logger.error(f"LDAP error deleting group {group_dn}: {e}")
+            logger.error("LDAP error deleting group %s: %s", group_dn, e)
             return False, f"LDAP error: {e!s}"
         except Exception as e:
-            logger.error(f"Unexpected error deleting group {group_dn}: {e}")
+            logger.error("Unexpected error deleting group %s: %s", group_dn, e)
             return False, f"Error deleting group: {e!s}"
 
     def update_group(
@@ -615,20 +615,20 @@ class LDAPClient:
             success = conn.modify(group_dn, modifications)
 
             if success:
-                logger.info(f"Updated LDAP group: {group_dn}")
+                logger.info("Updated LDAP group: %s", group_dn)
                 conn.unbind()
                 return True, "Group updated successfully"
             else:
                 error_msg = conn.result.get("description", "Unknown error")
-                logger.error(f"Failed to update LDAP group {group_dn}: {error_msg}")
+                logger.error("Failed to update LDAP group %s: %s", group_dn, error_msg)
                 conn.unbind()
                 return False, f"Failed to update group: {error_msg}"
 
         except LDAPException as e:
-            logger.error(f"LDAP error updating group {group_dn}: {e}")
+            logger.error("LDAP error updating group %s: %s", group_dn, e)
             return False, f"LDAP error: {e!s}"
         except Exception as e:
-            logger.error(f"Unexpected error updating group {group_dn}: {e}")
+            logger.error("Unexpected error updating group %s: %s", group_dn, e)
             return False, f"Error updating group: {e!s}"
 
     def get_user_groups(self, username: str) -> list[dict]:
@@ -664,14 +664,14 @@ class LDAPClient:
                 })
 
             conn.unbind()
-            logger.debug(f"User {username} belongs to {len(groups)} groups")
+            logger.debug("User %s belongs to %s groups", username, len(groups))
             return groups
 
         except LDAPException as e:
-            logger.error(f"LDAP error getting user groups for {username}: {e}")
+            logger.error("LDAP error getting user groups for %s: %s", username, e)
             return []
         except Exception as e:
-            logger.error(f"Unexpected error getting user groups for {username}: {e}")
+            logger.error("Unexpected error getting user groups for %s: %s", username, e)
             return []
 
     def get_admin_emails(self) -> list[str]:
@@ -695,7 +695,7 @@ class LDAPClient:
             )
 
             if not conn.entries:
-                logger.warning(f"Admin group not found: {admin_group_dn}")
+                logger.warning("Admin group not found: %s", admin_group_dn)
                 conn.unbind()
                 return []
 
@@ -724,7 +724,7 @@ class LDAPClient:
                         if mail:
                             emails.append(mail)
                 except Exception as e:
-                    logger.debug(f"Could not fetch email for {member_dn}: {e}")
+                    logger.debug("Could not fetch email for %s: %s", member_dn, e)
 
             # Fetch email for each memberUid
             for uid in member_uids:
@@ -740,7 +740,7 @@ class LDAPClient:
                         if mail:
                             emails.append(mail)
                 except Exception as e:
-                    logger.debug(f"Could not fetch email for uid {uid}: {e}")
+                    logger.debug("Could not fetch email for uid %s: %s", uid, e)
 
             conn.unbind()
 
@@ -752,14 +752,14 @@ class LDAPClient:
                     seen.add(email)
                     unique_emails.append(email)
 
-            logger.info(f"Found {len(unique_emails)} admin email addresses")
+            logger.info("Found %s admin email addresses", len(unique_emails))
             return unique_emails
 
         except LDAPException as e:
-            logger.error(f"LDAP error getting admin emails: {e}")
+            logger.error("LDAP error getting admin emails: %s", e)
             return []
         except Exception as e:
-            logger.error(f"Unexpected error getting admin emails: {e}")
+            logger.error("Unexpected error getting admin emails: %s", e)
             return []
 
     def get_group_members(self, group_dn: str) -> list[str]:
@@ -818,8 +818,8 @@ class LDAPClient:
             return list(set(members))
 
         except LDAPException as e:
-            logger.error(f"LDAP error getting group members for {group_dn}: {e}")
+            logger.error("LDAP error getting group members for %s: %s", group_dn, e)
             return []
         except Exception as e:
-            logger.error(f"Unexpected error getting group members for {group_dn}: {e}")
+            logger.error("Unexpected error getting group members for %s: %s", group_dn, e)
             return []

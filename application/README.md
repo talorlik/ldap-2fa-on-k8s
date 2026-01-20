@@ -319,7 +319,10 @@ API endpoints change.
 
 - **Location**: `frontend/src/`
 - **Server**: nginx
-- **Port**: 80
+- **Container Port**: 8080 (runs as non-root user `appuser`, UID 1000 for security)
+- **Service Port**: 80 (Kubernetes service abstraction - forwards to container
+port 8080)
+- **Security**: Non-root container execution reduces attack surface
 - **Features**:
   - Modern, responsive UI
   - Self-service signup form with validation
@@ -1337,7 +1340,10 @@ internet for SMS)
 13. **Phone Number Validation**: E.164 format validation for SMS phone numbers
 14. **SMS Code Expiration**: Verification codes expire after configurable
 timeout
-15. **Rate Limiting**: Consider implementing rate limiting for authentication
+15. **Non-Root Container Execution**: Frontend container runs as non-root user
+(`appuser`, UID 1000) on port 8080, reducing attack surface and following security
+best practices
+16. **Rate Limiting**: Consider implementing rate limiting for authentication
 attempts
 
 ## Customization

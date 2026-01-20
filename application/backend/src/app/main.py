@@ -39,7 +39,7 @@ if settings.cors_origins:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    logger.info(f"CORS enabled for origins: {settings.cors_origins}")
+    logger.info("CORS enabled for origins: %s", settings.cors_origins)
 
 # Include API routes
 app.include_router(router)
@@ -48,27 +48,27 @@ app.include_router(router)
 @app.on_event("startup")
 async def startup_event():
     """Initialize application on startup."""
-    logger.info(f"Starting {settings.app_name}")
+    logger.info("Starting %s", settings.app_name)
 
     # Initialize database
     try:
         await init_db()
         logger.info("Database connection established")
     except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
+        logger.error("Failed to initialize database: %s", e)
         raise
 
-    logger.info(f"LDAP Host: {settings.ldap_host}:{settings.ldap_port}")
-    logger.info(f"TOTP Issuer: {settings.totp_issuer}")
-    logger.info(f"Email verification: {'enabled' if settings.enable_email_verification else 'disabled'}")
-    logger.info(f"SMS 2FA: {'enabled' if settings.enable_sms_2fa else 'disabled'}")
-    logger.info(f"Debug mode: {settings.debug}")
+    logger.info("LDAP Host: %s:%s", settings.ldap_host, settings.ldap_port)
+    logger.info("TOTP Issuer: %s", settings.totp_issuer)
+    logger.info("Email verification: %s", 'enabled' if settings.enable_email_verification else 'disabled')
+    logger.info("SMS 2FA: %s", 'enabled' if settings.enable_sms_2fa else 'disabled')
+    logger.info("Debug mode: %s", settings.debug)
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""
-    logger.info(f"Shutting down {settings.app_name}")
+    logger.info("Shutting down %s", settings.app_name)
 
     # Close database connection
     await close_db()

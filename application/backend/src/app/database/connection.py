@@ -26,7 +26,7 @@ async def init_db() -> None:
 
     settings = get_settings()
 
-    logger.info(f"Initializing database connection to: {settings.database_url.split('@')[-1]}")
+    logger.info("Initializing database connection to: %s", settings.database_url.split('@')[-1])
 
     _engine = create_async_engine(
         settings.database_url,

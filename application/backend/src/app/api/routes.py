@@ -530,11 +530,11 @@ async def _send_admin_notification(user: User) -> None:
 
         success, msg = email_client.send_admin_notification_email(admin_emails, new_user_data)
         if success:
-            logger.info(f"Admin notification sent for new user {user.username}")
+            logger.info("Admin notification sent for new user %s", user.username)
         else:
-            logger.error(f"Failed to send admin notification: {msg}")
+            logger.error("Failed to send admin notification: %s", msg)
     except Exception as e:
-        logger.error(f"Error sending admin notification: {e}")
+        logger.error("Error sending admin notification: %s", e)
 
 
 # ============================================================================
@@ -637,7 +637,7 @@ async def signup(
             )
             email_sent = success
         except Exception as e:
-            logger.error(f"Failed to send verification email: {e}")
+            logger.error("Failed to send verification email: %s", e)
 
     # Send phone verification
     try:
@@ -650,14 +650,14 @@ async def signup(
         success, _, _ = sms_client.send_verification_code(full_phone, phone_token)
         phone_sent = success
     except Exception as e:
-        logger.error(f"Failed to send verification SMS: {e}")
+        logger.error("Failed to send verification SMS: %s", e)
 
     await session.commit()
 
     # Send admin notification asynchronously (don't block response)
     await _send_admin_notification(user)
 
-    logger.info(f"User {user.username} signed up successfully")
+    logger.info("User %s signed up successfully", user.username)
 
     return SignupResponse(
         success=True,
@@ -729,7 +729,7 @@ async def verify_email(
 
     await session.commit()
 
-    logger.info(f"User {user.username} verified email")
+    logger.info("User %s verified email", user.username)
 
     return VerificationResponse(
         success=True,
@@ -801,7 +801,7 @@ async def verify_phone(
 
     await session.commit()
 
-    logger.info(f"User {user.username} verified phone")
+    logger.info("User %s verified phone", user.username)
 
     return VerificationResponse(
         success=True,
@@ -1030,7 +1030,7 @@ async def enroll(
         user.totp_secret = secret
         await session.commit()
 
-        logger.info(f"User {user.username} re-enrolled for TOTP MFA")
+        logger.info("User %s re-enrolled for TOTP MFA", user.username)
 
         return EnrollResponse(
             success=True,
@@ -1066,7 +1066,7 @@ async def enroll(
 
         await session.commit()
 
-        logger.info(f"User {user.username} re-enrolled for SMS MFA")
+        logger.info("User %s re-enrolled for SMS MFA", user.username)
 
         return EnrollResponse(
             success=True,
@@ -1129,7 +1129,7 @@ async def login(
     )
 
     if not auth_success:
-        logger.warning(f"Login failed for {request.username}: {auth_message}")
+        logger.warning("Login failed for %s: %s", request.username, auth_message)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
@@ -1145,7 +1145,7 @@ async def login(
 
         totp_manager = TOTPManager()
         if not totp_manager.verify_totp(user.totp_secret, request.verification_code):
-            logger.warning(f"Login failed for {request.username}: Invalid TOTP")
+            logger.warning("Login failed for %s: Invalid TOTP", request.username)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid verification code",
@@ -1220,7 +1220,7 @@ async def login(
         is_admin=is_admin,
     )
 
-    logger.info(f"User {request.username} logged in successfully")
+    logger.info("User %s logged in successfully", request.username)
 
     return LoginResponse(
         success=True,
@@ -1307,7 +1307,7 @@ async def send_sms_code(
             ttl_seconds=settings.sms_code_expiry_seconds,
         )
         if not stored:
-            logger.error(f"Failed to store OTP code in Redis for {request.username}")
+            logger.error("Failed to store OTP code in Redis for %s", request.username)
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Failed to store verification code. Please try again.",
@@ -1321,7 +1321,7 @@ async def send_sms_code(
             expires_at=time.time() + settings.sms_code_expiry_seconds,
         )
 
-    logger.info(f"SMS code sent to user {request.username}")
+    logger.info("SMS code sent to user %s", request.username)
 
     return SMSSendCodeResponse(
         success=True,
@@ -1513,9 +1513,9 @@ async def admin_activate_user(
             first_name=user.first_name,
         )
     except Exception as e:
-        logger.error(f"Failed to send welcome email: {e}")
+        logger.error("Failed to send welcome email: %s", e)
 
-    logger.info(f"User {user.username} activated by {request.admin_username}")
+    logger.info("User %s activated by %s", user.username, request.admin_username)
 
     return AdminActivateResponse(
         success=True,
@@ -1577,7 +1577,7 @@ async def admin_reject_user(
     await session.delete(user)
     await session.commit()
 
-    logger.info(f"User {username} rejected/deleted by {request.admin_username}")
+    logger.info("User %s rejected/deleted by %s", username, request.admin_username)
 
     return AdminActivateResponse(
         success=True,
@@ -1736,7 +1736,7 @@ async def update_profile(
         for ug in user_groups if ug.group
     ]
 
-    logger.info(f"Profile updated for user {username}")
+    logger.info("Profile updated for user %s", username)
 
     return ProfileResponse(
         id=str(user.id),
@@ -1866,7 +1866,7 @@ async def admin_create_group(
     session.add(group)
     await session.commit()
 
-    logger.info(f"Group {request.name} created")
+    logger.info("Group %s created", request.name)
 
     return GroupResponse(
         id=str(group.id),
@@ -1985,7 +1985,7 @@ async def admin_update_group(
             description=request.description,
         )
         if not success:
-            logger.warning(f"Failed to update LDAP group: {message}")
+            logger.warning("Failed to update LDAP group: %s", message)
 
     # Update database
     if request.name is not None:
@@ -2005,7 +2005,7 @@ async def admin_update_group(
 
     await session.commit()
 
-    logger.info(f"Group {group.name} updated")
+    logger.info("Group %s updated", group.name)
 
     return GroupResponse(
         id=str(group.id),
@@ -2058,13 +2058,13 @@ async def admin_delete_group(
     ldap_client = LDAPClient()
     success, message = ldap_client.delete_group(ldap_dn)
     if not success:
-        logger.warning(f"Failed to delete LDAP group: {message}")
+        logger.warning("Failed to delete LDAP group: %s", message)
 
     # Delete from database (cascades to user_groups)
     await session.delete(group)
     await session.commit()
 
-    logger.info(f"Group {group_name} deleted")
+    logger.info("Group %s deleted", group_name)
 
     return AdminActivateResponse(
         success=True,
@@ -2200,7 +2200,7 @@ async def admin_assign_user_groups(
         if user.status == ProfileStatus.ACTIVE.value:
             success, msg = ldap_client.add_user_to_group(user.username, group.ldap_dn)
             if not success:
-                logger.warning(f"Failed to add {user.username} to LDAP group: {msg}")
+                logger.warning("Failed to add %s to LDAP group: %s", user.username, msg)
 
         # Add database assignment
         user_group = UserGroup(
@@ -2230,7 +2230,7 @@ async def admin_assign_user_groups(
         for ug in user_groups
     ]
 
-    logger.info(f"Groups assigned to user {user.username}")
+    logger.info("Groups assigned to user %s", user.username)
 
     return UserGroupResponse(
         user_id=str(user.id),
@@ -2337,7 +2337,7 @@ async def admin_replace_user_groups(
         for ug in user_groups
     ]
 
-    logger.info(f"Groups replaced for user {user.username}")
+    logger.info("Groups replaced for user %s", user.username)
 
     return UserGroupResponse(
         user_id=str(user.id),
@@ -2406,7 +2406,7 @@ async def admin_remove_user_from_group(
     await session.delete(user_group)
     await session.commit()
 
-    logger.info(f"User {user.username} removed from group {group_name}")
+    logger.info("User %s removed from group %s", user.username, group_name)
 
     return AdminActivateResponse(
         success=True,
@@ -2477,12 +2477,12 @@ async def admin_revoke_user(
                 user.username, ug.group.ldap_dn
             )
             if not success:
-                logger.warning(f"Failed to remove {user.username} from LDAP group: {msg}")
+                logger.warning("Failed to remove %s from LDAP group: %s", user.username, msg)
 
     # Delete from LDAP
     success, message = ldap_client.delete_user(user.username)
     if not success:
-        logger.warning(f"Failed to delete LDAP user: {message}")
+        logger.warning("Failed to delete LDAP user: %s", message)
 
     # Update status to revoked
     user.status = ProfileStatus.REVOKED.value
@@ -2493,7 +2493,7 @@ async def admin_revoke_user(
 
     await session.commit()
 
-    logger.info(f"User {user.username} revoked by {current['username']}")
+    logger.info("User %s revoked by %s", user.username, current['username'])
 
     return AdminActivateResponse(
         success=True,

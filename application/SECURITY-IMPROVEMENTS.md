@@ -82,6 +82,27 @@ post-quantum cryptography
 **Result**: Only modern, secure TLS protocols are used for external
 communication.
 
+### 4. Container Security Enhancements
+
+#### ✅ Non-Root Container Execution
+
+- **Frontend Container**: Runs as non-root user (`appuser`, UID 1000)
+  - Container port changed from 80 to 8080 (non-root users cannot bind to
+  ports < 1024)
+  - Kubernetes service port remains 80 (external interface unchanged)
+  - Reduced attack surface by eliminating root privileges in container
+  - Follows security best practices for containerized applications
+
+**Implementation Details**:
+
+- Frontend Dockerfile creates non-root user and switches to it before starting nginx
+- Container listens on port 8080 internally
+- Kubernetes service abstraction maintains port 80 for external access
+- No impact on functionality or external access patterns
+
+**Result**: Frontend container runs with minimal privileges, reducing potential
+impact of container compromise.
+
 ## Security Architecture
 
 ### External Communication Flow

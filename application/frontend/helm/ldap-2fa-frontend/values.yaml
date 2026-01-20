@@ -48,7 +48,8 @@ securityContext:
 # Service configuration
 service:
   type: ClusterIP
-  port: 80
+  port: 80  # Kubernetes service port (can be different from container port)
+  containerPort: 8080  # Container port (must match nginx listen port)
 
 # Ingress configuration for ALB
 ingress:

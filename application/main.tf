@@ -312,7 +312,7 @@ module "argocd" {
 resource "time_sleep" "wait_for_argocd" {
   count = var.enable_argocd ? 1 : 0
 
-  create_duration = "3m" # Wait 60 seconds for ArgoCD capability to be ready
+  create_duration = "5m" # Wait 60 seconds for ArgoCD capability to be ready
 
   depends_on = [module.argocd]
 }
@@ -471,6 +471,11 @@ module "argocd_app_backend" {
     }
     sync_options = ["CreateNamespace=true"]
   } : null
+
+  depends_on = [
+    module.argocd[0],
+    time_sleep.wait_for_argocd[0]
+  ]
 }
 
 # ArgoCD Application - Frontend
@@ -496,4 +501,9 @@ module "argocd_app_frontend" {
     }
     sync_options = ["CreateNamespace=true"]
   } : null
+
+  depends_on = [
+    module.argocd[0],
+    time_sleep.wait_for_argocd[0]
+  ]
 }

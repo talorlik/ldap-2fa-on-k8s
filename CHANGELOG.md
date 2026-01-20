@@ -10,19 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Automatic ECR Repository Name Variable Management**
-  - Backend infrastructure provisioning now automatically saves ECR repository name to GitHub repository variable `ECR_REPOSITORY_NAME`
-  - `setup-backend.sh` script automatically retrieves ECR repository name from Terraform outputs and saves it to GitHub variables
-  - `backend_infra_provisioning.yaml` workflow automatically sets `ECR_REPOSITORY_NAME` variable after provisioning
+  - Backend infrastructure provisioning now automatically saves ECR repository name
+  to GitHub repository variable `ECR_REPOSITORY_NAME`
+  - `setup-backend.sh` script automatically retrieves ECR repository name from
+  Terraform outputs and saves it to GitHub variables
+  - `backend_infra_provisioning.yaml` workflow automatically sets `ECR_REPOSITORY_NAME`
+  variable after provisioning
   - Eliminates need for manual GitHub variable configuration
-  - Build workflows (`backend_build_push.yaml` and `frontend_build_push.yaml`) now require `ECR_REPOSITORY_NAME` variable
-  - Removed redundant PREFIX fallback logic from build workflows for cleaner, more maintainable code
+  - Build workflows (`backend_build_push.yaml` and `frontend_build_push.yaml`) now
+  require `ECR_REPOSITORY_NAME` variable
+  - Removed redundant PREFIX fallback logic from build workflows for cleaner, more
+  maintainable code
 
 ### Changed
 
 - **Build Workflow Simplification**
   - Simplified ECR repository name resolution in build workflows
   - Removed manual PREFIX-based repository name construction
-  - Build workflows now fail fast with clear error message if `ECR_REPOSITORY_NAME` is not set
+  - Build workflows now fail fast with clear error message if `ECR_REPOSITORY_NAME`
+  is not set
   - Error messages guide users to run backend infrastructure provisioning first
 
 - **Certificate Architecture Migration to Public ACM**

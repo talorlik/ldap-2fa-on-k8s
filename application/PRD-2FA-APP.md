@@ -296,7 +296,7 @@ The documentation automatically updates when API endpoints change.
 | FE-T01 | Static HTML/CSS/JavaScript (no server-side rendering) |
 | FE-T02 | Call backend using relative URLs (`fetch("/api/...")`) |
 | FE-T03 | Served via nginx in container |
-| FE-T04 | Expose container port 80 |
+| FE-T04 | Expose container port 8080 (runs as non-root user, cannot bind to port 80) |
 
 ## Infrastructure Requirements
 
