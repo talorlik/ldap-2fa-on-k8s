@@ -303,18 +303,16 @@ const API = {
     },
 
     /**
-     * Activate a user (admin only)
+     * Activate a user (admin only, uses JWT authentication)
      * @param {string} userId - User ID to activate
-     * @param {string} adminUsername - Admin username
-     * @param {string} adminPassword - Admin password
+     * @param {string[]} groupIds - Array of group IDs to assign during activation
      * @returns {Promise<Object>} Activation response
      */
-    async adminActivateUser(userId, adminUsername, adminPassword) {
-        return this.request(`/admin/users/${encodeURIComponent(userId)}/activate`, {
+    async adminActivateUser(userId, groupIds = []) {
+        return this.authRequest(`/admin/users/${encodeURIComponent(userId)}/activate`, {
             method: 'POST',
             body: JSON.stringify({
-                admin_username: adminUsername,
-                admin_password: adminPassword,
+                group_ids: groupIds,
             }),
         });
     },

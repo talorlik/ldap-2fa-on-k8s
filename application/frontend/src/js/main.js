@@ -1309,14 +1309,9 @@ const App = {
         }
 
         try {
-            // First assign groups
-            await API.assignUserGroups(userId, selectedGroups);
-
-            // Then activate (using the old API since we don't have JWT-based activation yet)
-            // For now, we need to use the legacy admin credentials
-            // This would need to be updated to use JWT-based activation
-            this.showStatus('User approved and assigned to groups. Please complete activation via legacy admin panel.', 'warning');
-
+            // Activate user with group assignment (uses JWT authentication)
+            await API.adminActivateUser(userId, selectedGroups);
+            this.showStatus('User activated and assigned to groups successfully', 'success');
             this.closeModals();
             this.loadAdminUsers();
         } catch (error) {

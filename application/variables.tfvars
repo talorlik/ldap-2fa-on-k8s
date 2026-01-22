@@ -1,67 +1,10 @@
 env                    = "prod"
 region                 = "us-east-1"
-prefix = "talo-tf"
+prefix                 = "talo-tf"
 
-##################### OpenLDAP ##########################
-# OpenLDAP passwords - MUST be set via environment variables:
-#   TF_VAR_openldap_admin_password (from GitHub Secret TF_VAR_OPENLDAP_ADMIN_PASSWORD)
-#   TF_VAR_openldap_config_password (from GitHub Secret TF_VAR_OPENLDAP_CONFIG_PASSWORD)
-# Note: TF_VAR environment variables are case-sensitive and must match variable names in variables.tf
-# Or via .env file (see README for details)
-# Do NOT set passwords here in this file
-
-# OpenLDAP domain (e.g., ldap.talorlik.internal)
-openldap_ldap_domain = "ldap.talorlik.internal"
-openldap_secret_name = "openldap-secret"
-
-##################### Storage ##########################
-# StorageClass configuration for OpenLDAP PVC
-storage_class_name       = "gp3-ldap"
-storage_class_type       = "gp3"
-storage_class_encrypted  = true
-storage_class_is_default = true
-
-##################### ALB Configuration ##########################
-app_name = "talo-ldap"
-# ingress_alb_name            = "ingress-alb"
-# service_alb_name            = "service-alb"
-ingressclass_alb_name       = "ic-alb-ldap"
-ingressclassparams_alb_name = "icp-alb-ldap"
-
-# ALB group name for grouping multiple Ingress resources (defaults to app_name if not set)
-# If set, will be concatenated as: ${prefix}-${region}-${alb_group_name}-${env} (truncated to 63 chars if needed)
-# This is an internal Kubernetes identifier (max 63 characters)
-alb_group_name = "alb-group"
-
-# ALB load balancer name - AWS resource name (max 32 characters per AWS constraints)
-# If set, will be concatenated as: ${prefix}-${region}-${alb_load_balancer_name}-${env} (truncated to 32 chars if needed)
-# If not set, defaults to alb_group_name (truncated to 32 chars if needed)
-alb_load_balancer_name = "alb"
-
-# Hostnames for ingress resources (defaults to subdomain.domain_name if not set)
-phpldapadmin_host = "phpldapadmin.talorlik.com"
-ltb_passwd_host   = "passwd.talorlik.com"
-twofa_app_host    = "app.talorlik.com"
-
-# ALB scheme: internet-facing or internal
-# alb_scheme = "internet-facing"
-
-# ALB target type: ip or instance
-# alb_target_type = "ip"
-
-# ALB SSL policy for HTTPS listeners
-alb_ssl_policy = "ELBSecurityPolicy-TLS13-1-0-PQ-2025-09"
-
-# ALB IP address type: ipv4 or dualstack
-# alb_ip_address_type = "ipv4"
-
-# EKS Cluster
-# Cluster name will be automatically retrieved from backend_infra remote state
-# if backend.hcl exists (created via setup-application.sh script).
-# Otherwise, provide cluster name directly:
-# cluster_name = "talo-tf-us-east-1-kc-prod"
-
-wait_for_crd = true
+##################### Domain ##########################
+domain_name = "talorlik.com"
+twofa_app_host = "app.talorlik.com"
 
 ##################### PostgreSQL User Storage ##########################
 enable_postgresql            = true
@@ -70,12 +13,18 @@ postgresql_database_name     = "ldap2fa"
 postgresql_database_username = "ldap2fa"
 postgresql_storage_size      = "8Gi"
 postgresql_secret_name       = "postgresql-secret"
+# PostgreSQL password - MUST be set via environment variable:
+#   TF_VAR_postgresql_database_password (from GitHub Secret TF_VAR_POSTGRESQL_PASSWORD)
+# Do NOT set password here in this file
 
 ##################### Redis SMS OTP Storage ##########################
 enable_redis       = true
 redis_namespace    = "redis"
 redis_storage_size = "1Gi"
 redis_secret_name  = "redis-secret"
+# Redis password - MUST be set via environment variable:
+#   TF_VAR_redis_password (from GitHub Secret TF_VAR_REDIS_PASSWORD)
+# Do NOT set password here in this file
 
 ##################### SES Email Verification ##########################
 enable_email_verification = true
@@ -84,72 +33,30 @@ ses_sender_domain         = "talorlik.com"
 
 ##################### SNS SMS 2FA ##########################
 # Enable SMS-based 2FA using AWS SNS
-enable_sms_2fa = true
+enable_sms_2fa = false
 
 # SNS configuration
 sns_topic_name          = "2fa-sms"
 sns_display_name        = "TALO LDAP 2FA Verification"
 sns_iam_role_name       = "2fa-sns-publisher"
-sms_sender_id           = "2FA"
+configure_sms_preferences = false
+sms_sender_id           = "TALO2FA"
 sms_type                = "Transactional"
-sms_monthly_spend_limit = 10
-
-##################### Route53 ##########################
-# Domain name for Route53 hosted zone and ACM certificate
-domain_name = "talorlik.com"
-# Subject alternative names for ACM certificate (wildcard subdomains)
-# subject_alternative_names = ["*.talorlik.com"]
-# Whether to use an existing Route53 zone
-# use_existing_route53_zone = false
-
-##################### ArgoCD ##########################
-# Enable ArgoCD capability deployment
-enable_argocd = true
-
-# ArgoCD configuration
-argocd_role_name_component       = "argocd-role"
-argocd_capability_name_component = "argocd"
-argocd_namespace                 = "argocd"
-argocd_project_name              = "default"
-
-# AWS Identity Center configuration (required if enable_argocd = true)
-idc_instance_arn = "arn:aws:sso:::instance/ssoins-72238050a762e47d"
-idc_region       = "us-east-1"
-
-# RBAC role mappings for Identity Center groups/users
-# Example: Map an Identity Center group to ArgoCD ADMIN role
-argocd_rbac_role_mappings = [
-  {
-    role = "ADMIN"
-    identities = [
-      {
-        id   = "b4e89458-f011-7074-5aa3-969ffe349784" # Identity Center group ID
-        type = "SSO_GROUP"
-      }
-    ]
-  }
-]
-
-# Optional: VPC endpoint IDs for private access to Argo CD
-# argocd_vpce_ids = []
-
-# Delete propagation policy (RETAIN or DELETE)
-argocd_delete_propagation_policy = "RETAIN"
+sms_monthly_spend_limit = 100
 
 ##################### ArgoCD Applications ##########################
-# Enable ArgoCD Application deployments
 enable_argocd_apps = true
 
 # Git repository configuration (required if enable_argocd_apps = true)
 argocd_app_repo_url        = "https://github.com/talorlik/ldap-2fa-on-k8s.git"
 argocd_app_target_revision = "main"
 
-# Backend App Configuration
+# Backend application configuration
 argocd_app_backend_name      = "ldap-2fa-backend"
 argocd_app_backend_path      = "application/backend/helm/ldap-2fa-backend"
 argocd_app_backend_namespace = "2fa-app"
 
-# Frontend App Configuration
+# Frontend application configuration
 argocd_app_frontend_name      = "ldap-2fa-frontend"
 argocd_app_frontend_path      = "application/frontend/helm/ldap-2fa-frontend"
 argocd_app_frontend_namespace = "2fa-app"
@@ -158,11 +65,3 @@ argocd_app_frontend_namespace = "2fa-app"
 # argocd_app_sync_policy_automated = true
 # argocd_app_sync_policy_prune     = true
 # argocd_app_sync_policy_self_heal  = true
-deployment_account_role_arn = "arn:aws:iam::944880695150:role/github-role"
-deployment_account_external_id = "5f8697f36412ae83d62efc0a2ebd898fbb4a1721f0da986d9fa1ea7769223f47"
-
-# State account configuration (where Route53 hosted zone and ACM certificate reside)
-# Required when Route53 and ACM resources are in a different account than deployment account
-# This is automatically injected by setup-application.sh and set-k8s-env.sh scripts
-# state_account_role_arn = "arn:aws:iam::STATE_ACCOUNT_ID:role/terraform-state-role"
-state_account_role_arn = "arn:aws:iam::395323424870:role/github-role"

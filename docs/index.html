@@ -225,12 +225,12 @@
                 <li><strong>Route53 hosted zone</strong> must already exist (or create it manually)
                     <ul>
                         <li>Can be in State Account (different from deployment account) - automatically accessed via <code>state_account_role_arn</code></li>
-                        <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
+                        <li>See <a href="../application_infra/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
                     </ul>
                 </li>
                 <li><strong>Public ACM Certificate Setup</strong>: Public ACM certificates must be requested in each deployment account and validated using DNS records in the State Account's Route53 hosted zone
                     <ul>
-                        <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation">Public ACM Certificate Setup and DNS Validation</a> for detailed setup instructions</li>
+                        <li>See <a href="../application_infra/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation">Public ACM Certificate Setup and DNS Validation</a> for detailed setup instructions</li>
                         <li>Includes step-by-step AWS CLI commands for requesting certificates, creating DNS validation records, and verifying certificate status</li>
                         <li>Each deployment account (development, production) has its own public ACM certificate</li>
                         <li>Certificates are automatically renewed by ACM</li>
@@ -242,7 +242,7 @@
                         <li>Certificate must exist in the Deployment Account (not State Account)</li>
                         <li>Certificate must be validated and in <code>ISSUED</code> status</li>
                         <li>DNS validation records must be created in Route53 hosted zone in the State Account</li>
-                        <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
+                        <li>See <a href="../application_infra/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
                     </ul>
                 </li>
                 <li><strong>GitHub Secrets and Variables</strong> configured (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a> for complete details):
@@ -264,7 +264,8 @@
                             <ul>
                                 <li><code>AWS_REGION</code></li>
                                 <li><code>BACKEND_PREFIX</code></li>
-                                <li><code>APPLICATION_PREFIX</code></li>
+                                <li><code>APPLICATION_INFRA_PREFIX</code> - State file key prefix for application infrastructure (value: <code>application_infra_state/terraform.tfstate</code>)</li>
+                                <li><code>APPLICATION_PREFIX</code> - State file key prefix for application (value: <code>application_state/terraform.tfstate</code>)</li>
                             </ul>
                         </li>
                         <li><strong>Auto-generated Variables:</strong> (set automatically by workflows/scripts)
@@ -274,6 +275,7 @@
                             </ul>
                         </li>
                     </ul>
+                    <p><strong>Note on State File Isolation:</strong> The <code>APPLICATION_INFRA_PREFIX</code> and <code>APPLICATION_PREFIX</code> variables ensure that infrastructure and application state files are stored separately in the same S3 bucket, preventing state conflicts. Both directories use the same <code>BACKEND_BUCKET_NAME</code> but different keys for complete isolation.</p>
                 </li>
                 <li><strong>For Local Deployment:</strong> GitHub CLI (<code>gh</code>), AWS CLI, Terraform, kubectl, and <code>jq</code> installed and configured</li>
                 <li><strong>For Local Deployment:</strong> <strong>Docker</strong> must be installed and running for ECR image mirroring. The <code>mirror-images-to-ecr.sh</code> script requires Docker to pull images from Docker Hub and push them to ECR. This step is automatically executed by <code>setup-application.sh</code> before Terraform operations.</li>
@@ -319,13 +321,13 @@
                     <li><strong>Automatically saves ECR repository name</strong> to GitHub repository variable <code>ECR_REPOSITORY_NAME</code> (eliminates manual configuration)</li>
                 </ul>
                 <h5 id="local-step-3">Step 3: Deploy Application Infrastructure</h5>
-                <p>Deploy OpenLDAP stack, 2FA application, ALB, Route53 records, and supporting services:</p>
-                <pre><code>cd application
-./setup-application.sh</code></pre>
+                <p>Deploy OpenLDAP stack, ALB, Route53 records, ArgoCD Capability, and StorageClass:</p>
+                <pre><code>cd application_infra
+./setup-application-infra.sh</code></pre>
                 <p><strong>What the script does:</strong></p>
                 <ul>
                     <li>Prompts for AWS region (us-east-1 or us-east-2) and environment (prod or dev)</li>
-                    <li>Retrieves repository variables from GitHub (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_PREFIX</code>)</li>
+                    <li>Retrieves repository variables from GitHub (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_INFRA_PREFIX</code>)</li>
                     <li><strong>Mirrors Docker images to ECR</strong> (runs <code>mirror-images-to-ecr.sh</code> before Terraform operations):
                         <ul>
                             <li>Checks if images exist in ECR before mirroring (skips if already present)</li>
@@ -340,21 +342,44 @@
                         </ul>
                     </li>
                     <li>Retrieves role ARNs and ExternalId from AWS Secrets Manager</li>
-                    <li>Retrieves password secrets from AWS Secrets Manager (<code>tf-vars</code> secret) and exports as environment variables:
+                    <li>Retrieves OpenLDAP password secrets from AWS Secrets Manager (<code>tf-vars</code> secret) and exports as environment variables:
                         <ul>
                             <li><code>TF_VAR_openldap_admin_password</code></li>
                             <li><code>TF_VAR_openldap_config_password</code></li>
+                        </ul>
+                    </li>
+                    <li>Assumes State Account role for backend operations</li>
+                    <li>Generates <code>backend.hcl</code> from template using <code>APPLICATION_INFRA_PREFIX</code> for state file key (if it doesn't exist)</li>
+                    <li>Updates <code>variables.tfvars</code> with selected values</li>
+                    <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code></li>
+                    <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
+                </ul>
+                <h5 id="local-step-4">Step 4: Deploy Application</h5>
+                <p>Deploy PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and 2FA application (backend/frontend):</p>
+                <pre><code>cd application
+./setup-application.sh</code></pre>
+                <p><strong>What the script does:</strong></p>
+                <ul>
+                    <li>Prompts for AWS region (us-east-1 or us-east-2) and environment (prod or dev)</li>
+                    <li>Retrieves repository variables from GitHub (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_PREFIX</code>)</li>
+                    <li>Retrieves role ARNs and ExternalId from AWS Secrets Manager</li>
+                    <li>Retrieves password secrets from AWS Secrets Manager and exports as environment variables:
+                        <ul>
                             <li><code>TF_VAR_postgresql_database_password</code></li>
                             <li><code>TF_VAR_redis_password</code></li>
                         </ul>
                     </li>
                     <li>Assumes State Account role for backend operations</li>
-                    <li>Generates <code>backend.hcl</code> from template (if it doesn't exist)</li>
+                    <li>Generates <code>backend.hcl</code> from template using <code>APPLICATION_PREFIX</code> for state file key (if it doesn't exist)</li>
                     <li>Updates <code>variables.tfvars</code> with selected values</li>
-                    <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code></li>
+                    <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code> (from application_infra)</li>
                     <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
+                    <li>References infrastructure outputs from <code>application_infra</code> remote state</li>
                 </ul>
-                <h5 id="local-step-4">Step 4: Deploy 2FA Applications (Backend and Frontend)</h5>
+                <p><strong>Note:</strong> Application components require infrastructure to be deployed first (Steps 1-3 completed).</p>
+                <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
+                <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled in <code>variables.tfvars</code>) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>.</p>
+                <h5 id="local-step-5">Manual Deployment of 2FA Applications (Optional)</h5>
                 <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-3 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), <code>aws</code> CLI, and optionally <code>docker</code> for manual builds.</p>
                 <p><strong>Overview:</strong> The deployment process involves building and pushing Docker images, gathering configuration values, creating namespace, deploying backend and frontend Helm charts, and verifying deployment.</p>
                 <p><strong>4.1: Build and Push Docker Images</strong></p>
@@ -401,7 +426,7 @@ docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAM
 cd ../frontend
 docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:ldap-2fa-frontend-$(git rev-parse --short HEAD) .
 docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:ldap-2fa-frontend-$(git rev-parse --short HEAD)</code></pre>
-                <p><strong>4.2: Gather Required Configuration Values</strong></p>
+                <p><strong>5.2: Gather Required Configuration Values</strong></p>
                 <p>Get the required values from Terraform outputs:</p>
                 <pre><code>cd application
 
@@ -467,9 +492,9 @@ echo "SES Sender: ${SES_SENDER_EMAIL}"
 # Get SNS topic ARN (if SMS 2FA is enabled)
 SNS_TOPIC_ARN=$(terraform output -raw sns_topic_arn 2>/dev/null || echo "")
 echo "SNS Topic ARN: ${SNS_TOPIC_ARN}"</code></pre>
-                <p><strong>4.3: Create Namespace</strong></p>
+                <p><strong>5.3: Create Namespace</strong></p>
                 <pre><code>kubectl create namespace 2fa-app</code></pre>
-                <p><strong>4.4: Deploy Backend Application</strong></p>
+                <p><strong>5.4: Deploy Backend Application</strong></p>
                 <p>Create a values file for the backend deployment:</p>
                 <pre><code>cat > /tmp/backend-values.yaml &lt;&lt;EOF
 # Image configuration
@@ -538,9 +563,9 @@ helm upgrade --install ldap-2fa-backend ldap-2fa-backend \
   --namespace 2fa-app \
   --create-namespace \
   --values /tmp/backend-values.yaml \
-  --wait \
-  --timeout 10m</code></pre>
-                <p><strong>4.5: Deploy Frontend Application</strong></p>
+                  --wait \
+                  --timeout 10m</code></pre>
+                <p><strong>5.5: Deploy Frontend Application</strong></p>
                 <p>Create a values file for the frontend deployment:</p>
                 <pre><code>cat > /tmp/frontend-values.yaml &lt;&lt;EOF
 # Image configuration
@@ -569,7 +594,7 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
   --values /tmp/frontend-values.yaml \
   --wait \
   --timeout 10m</code></pre>
-                <p><strong>4.6: Verify Deployment</strong></p>
+                <p><strong>5.6: Verify Deployment</strong></p>
                 <pre><code># Check pods
 kubectl get pods -n 2fa-app
 
@@ -593,14 +618,14 @@ kubectl run -it --rm test-backend --image=curlimages/curl --restart=Never -- \
 ALB_ARN=$(aws elbv2 describe-load-balancers --region ${REGION} --query "LoadBalancers[?LoadBalancerName=='${ALB_NAME}'].LoadBalancerArn" --output text)
 TARGET_GROUP_ARN=$(aws elbv2 describe-target-groups --region ${REGION} --load-balancer-arn ${ALB_ARN} --query "TargetGroups[?contains(TargetGroupName, 'backend')].TargetGroupArn" --output text | head -1)
 aws elbv2 describe-target-health --region ${REGION} --target-group-arn ${TARGET_GROUP_ARN}</code></pre>
-                <p><strong>4.7: Access the Application</strong></p>
+                <p><strong>5.7: Access the Application</strong></p>
                 <p>Once deployed, access the application at:</p>
                 <ul>
                     <li><strong>Frontend:</strong> <code>https://${HOSTNAME}</code> (e.g., <code>https://app.talorlik.com</code>)</li>
                     <li><strong>Backend API:</strong> <code>https://${HOSTNAME}/api</code> (e.g., <code>https://app.talorlik.com/api</code>)</li>
                     <li><strong>API Documentation:</strong> <code>https://${HOSTNAME}/api/docs</code> (Swagger UI)</li>
                 </ul>
-                <p><strong>4.8: Updating Deployments</strong></p>
+                <p><strong>5.8: Updating Deployments</strong></p>
                 <p>To update the applications after code changes:</p>
                 <ol>
                     <li><strong>Rebuild and push images</strong> (via GitHub Actions or manually)</li>
@@ -616,10 +641,10 @@ helm upgrade ldap-2fa-backend application/backend/helm/ldap-2fa-backend \
 helm upgrade ldap-2fa-frontend application/frontend/helm/ldap-2fa-frontend \
   --namespace 2fa-app \
   --set image.tag="${NEW_FRONTEND_TAG}" \
-  --reuse-values</code></pre>
+                  --reuse-values</code></pre>
                     </li>
                 </ol>
-                <p><strong>4.9: Alternative: Enable ArgoCD Applications</strong></p>
+                <p><strong>5.9: Alternative: Enable ArgoCD Applications</strong></p>
                 <p>If you prefer GitOps deployment via ArgoCD:</p>
                 <ol>
                     <li><strong>Enable ArgoCD applications</strong> in <code>variables.tfvars</code>:
@@ -711,13 +736,37 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> for backend state operations</li>
                     <li>Uses environment-specific deployment account role ARN</li>
                     <li>Uses <code>AWS_ASSUME_EXTERNAL_ID</code> for cross-account role assumption</li>
-                    <li>Retrieves password secrets from GitHub repository secrets</li>
-                    <li>Runs Terraform operations to deploy OpenLDAP, 2FA app, ALB, Route53, and supporting services</li>
+                    <li>Retrieves repository variables (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_INFRA_PREFIX</code>) for backend state configuration</li>
+                    <li>Creates <code>backend.hcl</code> from template using <code>APPLICATION_INFRA_PREFIX</code> for state file key</li>
+                    <li>Retrieves OpenLDAP password secrets from GitHub repository secrets</li>
+                    <li>Runs Terraform operations to deploy OpenLDAP stack, ALB, Route53 records (for phpldapadmin and ltb-passwd), ArgoCD Capability, and StorageClass</li>
                 </ul>
-                <h5 id="github-step-4">Step 4: Deploy 2FA Applications (Backend and Frontend)</h5>
-                <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-3 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), and <code>aws</code> CLI.</p>
+                <h5 id="github-step-4">Step 4: Deploy Application</h5>
+                <ol>
+                    <li>Go to GitHub → <strong>Actions</strong> tab</li>
+                    <li>Select <strong>"Application Provisioning"</strong> workflow</li>
+                    <li>Click <strong>"Run workflow"</strong></li>
+                    <li>Select <strong>region</strong> (us-east-1: N. Virginia or us-east-2: Ohio)</li>
+                    <li>Select <strong>environment</strong> (prod or dev)</li>
+                    <li>Click <strong>"Run workflow"</strong></li>
+                    <li>Monitor the workflow execution</li>
+                </ol>
+                <p><strong>What the workflow does:</strong></p>
+                <ul>
+                    <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> for backend state operations</li>
+                    <li>Uses environment-specific deployment account role ARN</li>
+                    <li>Uses <code>AWS_ASSUME_EXTERNAL_ID</code> for cross-account role assumption</li>
+                    <li>Retrieves repository variables (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_PREFIX</code>) for backend state configuration</li>
+                    <li>Creates <code>backend.hcl</code> from template using <code>APPLICATION_PREFIX</code> for state file key</li>
+                    <li>Retrieves password secrets (PostgreSQL, Redis) from GitHub repository secrets</li>
+                    <li>Runs Terraform operations to deploy PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and Route53 record for 2FA app</li>
+                </ul>
+                <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
+                <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>.</p>
+                <h5 id="github-step-5">Manual Deployment of 2FA Applications (Optional)</h5>
+                <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-4 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), and <code>aws</code> CLI.</p>
                 <p><strong>Overview:</strong> The deployment process involves building and pushing Docker images, gathering configuration values, creating namespace, deploying backend and frontend Helm charts, and verifying deployment.</p>
-                <p><strong>4.1: Build and Push Docker Images</strong></p>
+                <p><strong>5.1: Build and Push Docker Images</strong></p>
                 <p><strong>Using GitHub Actions (Recommended)</strong></p>
                 <ol>
                     <li><strong>Build and push backend image:</strong>
@@ -742,7 +791,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     </li>
                 </ol>
                 <p>The GitHub Actions workflows automatically build Docker images, push to ECR, update Helm values.yaml files with new image tags, and commit changes to the repository.</p>
-                <p><strong>4.2: Gather Required Configuration Values</strong></p>
+                <p><strong>5.2: Gather Required Configuration Values</strong></p>
                 <p>Get the required values from Terraform outputs (run these commands locally or in a GitHub Actions workflow):</p>
                 <pre><code>cd application
 
@@ -785,9 +834,9 @@ SES_SENDER_EMAIL=$(terraform output -raw ses_sender_email)
 
 # Get SNS topic ARN (if SMS 2FA is enabled)
 SNS_TOPIC_ARN=$(terraform output -raw sns_topic_arn 2>/dev/null || echo "")</code></pre>
-                <p><strong>4.3: Create Namespace</strong></p>
+                <p><strong>5.3: Create Namespace</strong></p>
                 <pre><code>kubectl create namespace 2fa-app</code></pre>
-                <p><strong>4.4: Deploy Backend Application</strong></p>
+                <p><strong>5.4: Deploy Backend Application</strong></p>
                 <p>Create a values file for the backend deployment (same as local deployment) and deploy:</p>
                 <pre><code>cd application/backend/helm
 
@@ -798,37 +847,46 @@ helm upgrade --install ldap-2fa-backend ldap-2fa-backend \
   --wait \
   --timeout 10m</code></pre>
                 <p><strong>Note:</strong> The backend values file should include image configuration, ingress settings, service account with IRSA annotation, LDAP configuration, database configuration, email configuration, SMS configuration (if enabled), and Redis configuration (if SMS is enabled). See <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a> for the complete values file template.</p>
-                <p><strong>4.5: Deploy Frontend Application</strong></p>
+                <p><strong>5.5: Deploy Frontend Application</strong></p>
                 <pre><code>cd application/frontend/helm
 
 helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
   --namespace 2fa-app \
   --create-namespace \
   --values /tmp/frontend-values.yaml \
-  --wait \
-  --timeout 10m</code></pre>
-                <p><strong>4.6: Verify Deployment</strong></p>
+                  --wait \
+                  --timeout 10m</code></pre>
+                <p><strong>5.6: Verify Deployment</strong></p>
                 <p>Check deployment status using the same verification commands as local deployment (check pods, services, ingress, logs, health endpoints, and ALB target health).</p>
-                <p><strong>4.7: Access the Application</strong></p>
+                <p><strong>5.7: Access the Application</strong></p>
                 <p>Once deployed, access the application at:</p>
                 <ul>
                     <li><strong>Frontend:</strong> <code>https://${HOSTNAME}</code> (e.g., <code>https://app.talorlik.com</code>)</li>
                     <li><strong>Backend API:</strong> <code>https://${HOSTNAME}/api</code> (e.g., <code>https://app.talorlik.com/api</code>)</li>
                     <li><strong>API Documentation:</strong> <code>https://${HOSTNAME}/api/docs</code> (Swagger UI)</li>
                 </ul>
-                <p><strong>4.8: Updating Deployments</strong></p>
+                <p><strong>5.8: Updating Deployments</strong></p>
                 <p>To update the applications after code changes:</p>
                 <ol>
                     <li><strong>Rebuild and push images</strong> via GitHub Actions workflows</li>
                     <li><strong>Upgrade Helm releases</strong> with new image tags (same commands as local deployment)</li>
                 </ol>
-                <p><strong>4.9: Alternative: Enable ArgoCD Applications</strong></p>
+                <p><strong>5.9: Alternative: Enable ArgoCD Applications</strong></p>
                 <p>If you prefer GitOps deployment via ArgoCD, enable ArgoCD applications in <code>variables.tfvars</code> and apply Terraform changes. ArgoCD will automatically deploy the applications from Git.</p>
                 <p><strong>For detailed deployment instructions:</strong> <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a></p>
                 <p><strong>For backend and frontend documentation:</strong> <a href="../application/backend/README.md">Backend API Documentation</a> | <a href="../application/frontend/README.md">Frontend Application Documentation</a></p>
                 <h5 id="github-destroy">Destroying Infrastructure (GitHub Actions)</h5>
                 <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order.</p>
                 <ol>
+                    <li><strong>Destroy Application:</strong>
+                        <ul>
+                            <li>Go to GitHub → <strong>Actions</strong> tab</li>
+                            <li>Select <strong>"Application Destroying"</strong> workflow</li>
+                            <li>Click <strong>"Run workflow"</strong></li>
+                            <li>Select environment (prod or dev) and region</li>
+                            <li>Click <strong>"Run workflow"</strong></li>
+                        </ul>
+                    </li>
                     <li><strong>Destroy Application Infrastructure:</strong>
                         <ul>
                             <li>Go to GitHub → <strong>Actions</strong> tab</li>
@@ -923,44 +981,35 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                 <li><strong>Deploy Application Infrastructure</strong>
                     <ul>
                         <li><strong>Purpose:</strong> Deploys LDAP stack, supporting services, ALB, Route53 records, and infrastructure for 2FA application on the EKS cluster</li>
-                        <li><strong>Components:</strong> OpenLDAP stack (HA), PhpLdapAdmin, LTB-passwd, ALB, Route53 records, PostgreSQL, Redis, SES, SNS (optional), ArgoCD (optional)</li>
+                        <li><strong>Components:</strong> OpenLDAP stack (HA), PhpLdapAdmin, LTB-passwd, ALB, Route53 records (for phpldapadmin and ltb-passwd), ArgoCD Capability (optional), StorageClass</li>
                         <li><strong>Account:</strong> Deployment Account (Account B)</li>
                         <li><strong>Prerequisites:</strong> Backend infrastructure (EKS cluster) must be deployed first</li>
                         <li><strong>Additional Requirements:</strong> Route53 hosted zone and ACM certificate must exist
                             <ul>
                                 <li>Route53 hosted zone and ACM certificate can be in State Account (different from deployment account)</li>
                                 <li>Automatically accessed via <code>state_account_role_arn</code> (injected by scripts/workflows)</li>
-                                <li>See <a href="../application/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for configuration details</li>
+                                <li>See <a href="../application_infra/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for configuration details</li>
                             </ul>
                         </li>
-                        <li><strong>Local:</strong> <code>cd application && ./setup-application.sh</code></li>
+                        <li><strong>Local:</strong> <code>cd application_infra && ./setup-application-infra.sh</code></li>
                         <li><strong>GitHub Actions:</strong> "Application Infra Provisioning" workflow</li>
-                        <li><strong>See:</strong> <a href="../application/README.md">Application Infrastructure README</a></li>
+                        <li><strong>See:</strong> <a href="../application_infra/README.md">Application Infrastructure README</a> | <a href="../application/README.md">Application Deployment README</a></li>
                     </ul>
                 </li>
-                <li><strong>Deploy 2FA Applications (Backend and Frontend)</strong>
+                <li><strong>Deploy Application</strong>
                     <ul>
-                        <li><strong>Purpose:</strong> Deploys the 2FA application backend and frontend containers to the EKS cluster</li>
-                        <li><strong>Components:</strong> Backend application (Python FastAPI), Frontend application (HTML/JS/CSS + nginx), Helm charts for both applications</li>
+                        <li><strong>Purpose:</strong> Deploys the 2FA application components, including PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and the 2FA application (backend/frontend)</li>
+                        <li><strong>Components:</strong> PostgreSQL (user registration data), Redis (SMS OTP storage), AWS SES (email verification), AWS SNS (SMS 2FA), ArgoCD Applications (GitOps), Route53 record (for 2FA app), Backend application (Python FastAPI), Frontend application (HTML/JS/CSS + nginx)</li>
                         <li><strong>Account:</strong> Deployment Account (Account B)</li>
-                        <li><strong>Prerequisites:</strong> Application infrastructure (Step 3) must be deployed first, including ECR repository, ALB, Route53, PostgreSQL, Redis, SES, and SNS (if SMS is enabled)</li>
-                        <li><strong>Process:</strong>
-                            <ul>
-                                <li>Build and push Docker images to ECR (via GitHub Actions or manually)</li>
-                                <li>Gather configuration values from Terraform outputs</li>
-                                <li>Create Kubernetes namespace</li>
-                                <li>Deploy backend Helm chart with proper values</li>
-                                <li>Deploy frontend Helm chart with proper values</li>
-                                <li>Verify deployment and access the application</li>
-                            </ul>
-                        </li>
-                        <li><strong>Local:</strong> Follow Step 4 instructions in <a href="#local-step-4">Local Deployment</a> section</li>
-                        <li><strong>GitHub Actions:</strong> Use "Backend Build and Push" and "Frontend Build and Push" workflows, then follow Step 4 instructions in <a href="#github-step-4">GitHub Actions Deployment</a> section</li>
-                        <li><strong>See:</strong> <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a> for complete step-by-step guide</li>
+                        <li><strong>Prerequisites:</strong> Application infrastructure (Step 3) must be deployed first, including StorageClass, ArgoCD Capability, and ALB DNS name</li>
+                        <li><strong>Local:</strong> <code>cd application && ./setup-application.sh</code></li>
+                        <li><strong>GitHub Actions:</strong> "Application Provisioning" workflow</li>
+                        <li><strong>See:</strong> <a href="../application/README.md">Application Deployment README</a> for complete deployment guide</li>
+                        <li><strong>Note:</strong> The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled) or manually using Helm charts. See <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a> for manual deployment instructions.</li>
                     </ul>
                 </li>
             </ol>
-            <p><strong>Destroy Order:</strong> Always destroy in <strong>reverse order</strong>: 2FA Applications → Application Infrastructure → Backend Infrastructure → State</p>
+            <p><strong>Destroy Order:</strong> Always destroy in <strong>reverse order</strong>: Application → Application Infrastructure → Backend Infrastructure → State</p>
             <p><strong>For detailed deployment information:</strong> <a href="../README.md#deployment-methods">Deployment Methods</a> | <a href="../README.md#deployment-overview">Deployment Overview</a></p>
         </div>
     </section>
@@ -1007,11 +1056,14 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
 ├── SECRETS_REQUIREMENTS.md  # Secrets management documentation (AWS Secrets Manager & GitHub Secrets)
 ├── tf_backend_state/      # Terraform state backend infrastructure (S3) - Account A
 ├── backend_infra/         # Core AWS infrastructure (VPC, EKS, VPC endpoints, IRSA) - Account B
-├── application/           # Application infrastructure and deployments - Account B
+├── application_infra/      # Application infrastructure (OpenLDAP, ALB, ArgoCD Capability) - Account B
+│   ├── helm/              # Helm values for OpenLDAP stack
+│   └── modules/           # Infrastructure Terraform modules (ALB, ArgoCD Capability, etc.)
+├── application/           # 2FA Application code and dependencies - Account B
 │   ├── backend/           # 2FA Backend (Python FastAPI)
 │   ├── frontend/          # 2FA Frontend (HTML/JS/CSS + nginx)
-│   ├── helm/              # Helm values for OpenLDAP stack
-│   └── modules/           # Terraform modules (ALB, ArgoCD, SNS, cert-manager, etc.)
+│   ├── helm/              # Helm values for PostgreSQL and Redis
+│   └── modules/           # Application Terraform modules (PostgreSQL, Redis, SES, SNS, ArgoCD Apps)
 └── .github/workflows/     # GitHub Actions workflows for CI/CD</code></pre>
         <h3 id="backend-infrastructure-components">Backend Infrastructure Components</h3>
         <div class="card">
@@ -1040,6 +1092,25 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                         <li>LTB-passwd self-service password management</li>
                     </ul>
                 </li>
+                <li><strong>Application Load Balancer (ALB)</strong> via EKS Auto Mode:
+                    <ul>
+                        <li>Internet-facing ALB with HTTPS/TLS termination</li>
+                        <li>Single ALB handles multiple Ingresses via host-based routing</li>
+                        <li>Automatic provisioning via IngressClass and IngressClassParams</li>
+                        <li>Certificate ARN and group name configured at cluster level</li>
+                    </ul>
+                </li>
+                <li><strong>ArgoCD Capability</strong> (AWS EKS managed service) for GitOps infrastructure with AWS Identity Center</li>
+                <li><strong>cert-manager</strong> for automatic TLS certificate management</li>
+                <li><strong>Network Policies</strong> for securing pod-to-pod communication with cross-namespace support</li>
+                <li><strong>Route53 DNS</strong> records for phpldapadmin and ltb-passwd subdomains pointing to ALB</li>
+                <li><strong>Persistent Storage</strong> using EBS-backed StorageClass (shared by all namespaces)</li>
+            </ul>
+            <p><strong>For detailed infrastructure documentation:</strong> <a href="../application_infra/README.md">Application Infrastructure README</a></p>
+        </div>
+        <h3 id="application-components">Application Components</h3>
+        <div class="card">
+            <ul>
                 <li><strong>2FA Application</strong> with LDAP authentication integration:
                     <ul>
                         <li>Python FastAPI backend with TOTP and SMS MFA support (<a href="../application/backend/README.md">Backend Documentation</a>)</li>
@@ -1050,25 +1121,15 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                         <li>Interactive API documentation (Swagger UI and ReDoc)</li>
                     </ul>
                 </li>
-                <li><strong>Application Load Balancer (ALB)</strong> via EKS Auto Mode:
-                    <ul>
-                        <li>Internet-facing ALB with HTTPS/TLS termination</li>
-                        <li>Single ALB handles multiple Ingresses via host-based routing</li>
-                        <li>Automatic provisioning via IngressClass and IngressClassParams</li>
-                        <li>Certificate ARN and group name configured at cluster level</li>
-                    </ul>
-                </li>
                 <li><strong>PostgreSQL</strong> (Bitnami Helm chart) for user registration and verification token storage</li>
                 <li><strong>Redis</strong> (Bitnami Helm chart) for SMS OTP code storage with TTL-based expiration</li>
                 <li><strong>AWS SES</strong> integration for email verification and notifications (IRSA-based)</li>
-                <li><strong>ArgoCD</strong> (AWS EKS managed service) for GitOps deployments with AWS Identity Center</li>
-                <li><strong>cert-manager</strong> for automatic TLS certificate management</li>
-                <li><strong>Network Policies</strong> for securing pod-to-pod communication with cross-namespace support</li>
-                <li><strong>SNS Integration</strong> for SMS-based 2FA verification (optional, requires VPC endpoint)</li>
-                <li><strong>Route53 DNS</strong> records for subdomains pointing to ALB</li>
-                <li><strong>Persistent Storage</strong> using EBS-backed StorageClass</li>
+                <li><strong>AWS SNS</strong> integration for SMS-based 2FA verification (optional, requires VPC endpoint)</li>
+                <li><strong>ArgoCD Applications</strong> for GitOps-driven backend and frontend deployments</li>
+                <li><strong>Route53 DNS</strong> record for 2FA application subdomain (<code>app.&lt;domain&gt;</code>)</li>
             </ul>
-            <p><strong>For detailed architecture documentation:</strong> <a href="../backend_infra/README.md">Backend Infrastructure README</a> | <a href="../application/README.md">Application Infrastructure README</a></p>
+            <p><strong>For detailed application documentation:</strong> <a href="../application/README.md">Application Deployment README</a></p>
+            <p><strong>Note:</strong> Application components require infrastructure to be deployed first. See <a href="../application_infra/README.md">Application Infrastructure README</a> for infrastructure deployment.</p>
         </div>
     </section>
     <!-- Documentation Index -->
@@ -1085,7 +1146,8 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                 <p>VPC, EKS, IRSA, VPC endpoints, and ECR documentation</p>
             </div>
             <div class="doc-item">
-                <a href="../application/README.md">Application Infrastructure</a>
+                <a href="../application_infra/README.md">Application Infrastructure</a>
+                <a href="../application/README.md">Application Deployment</a>
                 <p>OpenLDAP, 2FA app, ALB, ArgoCD, and deployment instructions</p>
             </div>
         </div>
@@ -1116,8 +1178,12 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                 <p>Redis-based SMS OTP storage with TTL-based automatic expiration</p>
             </div>
             <div class="doc-item">
-                <a href="../application/OPENLDAP-README.md">OpenLDAP README</a>
+                <a href="../application_infra/OPENLDAP-README.md">OpenLDAP README</a>
                 <p>OpenLDAP configuration and TLS setup</p>
+            </div>
+            <div class="doc-item">
+                <a href="../application_infra/OSIXIA-OPENLDAP-REQUIREMENTS.md">Osixia OpenLDAP Requirements</a>
+                <p>OpenLDAP image requirements and configuration details</p>
             </div>
             <div class="doc-item">
                 <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>
@@ -1131,11 +1197,11 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
         <h3 id="module-documentation">Module Documentation</h3>
         <div class="doc-grid">
             <div class="doc-item">
-                <a href="../application/modules/alb/README.md">ALB Module</a>
+                <a href="../application_infra/modules/alb/README.md">ALB Module</a>
                 <p>EKS Auto Mode ALB configuration</p>
             </div>
             <div class="doc-item">
-                <a href="../application/modules/argocd/README.md">ArgoCD Module</a>
+                <a href="../application_infra/modules/argocd/README.md">ArgoCD Capability Module</a>
                 <p>AWS managed ArgoCD setup</p>
             </div>
             <div class="doc-item">
@@ -1143,12 +1209,16 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                 <p>GitOps application deployment</p>
             </div>
             <div class="doc-item">
-                <a href="../application/modules/cert-manager/README.md">cert-manager Module</a>
+                <a href="../application_infra/modules/cert-manager/README.md">cert-manager Module</a>
                 <p>TLS certificate management</p>
             </div>
             <div class="doc-item">
-                <a href="../application/modules/network-policies/README.md">Network Policies Module</a>
+                <a href="../application_infra/modules/network-policies/README.md">Network Policies Module</a>
                 <p>Pod-to-pod security</p>
+            </div>
+            <div class="doc-item">
+                <a href="../application_infra/modules/openldap/README.md">OpenLDAP Module</a>
+                <p>LDAP directory service deployment</p>
             </div>
             <div class="doc-item">
                 <a href="../application/modules/postgresql/README.md">PostgreSQL Module</a>
@@ -1167,7 +1237,11 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                 <p>SMS 2FA integration</p>
             </div>
             <div class="doc-item">
-                <a href="../application/modules/route53_record/README.md">Route53 Record Module</a>
+                <a href="../application_infra/modules/route53/README.md">Route53 Module</a>
+                <p>Route53 hosted zone management</p>
+            </div>
+            <div class="doc-item">
+                <a href="../application_infra/modules/route53_record/README.md">Route53 Record Module</a>
                 <p>Route53 A (alias) records for ALB</p>
             </div>
             <div class="doc-item">
@@ -1186,26 +1260,30 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
         <h3 id="configuration-documentation">Configuration Documentation</h3>
         <div class="doc-grid">
             <div class="doc-item">
-                <a href="../application/PRD-ALB.md">ALB Configuration PRD</a>
+                <a href="../application_infra/PRD-ALB.md">ALB Configuration PRD</a>
                 <p>Application Load Balancer configuration details</p>
             </div>
             <div class="doc-item">
-                <a href="../application/PRD-ArgoCD.md">ArgoCD Configuration PRD</a>
+                <a href="../application_infra/PRD-ArgoCD.md">ArgoCD Capability Configuration PRD</a>
                 <p>GitOps deployment configuration</p>
             </div>
             <div class="doc-item">
-                <a href="../application/PRD-DOMAIN.md">Domain Configuration PRD</a>
+                <a href="../application_infra/PRD-DOMAIN.md">Domain Configuration PRD</a>
                 <p>Route53 and domain setup</p>
             </div>
             <div class="doc-item">
-                <a href="../application/PRD.md">Main PRD</a>
-                <p>Application requirements document</p>
+                <a href="../application_infra/PRD-OPENLDAP.md">OpenLDAP Deployment PRD</a>
+                <p>OpenLDAP deployment requirements and configuration</p>
+            </div>
+            <div class="doc-item">
+                <a href="../application_infra/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a>
+                <p>Route53 and ACM certificate cross-account access configuration</p>
             </div>
         </div>
         <h3 id="security-operations">Security & Operations</h3>
         <div class="doc-grid">
             <div class="doc-item">
-                <a href="../application/SECURITY-IMPROVEMENTS.md">Security Improvements</a>
+                <a href="../application_infra/SECURITY-IMPROVEMENTS.md">Security Improvements</a>
                 <p>Security enhancements and best practices</p>
             </div>
             <div class="doc-item">
@@ -1217,7 +1295,8 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                 <p>Backend infrastructure changes (VPC, EKS, IRSA, VPC endpoints)</p>
             </div>
             <div class="doc-item">
-                <a href="../application/CHANGELOG.md">Application Infrastructure Changelog</a>
+                <a href="../application_infra/CHANGELOG.md">Application Infrastructure Changelog</a>
+                <a href="../application/CHANGELOG.md">Application Changelog</a>
                 <p>Application infrastructure changes (2FA app, OpenLDAP, supporting services)</p>
             </div>
             <div class="doc-item">
@@ -1333,7 +1412,7 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                 <li><strong>ECR Image Support</strong>: All modules (OpenLDAP, PostgreSQL, Redis) use ECR images instead of Docker Hub to prevent rate limiting</li>
                 <li><strong>Kubeconfig Auto-Update</strong>: Automatic kubeconfig updates prevent stale cluster endpoints and DNS lookup errors</li>
             </ul>
-            <p><strong>For detailed security documentation:</strong> <a href="../application/SECURITY-IMPROVEMENTS.md">Security Improvements</a></p>
+            <p><strong>For detailed security documentation:</strong> <a href="../application_infra/SECURITY-IMPROVEMENTS.md">Security Improvements</a></p>
         </div>
     </section>
     <!-- Contributing & Support -->
@@ -1411,7 +1490,8 @@ Monitoring Summary
             <p>For troubleshooting guides, see:</p>
             <ul>
                 <li><a href="../backend_infra/README.md#troubleshooting">Backend Infrastructure Troubleshooting</a></li>
-                <li><a href="../application/README.md#troubleshooting">Application Infrastructure Troubleshooting</a></li>
+                <li><a href="../application_infra/README.md#troubleshooting">Application Infrastructure Troubleshooting</a></li>
+                <li><a href="../application/README.md#troubleshooting">Application Troubleshooting</a></li>
             </ul>
         </div>
         <h3 id="repository">Repository</h3>

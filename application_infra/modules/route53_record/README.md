@@ -8,12 +8,12 @@ Route53 hosted zone is in a different AWS account (State Account) than the ALB
 ## Overview
 
 The Route53 record module creates a single A (alias) record that points a
-subdomain to an ALB DNS name. This module is called multiple times in
-`application/main.tf` to create separate records for each service:
+subdomain to an ALB DNS name. This module is called multiple times across
+different Terraform configurations to create separate records for each service:
 
-- `phpldapadmin.<domain>` → ALB
-- `passwd.<domain>` → ALB
-- `app.<domain>` → ALB
+- `phpldapadmin.<domain>` → ALB (created in `application_infra/main.tf`)
+- `passwd.<domain>` → ALB (created in `application_infra/main.tf`)
+- `app.<domain>` → ALB (created in `application/main.tf`)
 
 ## Features
 
@@ -101,7 +101,9 @@ module "route53_record_example" {
 
 ### Integration in main.tf
 
-The module is called three times in `application/main.tf`:
+The module is called in multiple locations:
+
+**In `application_infra/main.tf`** (for OpenLDAP services):
 
 ```hcl
 # Route53 record for phpLDAPadmin
@@ -117,6 +119,52 @@ module "route53_record_phpldapadmin" {
 
   depends_on = [
     module.openldap,  # Ensures Ingress is created (which triggers ALB creation)
+    data.aws_lb.alb,  # Ensures ALB exists before creating record
+  ]
+
+  providers = {
+    aws.state_account = aws.state_account
+  }
+}
+
+# Route53 record for ltb-passwd
+module "route53_record_ltb_passwd" {
+  source = "./modules/route53_record"
+
+  count = var.use_alb && local.ltb_passwd_host != "" ? 1 : 0
+
+  zone_id      = data.aws_route53_zone.this.zone_id
+  name         = local.ltb_passwd_host
+  alb_dns_name = data.aws_lb.alb[0].dns_name
+  alb_zone_id  = local.alb_zone_id
+
+  depends_on = [
+    module.openldap,  # Ensures Ingress is created (which triggers ALB creation)
+    data.aws_lb.alb,  # Ensures ALB exists before creating record
+  ]
+
+  providers = {
+    aws.state_account = aws.state_account
+  }
+}
+```
+
+**In `application/main.tf`** (for 2FA application):
+
+```hcl
+# Route53 record for 2FA application
+module "route53_record_twofa_app" {
+  source = "../application_infra/modules/route53_record"
+
+  count = var.use_alb && local.app_host != "" ? 1 : 0
+
+  zone_id      = data.aws_route53_zone.this.zone_id
+  name         = local.app_host
+  alb_dns_name = data.aws_lb.alb[0].dns_name
+  alb_zone_id  = local.alb_zone_id
+
+  depends_on = [
+    module.frontend,  # Ensures Ingress is created (which triggers ALB creation)
     data.aws_lb.alb,  # Ensures ALB exists before creating record
   ]
 
@@ -331,7 +379,9 @@ module "route53_record_app" {
 }
 ```
 
-### Multiple Records (as in main.tf)
+### Multiple Records (as in application_infra/main.tf and application/main.tf)
+
+**In `application_infra/main.tf`** (for OpenLDAP services):
 
 ```hcl
 # phpLDAPadmin record
@@ -361,10 +411,14 @@ module "route53_record_ltb_passwd" {
     aws.state_account = aws.state_account
   }
 }
+```
 
+**In `application/main.tf`** (for 2FA application):
+
+```hcl
 # 2FA application record
 module "route53_record_twofa_app" {
-  source = "./modules/route53_record"
+  source = "../application_infra/modules/route53_record"
 
   zone_id      = data.aws_route53_zone.this.zone_id
   name         = "app.example.com"

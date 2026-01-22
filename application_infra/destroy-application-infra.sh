@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Script to configure backend.hcl and variables.tfvars with user-selected region and environment
-# and run Terraform destroy commands for application
-# Usage: ./destroy-application.sh
+# and run Terraform destroy commands
+# Usage: ./destroy-application-infra.sh
 
 set -euo pipefail
 
@@ -211,12 +211,12 @@ get_secret_key_value() {
 #   role_arn: The ARN of the role to assume (required)
 #   external_id: Optional external ID for cross-account role assumption
 #   role_description: Optional description for logging (defaults to "role")
-#   session_name_suffix: Optional suffix for session name (defaults to "destroy-application")
+#   session_name_suffix: Optional suffix for session name (defaults to "destroy-application-infra")
 assume_aws_role() {
     local role_arn=$1
     local external_id=${2:-}
     local role_description=${3:-"role"}
-    local session_name_suffix=${4:-"destroy-application"}
+    local session_name_suffix=${4:-"destroy-application-infra"}
 
     if [ -z "$role_arn" ]; then
         print_error "Role ARN is required for assume_aws_role"
@@ -421,27 +421,26 @@ if [ -z "$TF_VARS_SECRET_JSON" ]; then
     exit 1
 fi
 
-# Extract PostgreSQL password from tf-vars secret
-TF_VAR_POSTGRESQL_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_POSTGRESQL_PASSWORD" || echo "")
-if [ -z "$TF_VAR_POSTGRESQL_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_POSTGRESQL_PASSWORD from secret"
+# Extract OpenLDAP password values from tf-vars secret
+TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_ADMIN_PASSWORD" || echo "")
+if [ -z "$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE" ]; then
+    print_error "Failed to retrieve TF_VAR_OPENLDAP_ADMIN_PASSWORD from secret"
     exit 1
 fi
-print_success "Retrieved TF_VAR_POSTGRESQL_PASSWORD"
+print_success "Retrieved TF_VAR_OPENLDAP_ADMIN_PASSWORD"
 
-# Extract Redis password from tf-vars secret
-TF_VAR_REDIS_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_REDIS_PASSWORD" || echo "")
-if [ -z "$TF_VAR_REDIS_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_REDIS_PASSWORD from secret"
+TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_CONFIG_PASSWORD" || echo "")
+if [ -z "$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE" ]; then
+    print_error "Failed to retrieve TF_VAR_OPENLDAP_CONFIG_PASSWORD from secret"
     exit 1
 fi
-print_success "Retrieved TF_VAR_REDIS_PASSWORD"
+print_success "Retrieved TF_VAR_OPENLDAP_CONFIG_PASSWORD"
 
 # Export as environment variables for Terraform
 # Note: TF_VAR environment variables are case-sensitive and must match variable names in variables.tf
 # Secrets in AWS/GitHub remain uppercase, but environment variables must be lowercase
-export TF_VAR_postgresql_database_password="$TF_VAR_POSTGRESQL_PASSWORD_VALUE"
-export TF_VAR_redis_password="$TF_VAR_REDIS_PASSWORD_VALUE"
+export TF_VAR_openldap_admin_password="$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE"
+export TF_VAR_openldap_config_password="$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE"
 
 print_success "Retrieved and exported all secrets from AWS Secrets Manager"
 echo ""
@@ -452,8 +451,8 @@ print_info "Retrieving repository variables..."
 BUCKET_NAME=$(get_repo_variable "BACKEND_BUCKET_NAME") || exit 1
 print_success "Retrieved BACKEND_BUCKET_NAME"
 
-APPLICATION_PREFIX=$(get_repo_variable "APPLICATION_PREFIX") || exit 1
-print_success "Retrieved APPLICATION_PREFIX"
+APPLICATION_INFRA_PREFIX=$(get_repo_variable "APPLICATION_INFRA_PREFIX") || exit 1
+print_success "Retrieved APPLICATION_INFRA_PREFIX"
 
 # Check if backend.hcl already exists
 if [ -f "$BACKEND_FILE" ]; then
@@ -475,12 +474,12 @@ else
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS sed requires -i '' for in-place editing
         sed -i '' "s|<BACKEND_BUCKET_NAME>|${BUCKET_NAME}|g" "$BACKEND_FILE"
-        sed -i '' "s|<APPLICATION_PREFIX>|${APPLICATION_PREFIX}|g" "$BACKEND_FILE"
+        sed -i '' "s|<APPLICATION_INFRA_PREFIX>|${APPLICATION_INFRA_PREFIX}|g" "$BACKEND_FILE"
         sed -i '' "s|<AWS_REGION>|${AWS_REGION}|g" "$BACKEND_FILE"
     else
         # Linux sed
         sed -i "s|<BACKEND_BUCKET_NAME>|${BUCKET_NAME}|g" "$BACKEND_FILE"
-        sed -i "s|<APPLICATION_PREFIX>|${APPLICATION_PREFIX}|g" "$BACKEND_FILE"
+        sed -i "s|<APPLICATION_INFRA_PREFIX>|${APPLICATION_INFRA_PREFIX}|g" "$BACKEND_FILE"
         sed -i "s|<AWS_REGION>|${AWS_REGION}|g" "$BACKEND_FILE"
     fi
 
@@ -491,12 +490,12 @@ print_success "Configuration files updated successfully!"
 echo ""
 print_info "Backend file: ${BACKEND_FILE}"
 print_info "  - bucket: ${BUCKET_NAME}"
-print_info "  - key: ${APPLICATION_PREFIX}"
+print_info "  - key: ${APPLICATION_INFRA_PREFIX}"
 print_info "  - region: ${AWS_REGION}"
 echo ""
 
 # Assume State Account role for backend operations
-if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "destroy-application"; then
+if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "destroy-application-infra"; then
     exit 1
 fi
 
@@ -518,19 +517,18 @@ print_info "Running terraform validate..."
 terraform validate
 
 # Set Kubernetes environment variables
-# Use the infrastructure's set-k8s-env.sh script (shared between infrastructure and application)
 print_info "Setting Kubernetes environment variables..."
-if [ ! -f "../application_infra/set-k8s-env.sh" ]; then
-    print_error "../application_infra/set-k8s-env.sh not found."
+if [ ! -f "set-k8s-env.sh" ]; then
+    print_error "set-k8s-env.sh not found."
     exit 1
 fi
 
 # Make sure the script is executable
-chmod +x ../application_infra/set-k8s-env.sh
+chmod +x ./set-k8s-env.sh
 
 # Source the script to set environment variables
 # The script uses environment variables (Deployment Account credentials for EKS, State Account credentials for S3)
-source ../application_infra/set-k8s-env.sh
+source ./set-k8s-env.sh
 
 if [ -z "$KUBERNETES_MASTER" ]; then
     print_error "Failed to set KUBERNETES_MASTER environment variable."
@@ -560,9 +558,9 @@ print_info "Running terraform plan destroy..."
 terraform plan -var-file="${VARIABLES_FILE}" -destroy -out terraform.tfplan
 
 # Terraform apply (destroy)
-print_warning "Applying destroy plan. This will DESTROY all application resources..."
+print_warning "Applying destroy plan. This will DESTROY all application infrastructure..."
 terraform apply -auto-approve terraform.tfplan
 
 echo ""
 print_success "Destroy operation completed successfully!"
-print_info "All application resources in ${AWS_REGION} (${ENVIRONMENT}) have been destroyed."
+print_info "All application infrastructure in ${AWS_REGION} (${ENVIRONMENT}) has been destroyed."

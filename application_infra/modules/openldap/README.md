@@ -120,8 +120,9 @@ module "openldap" {
 
 > [!NOTE]
 >
-> Route53 DNS records are created by the dedicated `route53_record` module in
-> `application/main.tf`. See [Route53 Record Module
+> Route53 DNS records for phpLDAPadmin and ltb-passwd are created by the dedicated
+> `route53_record` module in `application_infra/main.tf`. The Route53 record for
+> the 2FA application is created in `application/main.tf`. See [Route53 Record Module
 > Documentation](../route53_record/README.md) for details.
 
 ## High Availability Configuration
@@ -221,7 +222,8 @@ Services in other namespaces can access the LDAP service using:
 - TLS is enabled with auto-generated self-signed certificates from the
   osixia/openldap image (generated on first startup)
 - Network policies are applied by default to secure inter-pod communication
-- Route53 DNS records are created by the dedicated `route53_record` module (see
+- Route53 DNS records for phpLDAPadmin and ltb-passwd are created by the dedicated
+  `route53_record` module in `application_infra/main.tf` (see
   [Route53 Record Module Documentation](../route53_record/README.md))
 - Chart version: 4.0.1 from `https://jp-gouin.github.io/helm-openldap`
 - Helm release name: `openldap-stack-ha` (configurable)

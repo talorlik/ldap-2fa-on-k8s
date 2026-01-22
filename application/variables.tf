@@ -35,194 +35,6 @@ variable "state_account_role_arn" {
   nullable    = true
 }
 
-##################### OpenLDAP ##########################
-variable "app_name" {
-  description = "Application name"
-  type        = string
-}
-
-variable "openldap_ldap_domain" {
-  description = "OpenLDAP domain (e.g., ldap.talorlik.internal)"
-  type        = string
-}
-
-variable "openldap_admin_password" {
-  description = "OpenLDAP admin password. MUST be set via TF_VAR_OPENLDAP_ADMIN_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
-  type        = string
-  sensitive   = true
-  # No default - must be provided via environment variable or .env file
-}
-
-variable "openldap_config_password" {
-  description = "OpenLDAP config password. MUST be set via TF_VAR_OPENLDAP_CONFIG_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
-  type        = string
-  sensitive   = true
-  # No default - must be provided via environment variable or .env file
-}
-
-variable "openldap_secret_name" {
-  description = "Name of the Kubernetes secret for OpenLDAP passwords"
-  type        = string
-  default     = "openldap-secret"
-}
-
-variable "openldap_image_tag" {
-  description = "OpenLDAP image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
-  type        = string
-  default     = "openldap-1.5.0"
-}
-
-variable "postgresql_image_tag" {
-  description = "PostgreSQL image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
-  type        = string
-  default     = "postgresql-latest"
-}
-
-variable "redis_image_tag" {
-  description = "Redis image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
-  type        = string
-  default     = "redis-latest"
-}
-
-##################### Storage ##########################
-
-variable "storage_class_name" {
-  description = "Name of the Kubernetes StorageClass to create and use for OpenLDAP PVC"
-  type        = string
-}
-
-variable "storage_class_type" {
-  description = "EBS volume type for the StorageClass (gp2, gp3, io1, io2, etc.)"
-  type        = string
-}
-
-variable "storage_class_encrypted" {
-  description = "Whether to encrypt EBS volumes created by the StorageClass"
-  type        = bool
-}
-
-variable "storage_class_is_default" {
-  description = "Whether to mark this StorageClass as the default for the cluster"
-  type        = bool
-}
-
-##################### Route53 ##########################
-
-variable "domain_name" {
-  description = "Root domain name for Route53 hosted zone and ACM certificate (e.g., talorlik.com)"
-  type        = string
-}
-
-# variable "subject_alternative_names" {
-#   description = "List of subject alternative names for the ACM certificate (e.g., [\"*.talorlik.com\"])"
-#   type        = list(string)
-#   default     = []
-# }
-
-# variable "use_existing_route53_zone" {
-#   description = "Whether to use an existing Route53 zone"
-#   type        = bool
-#   default     = false
-# }
-
-# Use ALB - can set this to false for to get NLB
-### NLB not yet implemented. If false you get no load balancer
-variable "use_alb" {
-  description = "When true, uses AWS Auto to create ALB. When false an NLB is created"
-  type        = bool
-  default     = true
-}
-
-# variable "ingress_alb_name" {
-#   description = "Name component for ingress ALB resource (between prefix and env)"
-#   type        = string
-# }
-
-# variable "service_alb_name" {
-#   description = "Name component for service ALB resource (between prefix and env)"
-#   type        = string
-# }
-
-variable "ingressclass_alb_name" {
-  description = "Name component for ingressclass ALB resource (between prefix and env)"
-  type        = string
-}
-
-variable "ingressclassparams_alb_name" {
-  description = "Name component for ingressclassparams ALB resource (between prefix and env)"
-  type        = string
-}
-
-##################### ALB Configuration ##########################
-
-variable "alb_group_name" {
-  description = "ALB group name for grouping multiple Ingress resources to share a single ALB. This is an internal Kubernetes identifier (max 63 characters)."
-  type        = string
-  default     = null # If null, will be derived from app_name
-}
-
-variable "alb_load_balancer_name" {
-  description = "Custom name for the AWS ALB (appears in AWS console). Must be ≤ 32 characters per AWS constraints. If null, defaults to alb_group_name (truncated to 32 chars if needed)."
-  type        = string
-  default     = null
-}
-
-variable "phpldapadmin_host" {
-  description = "Hostname for phpLDAPadmin ingress (e.g., phpldapadmin.talorlik.com). If null, will be derived from domain_name"
-  type        = string
-  default     = null
-  nullable    = true
-}
-
-variable "ltb_passwd_host" {
-  description = "Hostname for ltb-passwd ingress (e.g., passwd.talorlik.com). If null, will be derived from domain_name"
-  type        = string
-  default     = null
-  nullable    = true
-}
-
-variable "twofa_app_host" {
-  description = "Hostname for 2FA application ingress (e.g., app.talorlik.com). If null, will be derived from domain_name"
-  type        = string
-  default     = null
-}
-
-variable "alb_scheme" {
-  description = "ALB scheme: internet-facing or internal"
-  type        = string
-  default     = "internet-facing"
-  validation {
-    condition     = contains(["internet-facing", "internal"], var.alb_scheme)
-    error_message = "ALB scheme must be either 'internet-facing' or 'internal'"
-  }
-}
-
-variable "alb_target_type" {
-  description = "ALB target type: ip or instance"
-  type        = string
-  default     = "ip"
-  validation {
-    condition     = contains(["ip", "instance"], var.alb_target_type)
-    error_message = "ALB target type must be either 'ip' or 'instance'"
-  }
-}
-
-variable "alb_ssl_policy" {
-  description = "ALB SSL policy for HTTPS listeners"
-  type        = string
-  default     = "ELBSecurityPolicy-TLS13-1-0-PQ-2025-09"
-}
-
-variable "alb_ip_address_type" {
-  description = "ALB IP address type: ipv4 or dualstack"
-  type        = string
-  default     = "ipv4"
-  validation {
-    condition     = contains(["ipv4", "dualstack"], var.alb_ip_address_type)
-    error_message = "ALB IP address type must be either 'ipv4' or 'dualstack'"
-  }
-}
-
 variable "cluster_name" {
   description = "Full name of the EKS cluster (will be retrieved from backend_infra remote state if backend.hcl exists, otherwise must be provided)"
   type        = string
@@ -242,25 +54,18 @@ variable "terraform_workspace" {
   nullable    = true
 }
 
-variable "kubernetes_master" {
-  description = "Kubernetes API server endpoint (KUBERNETES_MASTER environment variable). Set by set-k8s-env.sh or GitHub workflow. Can be set via TF_VAR_kubernetes_master."
+variable "domain_name" {
+  description = "Root domain name for Route53 hosted zone and ACM certificate (e.g., talorlik.com)"
+  type        = string
+}
+
+variable "twofa_app_host" {
+  description = "Hostname for the 2FA application (e.g., app.talorlik.com). If not provided, defaults to app.{domain_name}"
   type        = string
   default     = null
   nullable    = true
 }
 
-variable "kube_config_path" {
-  description = "Path to kubeconfig file (KUBE_CONFIG_PATH environment variable). Set by set-k8s-env.sh or GitHub workflow. Can be set via TF_VAR_kube_config_path."
-  type        = string
-  default     = null
-  nullable    = true
-}
-
-variable "wait_for_crd" {
-  description = "Whether to wait for EKS Auto Mode CRD to be available before creating IngressClassParams. Set to true for initial cluster deployments, false after cluster is established."
-  type        = bool
-  default     = false
-}
 
 ##################### PostgreSQL User Storage ##########################
 
@@ -304,6 +109,62 @@ variable "postgresql_storage_size" {
   description = "PostgreSQL storage size"
   type        = string
   default     = "8Gi"
+}
+
+variable "postgresql_image_tag" {
+  description = "PostgreSQL image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
+  type        = string
+  default     = "postgresql-latest"
+}
+
+##################### Redis SMS OTP Storage ##########################
+
+variable "enable_redis" {
+  description = "Enable Redis deployment for SMS OTP storage"
+  type        = bool
+  default     = false
+}
+
+variable "redis_password" {
+  description = "Redis authentication password (from GitHub Secrets via TF_VAR_REDIS_PASSWORD)"
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = var.enable_redis == false || length(var.redis_password) >= 8
+    error_message = "Redis password must be at least 8 characters when Redis is enabled."
+  }
+}
+
+variable "redis_secret_name" {
+  description = "Name of the Kubernetes secret for Redis password"
+  type        = string
+  default     = "redis-secret"
+}
+
+variable "redis_namespace" {
+  description = "Kubernetes namespace for Redis"
+  type        = string
+  default     = "redis"
+}
+
+variable "redis_storage_size" {
+  description = "Redis PVC storage size"
+  type        = string
+  default     = "1Gi"
+}
+
+variable "redis_chart_version" {
+  description = "Bitnami Redis Helm chart version"
+  type        = string
+  default     = "19.6.4"
+}
+
+variable "redis_image_tag" {
+  description = "Redis image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
+  type        = string
+  default     = "redis-latest"
 }
 
 ##################### SES Email Verification ##########################
@@ -384,119 +245,6 @@ variable "sms_type" {
 variable "sms_monthly_spend_limit" {
   description = "Monthly spend limit for SMS in USD"
   type        = number
-}
-
-##################### Redis SMS OTP Storage ##########################
-
-variable "enable_redis" {
-  description = "Enable Redis deployment for SMS OTP storage"
-  type        = bool
-  default     = false
-}
-
-variable "redis_password" {
-  description = "Redis authentication password (from GitHub Secrets via TF_VAR_REDIS_PASSWORD)"
-  type        = string
-  sensitive   = true
-  default     = ""
-
-  validation {
-    condition     = var.enable_redis == false || length(var.redis_password) >= 8
-    error_message = "Redis password must be at least 8 characters when Redis is enabled."
-  }
-}
-
-variable "redis_secret_name" {
-  description = "Name of the Kubernetes secret for Redis password"
-  type        = string
-  default     = "redis-secret"
-}
-
-variable "redis_namespace" {
-  description = "Kubernetes namespace for Redis"
-  type        = string
-  default     = "redis"
-}
-
-variable "redis_storage_size" {
-  description = "Redis PVC storage size"
-  type        = string
-  default     = "1Gi"
-}
-
-variable "redis_chart_version" {
-  description = "Bitnami Redis Helm chart version"
-  type        = string
-  default     = "19.6.4"
-}
-
-##################### ArgoCD ##########################
-
-variable "enable_argocd" {
-  description = "Whether to enable ArgoCD capability deployment"
-  type        = bool
-  default     = false
-}
-
-variable "argocd_role_name_component" {
-  description = "Name component for ArgoCD IAM role (between prefix and env)"
-  type        = string
-}
-
-variable "argocd_capability_name_component" {
-  description = "Name component for ArgoCD capability (between prefix and env)"
-  type        = string
-}
-
-variable "argocd_namespace" {
-  description = "Kubernetes namespace for ArgoCD resources"
-  type        = string
-}
-
-variable "argocd_project_name" {
-  description = "ArgoCD project name for cluster registration"
-  type        = string
-}
-
-variable "idc_instance_arn" {
-  description = "ARN of the AWS Identity Center instance used for Argo CD auth"
-  type        = string
-  default     = null
-  nullable    = true
-}
-
-variable "idc_region" {
-  description = "Region of the Identity Center instance"
-  type        = string
-  default     = null
-  nullable    = true
-}
-
-variable "argocd_rbac_role_mappings" {
-  description = "List of RBAC role mappings for Identity Center groups/users"
-  type = list(object({
-    role = string
-    identities = list(object({
-      id   = string
-      type = string # SSO_GROUP or SSO_USER
-    }))
-  }))
-  default = []
-}
-
-variable "argocd_vpce_ids" {
-  description = "Optional list of VPC endpoint IDs for private access to Argo CD"
-  type        = list(string)
-  default     = []
-}
-
-variable "argocd_delete_propagation_policy" {
-  description = "Delete propagation policy for ArgoCD capability (RETAIN or DELETE)"
-  type        = string
-  validation {
-    condition     = contains(["RETAIN", "DELETE"], var.argocd_delete_propagation_policy)
-    error_message = "Delete propagation policy must be either 'RETAIN' or 'DELETE'"
-  }
 }
 
 ##################### ArgoCD Applications ##########################

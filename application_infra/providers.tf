@@ -12,6 +12,10 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.0"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.9"
+    }
   }
 
   backend "s3" {
@@ -70,13 +74,7 @@ locals {
     regex("bucket\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_config.content)[0],
     null
   )
-  backend_key_backend_infra = "backend_state/terraform.tfstate" # backend_infra state key
-
-  backend_key_application_infra = try(
-    regex("key\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_config.content)[0],
-    "application_state/terraform.tfstate" # fallback if backend.hcl doesn't exist
-  )
-
+  backend_key = "backend_state/terraform.tfstate" # backend_infra state key
   backend_region = try(
     regex("region\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_config.content)[0],
     var.region
@@ -91,7 +89,7 @@ locals {
   )
 }
 
-# Retrieve cluster name and ECR info from backend_infra state
+# Retrieve cluster name from backend_infra state
 # Uses the workspace argument to automatically handle workspace-prefixed state keys
 # Reference: https://developer.hashicorp.com/terraform/language/state/remote-state-data
 data "terraform_remote_state" "backend_infra" {
@@ -106,33 +104,12 @@ data "terraform_remote_state" "backend_infra" {
   config = merge(
     {
       bucket = local.backend_bucket
-      key    = local.backend_key_backend_infra
+      key    = local.backend_key
       region = local.backend_region
     },
     # Add assume_role block to assume state account role when accessing remote state
     # This allows cross-account state access without requiring provider configuration
     # Note: Terraform 1.6.0+ requires assume_role block instead of top-level role_arn
-    var.state_account_role_arn != null ? {
-      assume_role = {
-        role_arn = var.state_account_role_arn
-      }
-    } : {}
-  )
-}
-
-# Retrieve StorageClass, ArgoCD capability outputs, and ALB DNS from application_infra state
-data "terraform_remote_state" "application_infra" {
-  count   = local.backend_bucket != null ? 1 : 0
-  backend = "s3"
-
-  workspace = local.terraform_workspace
-
-  config = merge(
-    {
-      bucket = local.backend_bucket
-      key    = local.backend_key_application_infra
-      region = local.backend_region
-    },
     var.state_account_role_arn != null ? {
       assume_role = {
         role_arn = var.state_account_role_arn

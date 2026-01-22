@@ -14,106 +14,17 @@ The application supports **two MFA methods**:
 
 **Repository**: [https://github.com/talorlik/ldap-2fa-on-k8s](https://github.com/talorlik/ldap-2fa-on-k8s)
 
-## Architecture Decisions
+## Functional Requirements
 
-### Routing Pattern (Pattern B - Single Domain)
+### REQ-1: Application Architecture
 
-| Decision | Value |
-| ---------- | ------- |
-| Public hostname | `app.<domain>` (e.g., `app.talo-ldap.com`) |
-| Frontend path | `/` |
-| Backend API path | `/api/*` |
-| DNS records needed | One A/ALIAS record |
-| Ingress resources | Two (one per application) |
-| CORS handling | Not required (same origin) |
-
-### MFA Method Selection
-
-| Method | Use Case | Infrastructure |
-| -------- | ---------- | ---------------- |
-| TOTP | Primary method, no network dependency | None (code generated locally) |
-| SMS | Alternative method, requires phone | AWS SNS, VPC endpoints |
-
-### Traffic Flow
-
-```text
-Internet (Browser / CLI)
-       │
-       │  https://app.<domain>/
-       │  https://app.<domain>/api/...
-       ▼
- Existing ALB (shared via group.name)
-       │
-       ├── Path: /api/*  → Backend Ingress  → Backend Service  → Backend Pods
-       │                                                              │
-       │                                            ┌─────────────────┼─────────────────┐
-       │                                            │                 │                 │
-       │                                            ▼                 ▼                 ▼
-       │                                      LDAP (ClusterIP)   SNS (VPC Endpoint)  STS (IRSA)
-       │
-       └── Path: /*      → Frontend Ingress → Frontend Service → Frontend Pods
-```
-
-## Directory Structure
-
-```text
-ldap-2fa-on-k8s/
-└── application/
-    ├── modules/
-    │   └── sns/                         # Terraform module for SNS
-    │       ├── main.tf
-    │       ├── variables.tf
-    │       ├── outputs.tf
-    │       └── README.md
-    ├── backend/
-    │   ├── src/
-    │   │   ├── app/
-    │   │   │   ├── main.py
-    │   │   │   ├── api/
-    │   │   │   │   ├── __init__.py
-    │   │   │   │   └── routes.py
-    │   │   │   ├── ldap/
-    │   │   │   │   ├── __init__.py
-    │   │   │   │   └── client.py
-    │   │   │   ├── mfa/
-    │   │   │   │   ├── __init__.py
-    │   │   │   │   └── totp.py
-    │   │   │   ├── sms/                 # SMS module for SNS
-    │   │   │   │   ├── __init__.py
-    │   │   │   │   └── client.py
-    │   │   │   └── config.py
-    │   │   └── requirements.txt
-    │   ├── helm/
-    │   │   └── ldap-2fa-backend/
-    │   │       ├── Chart.yaml
-    │   │       ├── values.yaml
-    │   │       └── templates/
-    │   │           ├── deployment.yaml
-    │   │           ├── service.yaml
-    │   │           ├── ingress.yaml
-    │   │           ├── configmap.yaml
-    │   │           ├── secret.yaml
-    │   │           └── serviceaccount.yaml  # For IRSA
-    │   └── Dockerfile
-    │
-    └── frontend/
-        ├── src/
-        │   ├── index.html
-        │   ├── css/
-        │   │   └── styles.css
-        │   └── js/
-        │       ├── api.js
-        │       └── main.js
-        ├── helm/
-        │   └── ldap-2fa-frontend/
-        │       ├── Chart.yaml
-        │       ├── values.yaml
-        │       └── templates/
-        │           ├── deployment.yaml
-        │           ├── service.yaml
-        │           └── ingress.yaml
-        └── Dockerfile
-```
+| ID | Requirement |
+| ---- | ------------- |
+| REQ-1.1 | Application must use single domain pattern (frontend and backend on same domain) |
+| REQ-1.2 | Frontend must be accessible at root path (`/`) |
+| REQ-1.3 | Backend API must be accessible at `/api/*` path |
+| REQ-1.4 | Application must not require CORS configuration (same origin) |
+| REQ-1.5 | Application must use shared ALB via IngressGroup |
 
 ## Backend Requirements
 
@@ -480,76 +391,26 @@ The SNS Terraform module (`application/modules/sns/`) creates:
 | `iam_role_arn` | IAM role ARN for IRSA |
 | `service_account_annotation` | Annotation for K8s service account |
 
-## GitOps Requirements (ArgoCD)
+## Infrastructure Requirements
 
-### ArgoCD Applications
+### REQ-2: GitOps Deployment
 
-| Application | Helm Chart Path | Namespace |
-| ------------- | ----------------- | ----------- |
-| `ldap-2fa-backend` | `application/backend/helm/ldap-2fa-backend` | `2fa-app` |
-| `ldap-2fa-frontend` | `application/frontend/helm/ldap-2fa-frontend` | `2fa-app` |
+| ID | Requirement |
+| ---- | ------------- |
+| REQ-2.1 | Backend and frontend must be deployable via ArgoCD Applications |
+| REQ-2.2 | ArgoCD Applications must support automated sync |
+| REQ-2.3 | ArgoCD Applications must support self-healing |
+| REQ-2.4 | ArgoCD Applications must support resource pruning |
 
-### Sync Configuration
+### REQ-3: CI/CD Pipeline
 
-| Setting | Value |
-| --------- | ------- |
-| Automated sync | Enabled |
-| Self-heal | Enabled |
-| Prune | Enabled |
-
-### Helm Values for SMS
-
-The backend Helm chart must support these SMS-related values:
-
-```yaml
-sms:
-  enabled: true
-  awsRegion: "us-east-1"
-  snsTopicArn: ""
-  senderId: "2FA"
-  smsType: "Transactional"
-  codeLength: 6
-  codeExpirySeconds: 300
-  messageTemplate: "Your verification code is: {code}. It expires in 5 minutes."
-
-serviceAccountIAM:
-  roleArn: ""  # From Terraform output
-```
-
-## CI/CD Requirements (GitHub Actions)
-
-### Backend Workflow
-
-| Trigger | `application/backend/**` changes |
-| --------- | ------------------------------- |
-| Steps | 1. Build Docker image |
-| | 2. Tag with commit SHA |
-| | 3. Push to ECR |
-| | 4. Update `values.yaml` with new image tag |
-| | 5. Commit and push changes |
-
-### Frontend Workflow
-
-| Trigger | `application/frontend/**` changes |
-| --------- | ----------------------------------- |
-| Steps | Same pattern as backend |
-
-### ECR Image Mirroring for Third-Party Images
-
-> [!NOTE]
->
-> **ECR Image Mirroring**: Third-party container images (OpenLDAP, PostgreSQL, Redis)
-> are automatically mirrored from Docker Hub to ECR by the `mirror-images-to-ecr.sh`
-> script before Terraform operations. This eliminates Docker Hub rate limiting
-> and external dependencies. The script:
->
-> - Checks if images exist in ECR (skips if already present)
-> - Pulls images from Docker Hub
-> - Tags and pushes to ECR with standardized tags
-> - Runs automatically in `setup-application.sh` (local) and GitHub Actions workflows
->
-> For details, see [ECR Image Mirroring](../PRD.md#ecr-image-mirroring) in the
-> main PRD.
+| ID | Requirement |
+| ---- | ------------- |
+| REQ-3.1 | Backend code changes must trigger automated build and deployment |
+| REQ-3.2 | Frontend code changes must trigger automated build and deployment |
+| REQ-3.3 | Docker images must be built and pushed to ECR |
+| REQ-3.4 | Image tags must use commit SHA for versioning |
+| REQ-3.5 | Helm chart values must be automatically updated with new image tags |
 
 ## Security Requirements
 
@@ -603,66 +464,33 @@ serviceAccountIAM:
 
 ## Dependencies
 
-### Existing Infrastructure (Prerequisites)
+### REQ-4: Infrastructure Prerequisites
 
-- EKS cluster with Auto Mode enabled
-- EKS cluster with OIDC provider enabled (`enable_irsa = true`)
-- ALB via IngressClass/IngressClassParams
-- OpenLDAP stack-ha deployed
-- Route53 hosted zone configured
-- ACM certificate provisioned and validated
-- ArgoCD EKS Capability module deployed
-- ArgoCD Application module configured
-- ECR repository (created in `backend_infra`) for all images, distinguished by tags
+| ID | Requirement |
+| ---- | ------------- |
+| REQ-4.1 | EKS cluster with Auto Mode must be deployed |
+| REQ-4.2 | EKS cluster must have OIDC provider enabled for IRSA |
+| REQ-4.3 | ALB must be configured via IngressClass/IngressClassParams |
+| REQ-4.4 | OpenLDAP stack must be deployed |
+| REQ-4.5 | Route53 hosted zone must be configured |
+| REQ-4.6 | ACM certificate must be provisioned and validated |
+| REQ-4.7 | ArgoCD EKS Capability must be deployed |
+| REQ-4.8 | ECR repository must exist for container images |
 
-### SMS-Specific Prerequisites
+### REQ-5: SMS-Specific Prerequisites
 
-- VPC endpoint for STS (`enable_sts_endpoint = true` in `backend_infra`)
-- VPC endpoint for SNS (`enable_sns_endpoint = true` in `backend_infra`)
-- SNS Terraform module deployed (`enable_sms_2fa = true` in `application`)
-- IAM role ARN configured in Helm values (`serviceAccountIAM.roleArn`)
+| ID | Requirement |
+| ---- | ------------- |
+| REQ-5.1 | VPC endpoint for STS must be enabled |
+| REQ-5.2 | VPC endpoint for SNS must be enabled |
+| REQ-5.3 | SNS Terraform module must be deployed |
+| REQ-5.4 | IAM role ARN must be configured for backend service account |
 
-## Implementation Checklist
+### REQ-6: GitHub Repository Variables Prerequisites
 
-### Core Implementation
-
-- [ ] Create backend directory structure
-- [ ] Implement backend Python API with `/api/*` endpoints
-- [ ] Create backend Dockerfile
-- [ ] Create backend Helm chart with Ingress (`/api`, order 10)
-- [ ] Create frontend directory structure
-- [ ] Implement frontend HTML/JS/CSS
-- [ ] Create frontend Dockerfile
-- [ ] Create frontend Helm chart with Ingress (`/`, order 20)
-- [ ] Create Route53 A/ALIAS record for `app.<domain>`
-- [ ] Configure ArgoCD Application for backend
-- [ ] Configure ArgoCD Application for frontend
-- [ ] Create GitHub Actions workflow for backend CI/CD
-- [ ] Create GitHub Actions workflow for frontend CI/CD
-- [ ] Verify end-to-end enrollment flow (TOTP)
-- [ ] Verify end-to-end login flow (TOTP)
-- [ ] Verify CLI access via API endpoint
-
-### SMS Implementation
-
-- [ ] Create SNS Terraform module (`application/modules/sns/`)
-- [ ] Add SMS variables to `application/variables.tf`
-- [ ] Add SNS module invocation to `application/main.tf`
-- [ ] Enable STS VPC endpoint in `backend_infra`
-- [ ] Enable SNS VPC endpoint in `backend_infra`
-- [ ] Enable IRSA on EKS cluster (`enable_irsa = true`)
-- [ ] Create backend SMS client (`app/sms/client.py`)
-- [ ] Add SMS configuration to backend `config.py`
-- [ ] Update backend API routes for SMS support
-- [ ] Add boto3 to backend `requirements.txt`
-- [ ] Update backend Helm chart with SMS configuration
-- [ ] Add IRSA annotation to service account template
-- [ ] Update frontend with MFA method selection UI
-- [ ] Update frontend with SMS phone input
-- [ ] Update frontend with "Send SMS Code" button
-- [ ] Create Kubernetes secret for LDAP password
-- [ ] Configure Helm values with IAM role ARN
-- [ ] Verify end-to-end SMS enrollment flow
-- [ ] Verify end-to-end SMS login flow
-- [ ] Verify SMS code expiration
-- [ ] Verify VPC endpoint usage (no NAT traffic)
+| ID | Requirement |
+| ---- | ------------- |
+| REQ-6.1 | `BACKEND_BUCKET_NAME` repository variable must be configured (S3 bucket name for Terraform state storage) |
+| REQ-6.2 | `APPLICATION_PREFIX` repository variable must be configured (value: `application_state/terraform.tfstate`) |
+| REQ-6.3 | Repository variables must be accessible to GitHub Actions workflows and local deployment scripts |
+| REQ-6.4 | State file key must use `APPLICATION_PREFIX` to ensure isolation from infrastructure state |

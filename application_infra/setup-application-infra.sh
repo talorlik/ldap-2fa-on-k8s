@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Script to configure backend.hcl and variables.tfvars with user-selected region and environment
-# and run Terraform destroy commands for application
-# Usage: ./destroy-application.sh
+# and run Terraform commands
+# Usage: ./setup-application-infra.sh
 
 set -euo pipefail
 
@@ -39,10 +39,6 @@ print_success() {
 
 print_info() {
     echo -e "${YELLOW}INFO:${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}WARNING:${NC} $1"
 }
 
 # Check if AWS CLI is installed
@@ -211,12 +207,12 @@ get_secret_key_value() {
 #   role_arn: The ARN of the role to assume (required)
 #   external_id: Optional external ID for cross-account role assumption
 #   role_description: Optional description for logging (defaults to "role")
-#   session_name_suffix: Optional suffix for session name (defaults to "destroy-application")
+#   session_name_suffix: Optional suffix for session name (defaults to "setup-application-infra")
 assume_aws_role() {
     local role_arn=$1
     local external_id=${2:-}
     local role_description=${3:-"role"}
-    local session_name_suffix=${4:-"destroy-application"}
+    local session_name_suffix=${4:-"setup-application-infra"}
 
     if [ -z "$role_arn" ]; then
         print_error "Role ARN is required for assume_aws_role"
@@ -292,24 +288,6 @@ assume_aws_role() {
     return 0
 }
 
-# Warning about destructive operation
-echo ""
-print_warning "=========================================="
-print_warning "  DESTRUCTIVE OPERATION WARNING"
-print_warning "=========================================="
-print_warning "This script will DESTROY all application"
-print_warning "infrastructure in the selected region and environment."
-print_warning ""
-print_warning "This action CANNOT be undone!"
-print_warning "=========================================="
-echo ""
-read -p "Are you sure you want to continue? (type 'yes' to confirm): " confirmation
-
-if [ "$confirmation" != "yes" ]; then
-    print_info "Operation cancelled."
-    exit 0
-fi
-
 # Interactive prompts
 echo ""
 print_info "Select AWS Region:"
@@ -358,18 +336,6 @@ print_success "Selected environment: ${ENVIRONMENT}"
 export ENVIRONMENT
 echo ""
 
-# Final confirmation with environment details
-print_warning "You are about to DESTROY application infrastructure in:"
-print_warning "  Region: ${AWS_REGION}"
-print_warning "  Environment: ${ENVIRONMENT}"
-echo ""
-read -p "Type 'DESTROY' to confirm: " final_confirmation
-
-if [ "$final_confirmation" != "DESTROY" ]; then
-    print_info "Operation cancelled."
-    exit 0
-fi
-
 # Retrieve role ARNs from AWS Secrets Manager in a single call
 # This minimizes AWS CLI calls by fetching all required role ARNs at once
 print_info "Retrieving role ARNs from AWS Secrets Manager..."
@@ -379,12 +345,13 @@ if [ -z "$ROLE_SECRET_JSON" ]; then
     exit 1
 fi
 
-# Extract STATE_ACCOUNT_ROLE_ARN for backend state operations
+# Extract STATE_ACCOUNT_ROLE_ARN for backend state operations and Route53/ACM access
 STATE_ROLE_ARN=$(get_secret_key_value "$ROLE_SECRET_JSON" "AWS_STATE_ACCOUNT_ROLE_ARN" || echo "")
 if [ -z "$STATE_ROLE_ARN" ]; then
     print_error "Failed to retrieve AWS_STATE_ACCOUNT_ROLE_ARN from secret"
     exit 1
 fi
+export STATE_ACCOUNT_ROLE_ARN="$STATE_ROLE_ARN"
 print_success "Retrieved AWS_STATE_ACCOUNT_ROLE_ARN"
 
 # Determine which deployment account role ARN to use based on environment
@@ -421,27 +388,26 @@ if [ -z "$TF_VARS_SECRET_JSON" ]; then
     exit 1
 fi
 
-# Extract PostgreSQL password from tf-vars secret
-TF_VAR_POSTGRESQL_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_POSTGRESQL_PASSWORD" || echo "")
-if [ -z "$TF_VAR_POSTGRESQL_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_POSTGRESQL_PASSWORD from secret"
+# Extract OpenLDAP password values from tf-vars secret
+TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_ADMIN_PASSWORD" || echo "")
+if [ -z "$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE" ]; then
+    print_error "Failed to retrieve TF_VAR_OPENLDAP_ADMIN_PASSWORD from secret"
     exit 1
 fi
-print_success "Retrieved TF_VAR_POSTGRESQL_PASSWORD"
+print_success "Retrieved TF_VAR_OPENLDAP_ADMIN_PASSWORD"
 
-# Extract Redis password from tf-vars secret
-TF_VAR_REDIS_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_REDIS_PASSWORD" || echo "")
-if [ -z "$TF_VAR_REDIS_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_REDIS_PASSWORD from secret"
+TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_CONFIG_PASSWORD" || echo "")
+if [ -z "$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE" ]; then
+    print_error "Failed to retrieve TF_VAR_OPENLDAP_CONFIG_PASSWORD from secret"
     exit 1
 fi
-print_success "Retrieved TF_VAR_REDIS_PASSWORD"
+print_success "Retrieved TF_VAR_OPENLDAP_CONFIG_PASSWORD"
 
 # Export as environment variables for Terraform
 # Note: TF_VAR environment variables are case-sensitive and must match variable names in variables.tf
 # Secrets in AWS/GitHub remain uppercase, but environment variables must be lowercase
-export TF_VAR_postgresql_database_password="$TF_VAR_POSTGRESQL_PASSWORD_VALUE"
-export TF_VAR_redis_password="$TF_VAR_REDIS_PASSWORD_VALUE"
+export TF_VAR_openldap_admin_password="$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE"
+export TF_VAR_openldap_config_password="$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE"
 
 print_success "Retrieved and exported all secrets from AWS Secrets Manager"
 echo ""
@@ -452,8 +418,8 @@ print_info "Retrieving repository variables..."
 BUCKET_NAME=$(get_repo_variable "BACKEND_BUCKET_NAME") || exit 1
 print_success "Retrieved BACKEND_BUCKET_NAME"
 
-APPLICATION_PREFIX=$(get_repo_variable "APPLICATION_PREFIX") || exit 1
-print_success "Retrieved APPLICATION_PREFIX"
+APPLICATION_INFRA_PREFIX=$(get_repo_variable "APPLICATION_INFRA_PREFIX") || exit 1
+print_success "Retrieved APPLICATION_INFRA_PREFIX"
 
 # Check if backend.hcl already exists
 if [ -f "$BACKEND_FILE" ]; then
@@ -475,12 +441,12 @@ else
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS sed requires -i '' for in-place editing
         sed -i '' "s|<BACKEND_BUCKET_NAME>|${BUCKET_NAME}|g" "$BACKEND_FILE"
-        sed -i '' "s|<APPLICATION_PREFIX>|${APPLICATION_PREFIX}|g" "$BACKEND_FILE"
+        sed -i '' "s|<APPLICATION_INFRA_PREFIX>|${APPLICATION_INFRA_PREFIX}|g" "$BACKEND_FILE"
         sed -i '' "s|<AWS_REGION>|${AWS_REGION}|g" "$BACKEND_FILE"
     else
         # Linux sed
         sed -i "s|<BACKEND_BUCKET_NAME>|${BUCKET_NAME}|g" "$BACKEND_FILE"
-        sed -i "s|<APPLICATION_PREFIX>|${APPLICATION_PREFIX}|g" "$BACKEND_FILE"
+        sed -i "s|<APPLICATION_INFRA_PREFIX>|${APPLICATION_INFRA_PREFIX}|g" "$BACKEND_FILE"
         sed -i "s|<AWS_REGION>|${AWS_REGION}|g" "$BACKEND_FILE"
     fi
 
@@ -491,46 +457,65 @@ print_success "Configuration files updated successfully!"
 echo ""
 print_info "Backend file: ${BACKEND_FILE}"
 print_info "  - bucket: ${BUCKET_NAME}"
-print_info "  - key: ${APPLICATION_PREFIX}"
+print_info "  - key: ${APPLICATION_INFRA_PREFIX}"
 print_info "  - region: ${AWS_REGION}"
 echo ""
 
 # Assume State Account role for backend operations
-if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "destroy-application"; then
+if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "setup-application-infra"; then
     exit 1
 fi
 
 echo ""
 
-# Terraform workspace name
+# Terraform workspace name (same as backend_infra)
 WORKSPACE_NAME="${AWS_REGION}-${ENVIRONMENT}"
 
 # Terraform init
 print_info "Running terraform init with backend configuration..."
 terraform init -backend-config="${BACKEND_FILE}"
 
-# Terraform workspace
+# Terraform workspace (create/select before running mirror script)
 print_info "Selecting or creating workspace: ${WORKSPACE_NAME}..."
 terraform workspace select "${WORKSPACE_NAME}" 2>/dev/null || terraform workspace new "${WORKSPACE_NAME}"
+
+echo ""
+
+# Mirror third-party images to ECR (if not already present)
+print_info "Checking if Docker images need to be mirrored to ECR..."
+if [ ! -f "mirror-images-to-ecr.sh" ]; then
+    print_error "mirror-images-to-ecr.sh not found."
+    exit 1
+fi
+
+# Make sure the script is executable
+chmod +x ./mirror-images-to-ecr.sh
+
+# Run the image mirroring script
+if ./mirror-images-to-ecr.sh; then
+    print_success "ECR image mirroring completed"
+else
+    print_error "ECR image mirroring failed"
+    exit 1
+fi
 
 # Terraform validate
 print_info "Running terraform validate..."
 terraform validate
 
 # Set Kubernetes environment variables
-# Use the infrastructure's set-k8s-env.sh script (shared between infrastructure and application)
 print_info "Setting Kubernetes environment variables..."
-if [ ! -f "../application_infra/set-k8s-env.sh" ]; then
-    print_error "../application_infra/set-k8s-env.sh not found."
+if [ ! -f "set-k8s-env.sh" ]; then
+    print_error "set-k8s-env.sh not found."
     exit 1
 fi
 
 # Make sure the script is executable
-chmod +x ../application_infra/set-k8s-env.sh
+chmod +x ./set-k8s-env.sh
 
 # Source the script to set environment variables
 # The script uses environment variables (Deployment Account credentials for EKS, State Account credentials for S3)
-source ../application_infra/set-k8s-env.sh
+source ./set-k8s-env.sh
 
 if [ -z "$KUBERNETES_MASTER" ]; then
     print_error "Failed to set KUBERNETES_MASTER environment variable."
@@ -548,21 +533,20 @@ print_info "  - TF_VAR_kubernetes_master: ${TF_VAR_kubernetes_master}"
 print_info "  - TF_VAR_kube_config_path: ${TF_VAR_kube_config_path}"
 echo ""
 
-# Assume State Account role again for Terraform operations
-if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "destroy-application-infra"; then
+# Assume State Account role for backend operations
+if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "setup-application-infra"; then
     exit 1
 fi
 
 echo ""
 
-# Terraform plan destroy
-print_info "Running terraform plan destroy..."
-terraform plan -var-file="${VARIABLES_FILE}" -destroy -out terraform.tfplan
+# Terraform plan
+print_info "Running terraform plan..."
+terraform plan -var-file="${VARIABLES_FILE}" -out terraform.tfplan
 
-# Terraform apply (destroy)
-print_warning "Applying destroy plan. This will DESTROY all application resources..."
+# Terraform apply
+print_info "Running terraform apply..."
 terraform apply -auto-approve terraform.tfplan
 
 echo ""
-print_success "Destroy operation completed successfully!"
-print_info "All application resources in ${AWS_REGION} (${ENVIRONMENT}) have been destroyed."
+print_success "Script completed successfully!"

@@ -1,0 +1,1327 @@
+# Application Infrastructure
+
+This Terraform configuration deploys the infrastructure components required for
+the LDAP 2FA application, including the OpenLDAP stack with PhpLdapAdmin and
+LTB-passwd UIs, plus supporting infrastructure on the EKS cluster created by
+the backend infrastructure.
+
+## Overview
+
+The application infrastructure provisions:
+
+- **Route53 Hosted Zone** for domain management (can be in State Account)
+- **ACM Certificate** with DNS validation for HTTPS (public ACM certificate
+  requested in Deployment Account, validated via DNS records in State Account)
+- **Helm Release** for OpenLDAP Stack HA (High Availability)
+- **Application Load Balancer (ALB)** via EKS Auto Mode Ingress
+- **Persistent Storage** using EBS-backed PVCs (StorageClass for use by application components)
+- **Internet-Facing ALB** for UI access from the internet
+- **ArgoCD Capability** for GitOps deployments (AWS EKS managed service)
+- **cert-manager** module available (future improvement for automatic TLS
+certificate management)
+- **Network Policies** for securing pod-to-pod communication
+
+> [!NOTE]
+>
+> The 2FA application (backend and frontend), PostgreSQL, Redis, SES, and SNS
+> are deployed separately via the `application/` directory. See
+> [application/README.md](../application/README.md) for application deployment
+> details.
+
+## Architecture
+
+```ascii
+┌───────────────────────────────────────────────────────────────────┐
+│                         EKS Cluster                               │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                    LDAP Namespace                           │  │
+│  │                                                             │  │
+│  │  ┌──────────────┐  ┌──────────────────┐  ┌──────────────┐   │  │
+│  │  │ OpenLDAP     │  │ PhpLdapAdmin     │  │ LTB-passwd   │   │  │
+│  │  │ StatefulSet  │  │ Deployment       │  │ Deployment   │   │  │
+│  │  │              │  │                  │  │              │   │  │
+│  │  │ ClusterIP    │  │ Ingress (ALB)    │  │ Ingress (ALB)│   │  │
+│  │  │ (Internal)   │  │ (Internet)       │  │ (Internet)   │   │  │
+│  │  └──────────────┘  └──────────────────┘  └──────────────┘   │  │
+│  │                                                             │  │
+│  │  ┌──────────────┐                                           │  │
+│  │  │ EBS PVC      │                                           │  │
+│  │  │ (8Gi)        │                                           │  │
+│  │  └──────────────┘                                           │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                   ArgoCD (EKS Managed)                      │  │
+│  │                   GitOps Capability                          │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+         │
+         │
+    ┌────▼────────────────────────────┐
+    │  Internet-Facing ALB            │
+    │  (HTTPS)                        │
+    │  - phpldapadmin.domain          │
+    │  - passwd.domain                │
+    └─────────────────────────────────┘
+         │
+         │
+    ┌────▼────────┐
+    │  Internet   │
+    │  Access     │
+    └─────────────┘
+```
+
+## Components
+
+### 1. Route53 Hosted Zone and ACM Certificate
+
+> [!NOTE]
+>
+> The Route53 module (`modules/route53/`) exists but is currently
+> **commented out** in `main.tf`. The code uses **data sources** to reference
+> existing Route53 hosted zone and ACM certificate resources that must already
+> exist.
+>
+> **Cross-Account Access**: Route53 hosted zone and ACM certificate can be in
+> the State Account (different from deployment account). When
+> `state_account_role_arn` is configured, Terraform automatically queries these
+> resources from the State Account. See [Cross-Account Access
+> Documentation](./CROSS-ACCOUNT-ACCESS.md) for details.
+
+**Current Implementation (Data Sources):**
+
+The code references existing resources using data sources:
+
+- **Route53 Hosted Zone**: Must already exist (referenced via
+`data.aws_route53_zone`)
+- **ACM Certificate**: Must already exist and be validated (referenced via
+`data.aws_acm_certificate`)
+  - Certificate must be a public ACM certificate (Amazon-issued) requested in
+    the Deployment Account
+  - Certificate must exist in the Deployment Account (not State Account)
+  - Certificate must be validated and in `ISSUED` status
+  - DNS validation records must be created in Route53 hosted zone in the State
+    Account
+  - See [Public ACM Certificate Setup and DNS Validation](./CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+    for setup instructions
+- The certificate must be in the same region as the EKS cluster
+
+**Prerequisites:**
+
+- Route53 hosted zone must be created beforehand (manually or via another
+Terraform configuration)
+- **Public ACM Certificate Setup**: Public ACM certificates must be requested in
+  each deployment account and validated using DNS records in the State Account's
+  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](./CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  for detailed setup instructions with step-by-step AWS CLI commands.
+- ACM certificate must be requested in each deployment account (development,
+  production) as a public ACM certificate (Amazon-issued)
+- Certificate must be validated via DNS validation records created in Route53
+  hosted zone in the State Account
+- Certificate must be in `ISSUED` status
+- Certificate must be in the same region as the EKS cluster
+- Certificate must exist in the Deployment Account (not State Account)
+
+**Outputs:**
+
+Outputs come from data sources (not module outputs):
+
+- `route53_acm_cert_arn`: ACM certificate ARN from data source (used by ALB)
+- `route53_domain_name`: Root domain name from variable
+- `route53_zone_id`: Route53 hosted zone ID from data source
+- `route53_name_servers`: Route53 name servers from data source (for registrar
+configuration)
+
+**Alternative Approach:**
+
+If you want to create Route53 zone and ACM certificate via Terraform, uncomment
+the Route53 module in `main.tf` (lines 43-53) and update the code to use module
+outputs instead of data sources.
+
+### 1a. Route53 Record Module
+
+The `modules/route53_record/` module creates Route53 A (alias) records pointing
+to the ALB. This module is called separately for each subdomain (phpldapadmin,
+ltb_passwd) to create individual DNS records.
+
+> [!NOTE]
+>
+> The Route53 record for the 2FA application (`app.${domain_name}`) is created
+> by the `application/` directory, not `application_infra/`. See
+> [application/README.md](../application/README.md) for details.
+
+> [!NOTE]
+>
+> For detailed Route53 record module documentation, including cross-account
+> access, ALB zone_id mapping, dependencies, and usage examples, see the
+> [Route53 Record Module Documentation](modules/route53_record/README.md).
+
+**Key Features:**
+
+- **Cross-Account Support**: Uses state account provider to create records in
+  State Account while ALB is in Deployment Account
+- **ALB Alias Records**: Creates A (alias) records for optimal performance
+- **Health Check Integration**: Supports target health evaluation
+- **Precondition Validation**: Ensures ALB DNS name is available before record
+  creation
+- **Safe Updates**: Uses `create_before_destroy` lifecycle to prevent DNS
+  downtime
+
+**Module Calls in main.tf:**
+
+- `module.route53_record_phpldapadmin` - Creates A record for phpLDAPadmin
+- `module.route53_record_ltb_passwd` - Creates A record for ltb-passwd
+
+**Dependencies:**
+
+- OpenLDAP module (ensures Ingress is created, which triggers ALB creation)
+- ALB data source (ensures ALB exists before creating record)
+
+### 2. OpenLDAP Stack HA Helm Release
+
+Deploys the complete OpenLDAP stack using the
+[helm-openldap](https://github.com/jp-gouin/helm-openldap) Helm chart:
+
+- **OpenLDAP StatefulSet**: Core LDAP server with EBS-backed persistent storage
+- **PhpLdapAdmin**: Web-based LDAP administration interface
+- **LTB-passwd**: Self-service password management UI
+- **Internal LDAP Service**: ClusterIP service (not exposed externally)
+
+**Key Configuration:**
+
+- Chart: `openldap-stack-ha` version `4.0.1`
+- Repository: `https://jp-gouin.github.io/helm-openldap`
+- Namespace: `ldap` (created automatically)
+- Storage: Creates a new PVC using a StorageClass created by this Terraform
+configuration (see Storage Configuration section below)
+- LDAP Ports: Standard ports (389 for LDAP, 636 for LDAPS)
+- **ECR Images**: Uses ECR images instead of Docker Hub (images mirrored via
+  `mirror-images-to-ecr.sh`)
+  - Image tags: `redis-latest`, `postgresql-latest`, `openldap-1.5.0`
+- **Route53 Records**: Route53 record creation has been moved to the dedicated
+  `route53_record` module (see Route53 Record Module section above)
+- **Helm Release Safety**: Comprehensive Helm release attributes (atomic,
+  force_update, replace, cleanup_on_fail, recreate_pods, wait, wait_for_jobs,
+  upgrade_install) for safer deployments
+
+> [!NOTE]
+>
+> The 2FA application (backend and frontend), PostgreSQL, Redis, SES, and SNS
+> are deployed separately via the `application/` directory. See
+> [application/README.md](../application/README.md) for application deployment
+> details.
+
+### 3. Application Load Balancer (ALB)
+
+The ALB is automatically provisioned by EKS Auto Mode when Ingress resources are
+created with the appropriate annotations. The ALB provides:
+
+- **Internet-Facing Access**: Accessible from the internet (`scheme: internet-facing`)
+- **HTTPS Only**: TLS termination at ALB using ACM certificate
+- **Target Type**: IP mode (direct pod targeting)
+- **Multiple Hostnames**: Single ALB handles all services via host-based routing
+
+The ALB is created via Kubernetes Ingress resources using EKS Auto Mode
+(not AWS Load Balancer Controller). The `elastic_load_balancing` capability is
+**enabled by default** when EKS Auto Mode is enabled (configured in backend_infra
+via `compute_config.enabled = true`).
+
+> [!NOTE]
+>
+> For detailed ALB configuration, annotation strategy, EKS Auto Mode vs
+> AWS Load Balancer Controller differences, and implementation details,
+> see the [ALB Module Documentation](modules/alb/README.md).
+
+### 4. Storage Configuration
+
+Creates a StorageClass and the Helm chart creates a new PVC using that
+StorageClass:
+
+- **StorageClass**: Created by this Terraform configuration
+(`kubernetes_storage_class_v1` resource)
+  - Name: `${prefix}-${region}-${storage_class_name}-${env}`
+  - Provisioner: `ebs.csi.eks.amazonaws.com`
+  - Volume binding mode: `WaitForFirstConsumer`
+  - Encryption: Configurable via `storage_class_encrypted` variable
+  - Volume type: Configurable via `storage_class_type` variable (gp2, gp3, io1,
+  io2, etc.)
+  - Can be set as default StorageClass via `storage_class_is_default` variable
+- **PVC**: Created by the Helm chart using the StorageClass
+  - **Storage Size**: 8Gi (configurable in Helm values)
+  - **Access Mode**: ReadWriteOnce
+  - The Helm chart creates a new PVC, it does not reuse an existing PVC from
+  backend infrastructure
+
+### 5. Network Policies
+
+The `modules/network-policies/` module creates Kubernetes Network Policies to secure
+internal cluster communication, enforcing secure ports only (443, 636, 8443) and
+enabling cross-namespace communication for LDAP service access.
+
+> [!NOTE]
+>
+> For detailed network policy rules, security configuration, and cross-namespace
+> communication setup, see the [Network Policies Module Documentation](modules/network-policies/README.md).
+
+### 6. ArgoCD Capability (GitOps)
+
+The `modules/argocd/` module deploys the AWS EKS managed ArgoCD service for GitOps
+deployments, including IAM integration, Identity Center authentication, and
+cluster registration.
+
+The `modules/argocd_app/` module creates ArgoCD Application CRDs for GitOps-driven
+deployments.
+
+> [!NOTE]
+>
+> For detailed ArgoCD configuration, Identity Center setup, Application CRD creation,
+> and deployment examples, see:
+>
+> - [ArgoCD Module Documentation](modules/argocd/README.md)
+> - [ArgoCD Application Module Documentation](modules/argocd_app/README.md)
+
+### 7. cert-manager Module
+
+> [!NOTE]
+>
+> **Current Status**: The cert-manager module exists in the codebase but is
+> **not currently used** by the OpenLDAP module. OpenLDAP currently uses auto-generated
+> self-signed certificates from the osixia/openldap image. Integrating cert-manager
+> for automatic TLS certificate management is a **future improvement** that
+> would provide:
+>
+> - Automatic certificate generation and renewal
+> - Better certificate lifecycle management
+> - Integration with Let's Encrypt or other certificate authorities
+> - Consistent certificate management across services
+>
+> For detailed cert-manager configuration, certificate management, and usage examples,
+> see the [cert-manager Module Documentation](modules/cert-manager/README.md).
+
+## Module Structure
+
+```bash
+application_infra/
+├── main.tf                    # Main infrastructure configuration
+├── variables.tf               # Variable definitions
+├── variables.tfvars          # Variable values (customize for your environment)
+├── outputs.tf                 # Output values (exports StorageClass, ArgoCD outputs, ALB DNS)
+├── providers.tf               # Provider configuration (AWS, Kubernetes, Helm)
+├── backend.hcl                # Terraform backend configuration
+├── tfstate-backend-values-template.hcl  # Backend state configuration template
+├── CHANGELOG.md              # Change log for infrastructure changes
+├── setup-application-infra.sh # Infrastructure setup script
+├── destroy-application-infra.sh # Infrastructure destroy script
+├── mirror-images-to-ecr.sh   # Script to mirror Docker images to ECR
+├── set-k8s-env.sh            # Kubernetes environment setup script
+├── helm/
+│   └── openldap-values.tpl.yaml  # OpenLDAP Helm values template
+├── modules/
+│   ├── alb/                    # ALB module - creates IngressClass and IngressClassParams for EKS Auto Mode
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── argocd/                 # ArgoCD Capability module - deploys managed ArgoCD
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── cert-manager/           # cert-manager module - TLS certificate management
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── network-policies/       # Network Policies module - secures pod-to-pod communication
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── openldap/               # OpenLDAP module - LDAP directory service deployment
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── route53/                # Route53 module - hosted zone and DNS management
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   └── route53_record/         # Route53 Record module - A (alias) records for ALB
+│       ├── main.tf
+│       ├── variables.tf
+│       ├── outputs.tf
+│       ├── providers.tf
+│       └── README.md
+├── PRD-ALB.md                  # ALB configuration PRD
+├── PRD-ArgoCD.md               # ArgoCD Capability configuration PRD
+├── PRD-DOMAIN.md               # Domain configuration PRD
+├── OPENLDAP-README.md          # OpenLDAP deployment documentation
+├── OSIXIA-OPENLDAP-REQUIREMENTS.md  # OpenLDAP requirements documentation
+├── SECURITY-IMPROVEMENTS.md   # Security improvements documentation
+├── CROSS-ACCOUNT-ACCESS.md    # Cross-account Route53/ACM access documentation
+└── README.md                   # This file
+```
+
+> [!NOTE]
+>
+> Application components (backend, frontend, PostgreSQL, Redis, SES, SNS, ArgoCD
+> Applications) are deployed separately via the `application/` directory. See
+> [application/README.md](../application/README.md) for application deployment
+> details.
+```
+
+## Prerequisites
+
+1. **Backend Infrastructure**: The backend infrastructure must be deployed first
+(see [backend_infra/README.md](../backend_infra/README.md))
+2. **Multi-Account Setup**:
+   - **Account A (State Account)**: Stores Terraform state in S3, Route53
+     hosted zones, and ACM certificates
+   - **Account B (Deployment Account)**: Contains application resources (EKS,
+     ALB, etc.)
+   - Route53 hosted zone and ACM certificate can be in State Account
+     (accessed via `state_account_role_arn`)
+   - Route53 records are created in State Account while ALB is deployed in
+     Deployment Account
+   - ALB in Deployment Account can use ACM certificate from State Account
+     (same region required)
+   - GitHub Actions uses Account A role for backend access and Route53/ACM
+     access
+   - Terraform provider assumes Account B role for resource deployment
+   - See [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) for
+     details
+3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main
+[README.md](../README.md))
+4. **EKS Cluster**: The EKS cluster must be running with Auto Mode enabled
+5. **Route53 Hosted Zone**: Must already exist (the Route53 module is commented
+out, code uses data sources)
+6. **Public ACM Certificate Setup**: Public ACM certificates must be requested in
+   each deployment account and validated using DNS records in the State Account's
+   Route53 hosted zone
+   - See [Public ACM Certificate Setup and DNS Validation](./CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+     for detailed setup instructions with step-by-step AWS CLI commands
+   - Each deployment account (development, production) has its own public ACM
+     certificate
+   - Certificates are automatically renewed by ACM
+7. **ACM Certificate**: Must already exist and be validated in the same region
+   as the EKS cluster
+   - Certificate must be a public ACM certificate (Amazon-issued) requested in
+     the Deployment Account
+   - Certificate must exist in the Deployment Account (not State Account)
+   - Certificate must be validated and in `ISSUED` status
+   - DNS validation records must be created in Route53 hosted zone in the State
+     Account
+   - See [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) for
+     details
+8. **Domain Registration**: The domain name must be registered (can be with any
+registrar)
+9. **DNS Configuration**: After deployment, point your domain registrar's NS
+records to the Route53 name servers (output from data source)
+10. **Environment Variables**: OpenLDAP passwords must be set via environment
+variables (see Configuration section)
+11. **AWS Identity Center**: Required for ArgoCD RBAC configuration
+12. **Secrets Configuration**: All required secrets must be configured.
+See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete setup instructions.
+13. **GitHub Repository Variables**: The following repository variables must be configured:
+   - `BACKEND_BUCKET_NAME`: S3 bucket name for Terraform state storage
+   - `APPLICATION_INFRA_PREFIX`: State file key prefix (value: `application_infra_state/terraform.tfstate`)
+14. **Docker (for Local Deployment)**: Docker must be installed and running for
+ECR image mirroring. The `mirror-images-to-ecr.sh` script requires Docker to
+pull images from Docker Hub and push them to ECR.
+15. **jq (for Local Deployment)**: The `jq` command-line tool is required for
+JSON parsing in the image mirroring script (with fallback to sed for
+compatibility).
+
+## Backend State Configuration
+
+The application infrastructure uses a separate Terraform state file stored in the same
+S3 bucket as other infrastructure components, but with a unique key to prevent conflicts.
+
+### State File Configuration
+
+- **Template File**: `tfstate-backend-values-template.hcl`
+- **Generated File**: `backend.hcl` (auto-generated by setup script, git-ignored)
+- **Bucket**: Same as other infrastructure (`BACKEND_BUCKET_NAME` repository variable)
+- **Key**: Uses `APPLICATION_INFRA_PREFIX` repository variable (value: `application_infra_state/terraform.tfstate`)
+- **Region**: Same AWS region as the deployment
+
+### Repository Variables Required
+
+1. **`BACKEND_BUCKET_NAME`**: The S3 bucket name where Terraform state is stored
+   - Must be the same bucket used by `backend_infra` and `application`
+   - Example: `talo-tf-395323424870-s3-tfstate`
+
+2. **`APPLICATION_INFRA_PREFIX`**: The state file key prefix for application infrastructure state
+   - Value: `application_infra_state/terraform.tfstate`
+   - This ensures the infrastructure state is stored separately from application state
+   - The full S3 key will be: `application_infra_state/terraform.tfstate` (or `env:/${workspace}/application_infra_state/terraform.tfstate` for non-default workspaces)
+
+### State File Generation
+
+The `setup-application-infra.sh` script automatically:
+
+1. Retrieves `BACKEND_BUCKET_NAME` and `APPLICATION_INFRA_PREFIX` from GitHub repository variables
+2. Creates `backend.hcl` from `tfstate-backend-values-template.hcl` template
+3. Replaces placeholders:
+   - `<BACKEND_BUCKET_NAME>` → actual bucket name
+   - `<APPLICATION_INFRA_PREFIX>` → `application_infra_state/terraform.tfstate`
+   - `<AWS_REGION>` → selected AWS region
+
+The generated `backend.hcl` file is git-ignored and should not be committed to the repository.
+
+### State File Isolation
+
+Each directory maintains its own state file in the same S3 bucket:
+
+- **`application_infra/`**: Uses `APPLICATION_INFRA_PREFIX` → `application_infra_state/terraform.tfstate`
+- **`application/`**: Uses `APPLICATION_PREFIX` → `application_state/terraform.tfstate`
+
+This ensures complete isolation between infrastructure and application state, preventing
+accidental state conflicts or overwrites.
+
+## Configuration
+
+### Required Variables
+
+#### Core Variables
+
+- `env`: Deployment environment (prod, dev)
+- `region`: AWS region (must match backend infrastructure)
+- `prefix`: Prefix for resource names (must match backend infrastructure)
+- `cluster_name`: **Automatically retrieved** from backend_infra remote state
+(see Cluster Name section below)
+- `deployment_account_role_arn`: (Optional, for GitHub Actions) ARN of IAM role
+in Account B to assume for resource deployment
+  - Automatically injected by GitHub workflows
+  - Required when using multi-account setup
+  - Format: `arn:aws:iam::ACCOUNT_B_ID:role/github-actions-deployment-role`
+- `deployment_account_external_id`: (Optional, for security) ExternalId for
+cross-account role assumption
+  - Automatically retrieved from AWS Secrets Manager (secret: `external-id`) for
+  local deployment
+  - Automatically retrieved from GitHub secret (`AWS_ASSUME_EXTERNAL_ID`) for
+  GitHub Actions
+  - Required when deployment account roles have ExternalId condition in Trust Relationship
+  - Must match the ExternalId configured in the deployment account role's
+  Trust Relationship
+  - Generated using: `openssl rand -hex 32`
+- `state_account_role_arn`: (Optional) ARN of IAM role in State Account for
+  Route53/ACM access
+  - Automatically injected by `setup-application-infra.sh` and `set-k8s-env.sh`
+    scripts
+  - Automatically injected by GitHub workflows
+  - Required when Route53 hosted zone and ACM certificate are in a different account
+  - Format: `arn:aws:iam::STATE_ACCOUNT_ID:role/terraform-state-role`
+  - See [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) for details
+
+#### Cluster Name Injection
+
+The cluster name is automatically retrieved using a fallback chain:
+
+1. **First**: Attempts to retrieve from `backend_infra` Terraform remote state
+(if `backend.hcl` exists)
+2. **Second**: Uses `cluster_name` variable if provided in `variables.tfvars`
+3. **Third**: Calculates cluster name using pattern:
+`${prefix}-${region}-${cluster_name_component}-${env}`
+
+The backend configuration (bucket, key, region) is read from `backend.hcl`
+(created by `setup-application.sh`).
+
+If `backend.hcl` doesn't exist or remote state is not available, you can provide
+the cluster name directly in `variables.tfvars`:
+
+```hcl
+cluster_name = "talo-tf-us-east-1-kc-prod"
+```
+
+#### Kubernetes Kubeconfig Auto-Update
+
+The `set-k8s-env.sh` script automatically updates the kubeconfig file on every
+run to ensure it always contains the latest cluster endpoint. This prevents issues
+with stale kubeconfig entries that can occur when:
+
+- The EKS cluster is recreated (new cluster endpoint)
+- The cluster endpoint changes due to AWS infrastructure updates
+- Kubeconfig becomes stale between deployment runs
+
+**Behavior**:
+
+- **Automatic Update**: The script runs `aws eks update-kubeconfig` on every execution
+- **Uses Deployment Account Credentials**: The update uses the deployment account
+role credentials (already assumed by the script)
+- **Creates Directory if Needed**: Automatically creates the kubeconfig directory
+if it doesn't exist
+- **Error Handling**: Script exits with error if kubeconfig update fails
+
+**Kubeconfig Path**:
+
+- Default: `~/.kube/config`
+- Can be overridden via `KUBE_CONFIG_PATH` environment variable
+- Path is exported as `KUBE_CONFIG_PATH` for use by Terraform and kubectl commands
+
+This ensures that all `kubectl` commands (including those executed by Terraform
+provisioners) use the current cluster endpoint, preventing DNS lookup errors.
+
+#### OpenLDAP Passwords (Environment Variables)
+
+> [!IMPORTANT]
+>
+> Passwords must be set via environment variables, NOT in `variables.tfvars`.
+
+The `setup-application-infra.sh` script automatically retrieves these passwords from
+AWS Secrets Manager (for local use) or GitHub repository secrets (for GitHub Actions)
+and exports them as environment variables for Terraform.
+
+> [!NOTE]
+>
+> For complete secrets configuration details, including AWS Secrets Manager setup,
+> GitHub repository secrets, and troubleshooting, see [Secrets Requirements](../SECRETS_REQUIREMENTS.md).
+
+#### Route53 and Domain Variables
+
+- `domain_name`: Root domain name for Route53 hosted zone and ACM certificate
+(e.g., `talorlik.com`)
+  - The Route53 hosted zone and ACM certificate must already exist (code uses
+  data sources)
+  - The ACM certificate should cover the domain and any subdomains you plan to
+  use
+
+> [!NOTE]
+>
+> Hostnames for all services can be configured via variables or are
+> automatically derived:
+>
+> - PhpLdapAdmin: `phpldapadmin.${domain_name}` (or set `phpldapadmin_host` variable)
+> - LTB-passwd: `passwd.${domain_name}` (or set `ltb_passwd_host` variable)
+> - 2FA App: `app.${domain_name}` (or set `app_host` variable)
+
+#### Other OpenLDAP Variables
+
+- `openldap_ldap_domain`: LDAP domain (e.g., `ldap.talorlik.internal`)
+
+#### ALB Variables
+
+- `use_alb`: Whether to create ALB resources (default: `true`)
+- `ingressclass_alb_name`: Name component for ingress class (required if
+`use_alb` is true)
+- `ingressclassparams_alb_name`: Name component for ingress class params
+(required if `use_alb` is true)
+- `alb_group_name`: ALB group name for grouping multiple Ingresses (optional,
+defaults to `app_name`)
+  - Kubernetes identifier (max 63 characters)
+  - Used to group multiple Ingresses to share a single ALB
+  - Configured in IngressClassParams (cluster-wide)
+- `alb_load_balancer_name`: Custom AWS ALB name (optional, defaults to
+`alb_group_name` truncated to 32 chars)
+  - AWS resource name (max 32 characters per AWS constraints)
+  - Appears in AWS console
+  - Configured in Ingress annotations (per-Ingress)
+- `alb_scheme`: ALB scheme - `internet-facing` or `internal` (default:
+`internet-facing`)
+- `alb_ip_address_type`: ALB IP address type - `ipv4` or `dualstack` (default:
+`ipv4`)
+- `alb_target_type`: ALB target type - `ip` or `instance` (default: `ip`)
+- `alb_ssl_policy`: ALB SSL policy for HTTPS listeners (default:
+`ELBSecurityPolicy-TLS13-1-0-PQ-2025-09`)
+- `phpldapadmin_host`: Hostname for PhpLdapAdmin ingress (optional, defaults to
+`phpldapadmin.${domain_name}`)
+- `ltb_passwd_host`: Hostname for LTB-passwd ingress (optional, defaults to
+`passwd.${domain_name}`)
+
+#### Storage Variables
+
+- `storage_class_name`: Name component for the StorageClass (e.g., `gp3-ldap`)
+- `storage_class_type`: EBS volume type (gp2, gp3, io1, io2, etc.)
+- `storage_class_encrypted`: Whether to encrypt EBS volumes (default: `true`)
+- `storage_class_is_default`: Whether to mark StorageClass as default (default:
+`false`)
+
+#### ArgoCD Variables
+
+- `enable_argocd`: Whether to enable ArgoCD capability (default: `false`)
+- `idc_instance_arn`: ARN of the AWS Identity Center instance
+- `idc_region`: Region of the Identity Center instance
+- `rbac_role_mappings`: List of RBAC role mappings for Identity Center
+- `argocd_vpce_ids`: List of VPC endpoint IDs for private access (optional)
+- `enable_ecr_access`: Whether to enable ECR access in ArgoCD IAM policy
+
+- `ses_route53_zone_id`: Optional Route53 zone ID for automatic DNS records
+
+#### ECR Image Tag Variables
+
+These variables specify the image tags for container images stored in ECR. The
+images are automatically mirrored from Docker Hub to ECR by the
+`mirror-images-to-ecr.sh` script before Terraform operations.
+
+- `openldap_image_tag`: OpenLDAP image tag in ECR (default: `"openldap-1.5.0"`)
+  - Corresponds to `osixia/openldap:1.5.0` from Docker Hub
+  - Tag created by `mirror-images-to-ecr.sh`
+- `postgresql_image_tag`: PostgreSQL image tag in ECR (default: `"postgresql-latest"`)
+  - Corresponds to `bitnami/postgresql:18.1.0-debian-12-r4` from Docker Hub
+  - Tag created by `mirror-images-to-ecr.sh`
+  - Uses 'latest' tag instead of SHA digests for simplified image management
+- `redis_image_tag`: Redis image tag in ECR (default: `"redis-latest"`)
+  - Corresponds to `bitnami/redis:8.4.0-debian-12-r6` from Docker Hub
+  - Tag created by `mirror-images-to-ecr.sh`
+  - Uses 'latest' tag instead of SHA digests for simplified image management
+
+> [!NOTE]
+>
+> The ECR registry and repository are automatically computed from the
+> `backend_infra` Terraform state (`ecr_url`). You don't need to configure these
+> manually.
+
+> [!IMPORTANT]
+>
+> **ECR Repository Name for Build Workflows:**
+>
+> The `ECR_REPOSITORY_NAME` GitHub repository variable is automatically set when
+> you provision backend infrastructure using:
+>
+> - The `backend_infra_provisioning.yaml` workflow, or
+> - The `setup-backend.sh` script
+>
+> This variable is required by the build workflows (`backend_build_push.yaml` and
+> `frontend_build_push.yaml`) to push Docker images to ECR. If the variable is not
+> set, the build workflows will fail with a clear error message directing you to
+> provision backend infrastructure first.
+
+### Example Configuration
+
+**variables.tfvars:**
+
+```hcl
+env                         = "prod"
+region                      = "us-east-1"
+prefix                      = "talo-tf"
+
+# Cluster name from remote state
+backend_bucket = "talo-tf-395323424870-s3-tfstate"
+backend_key    = "backend_state/terraform.tfstate"
+
+# OpenLDAP Configuration
+# Passwords set via environment variables (see above)
+openldap_ldap_domain        = "ldap.talorlik.internal"
+
+# Route53 and Domain Configuration
+domain_name                 = "talorlik.com"
+# Note: Route53 zone and ACM certificate must already exist
+# The ACM certificate should cover the domain and wildcard subdomains (*.talorlik.com)
+
+# ArgoCD Configuration (optional)
+enable_argocd               = true
+idc_instance_arn            = "arn:aws:sso:::instance/ssoins-1234567890abcdef"
+idc_region                  = "us-east-1"
+
+```
+
+> [!NOTE]
+>
+> For secrets configuration (passwords), see [Secrets Requirements](../SECRETS_REQUIREMENTS.md).
+> The `setup-application-infra.sh` script automatically retrieves passwords from
+> AWS Secrets Manager.
+
+## Deployment
+
+### Destroying Infrastructure
+
+> [!WARNING]
+>
+> Destroying infrastructure is a **destructive operation** that permanently
+> deletes all resources. This action **cannot be undone**. Always ensure you have
+> backups and understand the consequences before proceeding.
+
+#### Option 1: Using Destroy Script (Local)
+
+```bash
+cd application_infra
+./destroy-application-infra.sh
+```
+
+The script will:
+
+- Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
+- Retrieve repository variables from GitHub
+- Retrieve role ARNs and ExternalId from AWS Secrets Manager
+- Retrieve password secrets from AWS Secrets Manager
+- Generate `backend.hcl` from template (if it doesn't exist)
+- Update `variables.tfvars` with selected region, environment, deployment account
+  role ARN, and ExternalId
+- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Run Terraform destroy commands (init, workspace, validate, plan destroy, apply
+  destroy) automatically
+- **Requires confirmation**: Type 'yes' to confirm, then 'DESTROY' to proceed
+
+#### Option 2: Using GitHub Actions Workflow
+
+1. Go to GitHub → Actions tab
+2. Select "Application Infrastructure Destroying" workflow
+3. Click "Run workflow"
+4. Select environment (prod or dev) and region
+5. Click "Run workflow"
+
+The workflow will:
+
+- Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
+  Route53/ACM access
+- Use environment-specific deployment account role ARN
+- Use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
+- Export `STATE_ACCOUNT_ROLE_ARN` for automatic injection into `variables.tfvars`
+- Retrieve OpenLDAP password secrets from GitHub repository secrets
+- Run Terraform destroy operations automatically
+
+> [!IMPORTANT]
+>
+> **Destroy Order**: Application infrastructure should be destroyed before backend
+> infrastructure. See [Backend Infrastructure README](../backend_infra/README.md)
+> for backend destroy instructions.
+
+### Step 1: Configure Variables
+
+1. Update `variables.tfvars` with your values:
+   - Configure LDAP domain
+   - Set domain name (must match existing Route53 hosted zone)
+   - Ensure ACM certificate exists and covers your domain/subdomains
+   - Configure ArgoCD settings if using GitOps
+   - Configure SMS 2FA settings if using SMS verification
+
+### Step 2: Configure Secrets
+
+> [!NOTE]
+>
+> The `setup-application-infra.sh` script automatically retrieves OpenLDAP passwords from
+> AWS Secrets Manager (for local use) or GitHub repository secrets (for GitHub Actions).
+
+**Setup Instructions:**
+
+See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete configuration
+instructions, including:
+
+- AWS Secrets Manager setup (for local scripts)
+- GitHub Repository Secrets setup (for GitHub Actions)
+- Secret names and descriptions
+- Troubleshooting guide
+
+### Step 3: ECR Image Mirroring (Automatic)
+
+> [!NOTE]
+>
+> The `setup-application-infra.sh` script automatically runs `mirror-images-to-ecr.sh`
+> before Terraform operations. This step is documented here for reference.
+
+**Purpose:**
+
+The `mirror-images-to-ecr.sh` script eliminates Docker Hub rate limiting and
+external dependencies by mirroring third-party container images to a private
+ECR repository. This ensures reliable deployments without depending on Docker
+Hub availability or rate limits.
+
+**Images Mirrored:**
+
+- `bitnami/redis:8.4.0-debian-12-r6` → `redis-latest`
+- `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-latest`
+- `osixia/openldap:1.5.0` → `openldap-1.5.0`
+
+**How It Works:**
+
+1. **ECR Discovery**: Uses State Account credentials to fetch ECR URL from
+   `backend_infra` Terraform state
+2. **Image Check**: Checks if images already exist in ECR (skips mirroring if
+   present)
+3. **Docker Authentication**: Assumes Deployment Account role (with ExternalId)
+   and authenticates Docker to ECR
+4. **Image Pull**: Pulls images from Docker Hub
+5. **Image Push**: Tags and pushes images to ECR with standardized tags
+6. **Cleanup**: Removes local images after pushing to save disk space
+7. **Verification**: Lists all images in ECR repository after completion
+
+**Requirements:**
+
+- Docker must be installed and running
+- `jq` command-line tool (with fallback to sed for compatibility)
+- AWS credentials configured (State Account for S3, Deployment Account for ECR)
+- ECR repository must exist (created by `backend_infra`)
+
+**Manual Execution (if needed):**
+
+```bash
+cd application_infra
+chmod +x ./mirror-images-to-ecr.sh
+./mirror-images-to-ecr.sh
+```
+
+**Integration:**
+
+- **Local Deployment**: Automatically executed by `setup-application-infra.sh` before
+  Terraform operations
+- **GitHub Actions**: Automatically executed in workflow after Terraform
+  validate, before `set-k8s-env.sh`
+
+### Step 4: Deploy Application Infrastructure
+
+#### Option 1: Using GitHub CLI (Recommended)
+
+```bash
+cd application_infra
+./setup-application-infra.sh
+```
+
+This script will:
+
+- Prompt you to select an AWS region (us-east-1 or us-east-2)
+- Prompt you to select an environment (prod or dev)
+- Retrieve repository variables from GitHub
+- Retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` and assume it for backend state and
+  Route53/ACM access
+operations
+- Retrieve the appropriate deployment account role ARN from AWS Secrets Manager
+based on the selected environment:
+  - `prod` → uses `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`
+  - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
+- Retrieve ExternalId from AWS Secrets Manager (secret: `external-id`) for
+cross-account role assumption security
+- **Mirror Docker images to ECR** (runs `mirror-images-to-ecr.sh` before
+  Terraform operations):
+  - Checks if images exist in ECR before mirroring (skips if already present)
+  - Pulls images from Docker Hub: `bitnami/redis:8.4.0-debian-12-r6`,
+    `bitnami/postgresql:18.1.0-debian-12-r4`, `osixia/openldap:1.5.0`
+  - Pushes images to ECR with tags: `openldap-1.5.0`
+  - Uses State Account credentials to fetch ECR URL from backend_infra state
+  - Assumes Deployment Account role for ECR operations (with ExternalId)
+  - Authenticates Docker to ECR automatically
+  - Cleans up local images after pushing to save disk space
+  - Requires Docker to be installed and running
+  - Requires `jq` for JSON parsing (with fallback to sed for compatibility)
+- Retrieve password secrets from AWS Secrets Manager and export them as
+environment variables
+- Create `backend.hcl` from `tfstate-backend-values-template.hcl` with the
+actual values (if it doesn't exist)
+- Update `variables.tfvars` with the selected region, environment,
+deployment account role ARN, and ExternalId
+- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Run Terraform commands (init, workspace, validate, plan, apply) automatically
+
+> [!NOTE]
+>
+> The generated `backend.hcl` file is automatically ignored by git (see
+> `.gitignore`). Only the placeholder template
+> (`tfstate-backend-values-template.hcl`) is committed to the repository.
+
+### Step 4: Configure Domain Registrar
+
+After deployment, configure your domain registrar to use the Route53 name
+servers:
+
+```bash
+# Get Route53 name servers
+terraform output -json | jq -r '.route53_name_servers.value'
+
+# Or view in AWS Console: Route53 > Hosted zones > Your domain > NS record
+```
+
+Update your domain registrar's NS records to point to these Route53 name
+servers.
+
+### Step 5: Verify Deployment
+
+```bash
+# Check Helm release status
+helm list -n ldap
+helm list -n redis
+helm list -n ldap-2fa
+
+# Check OpenLDAP pods
+kubectl get pods -n ldap
+
+# Check 2FA application pods
+kubectl get pods -n 2fa-app
+
+# Check PostgreSQL pods
+kubectl get pods -n ldap-2fa
+
+# Check Redis pods
+kubectl get pods -n redis
+
+# Check Ingress resources
+kubectl get ingress -n ldap
+kubectl get ingress -n 2fa-app
+
+# Check ALB status (via AWS CLI)
+aws elbv2 describe-load-balancers --region us-east-1
+
+# Check Route53 hosted zone
+aws route53 list-hosted-zones --query "HostedZones[?Name=='talorlik.com.']"
+
+# Check ACM certificate status
+aws acm list-certificates --region us-east-1
+
+# Check ArgoCD capability (if enabled)
+aws eks describe-capability \
+  --cluster-name <cluster-name> \
+  --capability-name <argocd-capability-name> \
+  --capability-type ARGOCD
+
+# Check ArgoCD applications
+kubectl get application -n argocd
+```
+
+## Accessing the Services
+
+### PhpLdapAdmin
+
+- **URL**: `https://phpldapadmin.${domain_name}` (e.g.,
+`https://phpldapadmin.talorlik.com`)
+- **Access**: Internet-facing (via internet-facing ALB)
+- **Login**: Use OpenLDAP admin credentials
+- **Note**: Ensure DNS is properly configured at your registrar
+
+### LTB-passwd
+
+- **URL**: `https://passwd.${domain_name}` (e.g., `https://passwd.talorlik.com`)
+- **Access**: Internet-facing (via internet-facing ALB)
+- **Purpose**: Self-service password management for LDAP users
+- **Note**: Ensure DNS is properly configured at your registrar
+
+### 2FA Application
+
+> [!NOTE]
+>
+> The 2FA application is deployed via the `application/` directory, not
+> `application_infra/`. See [application/README.md](../application/README.md) for
+> access details and features.
+
+### LDAP Service
+
+- **Access**: Cluster-internal only (ClusterIP service)
+- **Port**: 389 (LDAP), 636 (LDAPS)
+- **Not Exposed**: LDAP ports are not accessible outside the cluster
+
+### ArgoCD (if enabled)
+
+- **URL**: Retrieved from Terraform output `argocd_server_url`
+- **Access**: Depends on configuration (private via VPC endpoints or
+internet-facing)
+- **Authentication**: AWS Identity Center (SSO)
+
+## Security Considerations
+
+1. **Internet-Facing ALB**: All UIs are accessible from the internet via a
+single ALB with host-based routing (ensure proper security measures are in
+place)
+2. **HTTPS Only**: TLS termination at ALB with ACM certificate (automatically
+validated via Route53)
+3. **LDAP Internal**: LDAP service is ClusterIP only, not exposed externally
+4. **Sensitive Variables**: Passwords are marked as sensitive in Terraform and
+must be set via environment variables, never in `variables.tfvars`.
+See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for configuration details.
+5. **Encrypted Storage**: EBS volumes are encrypted by default (configurable via
+`storage_class_encrypted`)
+6. **Network Isolation**: Services run in private subnets
+7. **Network Policies**: Kubernetes Network Policies restrict pod-to-pod
+communication to secure ports only (443, 636, 8443), with cross-namespace access
+enabled for LDAP service access
+8. **Password Injection**: Passwords are injected at runtime via environment
+variables from AWS Secrets Manager (local scripts) or GitHub Secrets (GitHub Actions),
+ensuring they never appear in version control. See [Secrets Requirements](../SECRETS_REQUIREMENTS.md)
+for details.
+9. **DNS Validation**: ACM certificate uses DNS validation via Route53, ensuring
+secure certificate provisioning
+10. **EKS Auto Mode Security**: IAM permissions are automatically handled by EKS
+Auto Mode (no manual policy attachment required)
+11. **VPC Endpoints**: VPC endpoints can be configured for private access to AWS
+services (e.g., for ArgoCD private access)
+12. **Rate Limiting**: Consider implementing rate limiting for authentication
+attempts
+
+## Customization
+
+### Modifying Helm Values
+
+Edit `helm/openldap-values.tpl.yaml` to customize:
+
+- LDAP ports
+- Storage size
+- Image tags
+- Environment variables
+- Ingress annotations
+
+After modifying the template, run `terraform plan` and `terraform apply`.
+
+### Using Secrets Instead of Plain Text
+
+To use Kubernetes secrets instead of plain text passwords:
+
+1. Create a Kubernetes secret with keys `LDAP_ADMIN_PASSWORD` and
+`LDAP_CONFIG_ADMIN_PASSWORD`
+2. Update the Helm values template to use `global.existingSecret`
+3. Remove `adminPassword` and `configPassword` from the template
+
+Example:
+
+```yaml
+global:
+  existingSecret: "openldap-secrets"
+  # Remove adminPassword and configPassword
+```
+
+## Operations & Monitoring
+
+### Deployment Monitoring Script
+
+The project includes a monitoring script (`monitor-deployments.sh`) located in the
+project root that provides comprehensive health checks for all deployed application
+components. This script is particularly useful for verifying the status of
+application infrastructure deployments.
+
+**What it monitors:**
+
+- **ArgoCD Capability:** Verifies ArgoCD namespace and pod status (if enabled)
+- **OpenLDAP Stack:** Checks Helm release status and pod health in the `ldap` namespace
+- **PostgreSQL:** Verifies Helm release and pod status in the `ldap-2fa` namespace
+- **Redis:** Checks Helm release and pod status in the `redis` namespace
+- **Ingress Resources:** Lists all ingress resources across all namespaces
+- **Application Load Balancers:** Displays ALB status and configuration
+
+**Usage:**
+
+```bash
+cd /path/to/ldap-2fa-on-k8s
+./monitor-deployments.sh
+```
+
+The script will:
+
+1. Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
+2. Automatically retrieve role ARNs and ExternalId from AWS Secrets Manager
+3. Assume the appropriate deployment account role
+4. Retrieve cluster name from backend_infra Terraform state
+5. Update kubeconfig to access the EKS cluster
+6. Perform health checks on all components
+7. Display a color-coded summary report
+
+**Prerequisites:**
+
+- `jq` command-line tool installed
+- `kubectl` and `helm` installed
+- AWS CLI configured with appropriate permissions
+- GitHub CLI (`gh`) installed (optional, for retrieving backend bucket name)
+
+**For detailed documentation:** See [Deployment Monitoring Script](../README.md#operations--monitoring)
+in the main README.
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Helm Release Fails**
+   - Verify EKS cluster is accessible: `kubectl get nodes`
+   - Check Helm repository is accessible: `helm repo list`
+   - Verify PVC exists: `kubectl get pvc -n ldap`
+
+2. **ALB Not Created**
+   - Ensure EKS Auto Mode has `elastic_load_balancing.enabled = true`
+   - Check Ingress annotations are correct
+   - Verify ACM certificate validation completed (check Route53 validation
+   records)
+   - Ensure certificate is in the same region as the EKS cluster
+
+3. **PVC Not Found**
+   - Verify PVC name matches exactly (case-sensitive)
+   - Check PVC exists: `kubectl get pvc -A`
+   - Ensure PVC is in the same namespace or update namespace in Helm values
+
+4. **Cannot Access UIs**
+   - Verify ALB is created: `aws elbv2 describe-load-balancers`
+   - Check DNS resolution: `dig phpldapadmin.${domain_name}` or `nslookup
+   phpldapadmin.${domain_name}`
+   - Verify domain registrar NS records point to Route53 name servers
+   - Verify security groups allow HTTPS traffic
+   - Check Ingress status: `kubectl describe ingress -n ldap`
+   - Verify ACM certificate is validated: `aws acm describe-certificate
+   --certificate-arn <arn>`
+
+5. **ArgoCD Issues**
+   - Check capability status: `aws eks describe-capability`
+   - Verify cluster registration secret: `kubectl get secret -n argocd`
+   - Check Application sync status: `kubectl describe application -n argocd`
+
+> [!NOTE]
+>
+> For troubleshooting 2FA application, PostgreSQL, Redis, SES, SNS, and user
+> registration issues, see the [application/README.md](../application/README.md)
+> troubleshooting section.
+
+### Useful Commands
+
+```bash
+# View Helm release values
+helm get values openldap-stack-ha -n ldap
+
+# Check OpenLDAP logs
+kubectl logs -n ldap -l app=openldap
+
+# Check PhpLdapAdmin logs
+kubectl logs -n ldap -l app=phpldapadmin
+
+# Check LTB-passwd logs
+kubectl logs -n ldap -l app=ltb-passwd
+
+# View Ingress details
+kubectl describe ingress -n ldap
+
+# Check ALB target health
+aws elbv2 describe-target-health --target-group-arn <target-group-arn>
+
+# Test LDAP connectivity (from within cluster)
+kubectl run -it --rm ldap-test --image=osixia/openldap --restart=Never -- bash
+ldapsearch -x -H ldap://openldap-stack-ha:389 -b "dc=corp,dc=internal"
+
+# Check ArgoCD capability status
+aws eks describe-capability \
+  --cluster-name <cluster-name> \
+  --capability-name <argocd-capability-name> \
+  --capability-type ARGOCD
+
+# Check ArgoCD applications (if enabled)
+kubectl get application -n argocd
+kubectl describe application -n argocd <app-name>
+```
+
+## Outputs
+
+The application provides outputs for:
+
+- `alb_dns_name`: DNS name of the ALB (extracted from Ingress resources created
+by Helm chart)
+  - Empty string if ALB is still provisioning or not created
+  - Retrieved from either phpldapadmin or ltb-passwd Ingress status
+- `route53_acm_cert_arn`: ACM certificate ARN (from data source, not module)
+- `storage_class_name`: Name of the Kubernetes StorageClass created for PVCs
+- `route53_acm_cert_arn`: ACM certificate ARN (from data source)
+- `route53_domain_name`: Root domain name (from variable)
+- `route53_zone_id`: Route53 hosted zone ID (from data source)
+- `route53_name_servers`: Route53 name servers (from data source, for registrar
+configuration)
+- `alb_ingress_class_name`: Name of the IngressClass for shared ALB
+- `alb_ingress_class_params_name`: Name of the IngressClassParams for ALB configuration
+- `alb_scheme`: ALB scheme configured in IngressClassParams
+- `alb_ip_address_type`: ALB IP address type configured in IngressClassParams
+- `network_policy_name`: Name of the network policy for secure namespace communication
+- `network_policy_namespace`: Namespace where the network policy is applied
+- `network_policy_uid`: UID of the network policy resource
+- `argocd_server_url`: ArgoCD UI/API endpoint URL (if ArgoCD is enabled)
+- `argocd_capability_name`: Name of the ArgoCD capability
+- `argocd_capability_status`: Status of the ArgoCD capability
+- `argocd_iam_role_arn`: ARN of the IAM role used by ArgoCD capability
+- `argocd_iam_role_name`: Name of the IAM role used by ArgoCD capability
+- `local_cluster_secret_name`: Name of the Kubernetes secret for local cluster registration
+- `argocd_namespace`: Kubernetes namespace where ArgoCD resources are deployed
+- `argocd_project_name`: ArgoCD project name used for cluster registration
+
+> [!NOTE]
+>
+> PostgreSQL, Redis, SES, and SNS outputs are provided by the `application/`
+> directory, not `application_infra/`. See [application/README.md](../application/README.md)
+> for those outputs.
+
+View all outputs:
+
+```bash
+terraform output
+```
+
+> [!IMPORTANT]
+>
+> After deployment, update your domain registrar's NS records to
+> point to the Route53 name servers shown in the `route53_name_servers` output.
+
+## References
+
+- [Helm OpenLDAP Chart](https://github.com/jp-gouin/helm-openldap)
+- [AWS EKS Auto Mode Documentation](https://docs.aws.amazon.com/eks/latest/userguide/eks-auto-mode.html)
+- [EKS Auto Mode IngressClassParams](https://docs.aws.amazon.com/eks/latest/userguide/eks-auto-mode-ingress.html)
+- [Kubernetes Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
+- [OpenLDAP Documentation](https://www.openldap.org/doc/)
+- [PhpLdapAdmin Documentation](https://www.phpldapadmin.org/)
+- [LTB-passwd Documentation](https://ltb-project.org/documentation/self-service-password)
+- [ArgoCD Documentation](https://argo-cd.readthedocs.io/)
+- [cert-manager Documentation](https://cert-manager.io/docs/)
+
+## Architecture Notes
+
+### Route53 A Records
+
+The Terraform configuration automatically creates Route53 A (alias) records for
+the subdomains:
+
+- `phpldapadmin.${domain_name}` → ALB DNS name
+- `passwd.${domain_name}` → ALB DNS name
+
+> [!NOTE]
+>
+> The Route53 record for the 2FA application (`app.${domain_name}`) is created
+> by the `application/` directory, not `application_infra/`. See
+> [application/README.md](../application/README.md) for details.
+
+These records are created after the Helm release and Ingress resources are
+provisioned, ensuring the ALB DNS name is available.
+
+### Internet-Facing ALB Configuration
+
+The ALB is configured as `internet-facing` to enable:
+
+- Access to UIs from anywhere on the internet
+- Public accessibility for user convenience
+- HTTPS-only access for secure communication
+- Proper DNS configuration required for public access
+
+### Why ClusterIP for LDAP?
+
+The LDAP service uses ClusterIP (not LoadBalancer or NodePort) to:
+
+- Keep LDAP ports strictly internal to the cluster
+- Prevent external access to LDAP
+- Only allow access from pods within the cluster
+- Follow security best practices for sensitive services
+
+### EKS Auto Mode Benefits
+
+Using EKS Auto Mode provides:
+
+- Automatic ALB provisioning via Ingress annotations
+- No need to manually install or configure AWS Load Balancer Controller
+- Simplified IAM permissions (handled automatically by EKS)
+- Built-in EBS CSI driver (no manual installation needed)
+- IngressClassParams support for cluster-wide ALB defaults (scheme,
+ipAddressType)
+- Direct integration with EKS cluster (no separate controller pods)
+
+### Network Policies
+
+The Network Policies module enforces security at the pod level:
+
+- **Secure Ports Only**: Pods can only communicate on encrypted ports (443,
+636, 8443)
+- **Namespace Isolation**: Policies apply to all pods in the `ldap` namespace
+- **Cross-Namespace Access**: Services in other namespaces can access the LDAP
+service on secure ports (443, 636, 8443)
+- **DNS Required**: DNS resolution is allowed for service discovery
+- **External Access**: HTTPS/HTTP egress is allowed for external API calls
+- **Default Deny**: All other ports are implicitly denied
+
+This provides defense-in-depth security, ensuring that even if a pod is
+compromised, it can only communicate on secure, encrypted ports. Cross-namespace
+communication enables microservices in different namespaces to securely access
+the centralized LDAP service.
+
+### GitOps with ArgoCD
+
+ArgoCD provides continuous delivery:
+
+- **Managed Service**: Runs in EKS control plane (no worker node resources)
+- **Git as Source of Truth**: All application state defined in Git
+- **Automatic Sync**: Changes in Git trigger automatic deployments
+- **Self-Healing**: Automatically corrects drift from desired state
+- **Identity Center Auth**: SSO authentication via AWS Identity Center

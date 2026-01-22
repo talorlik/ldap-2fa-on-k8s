@@ -72,7 +72,8 @@ module "postgresql" {
 
 This module uses ECR images instead of Docker Hub to eliminate Docker Hub rate
 limiting and external dependencies. Images are automatically mirrored from Docker
-Hub to ECR by the `mirror-images-to-ecr.sh` script before Terraform operations.
+Hub to ECR by the `mirror-images-to-ecr.sh` script in `application_infra/` before
+Terraform operations.
 
 **Image Details:**
 
@@ -97,7 +98,7 @@ The module uses the Bitnami PostgreSQL Helm chart from the OCI registry:
 
 **Image Mirroring:**
 
-The `mirror-images-to-ecr.sh` script automatically:
+The `mirror-images-to-ecr.sh` script in `application_infra/` automatically:
 
 1. Checks if the image exists in ECR (skips if already present)
 2. Pulls the image from Docker Hub
@@ -111,7 +112,7 @@ Terraform state in the parent module (`application/main.tf`). You only need to
 specify the `image_tag` if you want to use a different tag than the default.
 
 For more information about image mirroring, see the [Application Infrastructure
-README](../README.md#ecr-image-mirroring-automatic).
+README](../../application_infra/README.md#ecr-image-mirroring-automatic).
 
 ## Purpose
 

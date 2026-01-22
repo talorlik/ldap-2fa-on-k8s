@@ -60,7 +60,7 @@ Configuration](#github-repository-configuration))
 - Route53 hosted zone must already exist (or create it manually)
 - **Public ACM Certificate Setup**: Public ACM certificates must be requested in
   each deployment account and validated using DNS records in the State Account's
-  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](application/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](application_infra/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for detailed setup instructions with step-by-step AWS CLI commands.
 - ACM certificate must already exist and be validated in the same region as the
   EKS cluster
@@ -70,19 +70,19 @@ Configuration](#github-repository-configuration))
   - Certificate must be validated and in `ISSUED` status
   - DNS validation records must be created in Route53 hosted zone in the State
     Account
-  - See [Cross-Account Access Documentation](application/CROSS-ACCOUNT-ACCESS.md)
+  - See [Cross-Account Access Documentation](application_infra/CROSS-ACCOUNT-ACCESS.md)
     for details
 - **Docker (for Local Deployment)**: Docker must be installed and running for
   ECR image mirroring. The `mirror-images-to-ecr.sh` script requires Docker to
   pull images from Docker Hub and push them to ECR. This step is automatically
-  executed by `setup-application.sh` before Terraform operations.
+  executed by `setup-application-infra.sh` before Terraform operations.
 - **jq (for Local Deployment)**: The `jq` command-line tool is required for
   JSON parsing in the image mirroring script (with fallback to sed for
   compatibility).
 - **ECR Image Tags**: Images are mirrored to ECR with standardized tags:
-  - `redis-latest` (corresponds to `bitnami/redis:8.4.0-debian-12-r6`)
-  - `postgresql-latest` (corresponds to `bitnami/postgresql:18.1.0-debian-12-r4`)
-  - `openldap-1.5.0` (corresponds to `osixia/openldap:1.5.0`)
+  - `openldap-1.5.0` (corresponds to `osixia/openldap:1.5.0`) - mirrored by infrastructure
+  - `redis-latest` (corresponds to `bitnami/redis:8.4.0-debian-12-r6`) - mirrored by application
+  - `postgresql-latest` (corresponds to `bitnami/postgresql:18.1.0-debian-12-r4`) - mirrored by application
 
 ## Project Structure
 
@@ -93,8 +93,10 @@ ldap-2fa-on-k8s/
 │   │   ├── bug_report.md
 │   │   └── feature_request.md
 │   └── workflows/
+│       ├── application_destroying.yaml
 │       ├── application_infra_destroying.yaml
 │       ├── application_infra_provisioning.yaml
+│       ├── application_provisioning.yaml
 │       ├── backend_build_push.yaml
 │       ├── backend_infra_destroying.yaml
 │       ├── backend_infra_provisioning.yaml
@@ -104,8 +106,38 @@ ldap-2fa-on-k8s/
 ├── .gitignore
 ├── .markdownlint.json
 ├── .repomixignore
-├── application/                    # Application infrastructure and deployments - Account B
-│   ├── backend/                    # 2FA Backend (Python FastAPI)
+├── application_infra/               # Application infrastructure - Account B
+│   ├── helm/                        # Helm values templates
+│   │   └── openldap-values.tpl.yaml
+│   ├── modules/                     # Infrastructure Terraform modules
+│   │   ├── alb/                     # Application Load Balancer
+│   │   ├── argocd/                  # ArgoCD Capability (AWS managed service)
+│   │   ├── cert-manager/            # TLS certificate management
+│   │   ├── network-policies/        # Pod-to-pod security
+│   │   ├── openldap/                # OpenLDAP stack
+│   │   ├── route53/                 # Route53 hosted zone
+│   │   └── route53_record/          # Route53 DNS records
+│   ├── CHANGELOG.md
+│   ├── CROSS-ACCOUNT-ACCESS.md
+│   ├── destroy-application-infra.sh
+│   ├── main.tf
+│   ├── mirror-images-to-ecr.sh
+│   ├── OPENLDAP-README.md
+│   ├── OSIXIA-OPENLDAP-REQUIREMENTS.md
+│   ├── outputs.tf
+│   ├── PRD-ALB.md
+│   ├── PRD-ArgoCD.md
+│   ├── PRD-DOMAIN.md
+│   ├── providers.tf
+│   ├── README.md
+│   ├── SECURITY-IMPROVEMENTS.md
+│   ├── set-k8s-env.sh
+│   ├── setup-application-infra.sh
+│   ├── tfstate-backend-values-template.hcl
+│   ├── variables.tf
+│   └── variables.tfvars
+├── application/                     # 2FA Application code and dependencies - Account B
+│   ├── backend/                     # 2FA Backend (Python FastAPI)
 │   │   ├── Dockerfile
 │   │   ├── helm/
 │   │   │   └── ldap-2fa-backend/
@@ -123,7 +155,7 @@ ldap-2fa-on-k8s/
 │   │           ├── mfa/
 │   │           ├── redis/
 │   │           └── sms/
-│   ├── frontend/                   # 2FA Frontend (HTML/JS/CSS + nginx)
+│   ├── frontend/                    # 2FA Frontend (HTML/JS/CSS + nginx)
 │   │   ├── Dockerfile
 │   │   ├── nginx.conf
 │   │   ├── helm/
@@ -135,44 +167,27 @@ ldap-2fa-on-k8s/
 │   │       ├── css/
 │   │       ├── index.html
 │   │       └── js/
-│   ├── helm/                       # Helm values for OpenLDAP stack
-│   │   ├── openldap-values.tpl.yaml
+│   ├── helm/                        # Application Helm values templates
 │   │   ├── postgresql-values.tpl.yaml
 │   │   └── redis-values.tpl.yaml
-│   ├── modules/                    # Terraform modules
-│   │   ├── alb/                    # Application Load Balancer
-│   │   ├── argocd/                 # ArgoCD (AWS managed service)
-│   │   ├── argocd_app/             # ArgoCD Application
-│   │   ├── cert-manager/           # TLS certificate management
-│   │   ├── network-policies/       # Pod-to-pod security
-│   │   ├── openldap/               # OpenLDAP stack
-│   │   ├── postgresql/             # PostgreSQL database
-│   │   ├── redis/                  # Redis for SMS OTP storage
-│   │   ├── route53/                # Route53 hosted zone
-│   │   ├── route53_record/         # Route53 DNS records
-│   │   ├── ses/                    # AWS SES for email
-│   │   └── sns/                    # AWS SNS for SMS
+│   ├── modules/                     # Application Terraform modules
+│   │   ├── argocd_app/              # ArgoCD Application CRDs
+│   │   ├── postgresql/              # PostgreSQL database
+│   │   ├── redis/                   # Redis for SMS OTP storage
+│   │   ├── ses/                     # AWS SES for email
+│   │   └── sns/                     # AWS SNS for SMS
 │   ├── CHANGELOG.md
-│   ├── CROSS-ACCOUNT-ACCESS.md
 │   ├── DEPLOY-2FA-APPS.md
 │   ├── destroy-application.sh
 │   ├── main.tf
-│   ├── mirror-images-to-ecr.sh
-│   ├── OPENLDAP-README.md
-│   ├── OSIXIA-OPENLDAP-REQUIREMENTS.md
 │   ├── outputs.tf
 │   ├── PRD-2FA-APP.md
 │   ├── PRD-ADMIN-FUNCS.md
-│   ├── PRD-ALB.md
-│   ├── PRD-ArgoCD.md
-│   ├── PRD-DOMAIN.md
 │   ├── PRD-SIGNUP-MAN.md
 │   ├── PRD-SMS-MAN.md
-│   ├── PRD.md
+│   ├── PRD-OPENLDAP.md        # OpenLDAP deployment requirements
 │   ├── providers.tf
 │   ├── README.md
-│   ├── SECURITY-IMPROVEMENTS.md
-│   ├── set-k8s-env.sh
 │   ├── setup-application.sh
 │   ├── tfstate-backend-values-template.hcl
 │   ├── variables.tf
@@ -225,8 +240,8 @@ For detailed information about each component, see:
   with file-based locking (v1.0.0), AWS provider 6.21.0, Terraform 1.14.0
 - [Backend Infrastructure](backend_infra/README.md) - VPC, EKS, IRSA, VPC
   endpoints
-- [Application Infrastructure](application/README.md) - OpenLDAP, 2FA app,
-  ArgoCD
+- [Application Infrastructure](application_infra/README.md) - OpenLDAP, ALB, ArgoCD Capability
+- [Application Deployment](application/README.md) - 2FA app, PostgreSQL, Redis, SES, SNS
 
 ## Multi-Account Architecture
 
@@ -604,24 +619,42 @@ This creates the foundational infrastructure including:
 
 #### Step 3. Deploy Application Infrastructure
 
-Deploy the application infrastructure (OpenLDAP stack, 2FA application, ALB,
-Route53 records, and optionally ArgoCD).
+Deploy the application infrastructure (OpenLDAP stack, ALB, Route53 records,
+ArgoCD Capability, and StorageClass).
 
 This deploys:
 
 - OpenLDAP Stack HA with PhpLdapAdmin and LTB-passwd
-- 2FA Application (backend + frontend) with TOTP and SMS support
-- ALB with host-based routing for all services
+- ALB with host-based routing for LDAP UIs
 - cert-manager for TLS certificates
 - Network policies for security
-- ArgoCD for GitOps (optional)
-- SNS resources for SMS 2FA (optional)
+- ArgoCD Capability for GitOps (optional)
+- StorageClass for persistent storage (used by application components)
 
 > [!NOTE]
 >
 > 📖 **For detailed information about the application infrastructure**, including
-> OpenLDAP configuration, 2FA app setup, ALB configuration, and deployment steps,
-> see the [Application Infrastructure README](application/README.md).
+> OpenLDAP configuration, ALB configuration, and deployment steps,
+> see the [Application Infrastructure README](application_infra/README.md).
+
+#### Step 4. Deploy Application
+
+Deploy the 2FA application components (backend, frontend, PostgreSQL, Redis, SES, SNS).
+
+This deploys:
+
+- PostgreSQL for user registration and verification token storage
+- Redis for SMS OTP code storage
+- AWS SES for email verification (configured for backend service account)
+- AWS SNS for SMS 2FA (configured for backend service account)
+- ArgoCD Applications for backend and frontend GitOps deployments
+- Route53 record for the 2FA application
+
+> [!NOTE]
+>
+> 📖 **For detailed information about the application deployment**, including
+> component configuration, dependencies, and deployment steps,
+> see the [Application README](application/README.md).
 
 ### Method 2: Local Development
 
@@ -694,6 +727,26 @@ account role ARN
 #### Step 3. Deploy Application Infrastructure
 
 ```bash
+cd application_infra
+./setup-application-infra.sh
+```
+
+The script will:
+
+- Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
+- Retrieve repository variables from GitHub
+- Retrieve role ARNs and OpenLDAP password secrets from AWS Secrets Manager
+- Export OpenLDAP password secrets as environment variables
+- Generate `backend.hcl` from template (if it doesn't exist)
+- Update `variables.tfvars` with selected region, environment, and deployment
+account role ARN
+- Mirror Docker images to ECR (OpenLDAP)
+- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Run Terraform commands (init, workspace, validate, plan, apply) automatically
+
+#### Step 4. Deploy Application
+
+```bash
 cd application
 ./setup-application.sh
 ```
@@ -702,12 +755,12 @@ The script will:
 
 - Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
 - Retrieve repository variables from GitHub
-- Retrieve role ARNs and password secrets from AWS Secrets Manager
+- Retrieve role ARNs and password secrets (PostgreSQL, Redis) from AWS Secrets Manager
 - Export password secrets as environment variables
 - Generate `backend.hcl` from template (if it doesn't exist)
 - Update `variables.tfvars` with selected region, environment, and deployment
 account role ARN
-- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Set Kubernetes environment variables using `set-k8s-env.sh` (from application_infra)
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
 #### Manual Terraform Commands (Alternative)
@@ -737,6 +790,16 @@ terraform apply -auto-approve "terraform.tfplan"
 **Step 3. Application Infrastructure:**
 
 ```bash
+cd application_infra
+terraform init -backend-config="backend.hcl"
+terraform workspace select <region>-<environment> || terraform workspace new <region>-<environment>
+terraform plan -var-file="variables.tfvars" -out "terraform.tfplan"
+terraform apply -auto-approve "terraform.tfplan"
+```
+
+**Step 4. Application:**
+
+```bash
 cd application
 terraform init -backend-config="backend.hcl"
 terraform workspace select <region>-<environment> || terraform workspace new <region>-<environment>
@@ -762,19 +825,40 @@ infrastructure, as well as GitHub Actions workflows for destroying infrastructur
 
 ### Destroy Scripts (Local Development)
 
-#### Destroy Application Infrastructure
+#### Destroy Application
 
 ```bash
 cd application
 ./destroy-application.sh
 ```
 
-The script will:
+#### Destroy Application Infrastructure
+
+```bash
+cd application_infra
+./destroy-application-infra.sh
+```
+
+The application destroy script will:
 
 - Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
 - Retrieve repository variables from GitHub
 - Retrieve role ARNs and ExternalId from AWS Secrets Manager
-- Retrieve password secrets from AWS Secrets Manager
+- Retrieve password secrets (PostgreSQL, Redis) from AWS Secrets Manager
+- Generate `backend.hcl` from template (if it doesn't exist)
+- Update `variables.tfvars` with selected region, environment, deployment account
+  role ARN, and ExternalId
+- Set Kubernetes environment variables using `set-k8s-env.sh` (from application_infra)
+- Run Terraform destroy commands (init, workspace, validate, plan destroy, apply
+  destroy) automatically
+- **Requires confirmation**: Type 'yes' to confirm, then 'DESTROY' to proceed
+
+The application infrastructure destroy script will:
+
+- Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
+- Retrieve repository variables from GitHub
+- Retrieve role ARNs and ExternalId from AWS Secrets Manager
+- Retrieve OpenLDAP password secrets from AWS Secrets Manager
 - Generate `backend.hcl` from template (if it doesn't exist)
 - Update `variables.tfvars` with selected region, environment, deployment account
   role ARN, and ExternalId
@@ -806,11 +890,28 @@ The script will:
 >
 > **Destroy Order**: Destroy infrastructure in reverse order of deployment:
 >
-> 1. **Application Infrastructure** (destroy first)
-> 2. **Backend Infrastructure** (destroy second)
-> 3. **Terraform Backend State Infrastructure** (destroy last, if needed)
+> 1. **Application** (destroy first)
+> 2. **Application Infrastructure** (destroy second)
+> 3. **Backend Infrastructure** (destroy third)
+> 4. **Terraform Backend State Infrastructure** (destroy last, if needed)
 
 ### Destroy Workflows (GitHub Actions)
+
+#### Destroy Application
+
+1. Go to GitHub → Actions tab
+2. Select "Application Destroying" workflow
+3. Click "Run workflow"
+4. Select environment (prod or dev) and region
+5. Click "Run workflow"
+
+The workflow will:
+
+- Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations
+- Use environment-specific deployment account role ARN
+- Use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
+- Retrieve password secrets (PostgreSQL, Redis) from GitHub repository secrets
+- Run Terraform destroy operations automatically
 
 #### Destroy Application Infrastructure
 
@@ -825,7 +926,7 @@ The workflow will:
 - Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations
 - Use environment-specific deployment account role ARN
 - Use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
-- Retrieve password secrets from GitHub repository secrets
+- Retrieve OpenLDAP password secrets from GitHub repository secrets
 - Run Terraform destroy operations automatically
 
 #### Destroy Backend Infrastructure
@@ -866,18 +967,31 @@ see the [Backend Infrastructure README](backend_infra/README.md).
 
 ### Application Infrastructure Components
 
-The application infrastructure deploys the LDAP stack, 2FA application, and supporting
-services on the EKS cluster. Key components include:
+The application infrastructure deploys the LDAP stack and supporting infrastructure
+on the EKS cluster. Key components include:
 
 - **OpenLDAP Stack HA** with PhpLdapAdmin and LTB-passwd UIs
-- **2FA Application** with self-service registration and admin dashboard
 - **Application Load Balancer (ALB)** via EKS Auto Mode for internet-facing access
-- **Supporting Services**: PostgreSQL, Redis, SES, SNS (optional)
-- **GitOps**: ArgoCD (AWS managed service) for declarative deployments
+- **StorageClass** for persistent storage (used by application components)
+- **ArgoCD Capability** (AWS managed service) for GitOps deployments
 - **Security**: cert-manager for TLS, Network Policies for pod-to-pod security
 
+For detailed architecture diagrams, component descriptions, and deployment instructions,
+see the [Application Infrastructure README](application_infra/README.md).
+
+### Application Components
+
+The application deploys the 2FA application and supporting services. Key components include:
+
+- **2FA Application** with self-service registration and admin dashboard
+- **PostgreSQL** for user registration and verification token storage
+- **Redis** for SMS OTP code storage
+- **AWS SES** for email verification (configured for backend service account)
+- **AWS SNS** for SMS 2FA (configured for backend service account)
+- **ArgoCD Applications** for backend and frontend GitOps deployments
+
 For detailed architecture diagrams, component descriptions, API specifications,
-and deployment instructions, see the [Application Infrastructure README](application/README.md).
+and deployment instructions, see the [Application README](application/README.md).
 
 ## Key Features
 
@@ -968,7 +1082,7 @@ After deployment:
   integration, and GitHub variable configuration
 - [Backend Infrastructure README](backend_infra/README.md) - VPC, EKS, IRSA, VPC
 endpoints, and ECR documentation
-- [Application Infrastructure README](application/README.md) - OpenLDAP, 2FA
+- [Application Infrastructure README](application_infra/README.md) - OpenLDAP, ALB, ArgoCD Capability
 app, ALB, ArgoCD, and deployment instructions
 
 ### Application Documentation
@@ -981,8 +1095,7 @@ user registration with email/phone verification
 management, and approval workflows
 - [SMS OTP Management PRD](application/PRD-SMS-MAN.md) - Redis-based SMS OTP
 storage with TTL
-- [OpenLDAP README](application/OPENLDAP-README.md) - OpenLDAP configuration and
-TLS setup
+- [OpenLDAP Deployment PRD](application_infra/PRD-OPENLDAP.md) - OpenLDAP deployment requirements and configuration
 - [Security Improvements](application/SECURITY-IMPROVEMENTS.md) - Security
 enhancements and best practices
 
@@ -1164,7 +1277,7 @@ access
 See the individual README files for troubleshooting guides:
 
 - [Backend Infrastructure Troubleshooting](backend_infra/README.md#troubleshooting)
-- [Application Infrastructure Troubleshooting](application/README.md#troubleshooting)
+- [Application Infrastructure Troubleshooting](application_infra/README.md#troubleshooting)
 
 ## License
 

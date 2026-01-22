@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to configure backend.hcl and variables.tfvars with user-selected region and environment
-# and run Terraform commands
+# and run Terraform commands for application deployment
 # Usage: ./setup-application.sh
 
 set -euo pipefail
@@ -388,21 +388,6 @@ if [ -z "$TF_VARS_SECRET_JSON" ]; then
     exit 1
 fi
 
-# Extract OpenLDAP password values from tf-vars secret
-TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_ADMIN_PASSWORD" || echo "")
-if [ -z "$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_OPENLDAP_ADMIN_PASSWORD from secret"
-    exit 1
-fi
-print_success "Retrieved TF_VAR_OPENLDAP_ADMIN_PASSWORD"
-
-TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_CONFIG_PASSWORD" || echo "")
-if [ -z "$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE" ]; then
-    print_error "Failed to retrieve TF_VAR_OPENLDAP_CONFIG_PASSWORD from secret"
-    exit 1
-fi
-print_success "Retrieved TF_VAR_OPENLDAP_CONFIG_PASSWORD"
-
 # Extract PostgreSQL password from tf-vars secret
 TF_VAR_POSTGRESQL_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_POSTGRESQL_PASSWORD" || echo "")
 if [ -z "$TF_VAR_POSTGRESQL_PASSWORD_VALUE" ]; then
@@ -422,8 +407,6 @@ print_success "Retrieved TF_VAR_REDIS_PASSWORD"
 # Export as environment variables for Terraform
 # Note: TF_VAR environment variables are case-sensitive and must match variable names in variables.tf
 # Secrets in AWS/GitHub remain uppercase, but environment variables must be lowercase
-export TF_VAR_openldap_admin_password="$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE"
-export TF_VAR_openldap_config_password="$TF_VAR_OPENLDAP_CONFIG_PASSWORD_VALUE"
 export TF_VAR_postgresql_database_password="$TF_VAR_POSTGRESQL_PASSWORD_VALUE"
 export TF_VAR_redis_password="$TF_VAR_REDIS_PASSWORD_VALUE"
 
@@ -486,54 +469,35 @@ fi
 
 echo ""
 
-# Terraform workspace name (same as backend_infra)
+# Terraform workspace name (same as backend_infra and application_infra)
 WORKSPACE_NAME="${AWS_REGION}-${ENVIRONMENT}"
 
 # Terraform init
 print_info "Running terraform init with backend configuration..."
 terraform init -backend-config="${BACKEND_FILE}"
 
-# Terraform workspace (create/select before running mirror script)
+# Terraform workspace
 print_info "Selecting or creating workspace: ${WORKSPACE_NAME}..."
 terraform workspace select "${WORKSPACE_NAME}" 2>/dev/null || terraform workspace new "${WORKSPACE_NAME}"
-
-echo ""
-
-# Mirror third-party images to ECR (if not already present)
-print_info "Checking if Docker images need to be mirrored to ECR..."
-if [ ! -f "mirror-images-to-ecr.sh" ]; then
-    print_error "mirror-images-to-ecr.sh not found."
-    exit 1
-fi
-
-# Make sure the script is executable
-chmod +x ./mirror-images-to-ecr.sh
-
-# Run the image mirroring script
-if ./mirror-images-to-ecr.sh; then
-    print_success "ECR image mirroring completed"
-else
-    print_error "ECR image mirroring failed"
-    exit 1
-fi
 
 # Terraform validate
 print_info "Running terraform validate..."
 terraform validate
 
 # Set Kubernetes environment variables
+# Use the infrastructure's set-k8s-env.sh script (shared between infrastructure and application)
 print_info "Setting Kubernetes environment variables..."
-if [ ! -f "set-k8s-env.sh" ]; then
-    print_error "set-k8s-env.sh not found."
+if [ ! -f "../application_infra/set-k8s-env.sh" ]; then
+    print_error "../application_infra/set-k8s-env.sh not found. Ensure infrastructure is deployed first."
     exit 1
 fi
 
 # Make sure the script is executable
-chmod +x ./set-k8s-env.sh
+chmod +x ../application_infra/set-k8s-env.sh
 
 # Source the script to set environment variables
 # The script uses environment variables (Deployment Account credentials for EKS, State Account credentials for S3)
-source ./set-k8s-env.sh
+source ../application_infra/set-k8s-env.sh
 
 if [ -z "$KUBERNETES_MASTER" ]; then
     print_error "Failed to set KUBERNETES_MASTER environment variable."

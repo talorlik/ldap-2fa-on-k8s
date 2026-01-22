@@ -520,8 +520,10 @@ aws eks describe-cluster --name $(terraform output -raw cluster_name) --query "c
 
 ## Related Documentation
 
-- [Application Infrastructure](../application/README.md) - OpenLDAP, 2FA app,
-PostgreSQL, Redis, SES, and ArgoCD deployment
+- [Application Infrastructure](../application_infra/README.md) - OpenLDAP, ALB,
+ArgoCD Capability
+- [Application Deployment](../application/README.md) - 2FA app, PostgreSQL, Redis,
+SES, SNS
 - [Terraform Backend State](../tf_backend_state/README.md) - S3 state management
 - [Main README](../README.md) - Project overview and quick start
 

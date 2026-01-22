@@ -30,24 +30,24 @@ RUN groupadd -r appgroup \
 WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
-ENV PATH=/opt/venv/bin:$PATH \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+ENV PATH=/opt/venv/bin:$PATH
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 COPY --chown=appuser:appgroup src/app /app/app
 
-ENV LDAP_HOST=openldap-stack-ha.ldap.svc.cluster.local \
-    LDAP_PORT=389 \
-    LDAP_USE_SSL=false \
-    LDAP_BASE_DN=dc=ldap,dc=talorlik,dc=internal \
-    LDAP_USER_SEARCH_BASE=ou=users \
-    TOTP_ISSUER=LDAP-2FA-App \
-    TOTP_DIGITS=6 \
-    TOTP_INTERVAL=30 \
-    TOTP_ALGORITHM=SHA1 \
-    APP_NAME=LDAP\ 2FA\ Backend\ API \
-    DEBUG=false \
-    LOG_LEVEL=INFO
+ENV LDAP_HOST=openldap-stack-ha.ldap.svc.cluster.local
+ENV LDAP_PORT=389
+ENV LDAP_USE_SSL=false
+ENV LDAP_BASE_DN=dc=ldap,dc=talorlik,dc=internal
+ENV LDAP_USER_SEARCH_BASE=ou=users
+ENV TOTP_ISSUER=LDAP-2FA-App
+ENV TOTP_DIGITS=6
+ENV TOTP_INTERVAL=30
+ENV TOTP_ALGORITHM=SHA1
+ENV APP_NAME=LDAP\ 2FA\ Backend\ API
+ENV DEBUG=false
+ENV LOG_LEVEL=INFO
 
 USER appuser
 EXPOSE 8000

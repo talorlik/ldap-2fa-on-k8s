@@ -210,9 +210,10 @@ class AdminUserListResponse(BaseModel):
 
 
 class AdminActivateRequest(BaseModel):
-    """Admin user activation request."""
-    admin_username: str = Field(..., description="Admin username")
-    admin_password: str = Field(..., description="Admin password")
+    """Admin user activation request (supports both JWT and legacy auth)."""
+    admin_username: Optional[str] = Field(None, description="Admin username (legacy auth, optional if JWT provided)")
+    admin_password: Optional[str] = Field(None, description="Admin password (legacy auth, optional if JWT provided)")
+    group_ids: list[str] = Field(default_factory=list, description="List of group IDs to assign during activation")
 
 
 class AdminActivateResponse(BaseModel):
@@ -1430,25 +1431,52 @@ async def admin_list_users(
 async def admin_activate_user(
     user_id: str,
     request: AdminActivateRequest,
+    authorization: Optional[str] = Header(None),
     session: AsyncSession = Depends(get_async_session),
 ) -> AdminActivateResponse:
     """Activate a user (create in LDAP)."""
-    # Verify admin credentials
-    ldap_client = LDAPClient()
-    auth_success, _ = ldap_client.authenticate(
-        request.admin_username, request.admin_password
-    )
-    if not auth_success:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin credentials",
-        )
+    # Use JWT authentication if token provided, otherwise fall back to legacy admin credentials
+    current = None
+    admin_username = None
 
-    if not ldap_client.is_admin(request.admin_username):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required",
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            current = await _get_current_user(authorization, session)
+            if not current["is_admin"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin privileges required",
+                )
+            admin_username = current["username"]
+        except HTTPException as e:
+            # If JWT fails, fall back to legacy auth (if provided)
+            if not request.admin_username or not request.admin_password:
+                raise e
+
+    # Fall back to legacy admin credentials if JWT not provided or failed
+    if not current:
+        if not request.admin_username or not request.admin_password:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required. Provide JWT token or admin credentials.",
+            )
+
+        ldap_client = LDAPClient()
+        auth_success, _ = ldap_client.authenticate(
+            request.admin_username, request.admin_password
         )
+        if not auth_success:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid admin credentials",
+            )
+
+        if not ldap_client.is_admin(request.admin_username):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin privileges required",
+            )
+        admin_username = request.admin_username
 
     # Get user
     try:
@@ -1495,10 +1523,40 @@ async def admin_activate_user(
             detail=f"Failed to create LDAP user: {message}",
         )
 
+    # Assign user to groups if provided
+    if request.group_ids:
+        for group_id in request.group_ids:
+            try:
+                group_uuid = uuid.UUID(group_id)
+            except ValueError:
+                logger.warning("Invalid group ID format: %s", group_id)
+                continue
+
+            # Get group
+            result = await session.execute(select(Group).where(Group.id == group_uuid))
+            group = result.scalar_one_or_none()
+            if not group:
+                logger.warning("Group not found: %s", group_id)
+                continue
+
+            # Add to LDAP group
+            success, msg = ldap_client.add_user_to_group(user.username, group.ldap_dn)
+            if not success:
+                logger.warning("Failed to add %s to LDAP group %s: %s", user.username, group.name, msg)
+            else:
+                # Create database assignment
+                user_group = UserGroup(
+                    user_id=user.id,
+                    group_id=group_uuid,
+                    assigned_by=admin_username,
+                )
+                session.add(user_group)
+                logger.info("User %s assigned to group %s during activation", user.username, group.name)
+
     # Update user status
     user.status = ProfileStatus.ACTIVE.value
     user.activated_at = datetime.now(timezone.utc)
-    user.activated_by = request.admin_username
+    user.activated_by = admin_username
     # Update password hash to match the temp password (user will use this until LDAP password reset)
     user.password_hash = _hash_password(temp_password)
 
@@ -1515,7 +1573,7 @@ async def admin_activate_user(
     except Exception as e:
         logger.error("Failed to send welcome email: %s", e)
 
-    logger.info("User %s activated by %s", user.username, request.admin_username)
+    logger.info("User %s activated by %s", user.username, admin_username)
 
     return AdminActivateResponse(
         success=True,

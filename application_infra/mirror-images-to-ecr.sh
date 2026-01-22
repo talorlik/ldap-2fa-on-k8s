@@ -5,7 +5,7 @@
 #
 # Usage: ./mirror-images-to-ecr.sh
 #   Requires Docker to be installed and running
-#   Uses AWS credentials from environment variables (set by setup-application.sh)
+#   Uses AWS credentials from environment variables (set by setup-application-infra.sh)
 #   Retrieves ECR information from backend_infra Terraform state
 
 set -euo pipefail
@@ -65,7 +65,7 @@ info "AWS Account ID: $AWS_ACCOUNT_ID"
 
 # Use AWS_REGION from environment (set by setup-application.sh)
 if [ -z "${AWS_REGION:-}" ]; then
-    print_error "AWS_REGION is not set. Run ./setup-application.sh first."
+    print_error "AWS_REGION is not set. Run ./setup-application-infra.sh first."
     exit 1
 fi
 info "AWS Region: $AWS_REGION"
@@ -75,7 +75,7 @@ BACKEND_FILE="${BACKEND_FILE:-backend.hcl}"
 
 # Check if backend file exists
 if [ ! -f "$BACKEND_FILE" ]; then
-    print_error "$BACKEND_FILE not found. Run ./setup-application.sh first."
+    print_error "$BACKEND_FILE not found. Run ./setup-application-infra.sh first."
     exit 1
 fi
 
@@ -115,14 +115,14 @@ info "ECR Repository Name: $ECR_REPO_NAME"
 echo ""
 
 # ECR is in the Deployment Account, so we need to assume the Deployment Account role
-# Check if DEPLOYMENT_ROLE_ARN and EXTERNAL_ID are set (from setup-application.sh)
+# Check if DEPLOYMENT_ROLE_ARN and EXTERNAL_ID are set (from setup-application-infra.sh)
 if [ -z "${DEPLOYMENT_ROLE_ARN:-}" ]; then
-    print_error "DEPLOYMENT_ROLE_ARN is not set. Run ./setup-application.sh first."
+    print_error "DEPLOYMENT_ROLE_ARN is not set. Run ./setup-application-infra.sh first."
     exit 1
 fi
 
 if [ -z "${EXTERNAL_ID:-}" ]; then
-    print_error "EXTERNAL_ID is not set. Run ./setup-application.sh first."
+    print_error "EXTERNAL_ID is not set. Run ./setup-application-infra.sh first."
     exit 1
 fi
 

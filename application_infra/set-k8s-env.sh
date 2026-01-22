@@ -4,7 +4,7 @@
 # Works for both local development and CI/CD
 #
 # Usage: source ./set-k8s-env.sh
-#   Uses AWS credentials from environment variables (set by setup-application.sh or CI/CD workflow)
+#   Uses AWS credentials from environment variables (set by setup-application-infra.sh or CI/CD workflow)
 
 set -e
 
@@ -45,7 +45,7 @@ BACKEND_FILE="${BACKEND_FILE:-backend.hcl}"
 
 # Check if backend file exists
 if [ ! -f "$BACKEND_FILE" ]; then
-    echo "ERROR: $BACKEND_FILE not found. Run ./setup-application.sh or the application_infra_provisioning GitHub workflow first."
+    echo "ERROR: $BACKEND_FILE not found. Run ./setup-application-infra.sh or the application_infra_provisioning GitHub workflow first."
     exit 1
 fi
 
@@ -87,19 +87,19 @@ echo "Cluster name: $CLUSTER_NAME"
 AWS_REGION="${AWS_REGION:-$BACKEND_REGION}"
 
 if [ -z "$DEPLOYMENT_ROLE_ARN" ]; then
-    print_error "DEPLOYMENT_ROLE_ARN is not set. Run ./setup-application.sh first."
+    print_error "DEPLOYMENT_ROLE_ARN is not set. Run ./setup-application-infra.sh first."
     exit 1
 fi
 
 if [ -z "$EXTERNAL_ID" ]; then
-    print_error "EXTERNAL_ID is not set. Run ./setup-application.sh first."
+    print_error "EXTERNAL_ID is not set. Run ./setup-application-infra.sh first."
     exit 1
 fi
 
 print_info "Assuming Deployment Account role: $DEPLOYMENT_ROLE_ARN"
 print_info "Region: $AWS_REGION"
 
-DEPLOYMENT_ROLE_SESSION_NAME="setup-application-deployment-$(date +%s)"
+DEPLOYMENT_ROLE_SESSION_NAME="setup-application-infra-deployment-$(date +%s)"
 
 # Assume deployment account role with ExternalId
 DEPLOYMENT_ASSUME_ROLE_OUTPUT=$(aws sts assume-role \

@@ -32,7 +32,7 @@ The ArgoCD Application module:
 ## Integration with ALB Module
 
 Applications deployed via ArgoCD that include Ingress resources should
-reference the IngressClass created by the [ALB module](../alb/README.md). The
+reference the IngressClass created by the [ALB module](../../application_infra/modules/alb/README.md). The
 ALB module creates an IngressClass and IngressClassParams for EKS Auto Mode
 ALB provisioning.
 
@@ -106,7 +106,7 @@ ingress:
           pathType: Prefix
 ```
 
-For more details on ALB configuration, see the [ALB module documentation](../alb/README.md).
+For more details on ALB configuration, see the [ALB module documentation](../../application_infra/modules/alb/README.md).
 
 ## Usage
 
@@ -258,7 +258,7 @@ module "argocd_app_manual" {
 | app_annotations | Annotations for Application resource | map(string) | no | {} |
 | sync_policy | Sync policy configuration | object | no | null |
 | ignore_differences | List of ignore differences configs | list(object) | no | [] |
-| revision_history_limit | Number of revisions to keep | number | no | 10 |
+| revision_history_limit | Number of revisions to keep | number | no | 5 |
 | helm_config | Helm-specific configuration | object | no | null |
 | kustomize_config | Kustomize-specific configuration | object | no | null |
 | directory_config | Directory-specific configuration | object | no | null |

@@ -586,8 +586,9 @@ them at:
 | ------------- | ------ | ------------- | ------------ |
 | `AWS_REGION` | Variable | AWS region where resources will be created | Manual |
 | `BACKEND_PREFIX` | Variable | Prefix for Terraform state file path in S3 bucket | Manual |
-| `APPLICATION_PREFIX` | Variable | Prefix for application infrastructure resources | Manual |
 | `BACKEND_BUCKET_NAME` | Variable | Dynamically generated S3 bucket name for Terraform state | **Auto-generated** by `tfstate_infra_provisioning.yaml` workflow |
+| `APPLICATION_INFRA_PREFIX` | Variable | State file key prefix for application infrastructure (value: `application_infra_state/terraform.tfstate`) | Manual |
+| `APPLICATION_PREFIX` | Variable | State file key prefix for application (value: `application_state/terraform.tfstate`) | Manual |
 | `ECR_REPOSITORY_NAME` | Variable | ECR repository name for Docker image storage | **Auto-generated** by `backend_infra_provisioning.yaml` workflow or `setup-backend.sh` script |
 
 > [!IMPORTANT]
@@ -602,6 +603,16 @@ them at:
 >   - Set by `setup-backend.sh` script after successful Terraform apply
 >   - Required by build workflows (`backend_build_push.yaml` and `frontend_build_push.yaml`)
 >   - **⚠️ You don't need to create these manually** - they are created automatically
+>
+> **Manual Variables (Must Be Set):**
+>
+> - `APPLICATION_INFRA_PREFIX`: Must be set to `application_infra_state/terraform.tfstate`
+>   - Used by `application_infra/` directory for Terraform state file key
+>   - Ensures infrastructure state is stored separately from application state
+> - `APPLICATION_PREFIX`: Must be set to `application_state/terraform.tfstate`
+>   - Used by `application/` directory for Terraform state file key
+>   - Ensures application state is stored separately from infrastructure state
+> - Both variables must be configured before deploying their respective directories
 
 ## Troubleshooting
 
@@ -653,7 +664,9 @@ in workflow YAML
 ## Related Documentation
 
 - [Main README](README.md) - Project overview and setup instructions
-- [Application Infrastructure README](application/README.md) - Application deployment
+- [Application Infrastructure README](application_infra/README.md) - Infrastructure
+deployment
+- [Application Deployment README](application/README.md) - Application deployment
 details
 - [Backend Infrastructure README](backend_infra/README.md) - Backend infrastructure
 setup

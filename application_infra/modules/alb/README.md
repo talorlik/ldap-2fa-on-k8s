@@ -82,10 +82,11 @@ but you can override `alb_group_name` if needed.
 
 ## What it Creates
 
-1. **IngressClassParams** (`null_resource.apply_ingressclassparams_manifest`)
+1. **IngressClassParams** (`kubernetes_manifest.ingressclassparams_alb`)
    - Custom resource for EKS Auto Mode ALB configuration
-   - Applied via `kubectl apply` (no native Terraform resource available)
-   - Contains cluster-wide ALB defaults
+   - Managed via `kubernetes_manifest` resource (native Terraform support)
+   - Contains cluster-wide ALB defaults (scheme, ipAddressType, group.name, certificateARNs)
+   - Includes wait conditions to ensure resource is ready
 
 2. **IngressClass** (`kubernetes_ingress_class_v1.ingressclass_alb`)
    - Kubernetes IngressClass resource
@@ -248,8 +249,7 @@ accessible only from within the VPC.
 
 ## Notes
 
-- IngressClassParams is created via `kubernetes_manifest` resource
-(native Terraform support)
+- IngressClassParams is created via `kubernetes_manifest` resource (native Terraform support)
 - The IngressClass is set as the default class for the cluster
 - ALB is automatically provisioned when Ingress resources are created
 - Changes to IngressClassParams trigger resource recreation
@@ -260,6 +260,8 @@ creates Ingress resources that reference the IngressClass
 to install the IngressClassParams CRD
 - The module includes a `time_sleep` resource to handle CRD availability
 timing issues
+- The `kubernetes_manifest` resource includes wait conditions to ensure the IngressClassParams
+resource is fully created before dependent resources are created
 
 ## References
 

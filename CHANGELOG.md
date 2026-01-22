@@ -5,6 +5,133 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Application Infrastructure Separation
+
+### Changed
+
+- **Project Structure Reorganization**
+  - Separated application infrastructure provisioning from application code deployment
+  - Renamed `application/` directory to `application_infra/` for infrastructure
+  provisioning
+  - Created new `application/` directory for 2FA application code and application-specific
+  dependencies
+  - Infrastructure components (ALB, OpenLDAP, ArgoCD Capability, Route53 records
+  for phpldapadmin/ltb-passwd) moved to `application_infra/`
+  - Application components (PostgreSQL, Redis, SES, SNS, ArgoCD Applications, Route53
+  record for 2FA app) moved to `application/`
+  - Updated all GitHub workflows to reference correct directories
+  - Created new workflows: `application_provisioning.yaml` and `application_destroying.yaml`
+  - Updated all documentation references to reflect new structure
+  - Split CHANGELOG files between infrastructure and application changes
+
+- **Directory Reorganization**: Separated application infrastructure from application
+code
+  - Renamed `application/` directory to `application_infra/` for infrastructure
+  provisioning
+  - Created new `application/` directory for application code and dependencies
+  - Moved application-specific modules (PostgreSQL, Redis, SES, SNS, ArgoCD Applications)
+  to `application/`
+  - Moved application code (backend, frontend) to `application/`
+  - Split outputs, variables, and CHANGELOG files between infrastructure and application
+  - Updated GitHub workflows to reference correct directories
+  - Updated all documentation references
+  - See [Application Infrastructure CHANGELOG](application_infra/CHANGELOG.md) for
+  infrastructure changes
+  - See [Application CHANGELOG](application/CHANGELOG.md) for application changes
+
+- **Project Structure Reorganization**:
+  - Separated application infrastructure from application code
+  - Renamed `application/` directory to `application_infra/` for infrastructure
+  provisioning
+  - Created new `application/` directory for 2FA application code and dependencies
+  - Infrastructure components (OpenLDAP, ALB, ArgoCD Capability, StorageClass)
+  now in `application_infra/`
+  - Application components (backend, frontend, PostgreSQL, Redis, SES, SNS, ArgoCD
+  Applications) now in `application/`
+  - Updated all GitHub workflows, scripts, and documentation to reflect new structure
+  - Application deployment now depends on infrastructure deployment via remote state
+  - Enables independent deployment ordering and clearer separation of concerns
+
+### Added
+
+- **New Application Deployment Workflows**
+  - `application_provisioning.yaml` - Deploys 2FA application and dependencies
+  (PostgreSQL, Redis, SES, SNS)
+  - `application_destroying.yaml` - Destroys application deployments
+  - Application workflows depend on `application_infra` being deployed first
+
+### Deployment Order
+
+- **Critical**: `application_infra/` must be deployed before `application/`
+  - Infrastructure provides: StorageClass, ArgoCD Capability, ALB DNS name
+  - Application reads from `application_infra` remote state for dependencies
+  - ArgoCD Applications require ArgoCD Capability CRD to exist before deployment
+
+## [2026-01-20] - Project Reorganization: Separation of Infrastructure and Application
+
+### Changed
+
+- **Directory Structure Reorganization**
+  - Separated application infrastructure from application code deployment
+  - Renamed `application/` directory to `application_infra/` for infrastructure
+  components
+  - Created new `application/` directory for application code and dependencies
+  - Enables independent deployment ordering and clearer separation of concerns
+
+- **Infrastructure Components (`application_infra/`)**
+  - Contains infrastructure Terraform modules: ALB, ArgoCD Capability, cert-manager,
+    network-policies, OpenLDAP, Route53, Route53 Record (for phpldapadmin and ltb_passwd)
+  - Contains infrastructure scripts: `setup-application-infra.sh`, `destroy-application-infra.sh`,
+    `mirror-images-to-ecr.sh`, `set-k8s-env.sh`
+  - Contains infrastructure documentation: ALB, ArgoCD Capability, Domain, OpenLDAP,
+    Security, Cross-Account Access
+  - Exports outputs for application use: `storage_class_name`, `local_cluster_secret_name`,
+    `argocd_namespace`, `argocd_project_name`, `alb_dns_name`
+
+- **Application Components (`application/`)**
+  - Contains application code: `backend/` (Python FastAPI), `frontend/` (HTML/JS/CSS)
+  - Contains application Terraform modules: argocd_app, postgresql, redis, ses,
+  sns
+  - Contains application scripts: `setup-application.sh`, `destroy-application.sh`
+  - Contains application documentation: 2FA App, Admin Functions, Signup Management,
+  SMS Management
+  - References `application_infra` remote state for infrastructure dependencies
+
+- **GitHub Workflows**
+  - Updated `application_infra_provisioning.yaml` and `application_infra_destroying.yaml`:
+    - Changed `working-directory` to `./application_infra`
+    - Removed PostgreSQL and Redis password secrets (application components)
+  - Created new workflows:
+    - `application_provisioning.yaml` - For application deployment
+    - `application_destroying.yaml` - For application destruction
+
+- **Documentation Updates**
+  - Updated `application_infra/README.md` to focus on infrastructure only
+  - Created `application/README.md` focused on application deployment
+  - Updated root `README.md` with new directory structure
+  - Split CHANGELOG files:
+    - `application_infra/CHANGELOG.md` - Infrastructure changes only
+    - `application/CHANGELOG.md` - Application changes only
+
+- **Deployment Order**
+  - Infrastructure (`application_infra/`) must be deployed first
+  - Application (`application/`) deploys after infrastructure is ready
+  - Application reads from `application_infra` remote state for:
+    - StorageClass name (for PostgreSQL/Redis)
+    - ArgoCD Capability outputs (for ArgoCD Applications)
+    - ALB DNS name (for Route53 record for twofa_app)
+
+### Documentation
+
+- **New README Files**
+  - `application_infra/README.md` - Infrastructure deployment guide
+  - `application/README.md` - Application deployment guide with infrastructure dependencies
+
+- **Updated References**
+  - All documentation updated to reflect new directory structure
+  - Module documentation links updated to point to correct locations
+  - Cross-references between infrastructure and application documentation added
+
 ## [2026-01-19] - ECR Repository Name Automation and Documentation Updates
 
 ### Added

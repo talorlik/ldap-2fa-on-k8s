@@ -7,8 +7,6 @@ name: Application Infra Provisioning
 # - AWS_ASSUME_EXTERNAL_ID: ExternalId for cross-account role assumption security
 # - TF_VAR_OPENLDAP_ADMIN_PASSWORD: OpenLDAP admin password
 # - TF_VAR_OPENLDAP_CONFIG_PASSWORD: OpenLDAP config password
-# - TF_VAR_POSTGRESQL_PASSWORD: PostgreSQL database password
-# - TF_VAR_REDIS_PASSWORD: Redis password for SMS OTP storage
 #
 # Note: GitHub workflows use repository secrets, while bash scripts use AWS Secrets Manager.
 # The secrets listed above must be configured in GitHub repository settings.
@@ -61,13 +59,9 @@ jobs:
       # Secrets in GitHub remain uppercase, but environment variables must be lowercase
       TF_VAR_openldap_admin_password: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
       TF_VAR_openldap_config_password: ${{ secrets.TF_VAR_OPENLDAP_CONFIG_PASSWORD }}
-      # Redis password for SMS OTP storage
-      TF_VAR_redis_password: ${{ secrets.TF_VAR_REDIS_PASSWORD }}
-      # PostgreSQL password for User management database
-      TF_VAR_postgresql_database_password: ${{ secrets.TF_VAR_POSTGRESQL_PASSWORD }}
     defaults:
       run:
-        working-directory: ./application
+        working-directory: ./application_infra
     steps:
       - name: Checkout the repo code
         uses: actions/checkout@v4
@@ -79,7 +73,7 @@ jobs:
 
       - name: Export environment variables for set-k8s-env.sh
         run: |
-          # Export required variables for set-k8s-env.sh (matching setup-application.sh)
+          # Export required variables for set-k8s-env.sh (matching setup-application-infra.sh)
           echo "BACKEND_FILE=backend.hcl" >> $GITHUB_ENV
           echo "VARIABLES_FILE=variables.tfvars" >> $GITHUB_ENV
           echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
@@ -105,11 +99,11 @@ jobs:
 
       - name: Create backend.hcl from placeholder
         run: |
-          # Only create if it doesn't exist (matching setup-application.sh behavior)
+          # Only create if it doesn't exist (matching setup-application-infra.sh behavior)
           if [ ! -f "backend.hcl" ]; then
             cp tfstate-backend-values-template.hcl backend.hcl
             sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
-            -e "s|<APPLICATION_PREFIX>|${{ vars.APPLICATION_PREFIX }}|g" \
+            -e "s|<APPLICATION_INFRA_PREFIX>|${{ vars.APPLICATION_INFRA_PREFIX }}|g" \
             -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
             backend.hcl
             echo "Created backend.hcl:"

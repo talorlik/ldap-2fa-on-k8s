@@ -657,5 +657,6 @@ The bucket policy in `main.tf` automatically uses the current caller's ARN via
 - [Main README](../README.md) - Project overview and quick start
 - [Backend Infrastructure](../backend_infra/README.md) - VPC, EKS, IRSA, and VPC
 endpoints
-- [Application Infrastructure](../application/README.md) - OpenLDAP, 2FA app,
+- [Application Infrastructure](../application_infra/README.md) - OpenLDAP, ALB, ArgoCD Capability
+- [Application](../application/README.md) - 2FA app, PostgreSQL, Redis, SES, SNS
 and supporting services
