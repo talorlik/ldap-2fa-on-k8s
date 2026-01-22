@@ -2,11 +2,14 @@
 
 ## Overview
 
-This document defines the requirements for deploying OpenLDAP directory service in the Kubernetes cluster, including security, networking, storage, and integration requirements.
+This document defines the requirements for deploying OpenLDAP directory service
+in the Kubernetes cluster, including security, networking, storage, and integration
+requirements.
 
 > [!NOTE]
 >
-> For technical details about the Helm chart and its configuration options, see [OPENLDAP-README.md](./OPENLDAP-README.md).
+> For technical details about the Helm chart and its configuration options,
+> see [OPENLDAP-README.md](./OPENLDAP-README.md).
 
 ## Functional Requirements
 
@@ -195,12 +198,13 @@ This document defines the requirements for deploying OpenLDAP directory service 
 
 > [!NOTE]
 >
-> The cert-manager module exists in the codebase but is not currently used. This is a
-> future enhancement requirement.
+> The cert-manager module exists in the codebase but is not currently used.
+> This is a future enhancement requirement.
 
 ## Related Documentation
 
-- [OPENLDAP-README.md](./OPENLDAP-README.md) - Technical reference for Helm chart configuration
+- [OPENLDAP-README.md](./OPENLDAP-README.md) - Technical reference for Helm chart
+configuration
 - [PRD-ALB.md](./PRD-ALB.md) - ALB configuration requirements
 - [PRD-DOMAIN.md](./PRD-DOMAIN.md) - Route53 and ACM certificate requirements
 - [Application Infrastructure README](./README.md) - Complete infrastructure overview

@@ -249,7 +249,8 @@ accessible only from within the VPC.
 
 ## Notes
 
-- IngressClassParams is created via `kubernetes_manifest` resource (native Terraform support)
+- IngressClassParams is created via `kubernetes_manifest` resource
+(native Terraform support)
 - The IngressClass is set as the default class for the cluster
 - ALB is automatically provisioned when Ingress resources are created
 - Changes to IngressClassParams trigger resource recreation

@@ -9,9 +9,11 @@ deployments.
 
 The application deployment provisions:
 
-- **PostgreSQL** (Bitnami Helm chart) for user registration and verification token storage
+- **PostgreSQL** (Bitnami Helm chart) for user registration and verification
+token storage
 - **Redis** for SMS OTP code storage with TTL-based expiration
-- **AWS SES** for email verification and notifications (configured for backend service account)
+- **AWS SES** for email verification and notifications (configured for backend
+service account)
 - **AWS SNS** for SMS-based 2FA verification (configured for backend service account)
 - **ArgoCD Applications** for deploying backend and frontend via GitOps
 - **Route53 Record** for the 2FA application (app.{domain_name})
@@ -21,6 +23,7 @@ The application deployment provisions:
 > **Deployment Order**: The `application_infra/` directory must be deployed first
 > before deploying the application. The application depends on infrastructure
 > components including:
+>
 > - StorageClass (for PostgreSQL and Redis persistent storage)
 > - ArgoCD Capability (for ArgoCD Applications)
 > - ALB DNS name (for Route53 record)
@@ -29,7 +32,7 @@ The application deployment provisions:
 
 The application components integrate with infrastructure deployed by `application_infra/`:
 
-```
+```ascii
 ┌───────────────────────────────────────────────────────────────────┐
 │                         EKS Cluster                               │
 │                                                                   │
@@ -57,7 +60,7 @@ The application components integrate with infrastructure deployed by `applicatio
 │  └─────────────────────────────────────────────────────────────┘  │
 │                                                                   │
 │  ┌─────────────────────────────────────────────────────────────┐  │
-│  │                   ArgoCD Applications                      │  │
+│  │                   ArgoCD Applications                       │  │
 │  │                   (GitOps Deployments)                      │  │
 │  └─────────────────────────────────────────────────────────────┘  │
 │                                                                   │
@@ -79,6 +82,7 @@ The `modules/postgresql/` module deploys PostgreSQL for storing user registratio
 and verification data using the Bitnami Helm chart with persistent EBS-backed storage.
 
 **Features:**
+
 - Uses StorageClass from `application_infra` remote state
 - ECR image support (images mirrored via infrastructure scripts)
 - Persistent storage with configurable size
@@ -96,6 +100,7 @@ Bitnami Helm chart with TTL-based expiration, shared state across replicas, and
 persistent storage.
 
 **Features:**
+
 - Uses StorageClass from `application_infra` remote state
 - ECR image support (images mirrored via infrastructure scripts)
 - Network policies restricting access to backend namespace
@@ -113,6 +118,7 @@ including email identity verification, DKIM setup, IRSA configuration, and optio
 Route53 integration.
 
 **Features:**
+
 - IRSA (IAM Roles for Service Accounts) for backend service account
 - Email identity verification
 - DKIM configuration
@@ -129,6 +135,7 @@ The `modules/sns/` module configures AWS SNS for SMS-based 2FA verification,
 including topic creation, IRSA configuration, and SMS preferences.
 
 **Features:**
+
 - IRSA (IAM Roles for Service Accounts) for backend service account
 - SNS topic creation
 - SMS preferences configuration
@@ -145,6 +152,7 @@ The `modules/argocd_app/` module creates ArgoCD Application CRDs for deploying
 backend and frontend via GitOps.
 
 **Features:**
+
 - Depends on ArgoCD Capability from `application_infra`
 - Automated sync policies
 - Self-healing capabilities
@@ -320,10 +328,11 @@ application/
 
 1. **Backend Infrastructure**: The backend infrastructure must be deployed first
    (see [backend_infra/README.md](../backend_infra/README.md))
-2. **Application Infrastructure**: The application infrastructure must be deployed first
-   (see [application_infra/README.md](../application_infra/README.md))
+2. **Application Infrastructure**: The application infrastructure must be deployed
+   first (see [application_infra/README.md](../application_infra/README.md))
    - This provides StorageClass, ArgoCD Capability, and ALB DNS name
-3. **Multi-Account Setup**: Same as infrastructure (State Account and Deployment Account)
+3. **Multi-Account Setup**: Same as infrastructure (State Account and Deployment
+   Account)
 4. **Secrets Configuration**: All required secrets must be configured.
    See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete setup instructions.
 5. **GitHub Repository Variables**: The following repository variables must be configured:
@@ -332,8 +341,8 @@ application/
 
 ## Backend State Configuration
 
-The application uses a separate Terraform state file stored in the same S3 bucket as
-other infrastructure components, but with a unique key to prevent conflicts.
+The application uses a separate Terraform state file stored in the same S3 bucket
+as other infrastructure components, but with a unique key to prevent conflicts.
 
 ### State File Configuration
 
@@ -351,21 +360,25 @@ other infrastructure components, but with a unique key to prevent conflicts.
 
 2. **`APPLICATION_PREFIX`**: The state file key prefix for application state
    - Value: `application_state/terraform.tfstate`
-   - This ensures the application state is stored separately from infrastructure state
-   - The full S3 key will be: `application_state/terraform.tfstate` (or `env:/${workspace}/application_state/terraform.tfstate` for non-default workspaces)
+   - This ensures the application state is stored separately from infrastructure
+   state
+   - The full S3 key will be: `application_state/terraform.tfstate`
+   (or `env:/${workspace}/application_state/terraform.tfstate` for non-default workspaces)
 
 ### State File Generation
 
 The `setup-application.sh` script automatically:
 
-1. Retrieves `BACKEND_BUCKET_NAME` and `APPLICATION_PREFIX` from GitHub repository variables
+1. Retrieves `BACKEND_BUCKET_NAME` and `APPLICATION_PREFIX` from GitHub repository
+variables
 2. Creates `backend.hcl` from `tfstate-backend-values-template.hcl` template
 3. Replaces placeholders:
    - `<BACKEND_BUCKET_NAME>` → actual bucket name
    - `<APPLICATION_PREFIX>` → `application_state/terraform.tfstate`
    - `<AWS_REGION>` → selected AWS region
 
-The generated `backend.hcl` file is git-ignored and should not be committed to the repository.
+The generated `backend.hcl` file is git-ignored and should not be committed to the
+repository.
 
 ### State File Isolation
 
@@ -434,6 +447,7 @@ accidental state conflicts or overwrites.
 > [!IMPORTANT]
 >
 > PostgreSQL and Redis passwords must be set via environment variables:
+>
 > - `TF_VAR_postgresql_database_password`
 > - `TF_VAR_redis_password`
 >
@@ -451,6 +465,7 @@ cd application_infra
 ```
 
 This deploys:
+
 - StorageClass (used by PostgreSQL and Redis)
 - ArgoCD Capability (required for ArgoCD Applications)
 - ALB (provides DNS name for Route53 record)
@@ -465,6 +480,7 @@ cd application
 ```
 
 This script will:
+
 - Prompt for AWS region and environment
 - Retrieve secrets from AWS Secrets Manager
 - Create `backend.hcl` from template
@@ -515,7 +531,8 @@ The application reads from:
 ### Deployment Order
 
 1. **backend_infra/** - Deploy first (provides EKS cluster, ECR)
-2. **application_infra/** - Deploy second (provides StorageClass, ArgoCD Capability, ALB)
+2. **application_infra/** - Deploy second (provides StorageClass, ArgoCD Capability,
+ALB)
 3. **application/** - Deploy last (depends on both infrastructure layers)
 
 ## Outputs
@@ -654,16 +671,25 @@ kubectl describe application -n argocd <app-name>
 
 ## Security Considerations
 
-1. **IRSA for AWS Services**: SMS 2FA and email verification use IAM Roles for Service Accounts (no hardcoded AWS credentials)
-2. **VPC Endpoints**: SNS and STS access goes through VPC endpoints (no public internet for SMS)
+1. **IRSA for AWS Services**: SMS 2FA and email verification use IAM Roles for
+Service Accounts (no hardcoded AWS credentials)
+2. **VPC Endpoints**: SNS and STS access goes through VPC endpoints
+(no public internet for SMS)
 3. **Phone Number Validation**: E.164 format validation for SMS phone numbers
 4. **SMS Code Expiration**: Verification codes expire after configurable timeout
-5. **Non-Root Container Execution**: Frontend container runs as non-root user (`appuser`, UID 1000) on port 8080, reducing attack surface and following security best practices
-6. **Password Security**: PostgreSQL and Redis passwords are marked as sensitive in Terraform and must be set via environment variables, never in `variables.tfvars`. See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for configuration details.
-7. **Encrypted Storage**: EBS volumes are encrypted by default (configurable via StorageClass from `application_infra`)
-8. **Network Policies**: Network policies restrict pod-to-pod communication (configured via modules)
+5. **Non-Root Container Execution**: Frontend container runs as non-root user
+(`appuser`, UID 1000) on port 8080, reducing attack surface and following security
+best practices
+6. **Password Security**: PostgreSQL and Redis passwords are marked as sensitive
+in Terraform and must be set via environment variables, never in `variables.tfvars`.
+See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for configuration details.
+7. **Encrypted Storage**: EBS volumes are encrypted by default
+(configurable via StorageClass from `application_infra`)
+8. **Network Policies**: Network policies restrict pod-to-pod communication
+(configured via modules)
 9. **Rate Limiting**: Consider implementing rate limiting for authentication attempts
-10. **HTTPS Only**: TLS termination at ALB with ACM certificate (automatically validated via Route53)
+10. **HTTPS Only**: TLS termination at ALB with ACM certificate
+(automatically validated via Route53)
 
 ## Architecture Notes
 

@@ -1,6 +1,7 @@
 # Changelog
 
-All notable changes to the application infrastructure will be documented in this file.
+All notable changes to the application infrastructure will be documented in this
+file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -17,20 +18,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Backend State Template Configuration**
-  - Updated `tfstate-backend-values-template.hcl` to use `APPLICATION_INFRA_PREFIX` placeholder
-  - State file key now uses repository variable `APPLICATION_INFRA_PREFIX` (value: `application_infra_state/terraform.tfstate`)
-  - Changed from generic `APPLICATION_PREFIX` to specific `APPLICATION_INFRA_PREFIX` for clarity
+  - Updated `tfstate-backend-values-template.hcl` to use `APPLICATION_INFRA_PREFIX`
+  placeholder
+  - State file key now uses repository variable `APPLICATION_INFRA_PREFIX`
+  (value: `application_infra_state/terraform.tfstate`)
+  - Changed from generic `APPLICATION_PREFIX` to specific `APPLICATION_INFRA_PREFIX`
+  for clarity
   - Ensures unique state file naming separate from application state
 
 - **Setup and Destroy Scripts**
-  - Updated `setup-application-infra.sh` to use `APPLICATION_INFRA_PREFIX` from GitHub repository variables
-  - Updated `destroy-application-infra.sh` to use `APPLICATION_INFRA_PREFIX` from GitHub repository variables
-  - Changed from `APPLICATION_PREFIX` to `APPLICATION_INFRA_PREFIX` for infrastructure-specific naming
-  - Scripts now replace `<APPLICATION_INFRA_PREFIX>` placeholder with repository variable value
+  - Updated `setup-application-infra.sh` to use `APPLICATION_INFRA_PREFIX` from
+  GitHub repository variables
+  - Updated `destroy-application-infra.sh` to use `APPLICATION_INFRA_PREFIX` from
+  GitHub repository variables
+  - Changed from `APPLICATION_PREFIX` to `APPLICATION_INFRA_PREFIX` for
+  infrastructure-specific naming
+  - Scripts now replace `<APPLICATION_INFRA_PREFIX>` placeholder with repository
+  variable value
 
 - **GitHub Workflows**
-  - Updated `application_infra_provisioning.yaml` to use `APPLICATION_INFRA_PREFIX` repository variable
-  - Updated `application_infra_destroying.yaml` to use `APPLICATION_INFRA_PREFIX` repository variable
+  - Updated `application_infra_provisioning.yaml` to use `APPLICATION_INFRA_PREFIX`
+  repository variable
+  - Updated `application_infra_destroying.yaml` to use `APPLICATION_INFRA_PREFIX`
+  repository variable
   - Changed from `APPLICATION_PREFIX` to `APPLICATION_INFRA_PREFIX` for consistency
 
 ### Added
@@ -48,7 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed state file key to use consistent naming: `application_infra_state/terraform.tfstate`
   - Ensured all scripts and workflows use the correct prefix variable
   - Eliminated discrepancies between bash scripts and GitHub workflows
-  - Separated infrastructure state from application state using distinct prefix variables
+  - Separated infrastructure state from application state using distinct prefix
+  variables
 
 ## [2026-01-19] - Build Workflow Simplification and ECR Variable Requirements
 
@@ -408,7 +419,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > [!NOTE]
 >
 > ArgoCD Application CRDs are created by the `application/` Terraform configuration.
-> See [application/CHANGELOG.md](../application/CHANGELOG.md) for ArgoCD Application changes.
+> See [application/CHANGELOG.md](../application/CHANGELOG.md) for ArgoCD Application
+> changes.
 
 ### Changed
 

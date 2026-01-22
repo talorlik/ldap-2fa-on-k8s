@@ -81,12 +81,14 @@ Configuration](#github-repository-configuration))
   compatibility).
 - **ECR Image Tags**: Images are mirrored to ECR with standardized tags:
   - `openldap-1.5.0` (corresponds to `osixia/openldap:1.5.0`) - mirrored by infrastructure
-  - `redis-latest` (corresponds to `bitnami/redis:8.4.0-debian-12-r6`) - mirrored by application
-  - `postgresql-latest` (corresponds to `bitnami/postgresql:18.1.0-debian-12-r4`) - mirrored by application
+  - `redis-latest` (corresponds to `bitnami/redis:8.4.0-debian-12-r6`) - mirrored
+  by application
+  - `postgresql-latest` (corresponds to `bitnami/postgresql:18.1.0-debian-12-r4`)
+  mirrored by application
 
 ## Project Structure
 
-```text
+```bash
 ldap-2fa-on-k8s/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/
@@ -240,8 +242,10 @@ For detailed information about each component, see:
   with file-based locking (v1.0.0), AWS provider 6.21.0, Terraform 1.14.0
 - [Backend Infrastructure](backend_infra/README.md) - VPC, EKS, IRSA, VPC
   endpoints
-- [Application Infrastructure](application_infra/README.md) - OpenLDAP, ALB, ArgoCD Capability
-- [Application Deployment](application/README.md) - 2FA app, PostgreSQL, Redis, SES, SNS
+- [Application Infrastructure](application_infra/README.md) - OpenLDAP, ALB,
+ArgoCD Capability
+- [Application Deployment](application/README.md) - 2FA app, PostgreSQL, Redis,
+SES, SNS
 
 ## Multi-Account Architecture
 
@@ -639,7 +643,8 @@ This deploys:
 
 #### Step 4. Deploy Application
 
-Deploy the 2FA application components (backend, frontend, PostgreSQL, Redis, SES, SNS).
+Deploy the 2FA application components (backend, frontend, PostgreSQL, Redis, SES,
+SNS).
 
 This deploys:
 
@@ -981,7 +986,8 @@ see the [Application Infrastructure README](application_infra/README.md).
 
 ### Application Components
 
-The application deploys the 2FA application and supporting services. Key components include:
+The application deploys the 2FA application and supporting services. Key components
+include:
 
 - **2FA Application** with self-service registration and admin dashboard
 - **PostgreSQL** for user registration and verification token storage
@@ -1082,7 +1088,8 @@ After deployment:
   integration, and GitHub variable configuration
 - [Backend Infrastructure README](backend_infra/README.md) - VPC, EKS, IRSA, VPC
 endpoints, and ECR documentation
-- [Application Infrastructure README](application_infra/README.md) - OpenLDAP, ALB, ArgoCD Capability
+- [Application Infrastructure README](application_infra/README.md) - OpenLDAP, ALB,
+ArgoCD Capability
 app, ALB, ArgoCD, and deployment instructions
 
 ### Application Documentation
@@ -1095,7 +1102,8 @@ user registration with email/phone verification
 management, and approval workflows
 - [SMS OTP Management PRD](application/PRD-SMS-MAN.md) - Redis-based SMS OTP
 storage with TTL
-- [OpenLDAP Deployment PRD](application_infra/PRD-OPENLDAP.md) - OpenLDAP deployment requirements and configuration
+- [OpenLDAP Deployment PRD](application_infra/PRD-OPENLDAP.md) - OpenLDAP deployment
+requirements and configuration
 - [Security Improvements](application/SECURITY-IMPROVEMENTS.md) - Security
 enhancements and best practices
 

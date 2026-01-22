@@ -1,6 +1,7 @@
 # Changelog
 
-All notable changes to the 2FA application components will be documented in this file.
+All notable changes to the 2FA application components will be documented in this
+file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -23,14 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ensures consistent state file naming across all deployment methods
 
 - **Setup and Destroy Scripts**
-  - Updated `setup-application.sh` to use `APPLICATION_PREFIX` directly from GitHub repository variables
-  - Updated `destroy-application.sh` to use `APPLICATION_PREFIX` directly from GitHub repository variables
-  - Removed logic that constructed state prefix path (now handled by repository variable value)
-  - Scripts now replace `<APPLICATION_PREFIX>` placeholder with repository variable value
+  - Updated `setup-application.sh` to use `APPLICATION_PREFIX` directly from GitHub
+  repository variables
+  - Updated `destroy-application.sh` to use `APPLICATION_PREFIX` directly from GitHub
+  repository variables
+  - Removed logic that constructed state prefix path (now handled by repository
+  variable value)
+  - Scripts now replace `<APPLICATION_PREFIX>` placeholder with repository variable
+  value
 
 - **GitHub Workflows**
-  - Updated `application_provisioning.yaml` to use `APPLICATION_PREFIX` repository variable
-  - Updated `application_destroying.yaml` to use `APPLICATION_PREFIX` repository variable
+  - Updated `application_provisioning.yaml` to use `APPLICATION_PREFIX` repository
+  variable
+  - Updated `application_destroying.yaml` to use `APPLICATION_PREFIX` repository
+  variable
   - Removed hardcoded path construction (now uses variable value directly)
 
 ### Added
@@ -408,7 +415,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Updated main.tf**
   - Added ArgoCD application module calls for backend and frontend
   - Configured cluster registration using ArgoCD Capability outputs from infrastructure
-  - References ArgoCD namespace and project name from `application_infra` remote state
+  - References ArgoCD namespace and project name from `application_infra` remote
+  state
 
 - **Updated variables.tf and variables.tfvars**
   - Added ArgoCD Application configuration variables
@@ -422,7 +430,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [x] ~~Implement 2FA application with TOTP support~~ (Completed 2025-12-18)
 - [x] ~~Add SMS-based verification via AWS SNS~~ (Completed 2025-12-18)
 - [x] ~~Replace in-memory SMS OTP storage with Redis~~ (Completed 2025-12-18)
-- [x] ~~Add self-service user signup with email/phone verification~~ (Completed 2025-12-18)
+- [x] ~~Add self-service user signup with email/phone verification~~
+(Completed 2025-12-18)
 - [x] ~~Implement admin dashboard for user management~~ (Completed 2025-12-18)
 - [x] ~~Add group management and user-group assignment~~ (Completed 2025-12-18)
 - [x] ~~Add user profile management~~ (Completed 2025-12-18)

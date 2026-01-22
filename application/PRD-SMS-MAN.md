@@ -216,6 +216,7 @@ auth:
 
 For implementation details, configuration examples, and technical reference, see:
 
-- [Redis Module Documentation](modules/redis/README.md) - Implementation guide and configuration examples
+- [Redis Module Documentation](modules/redis/README.md) - Implementation guide and
+configuration examples
 - [Application README](./README.md) - Complete application overview
 - [Secrets Requirements](../SECRETS_REQUIREMENTS.md) - Secrets configuration instructions

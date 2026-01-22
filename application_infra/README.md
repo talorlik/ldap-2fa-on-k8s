@@ -14,7 +14,8 @@ The application infrastructure provisions:
   requested in Deployment Account, validated via DNS records in State Account)
 - **Helm Release** for OpenLDAP Stack HA (High Availability)
 - **Application Load Balancer (ALB)** via EKS Auto Mode Ingress
-- **Persistent Storage** using EBS-backed PVCs (StorageClass for use by application components)
+- **Persistent Storage** using EBS-backed PVCs (StorageClass for use by application
+components)
 - **Internet-Facing ALB** for UI access from the internet
 - **ArgoCD Capability** for GitOps deployments (AWS EKS managed service)
 - **cert-manager** module available (future improvement for automatic TLS
@@ -53,7 +54,7 @@ certificate management)
 │                                                                   │
 │  ┌─────────────────────────────────────────────────────────────┐  │
 │  │                   ArgoCD (EKS Managed)                      │  │
-│  │                   GitOps Capability                          │  │
+│  │                   GitOps Capability                         │  │
 │  └─────────────────────────────────────────────────────────────┘  │
 │                                                                   │
 └───────────────────────────────────────────────────────────────────┘
@@ -370,7 +371,6 @@ application_infra/
 > Applications) are deployed separately via the `application/` directory. See
 > [application/README.md](../application/README.md) for application deployment
 > details.
-```
 
 ## Prerequisites
 
@@ -424,9 +424,12 @@ variables (see Configuration section)
 11. **AWS Identity Center**: Required for ArgoCD RBAC configuration
 12. **Secrets Configuration**: All required secrets must be configured.
 See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete setup instructions.
-13. **GitHub Repository Variables**: The following repository variables must be configured:
-   - `BACKEND_BUCKET_NAME`: S3 bucket name for Terraform state storage
-   - `APPLICATION_INFRA_PREFIX`: State file key prefix (value: `application_infra_state/terraform.tfstate`)
+13. **GitHub Repository Variables**: The following repository variables must be
+configured:
+
+    - `BACKEND_BUCKET_NAME`: S3 bucket name for Terraform state storage
+    - `APPLICATION_INFRA_PREFIX`: State file key prefix (value: `application_infra_state/terraform.tfstate`)
+
 14. **Docker (for Local Deployment)**: Docker must be installed and running for
 ECR image mirroring. The `mirror-images-to-ecr.sh` script requires Docker to
 pull images from Docker Hub and push them to ECR.
@@ -436,8 +439,9 @@ compatibility).
 
 ## Backend State Configuration
 
-The application infrastructure uses a separate Terraform state file stored in the same
-S3 bucket as other infrastructure components, but with a unique key to prevent conflicts.
+The application infrastructure uses a separate Terraform state file stored in the
+same S3 bucket as other infrastructure components, but with a unique key to prevent
+conflicts.
 
 ### State File Configuration
 
@@ -453,23 +457,29 @@ S3 bucket as other infrastructure components, but with a unique key to prevent c
    - Must be the same bucket used by `backend_infra` and `application`
    - Example: `talo-tf-395323424870-s3-tfstate`
 
-2. **`APPLICATION_INFRA_PREFIX`**: The state file key prefix for application infrastructure state
+2. **`APPLICATION_INFRA_PREFIX`**: The state file key prefix for application
+infrastructure state
    - Value: `application_infra_state/terraform.tfstate`
-   - This ensures the infrastructure state is stored separately from application state
-   - The full S3 key will be: `application_infra_state/terraform.tfstate` (or `env:/${workspace}/application_infra_state/terraform.tfstate` for non-default workspaces)
+   - This ensures the infrastructure state is stored separately from application
+   state
+   - The full S3 key will be: `application_infra_state/terraform.tfstate`
+   (or `env:/${workspace}/application_infra_state/terraform.tfstate` for non-default
+   workspaces)
 
 ### State File Generation
 
 The `setup-application-infra.sh` script automatically:
 
-1. Retrieves `BACKEND_BUCKET_NAME` and `APPLICATION_INFRA_PREFIX` from GitHub repository variables
+1. Retrieves `BACKEND_BUCKET_NAME` and `APPLICATION_INFRA_PREFIX` from GitHub
+repository variables
 2. Creates `backend.hcl` from `tfstate-backend-values-template.hcl` template
 3. Replaces placeholders:
    - `<BACKEND_BUCKET_NAME>` → actual bucket name
    - `<APPLICATION_INFRA_PREFIX>` → `application_infra_state/terraform.tfstate`
    - `<AWS_REGION>` → selected AWS region
 
-The generated `backend.hcl` file is git-ignored and should not be committed to the repository.
+The generated `backend.hcl` file is git-ignored and should not be committed to the
+repository.
 
 ### State File Isolation
 
@@ -570,9 +580,9 @@ provisioners) use the current cluster endpoint, preventing DNS lookup errors.
 >
 > Passwords must be set via environment variables, NOT in `variables.tfvars`.
 
-The `setup-application-infra.sh` script automatically retrieves these passwords from
-AWS Secrets Manager (for local use) or GitHub repository secrets (for GitHub Actions)
-and exports them as environment variables for Terraform.
+The `setup-application-infra.sh` script automatically retrieves these passwords
+from AWS Secrets Manager (for local use) or GitHub repository secrets
+(for GitHub Actions) and exports them as environment variables for Terraform.
 
 > [!NOTE]
 >
@@ -791,8 +801,9 @@ The workflow will:
 
 > [!NOTE]
 >
-> The `setup-application-infra.sh` script automatically retrieves OpenLDAP passwords from
-> AWS Secrets Manager (for local use) or GitHub repository secrets (for GitHub Actions).
+> The `setup-application-infra.sh` script automatically retrieves OpenLDAP passwords
+> from AWS Secrets Manager (for local use) or GitHub repository secrets
+> (for GitHub Actions).
 
 **Setup Instructions:**
 

@@ -2,11 +2,15 @@
 
 ## Overview
 
-This document defines the requirements for domain management, DNS configuration, and TLS certificate setup for the LDAP 2FA application infrastructure.
+This document defines the requirements for domain management, DNS configuration,
+and TLS certificate setup for the LDAP 2FA application infrastructure.
 
 > [!NOTE]
 >
-> The current implementation uses **data sources** to reference existing Route53 hosted zone and ACM certificate resources. The Route53 module exists but is commented out. If you want to create these resources via Terraform, uncomment the module and update the code accordingly.
+> The current implementation uses **data sources** to reference existing Route53
+> hosted zone and ACM certificate resources. The Route53 module exists but is
+> commented out. If you want to create these resources via Terraform, uncomment
+> the module and update the code accordingly.
 
 ## Functional Requirements
 
@@ -110,8 +114,10 @@ This document defines the requirements for domain management, DNS configuration,
 
 For implementation details, setup instructions, and technical reference, see:
 
-- [Route53 Record Module Documentation](modules/route53_record/README.md) - Implementation guide and configuration examples
-- [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) - Public ACM certificate setup instructions with step-by-step AWS CLI commands
+- [Route53 Record Module Documentation](modules/route53_record/README.md) - Implementation
+guide and configuration examples
+- [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) - Public ACM certificate
+setup instructions with step-by-step AWS CLI commands
 - [Application Infrastructure README](./README.md) - Complete infrastructure overview
 
 Below is a linear Terraform-centric setup.

@@ -32,8 +32,8 @@ The ArgoCD Application module:
 ## Integration with ALB Module
 
 Applications deployed via ArgoCD that include Ingress resources should
-reference the IngressClass created by the [ALB module](../../application_infra/modules/alb/README.md). The
-ALB module creates an IngressClass and IngressClassParams for EKS Auto Mode
+reference the IngressClass created by the [ALB module](../../application_infra/modules/alb/README.md).
+The ALB module creates an IngressClass and IngressClassParams for EKS Auto Mode
 ALB provisioning.
 
 ### Using ALB IngressClass in ArgoCD Applications

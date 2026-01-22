@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document defines the requirements for deploying a single internet-facing Application Load Balancer (ALB) on EKS to serve multiple applications via host-based routing.
+This document defines the requirements for deploying a single internet-facing
+Application Load Balancer (ALB) on EKS to serve multiple applications via
+host-based routing.
 
 ## Functional Requirements
 
@@ -115,6 +117,8 @@ This document defines the requirements for deploying a single internet-facing Ap
 
 For implementation details, configuration examples, and technical reference, see:
 
-- [ALB Module Documentation](modules/alb/README.md) - Implementation guide and configuration examples
+- [ALB Module Documentation](modules/alb/README.md) - Implementation guide and
+configuration examples
 - [Application Infrastructure README](./README.md) - Complete infrastructure overview
-- [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) - Certificate setup instructions
+- [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) - Certificate
+setup instructions

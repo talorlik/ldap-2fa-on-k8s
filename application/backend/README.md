@@ -183,13 +183,16 @@ The API will be available at `http://localhost:8000` with interactive docs at `h
 
 ### Docker Setup
 
-The Dockerfile uses a multi-stage build process to create an optimized production image.
+The Dockerfile uses a multi-stage build process to create an optimized production
+image.
 
 #### Build Process
 
-1. **Build Stage**: Installs build dependencies (gcc, libldap2-dev, libsasl2-dev) and creates a Python virtual environment with all required packages.
+1. **Build Stage**: Installs build dependencies (gcc, libldap2-dev, libsasl2-dev)
+and creates a Python virtual environment with all required packages.
 
-2. **Runtime Stage**: Creates a minimal runtime image with only runtime dependencies (libldap-2.5-0, libsasl2-2) and copies the virtual environment from the build stage.
+2. **Runtime Stage**: Creates a minimal runtime image with only runtime dependencies
+(libldap-2.5-0, libsasl2-2) and copies the virtual environment from the build stage.
 
 #### Building the Image
 
@@ -203,7 +206,8 @@ docker build --build-arg PY_IMAGE=python:3.11-slim -t ldap-2fa-backend .
 
 #### Running the Container
 
-The container runs as a non-root user (`appuser`) for security. Default environment variables are set in the Dockerfile, but can be overridden:
+The container runs as a non-root user (`appuser`) for security. Default environment
+variables are set in the Dockerfile, but can be overridden:
 
 ```bash
 docker run -d \
@@ -217,16 +221,20 @@ docker run -d \
 
 #### Dockerfile Features
 
-- **Multi-stage build**: Reduces final image size by separating build and runtime dependencies
+- **Multi-stage build**: Reduces final image size by separating build and runtime
+dependencies
 - **Non-root user**: Runs as `appuser` user for enhanced security
-- **Health check**: Built-in health check endpoint at `/api/healthz` (30s interval, 10s timeout)
+- **Health check**: Built-in health check endpoint at `/api/healthz` (30s interval,
+10s timeout)
 - **Production server**: Uses Gunicorn with Uvicorn workers (2 workers by default)
-- **Default environment variables**: Pre-configured defaults for LDAP, TOTP, and application settings
+- **Default environment variables**: Pre-configured defaults for LDAP, TOTP,
+and application settings
 - **Optimized layers**: Efficient layer caching for faster rebuilds
 
 #### Default Environment Variables in Dockerfile
 
-The following environment variables have defaults set in the Dockerfile (can be overridden):
+The following environment variables have defaults set in the Dockerfile
+(can be overridden):
 
 - `LDAP_HOST`: `openldap-stack-ha.ldap.svc.cluster.local`
 - `LDAP_PORT`: `389`

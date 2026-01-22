@@ -211,6 +211,25 @@ The documentation automatically updates when API endpoints change.
 
 ## Infrastructure Requirements
 
+### REQ-2: GitOps Deployment
+
+| ID | Requirement |
+| ---- | ------------- |
+| REQ-2.1 | Backend and frontend must be deployable via ArgoCD Applications |
+| REQ-2.2 | ArgoCD Applications must support automated sync |
+| REQ-2.3 | ArgoCD Applications must support self-healing |
+| REQ-2.4 | ArgoCD Applications must support resource pruning |
+
+### REQ-3: CI/CD Pipeline
+
+| ID | Requirement |
+| ---- | ------------- |
+| REQ-3.1 | Backend code changes must trigger automated build and deployment |
+| REQ-3.2 | Frontend code changes must trigger automated build and deployment |
+| REQ-3.3 | Docker images must be built and pushed to ECR |
+| REQ-3.4 | Image tags must use commit SHA for versioning |
+| REQ-3.5 | Helm chart values must be automatically updated with new image tags |
+
 ### DNS (Route53)
 
 | Requirement |
@@ -390,27 +409,6 @@ The SNS Terraform module (`application/modules/sns/`) creates:
 | `sns_topic_arn` | SNS topic ARN |
 | `iam_role_arn` | IAM role ARN for IRSA |
 | `service_account_annotation` | Annotation for K8s service account |
-
-## Infrastructure Requirements
-
-### REQ-2: GitOps Deployment
-
-| ID | Requirement |
-| ---- | ------------- |
-| REQ-2.1 | Backend and frontend must be deployable via ArgoCD Applications |
-| REQ-2.2 | ArgoCD Applications must support automated sync |
-| REQ-2.3 | ArgoCD Applications must support self-healing |
-| REQ-2.4 | ArgoCD Applications must support resource pruning |
-
-### REQ-3: CI/CD Pipeline
-
-| ID | Requirement |
-| ---- | ------------- |
-| REQ-3.1 | Backend code changes must trigger automated build and deployment |
-| REQ-3.2 | Frontend code changes must trigger automated build and deployment |
-| REQ-3.3 | Docker images must be built and pushed to ECR |
-| REQ-3.4 | Image tags must use commit SHA for versioning |
-| REQ-3.5 | Helm chart values must be automatically updated with new image tags |
 
 ## Security Requirements
 
