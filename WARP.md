@@ -13,9 +13,12 @@ Mode) using Terraform. The infrastructure is deployed on AWS using a
 Terraform state files (Account A - State Account)
 2. **Backend Infrastructure** (`backend_infra/`) - Core AWS infrastructure (VPC,
 EKS cluster with IRSA, VPC endpoints, ECR) (Account B - Deployment Account)
-3. **Application Layer** (`application/`) - OpenLDAP stack, 2FA application
-(backend + frontend), ArgoCD, SNS for SMS 2FA, using existing Route53 zone and
-ACM certificate (Account B - Deployment Account)
+3. **Application Infrastructure** (`application_infra/`) - Infrastructure components
+(OpenLDAP, ALB, ArgoCD Capability, StorageClass, Route53 records for phpldapadmin/ltb-passwd)
+(Account B - Deployment Account)
+4. **Application** (`application/`) - 2FA application code (backend + frontend)
+and application dependencies (PostgreSQL, Redis, SES, SNS, ArgoCD Applications)
+(Account B - Deployment Account)
 
 **Multi-Account Architecture:**
 
@@ -37,14 +40,16 @@ prevent confused deputy attacks (for deployment account roles only)
 
 ## Architecture
 
-### Three-Phased Deployment Model
+### Four-Phased Deployment Model
 
 - **Phase 1**: Deploy Terraform backend state infrastructure first (prerequisite
 for all other deployments)
-- **Phase 2**: Deploy backend infrastructure (VPC, EKS, networking, EBS, ECR)
-using the remote state backend
-- **Phase 3**: Deploy application layer (OpenLDAP Helm chart, Route53 DNS
-records, network policies) on top of the EKS cluster
+- **Phase 2**: Deploy backend infrastructure (VPC, EKS, networking, ECR, VPC
+endpoints) using the remote state backend
+- **Phase 3**: Deploy application infrastructure (OpenLDAP, ALB, ArgoCD Capability,
+StorageClass, Route53 DNS records for phpldapadmin/ltb-passwd) on top of the EKS cluster
+- **Phase 4**: Deploy application (2FA app code, PostgreSQL, Redis, SES, SNS,
+ArgoCD Applications, Route53 DNS record for twofa_app) using infrastructure from Phase 3
 
 ### Infrastructure Components
 
@@ -112,33 +117,42 @@ ldap-2fa-on-k8s/
 │       ├── frontend_build_push.yaml
 │       ├── tfstate_infra_destroying.yaml
 │       └── tfstate_infra_provisioning.yaml
-├── application/                # Application infrastructure - Account B
+├── application_infra/          # Application infrastructure - Account B
+│   ├── helm/                   # Helm values templates (OpenLDAP)
+│   │   └── openldap-values.tpl.yaml
+│   ├── modules/                # Infrastructure Terraform modules
+│   │   ├── alb/                # IngressClass and IngressClassParams
+│   │   ├── argocd/             # ArgoCD Capability (AWS managed)
+│   │   ├── cert-manager/       # TLS certificate management
+│   │   ├── network-policies/   # Kubernetes NetworkPolicies
+│   │   ├── openldap/           # OpenLDAP Stack HA deployment module
+│   │   ├── route53/            # Route53 hosted zone
+│   │   └── route53_record/     # Route53 A (alias) record creation
+│   ├── destroy-application-infra.sh
+│   ├── mirror-images-to-ecr.sh # ECR image mirroring script
+│   ├── set-k8s-env.sh
+│   ├── setup-application-infra.sh
+│   └── [other infrastructure files...]
+├── application/                # 2FA Application code and dependencies - Account B
 │   ├── backend/                # 2FA Backend (Python FastAPI)
 │   │   ├── src/                # Source code
 │   │   ├── helm/               # Helm chart
-│   │   └── Dockerfile
+│   │   ├── Dockerfile
+│   │   └── README.md           # Backend API documentation
 │   ├── frontend/               # 2FA Frontend (HTML/JS/CSS)
 │   │   ├── src/                # Source code
 │   │   ├── helm/               # Helm chart
 │   │   ├── Dockerfile
-│   │   └── nginx.conf
-│   ├── helm/                   # Helm values templates (OpenLDAP, Redis, PostgreSQL)
-│   ├── modules/                # Terraform modules
-│   │   ├── alb/                # IngressClass and IngressClassParams
-│   │   ├── argocd/             # ArgoCD capability (AWS managed)
+│   │   ├── nginx.conf
+│   │   └── README.md           # Frontend documentation
+│   ├── helm/                   # Application Helm values templates (Redis, PostgreSQL)
+│   ├── modules/                # Application Terraform modules
 │   │   ├── argocd_app/         # ArgoCD Application CRD
-│   │   ├── cert-manager/       # TLS certificate management
-│   │   ├── network-policies/   # Kubernetes NetworkPolicies
-│   │   ├── openldap/           # OpenLDAP Stack HA deployment module
 │   │   ├── postgresql/         # PostgreSQL database (Bitnami Helm)
 │   │   ├── redis/              # Redis cache for SMS OTP
-│   │   ├── route53/            # Route53 hosted zone
-│   │   ├── route53_record/     # Route53 A (alias) record creation
 │   │   ├── ses/                # SES for email verification
 │   │   └── sns/                # SNS for SMS 2FA
 │   ├── destroy-application.sh
-│   ├── mirror-images-to-ecr.sh # ECR image mirroring script
-│   ├── set-k8s-env.sh
 │   ├── setup-application.sh
 │   └── [other application files...]
 ├── backend_infra/              # Core AWS infrastructure - Account B
@@ -276,7 +290,7 @@ terraform plan -var-file="variables.tfvars" -destroy -out "terraform.tfplan"
 terraform apply -auto-approve "terraform.tfplan"
 ```
 
-### Application Layer Deployment
+### Application Infrastructure Deployment
 
 **Prerequisites:**
 Ensure you have:
@@ -285,7 +299,7 @@ Ensure you have:
 - An existing Route53 hosted zone for your domain
 - **Public ACM certificates** requested in each deployment account and validated
 via DNS records in State Account's Route53 hosted zone
-  - See [Public ACM Certificate Setup and DNS Validation](application/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  - See [Public ACM Certificate Setup and DNS Validation](application_infra/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for detailed setup instructions
   - Certificates are browser-trusted (no security warnings) and automatically
   renewed by ACM
@@ -293,20 +307,20 @@ via DNS records in State Account's Route53 hosted zone
   - `github-role`: Contains `AWS_STATE_ACCOUNT_ROLE_ARN` and deployment account
   role ARNs
   - `external-id`: Contains `AWS_ASSUME_EXTERNAL_ID`
-  - `tf-vars`: Contains OpenLDAP, PostgreSQL, and Redis passwords
+  - `tf-vars`: Contains OpenLDAP password
   - See `SECRETS_REQUIREMENTS.md` for detailed setup instructions
 
-**Deploy OpenLDAP Application:**
+**Deploy Application Infrastructure (OpenLDAP, ALB, ArgoCD Capability):**
 
 ```bash
-cd application
+cd application_infra
 
 # For local use: Export passwords as environment variables (script retrieves from GitHub secrets if available)
 export TF_VAR_OPENLDAP_ADMIN_PASSWORD="YourSecurePassword123!"
 export TF_VAR_OPENLDAP_CONFIG_PASSWORD="YourSecurePassword123!"
 
-# Deploy application (handles all configuration and Terraform operations automatically)
-./setup-application.sh
+# Deploy infrastructure (handles all configuration and Terraform operations automatically)
+./setup-application-infra.sh
 ```
 
 This script will:
@@ -319,9 +333,9 @@ This script will:
 environment variables
 - Create backend.hcl from template if it doesn't exist
 - Update variables.tfvars with selected values
-- **Mirror third-party Docker images to ECR** (OpenLDAP, Redis, PostgreSQL)
-  - Checks which images already exist in ECR
-  - Only mirrors missing images from Docker Hub
+- **Mirror third-party Docker image to ECR** (OpenLDAP)
+  - Checks if image already exists in ECR
+  - Only mirrors if missing from Docker Hub
   - Uses Deployment Account credentials for ECR operations
 - Set Kubernetes environment variables using set-k8s-env.sh
 - Run all Terraform commands automatically (init, workspace, validate, plan,
@@ -336,7 +350,7 @@ apply)
 **Destroy Application Infrastructure:**
 
 ```bash
-cd application
+cd application_infra
 
 # Automated destroy script with comprehensive safety checks
 # This script will:
@@ -345,6 +359,47 @@ cd application
 # - Configure backend, variables, and Kubernetes environment automatically
 # - Require safety confirmations (type 'yes' then 'DESTROY')
 # - Run Terraform destroy commands
+./destroy-application-infra.sh
+```
+
+### Application Deployment (2FA App)
+
+**Prerequisites:**
+- Application infrastructure must be deployed first (see above)
+- Backend infrastructure must be deployed
+- **For local scripts**: AWS Secrets Manager secrets configured with PostgreSQL and Redis passwords
+
+**Deploy 2FA Application:**
+
+```bash
+cd application
+
+# For local use: Export passwords as environment variables
+export TF_VAR_POSTGRESQL_PASSWORD="YourSecurePassword123!"
+export TF_VAR_REDIS_PASSWORD="YourSecurePassword123!"
+
+# Deploy application (handles all configuration and Terraform operations automatically)
+./setup-application.sh
+```
+
+This script will:
+
+- Prompt for region and environment selection
+- Retrieve AWS_STATE_ACCOUNT_ROLE_ARN and assume it for backend operations
+- Retrieve ExternalId for secure cross-account role assumption
+- Retrieve environment-specific deployment role ARN (prod or dev)
+- Retrieve password secrets from repository secrets and export them as environment variables
+- Create backend.hcl from template if it doesn't exist
+- Update variables.tfvars with selected values
+- Reference application_infra remote state for dependencies (StorageClass, ArgoCD, ALB DNS)
+- Run all Terraform commands automatically (init, workspace, validate, plan, apply)
+
+**Destroy Application:**
+
+```bash
+cd application
+
+# Automated destroy script with comprehensive safety checks
 ./destroy-application.sh
 ```
 
@@ -443,57 +498,78 @@ and Terraform execution
 - `backend_infra/destroy-backend.sh` - Automated destroy script with safety
 confirmations
 
+### Application Infrastructure Layer
+
+- `application_infra/variables.tfvars` - Configure:
+  - Domain name, ALB settings, storage class
+  - ArgoCD Capability configuration (enable_argocd, Identity Center settings)
+  - OpenLDAP passwords retrieved automatically by setup-application-infra.sh from AWS Secrets Manager
+- `application_infra/setup-application-infra.sh` - Setup script for infrastructure
+deployment (retrieves secrets from AWS Secrets Manager, mirrors OpenLDAP image to ECR)
+- `application_infra/destroy-application-infra.sh` - Automated destroy script with safety
+confirmations and Kubernetes environment setup
+- `application_infra/set-k8s-env.sh` - Kubernetes environment variable configuration
+- `application_infra/mirror-images-to-ecr.sh` - ECR image mirroring script for OpenLDAP
+(called by setup-application-infra.sh)
+- `application_infra/helm/openldap-values.tpl.yaml` - Helm chart values template
+configured to pull OpenLDAP image from ECR (openldap-1.5.0)
+- `application_infra/providers.tf` - Retrieves cluster name from backend_infra remote
+state (with fallback options)
+- `application_infra/main.tf` - Creates:
+  - StorageClass for persistent storage
+  - OpenLDAP module invocation (Helm release, secrets, Ingress)
+  - Route53 records for phpldapadmin and ltb_passwd
+  - ALB module (IngressClass and IngressClassParams)
+  - Network policies
+  - ArgoCD Capability (if enabled)
+- `application_infra/modules/` - Infrastructure Terraform modules:
+  - `alb/` - IngressClass and IngressClassParams for EKS Auto Mode ALB
+  - `argocd/` - AWS EKS managed ArgoCD Capability
+  - `cert-manager/` - TLS certificate management (optional)
+  - `network-policies/` - Kubernetes NetworkPolicies with cross-namespace access
+  - `openldap/` - OpenLDAP Stack HA deployment with secrets, Ingress, and Route53
+  - `route53/` - Route53 hosted zone creation (commented out, uses data sources)
+  - `route53_record/` - Route53 A (alias) record creation
+- `application_infra/CHANGELOG.md` - Infrastructure-specific changelog
+- `application_infra/PRD-ALB.md` - Comprehensive ALB implementation guide
+- `application_infra/PRD-DOMAIN.md` - Domain and DNS configuration
+- `application_infra/PRD-OPENLDAP.md` - OpenLDAP deployment requirements
+- `application_infra/PRD-ArgoCD.md` - ArgoCD Capability documentation
+- `application_infra/OPENLDAP-README.md` - OpenLDAP configuration and TLS setup
+- `application_infra/OSIXIA-OPENLDAP-REQUIREMENTS.md` - OpenLDAP image requirements
+- `application_infra/SECURITY-IMPROVEMENTS.md` - Security enhancements and best practices
+- `application_infra/CROSS-ACCOUNT-ACCESS.md` - Cross-account access documentation
+
 ### Application Layer
 
 - `application/variables.tfvars` - Configure:
-  - Domain name, ALB settings, storage class
-  - ArgoCD configuration (enable_argocd, Identity Center settings)
   - SNS/SMS 2FA configuration (enable_sms_2fa)
+  - PostgreSQL and Redis configuration
+  - ArgoCD Applications configuration (if enabled)
   - Passwords retrieved automatically by setup-application.sh from AWS Secrets Manager
-- `application/setup-application.sh` - Unified setup script for application
-deployment (retrieves secrets from AWS Secrets Manager, mirrors ECR images)
-- `application/destroy-application.sh` - Automated destroy script with safety
-confirmations and Kubernetes environment setup
-- `application/set-k8s-env.sh` - Kubernetes environment variable configuration
-- `application/mirror-images-to-ecr.sh` - ECR image mirroring script (called by
-setup-application.sh)
-- `application/helm/openldap-values.tpl.yaml` - Helm chart values template
-configured to pull OpenLDAP image from ECR (openldap-1.5.0)
+- `application/setup-application.sh` - Setup script for application deployment
+(retrieves secrets from AWS Secrets Manager)
+- `application/destroy-application.sh` - Automated destroy script with safety confirmations
+- `application/helm/postgresql-values.tpl.yaml` - PostgreSQL Helm chart values template
+(image configuration in module, pulls from ECR)
 - `application/helm/redis-values.tpl.yaml` - Redis Helm chart values template
 (image configuration in module, pulls from ECR)
-- `application/providers.tf` - Retrieves cluster name from backend_infra remote
-state (with fallback options)
+- `application/providers.tf` - References application_infra remote state for dependencies
 - `application/main.tf` - Creates:
-  - StorageClass for persistent storage
-  - OpenLDAP module invocation (Helm release, secrets, Ingress, Route53 records)
   - 2FA backend Helm release (if ArgoCD not used)
   - 2FA frontend Helm release (if ArgoCD not used)
-  - Route53 records for 2FA app subdomain
-  - ALB module (IngressClass and IngressClassParams)
-  - Network policies
+  - Route53 record for 2FA app subdomain
   - PostgreSQL module (with Kubernetes secrets)
   - Redis module (with Kubernetes secrets)
   - SES module
   - SNS module (if SMS 2FA enabled)
-  - ArgoCD capability (if enabled)
   - ArgoCD Applications (if enabled)
-- `application/modules/` - Terraform modules:
-  - `alb/` - IngressClass and IngressClassParams for EKS Auto Mode ALB
-  - `argocd/` - AWS EKS managed ArgoCD capability
+- `application/modules/` - Application Terraform modules:
   - `argocd_app/` - ArgoCD Application CRD for GitOps
-  - `cert-manager/` - TLS certificate management (optional)
-  - `network-policies/` - Kubernetes NetworkPolicies with cross-namespace access
-  - `openldap/` - OpenLDAP Stack HA deployment with secrets, Ingress, and Route53
   - `postgresql/` - PostgreSQL database with Kubernetes secrets
   - `redis/` - Redis cache with Kubernetes secrets for SMS OTP storage
-  - `route53/` - Route53 hosted zone creation (commented out, uses data sources)
   - `ses/` - AWS SES for email verification and notifications
   - `sns/` - SNS resources for SMS 2FA with IRSA
-- `SECRETS_REQUIREMENTS.md` - Comprehensive secrets management documentation
-  - AWS Secrets Manager setup for local scripts (role ARNs, ExternalId, passwords)
-  - GitHub Repository Secrets setup for workflows
-  - ExternalId configuration for cross-account role assumption security
-  - Secret naming conventions and case sensitivity
 - `application/backend/` - 2FA backend application:
   - `src/` - Python FastAPI source code
   - `helm/` - Helm chart with Ingress for `/api/*`
@@ -505,17 +581,16 @@ state (with fallback options)
   - `Dockerfile` - Container image definition (nginx, runs as non-root user)
   - `nginx.conf` - nginx configuration (listens on port 8080)
   - `README.md` - Comprehensive frontend application documentation
-- `application/CHANGELOG.md` - Detailed changelog documenting all application
-changes
-- `application/PRD-2FA-APP.md` - Product requirements document for 2FA
-application
-- `application/PRD-SIGNUP-MAN.md` - Product requirements document for signup
-management system
-- `application/PRD-ALB.md` - Comprehensive ALB implementation guide
-- `application/OPENLDAP-README.md` - OpenLDAP configuration and TLS setup
-- `application/OSIXIA-OPENLDAP-REQUIREMENTS.md` - OpenLDAP image requirements
-- `application/SECURITY-IMPROVEMENTS.md` - Security enhancements and best
-practices
+- `application/CHANGELOG.md` - Application-specific changelog
+- `application/PRD-2FA-APP.md` - Product requirements document for 2FA application
+- `application/PRD-SIGNUP-MAN.md` - Product requirements document for signup management system
+- `application/PRD-ADMIN-FUNCS.md` - Product requirements for admin functions
+- `application/PRD-SMS-MAN.md` - Product requirements for SMS management
+- `SECRETS_REQUIREMENTS.md` - Comprehensive secrets management documentation
+  - AWS Secrets Manager setup for local scripts (role ARNs, ExternalId, passwords)
+  - GitHub Repository Secrets setup for workflows
+  - ExternalId configuration for cross-account role assumption security
+  - Secret naming conventions and case sensitivity
 
 ## Outputs
 
@@ -700,8 +775,10 @@ Deployment order matters:
 
 1. Terraform backend state infrastructure (S3 bucket)
 2. Backend infrastructure (VPC → EKS → VPC Endpoints → ECR)
-3. Application layer (Existing Route53 zone + ACM cert lookup → StorageClass →
-ALB module → Helm release → Route53 A records → Network policies)
+3. Application infrastructure (Existing Route53 zone + ACM cert lookup → StorageClass →
+ALB module → OpenLDAP Helm release → Route53 A records → Network policies → ArgoCD Capability)
+4. Application (PostgreSQL → Redis → SES → SNS → 2FA backend/frontend Helm releases →
+Route53 A record for twofa_app → ArgoCD Applications)
 
 ### Module Structure
 
@@ -709,19 +786,21 @@ ALB module → Helm release → Route53 A records → Network policies)
   - `ecr/` - ECR repository with lifecycle policies
   - `endpoints/` - VPC endpoints for SSM, STS (IRSA), and SNS (SMS 2FA)
   - `ebs/` - EBS storage (commented out in main.tf)
-- `application/modules/` - Application-specific modules:
+- `application_infra/modules/` - Infrastructure-specific modules:
   - `alb/` - IngressClass and IngressClassParams for EKS Auto Mode ALB
-  - `argocd/` - AWS EKS managed ArgoCD capability for GitOps
-  - `argocd_app/` - ArgoCD Application CRD for GitOps deployments
+  - `argocd/` - AWS EKS managed ArgoCD Capability for GitOps
   - `cert-manager/` - Optional cert-manager for self-signed TLS certificates
   - `network-policies/` - Kubernetes NetworkPolicies for secure communication
   with cross-namespace access
-  - `openldap/` - **NEW**: OpenLDAP Stack HA deployment with multi-master replication,
-  Kubernetes secrets, phpLDAPadmin, ltb-passwd, Ingress, and Route53 DNS records
-  - `postgresql/` - PostgreSQL database with Kubernetes secrets for user data
-  - `redis/` - Redis cache with Kubernetes secrets for SMS OTP storage with TTL
+  - `openldap/` - OpenLDAP Stack HA deployment with multi-master replication,
+  Kubernetes secrets, phpLDAPadmin, ltb-passwd, and Ingress
   - `route53/` - Route53 hosted zone creation (exists but commented out, uses
   data sources)
+  - `route53_record/` - Route53 A (alias) record creation for per-record management
+- `application/modules/` - Application-specific modules:
+  - `argocd_app/` - ArgoCD Application CRD for GitOps deployments
+  - `postgresql/` - PostgreSQL database with Kubernetes secrets for user data
+  - `redis/` - Redis cache with Kubernetes secrets for SMS OTP storage with TTL
   - `ses/` - AWS SES for email verification and admin notifications
   - `sns/` - SNS resources for SMS-based 2FA with IRSA
 - Each module has its own README.md with detailed documentation
@@ -741,8 +820,10 @@ instead of plain-text values in Helm charts
 - `backend_infra_provisioning.yaml` - Create backend infrastructure
 - `backend_infra_destroying.yaml` - Destroy backend infrastructure
 - `application_infra_provisioning.yaml` - Deploy application infrastructure
-(OpenLDAP, 2FA app, ArgoCD, SNS)
+(OpenLDAP, ALB, ArgoCD Capability, StorageClass)
 - `application_infra_destroying.yaml` - Destroy application infrastructure
+- `application_provisioning.yaml` - Deploy application (2FA app, PostgreSQL, Redis, SES, SNS)
+- `application_destroying.yaml` - Destroy application
 
 **Application CI/CD Workflows:**
 
@@ -791,11 +872,59 @@ workflows)
 - `AWS_REGION` - AWS region for deployment
 - `BACKEND_PREFIX` - S3 prefix for backend state files
 - `BACKEND_BUCKET_NAME` - Auto-generated by backend state provisioning workflow
+- `APPLICATION_INFRA_PREFIX` - S3 prefix for application infrastructure state files
+(value: `application_infra_state/terraform.tfstate`)
 - `APPLICATION_PREFIX` - S3 prefix for application state files
+(value: `application_state/terraform.tfstate`)
 - `ECR_REPOSITORY_NAME` - Auto-generated by backend infrastructure provisioning
 workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - January 2026)
+
+### Project Reorganization: Separation of Infrastructure and Application (Jan 20-22, 2026)
+
+- **MAJOR: Directory Structure Reorganization**
+  - Separated application infrastructure from application code deployment for clearer separation of concerns
+  - **Renamed** `application/` directory to `application_infra/` for infrastructure provisioning
+  - **Created new** `application/` directory for 2FA application code and dependencies
+  - **Enables independent deployment ordering**: Infrastructure must be deployed before application
+
+- **Infrastructure Components (`application_infra/`)**
+  - Contains OpenLDAP, ALB, ArgoCD Capability, cert-manager, network-policies, Route53 records (phpldapadmin, ltb-passwd)
+  - Scripts: `setup-application-infra.sh`, `destroy-application-infra.sh`, `mirror-images-to-ecr.sh`, `set-k8s-env.sh`
+  - Exports outputs for application use: `storage_class_name`, `local_cluster_secret_name`, `argocd_namespace`, `argocd_project_name`, `alb_dns_name`
+  - State file key: `application_infra_state/terraform.tfstate` (uses `APPLICATION_INFRA_PREFIX` repository variable)
+
+- **Application Components (`application/`)**
+  - Contains 2FA application code: `backend/` (Python FastAPI), `frontend/` (HTML/JS/CSS)
+  - Contains application modules: argocd_app, postgresql, redis, ses, sns
+  - Scripts: `setup-application.sh`, `destroy-application.sh`
+  - References `application_infra` remote state for infrastructure dependencies
+  - State file key: `application_state/terraform.tfstate` (uses `APPLICATION_PREFIX` repository variable)
+
+- **New GitHub Workflows**
+  - Created `application_provisioning.yaml` - Deploys 2FA application and dependencies
+  - Created `application_destroying.yaml` - Destroys application deployments
+  - Updated `application_infra_provisioning.yaml` and `application_infra_destroying.yaml`
+  - Application workflows depend on application_infra being deployed first
+
+- **Deployment Order (CRITICAL)**
+  1. `tf_backend_state/` - Terraform state backend (S3)
+  2. `backend_infra/` - VPC, EKS, ECR, VPC endpoints
+  3. `application_infra/` - OpenLDAP, ALB, ArgoCD Capability, StorageClass
+  4. `application/` - 2FA app, PostgreSQL, Redis, SES, SNS, ArgoCD Applications
+
+- **Backend State Configuration Standardization**
+  - Infrastructure uses `APPLICATION_INFRA_PREFIX` repository variable (value: `application_infra_state/terraform.tfstate`)
+  - Application uses `APPLICATION_PREFIX` repository variable (value: `application_state/terraform.tfstate`)
+  - Both use same S3 bucket but different state file keys for isolation
+  - Templates updated: `tfstate-backend-values-template.hcl` in both directories
+
+- **Documentation Updates**
+  - Split CHANGELOGs: `application_infra/CHANGELOG.md` and `application/CHANGELOG.md`
+  - Created `application_infra/README.md` - Infrastructure deployment guide
+  - Created `application/README.md` - Application deployment guide
+  - Updated root `README.md` with new directory structure and deployment order
 
 ### Python Code Performance and Container Security Improvements (Jan 20, 2026)
 
@@ -950,7 +1079,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Public ACM certificates are requested in Deployment Account (not State Account)
   - Scripts automatically inject `state_account_role_arn` into `variables.tfvars`
   - No ExternalId required for state account role assumption (by design)
-  - Comprehensive cross-account access documentation in `application/CROSS-ACCOUNT-ACCESS.md`
+  - Comprehensive cross-account access documentation in `application_infra/CROSS-ACCOUNT-ACCESS.md`
   - Self-assumption support: State Account role can assume itself when needed
 
 ### Route53 Record Module Separation (January 5, 2026)
@@ -958,7 +1087,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
 - **Dedicated Route53 Record Module**:
   - Separated Route53 record creation from OpenLDAP module into dedicated `route53_record`
   module
-  - New module located at `application/modules/route53_record/` for per-record creation
+  - New module located at `application_infra/modules/route53_record/` for per-record creation
   - Module uses state account provider (`aws.state_account`) for cross-account access
   - Route53 records created in State Account while ALB deployed in Deployment Account
   - Three separate module calls in `main.tf`:
@@ -970,12 +1099,12 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Comprehensive ALB zone_id mapping by region (13 AWS regions supported)
   - Proper dependency chain: OpenLDAP module → ALB data source → Route53 records
   - Lifecycle block with `create_before_destroy` for safe updates
-  - Comprehensive module documentation in `application/modules/route53_record/README.md`
+  - Comprehensive module documentation in `application_infra/modules/route53_record/README.md`
 
 ### ECR Image Mirroring for Third-Party Container Images (January 5, 2026)
 
 - **Automated Image Mirroring Script**:
-  - Created `application/mirror-images-to-ecr.sh` script (290+ lines) to eliminate
+  - Created `application_infra/mirror-images-to-ecr.sh` script (290+ lines) to eliminate
   Docker Hub rate limiting and external dependencies
   - Automatically mirrors third-party container images from Docker Hub to ECR:
     - `bitnami/redis:8.4.0-debian-12-r6` → `redis-8.4.0`
@@ -987,7 +1116,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Authenticates Docker to ECR automatically using `aws ecr get-login-password`
   - Cleans up local images after pushing to save disk space
   - Lists all images in ECR repository after completion
-  - Integrated into `application/setup-application.sh` (runs before Terraform operations)
+  - Integrated into `application_infra/setup-application-infra.sh` (runs before Terraform operations)
   - Integrated into GitHub Actions workflow (runs after Terraform validate)
   - Requires Docker to be installed and running
   - Requires `jq` for JSON parsing (with fallback to sed for compatibility)
@@ -1022,7 +1151,8 @@ workflow or `setup-backend.sh` script (required for build workflows)
 
 - **Automated Destroy Scripts**:
   - Created `backend_infra/destroy-backend.sh` for destroying backend infrastructure
-  - Created `application/destroy-application.sh` for destroying application infrastructure
+  - Created `application_infra/destroy-application-infra.sh` for destroying application infrastructure
+  - Created `application/destroy-application.sh` for destroying application
   - Both scripts support interactive region and environment selection
   - Automatic retrieval of role ARNs, ExternalId, and secrets from AWS Secrets Manager
   - Automatic backend configuration and variables.tfvars updates
