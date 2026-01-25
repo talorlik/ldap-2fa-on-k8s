@@ -47,8 +47,7 @@ terraform.rc
 .cursor/rules/snyk_rules.mdc
 
 # Generated backend configuration (created from tfstate-backend-values-template.hcl)
-backend_infra/backend.hcl
-application/backend.hcl
+**/backend.hcl
 
 .env
 
