@@ -61,22 +61,30 @@ provider "aws" {
   }
 }
 
-# Read backend.hcl to get bucket and region for remote state
-data "local_file" "backend_config" {
-  filename = "${path.module}/backend.hcl"
+# Read backend_infra backend.hcl to get bucket, region, and state key (BACKEND_PREFIX)
+# All remote state information comes from backend_infra since that's where the state is stored
+data "local_file" "backend_infra_backend_config" {
+  filename = "${path.module}/../backend_infra/backend.hcl"
 }
 
 locals {
-  # Parse backend.hcl to extract bucket, and region
-  # backend.hcl format: bucket = "value", region = "value"
+  # Parse backend_infra backend.hcl to extract bucket, region, and key
+  # backend.hcl format: bucket = "value", region = "value", key = "value"
   # If backend.hcl doesn't exist, these will be null and remote state won't be used
   backend_bucket = try(
-    regex("bucket\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_config.content)[0],
+    regex("bucket\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_infra_backend_config.content)[0],
     null
   )
-  backend_key = "backend_state/terraform.tfstate" # backend_infra state key
+
+  # Parse backend_infra backend.hcl to get BACKEND_PREFIX
+  # This ensures backend_infra uses its own prefix from repository variable
+  backend_key = try(
+    regex("key\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_infra_backend_config.content)[0],
+    "backend_state/terraform.tfstate" # fallback if backend.hcl doesn't exist
+  )
+
   backend_region = try(
-    regex("region\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_config.content)[0],
+    regex("region\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_infra_backend_config.content)[0],
     var.region
   )
 

@@ -12,6 +12,14 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.0"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.9"
+    }
+    external = {
+      source  = "hashicorp/external"
+      version = "~> 2.0"
+    }
   }
 
   backend "s3" {
@@ -57,28 +65,43 @@ provider "aws" {
   }
 }
 
-# Read backend.hcl to get bucket and region for remote state
-data "local_file" "backend_config" {
-  filename = "${path.module}/backend.hcl"
+# Read backend_infra backend.hcl to get bucket, region, and state key (BACKEND_PREFIX)
+# All remote state information comes from backend_infra since all states are in the same bucket
+data "local_file" "backend_infra_backend_config" {
+  filename = "${path.module}/../backend_infra/backend.hcl"
+}
+
+# Read application_infra backend.hcl to get its state key (APPLICATION_INFRA_PREFIX)
+data "local_file" "application_infra_backend_config" {
+  filename = "${path.module}/../application_infra/backend.hcl"
 }
 
 locals {
-  # Parse backend.hcl to extract bucket, and region
+  # Parse backend_infra backend.hcl to extract bucket and region
+  # All states are stored in the same S3 bucket, so we use backend_infra's bucket and region
   # backend.hcl format: bucket = "value", region = "value"
   # If backend.hcl doesn't exist, these will be null and remote state won't be used
   backend_bucket = try(
-    regex("bucket\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_config.content)[0],
+    regex("bucket\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_infra_backend_config.content)[0],
     null
   )
-  backend_key_backend_infra = "backend_state/terraform.tfstate" # backend_infra state key
 
+  # Parse backend_infra backend.hcl to get BACKEND_PREFIX
+  # This ensures backend_infra uses its own prefix from repository variable
+  backend_key_backend_infra = try(
+    regex("key\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_infra_backend_config.content)[0],
+    "backend_state/terraform.tfstate" # fallback if backend.hcl doesn't exist
+  )
+
+  # Parse application_infra backend.hcl to get APPLICATION_INFRA_PREFIX
+  # This ensures application_infra uses its own prefix, separate from APPLICATION_PREFIX
   backend_key_application_infra = try(
-    regex("key\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_config.content)[0],
-    "application_state/terraform.tfstate" # fallback if backend.hcl doesn't exist
+    regex("key\\s*=\\s*\"([^\"]+)\"", data.local_file.application_infra_backend_config.content)[0],
+    "application_infra_state/terraform.tfstate" # fallback if backend.hcl doesn't exist
   )
 
   backend_region = try(
-    regex("region\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_config.content)[0],
+    regex("region\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_infra_backend_config.content)[0],
     var.region
   )
 
