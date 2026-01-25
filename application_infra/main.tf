@@ -286,13 +286,3 @@ module "argocd" {
   argocd_vpce_ids           = var.argocd_vpce_ids
   delete_propagation_policy = var.argocd_delete_propagation_policy
 }
-
-# Wait for ArgoCD capability to be fully deployed and ACTIVE
-# This ensures proper deployment ordering when ArgoCD is enabled
-resource "time_sleep" "wait_for_argocd" {
-  count = var.enable_argocd ? 1 : 0
-
-  create_duration = "5m" # Wait 5 minutes for ArgoCD capability to be ready
-
-  depends_on = [module.argocd]
-}

@@ -130,6 +130,26 @@ data "aws_eks_cluster" "this" {
   name = var.cluster_name
 }
 
+# Create ArgoCD namespace
+# The namespace must exist before the EKS Capability can deploy into it
+# and before the cluster registration secret can be created
+resource "kubernetes_namespace_v1" "argocd" {
+  metadata {
+    name = var.argocd_namespace
+    labels = {
+      "app.kubernetes.io/name"       = "argocd"
+      "app.kubernetes.io/instance"   = local.argocd_capability_name
+      "app.kubernetes.io/managed-by" = "terraform"
+      "eks.capability"               = "argocd"
+    }
+  }
+
+  lifecycle {
+    # Prevent deletion of namespace if it contains resources
+    prevent_destroy = false
+  }
+}
+
 # Wait for IAM role to propagate before creating EKS capability
 resource "time_sleep" "wait_for_iam_propagation" {
   depends_on = [
@@ -137,7 +157,7 @@ resource "time_sleep" "wait_for_iam_propagation" {
     aws_iam_role_policy.argocd_capability
   ]
 
-  create_duration = "30s"
+  create_duration = "60s"
 }
 
 # EKS Capability for ArgoCD
@@ -192,43 +212,44 @@ resource "aws_eks_capability" "argocd" {
   )
 
   depends_on = [
+    kubernetes_namespace_v1.argocd,
     aws_iam_role.argocd_capability,
     aws_iam_role_policy.argocd_capability,
     time_sleep.wait_for_iam_propagation
   ]
 }
 
+# Wait for ArgoCD capability to be fully deployed and ACTIVE
+# This ensures proper deployment ordering when ArgoCD is enabled
+resource "time_sleep" "wait_for_argocd" {
+  create_duration = "5m" # Wait 5 minutes for ArgoCD capability to be ready
+
+  depends_on = [aws_eks_capability.argocd]
+}
+
 # External data source to query ArgoCD capability details via AWS CLI
 # This automatically retrieves server_url and status without manual CLI commands
 data "external" "argocd_capability" {
   program = ["bash", "-c", <<-EOT
-    # Check if jq is available
-    if ! command -v jq &> /dev/null; then
-      echo '{"server_url":"","status":"","error":"jq is required but not installed"}' >&2
-      exit 1
-    fi
-
     # Query the capability
     result=$(aws eks describe-capability \
       --cluster-name "${var.cluster_name}" \
       --capability-name "${local.argocd_capability_name}" \
-      --capability-type ARGOCD \
       --region "${var.region}" \
+      --output json \
+      --query 'capability.{server_url:configuration.argoCd.serverUrl,status:status}' \
       2>&1) || {
       # If capability doesn't exist yet or command failed, return empty values
       echo '{"server_url":"","status":""}'
       exit 0
     }
 
-    # Extract and format as JSON using jq
-    echo "$result" | jq -c '{
-      server_url: (.capability.configuration.argoCd.serverUrl // .configuration.argoCd.serverUrl // ""),
-      status: (.capability.status // .status // "")
-    }' 2>/dev/null || echo '{"server_url":"","status":""}'
+    # Output the result directly (already formatted as JSON by --query)
+    echo "$result"
   EOT
   ]
 
-  depends_on = [aws_eks_capability.argocd]
+  depends_on = [aws_eks_capability.argocd, time_sleep.wait_for_argocd]
 }
 
 # Cluster Registration Secret
@@ -250,6 +271,7 @@ resource "kubernetes_secret" "argocd_local_cluster" {
   type = "Opaque"
 
   depends_on = [
+    kubernetes_namespace_v1.argocd,
     aws_eks_capability.argocd
   ]
 }
