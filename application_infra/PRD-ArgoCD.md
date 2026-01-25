@@ -58,11 +58,16 @@ Argo CD
 
 #### 2.2.1 Required Providers
 
-- `hashicorp/aws` provider version `>= 5.60.0` (includes `aws_eks_capability` resource)
+- `hashicorp/aws` provider version `>= 6.21.0` (includes `aws_eks_capability` resource)
   - Used to manage EKS capability and IAM resources
-- `hashicorp/kubernetes` provider version `>= 2.30.0` (includes `kubernetes_manifest`
+- `hashicorp/kubernetes` provider version `~> 2.0` (includes `kubernetes_manifest`
 for CRD support)
   - Used to create Argo CD cluster secret and Application CRDs
+- `hashicorp/helm` provider version `~> 2.0`
+  - Used for Helm chart deployments
+- `hashicorp/time` provider version `~> 0.9`
+  - Used for time-based resources
+- Terraform version `~> 1.14.0`
 
 ## 3. Architecture & Design
 
@@ -103,13 +108,23 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.60.0"
+      version = ">= 6.21.0"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
-      version = ">= 2.30.0"
+      version = "~> 2.0"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.0"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.9"
     }
   }
+
+  required_version = "~> 1.14.0"
 }
 
 provider "aws" {
@@ -354,18 +369,26 @@ resource "kubernetes_secret" "argocd_local_cluster" {
     }
   }
 
-  string_data = {
+  data = {
     name    = "local-cluster"
     # Important: use cluster ARN, not API server URL
     server  = data.aws_eks_cluster.this.arn
     project = "default"
   }
 
+  type = "Opaque"
+
   depends_on = [
     aws_eks_capability.argocd
   ]
 }
 ```
+
+> [!NOTE]
+>
+> The values in the `data` attribute are automatically base64-encoded by
+> the Terraform Kubernetes provider before being sent to the Kubernetes API.
+> There is no need to manually encode these values.
 
 **REQ-4.4.1.3**: Applications must use the cluster name from the Secret (`local-cluster`)
 in `spec.destination.name`, NOT `kubernetes.default.svc`.

@@ -263,9 +263,9 @@ resource "kubernetes_secret" "argocd_local_cluster" {
   }
 
   data = {
-    name    = base64encode(var.local_cluster_secret_name)
-    server  = base64encode(data.aws_eks_cluster.this.arn)
-    project = base64encode(var.argocd_project_name)
+    name    = var.local_cluster_secret_name
+    server  = data.aws_eks_cluster.this.arn
+    project = var.argocd_project_name
   }
 
   type = "Opaque"

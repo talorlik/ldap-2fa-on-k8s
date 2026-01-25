@@ -35,8 +35,11 @@ The ArgoCD Capability module:
 - EKS cluster (Auto Mode or provisioned) must exist
 - AWS Identity Center instance must be set up
 - At least one Identity Center user or group for RBAC mapping
-- Terraform AWS provider version `>= 5.60.0`
-- Terraform Kubernetes provider version `>= 2.30.0`
+- Terraform AWS provider version `>= 6.21.0` (includes `aws_eks_capability` resource)
+- Terraform Kubernetes provider version `~> 2.0` (includes `kubernetes_manifest` for CRD support)
+- Terraform Helm provider version `~> 2.0` (used for Helm chart deployments)
+- Terraform Time provider version `~> 0.9` (used for time-based resources)
+- Terraform version `~> 1.14.0`
 
 ## Usage
 

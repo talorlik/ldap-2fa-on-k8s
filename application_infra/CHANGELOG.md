@@ -13,6 +13,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [2026-01-25] - ArgoCD Module Improvements and Dependency Simplification
+
+### Changed
+
+- **ArgoCD Module Resource Containment**
+  - Moved `time_sleep.wait_for_argocd` resource from root module into ArgoCD module
+    itself for better containment and module self-sufficiency
+  - Module now manages its own deployment wait logic internally
+  - Improved module encapsulation and reduces coupling with root module
+
+- **AWS CLI Command Optimization**
+  - Removed dependency on `jq` for JSON parsing in ArgoCD capability data source
+  - AWS CLI command now uses `--query` parameter directly to output JSON format
+  - Simplified external data source script by leveraging AWS CLI's built-in JSON
+    output capabilities
+  - Eliminates external tool dependency for ArgoCD capability status queries
+
+- **IAM Propagation Wait Time**
+  - Increased IAM role propagation wait time from 30 seconds to 60 seconds
+  - Provides more reliable IAM propagation before creating EKS capability
+  - Reduces potential race conditions during ArgoCD capability deployment
+
+- **ArgoCD Namespace Resource**
+  - Added `kubernetes_namespace_v1.argocd` resource inside the ArgoCD module
+  - Namespace creation is now managed within the module for better resource
+    organization
+  - Ensures namespace exists before capability deployment and cluster registration
+
+### Fixed
+
+- **Resource Dependencies**
+  - Updated ArgoCD capability dependencies to include namespace resource
+  - Updated cluster registration secret dependencies to include namespace resource
+  - Ensures proper resource creation order within the module
+
 ## [2026-01-25] - Git Ignore Pattern Update and State Path Correction
 
 ### Changed
