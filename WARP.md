@@ -894,6 +894,58 @@ workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - January 2026)
 
+### ArgoCD Module Improvements and State Path Corrections (January 25, 2026)
+
+- **ArgoCD Module Enhancements**:
+  - Updated AWS provider requirement to `>= 6.21.0` for latest features and fixes
+  - Updated Kubernetes provider to `~> 2.0` with additional Helm and Time providers
+  - Terraform version requirement set to `~> 1.14.0`
+  - Added explicit ArgoCD namespace creation (`kubernetes_namespace_v1.argocd`)
+  with proper lifecycle management
+  - Increased IAM propagation wait time from 30s to 60s for more reliable role assumption
+  - Added 5-minute wait (`time_sleep.wait_for_argocd`) for ArgoCD capability provisioning
+  before dependent resources
+  - Moved `time_sleep` resources into ArgoCD module for better encapsulation
+  - Fixed cluster registration secret data format:
+    - Removed unnecessary base64 encoding for `name`, `server`, and `project` fields
+    - Uses raw values directly (Kubernetes provider handles encoding automatically)
+    - Ensures proper secret data formatting for ArgoCD cluster registration
+  - Enhanced external data source to work without `jq` dependency:
+    - Uses AWS CLI `--query` parameter for direct JSON output
+    - Simplifies deployment requirements by eliminating external tool dependency
+  - Improved dependency ordering with namespace and readiness waits
+
+- **Terraform State Path Corrections**:
+  - Fixed state path references in `application/providers.tf` and `application_infra/providers.tf`
+  - Backend configuration now reads from separate `backend.hcl` files:
+    - `backend_infra/backend.hcl` provides bucket name, region, and backend
+    state key
+    - `application_infra/backend.hcl` provides application infrastructure
+    state key
+  - All states stored in same S3 bucket (from backend_infra) but with different
+  keys for isolation
+  - Corrected fallback paths:
+    - Backend infrastructure: `backend_state/terraform.tfstate`
+    - Application infrastructure: `application_infra_state/terraform.tfstate`
+  - Improved state file key parsing with proper regex patterns
+  - Enhanced cross-layer state dependencies for reliable infrastructure references
+
+- **Git Ignore Pattern Update**:
+  - Simplified `.gitignore` pattern from specific file paths to universal pattern
+  `**/backend.hcl`
+  - Ensures all `backend.hcl` files are ignored across all directories
+  (generated files, should never be committed)
+  - Removed committed `application_infra/backend.hcl` from repository
+
+- **Documentation Updates**:
+  - Updated `application_infra/PRD-ArgoCD.md` with new provider versions and module
+  improvements
+  - Updated `application_infra/modules/argocd/README.md` with corrected secret
+  data format
+  - Updated both `application/CHANGELOG.md` and `application_infra/CHANGELOG.md`
+  with latest changes
+  - Added notes about Kubernetes provider's automatic base64 encoding behavior
+
 ### Project Reorganization: Separation of Infra and App (Jan 20-22, 2026)
 
 - **MAJOR: Directory Structure Reorganization**
