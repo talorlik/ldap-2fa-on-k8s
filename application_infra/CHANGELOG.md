@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [2026-01-25] - Git Ignore Pattern Update and State Path Correction
+
+### Changed
+
+- **Git Ignore Pattern**
+  - Updated `.gitignore` to use pattern `**/backend.hcl` instead of listing specific
+  files
+  - Simplifies maintenance by automatically ignoring all `backend.hcl` files in
+  any directory
+  - Ensures generated backend configuration files are not committed to the repository
+
+### Fixed
+
+- **State Path Correction**
+  - Corrected state file key to use correct path: `application_infra_state/terraform.tfstate`
+  - Removed generated `backend.hcl` file from repository (now properly git-ignored)
+  - Verified all scripts and workflows use the `APPLICATION_INFRA_PREFIX` repository
+  variable correctly
+  - Ensured state file isolation between `application_infra` and `application` directories
+
 ## [2026-01-21] - Backend State Configuration Standardization
 
 ### Changed

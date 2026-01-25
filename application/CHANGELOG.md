@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG.md](../application_infra/CHANGELOG.md).
 
+## [2026-01-25] - Git Ignore Pattern Update and State Path Verification
+
+### Changed
+
+- **Git Ignore Pattern**
+  - Updated `.gitignore` to use pattern `**/backend.hcl` instead of listing specific
+  files
+  - Simplifies maintenance by automatically ignoring all `backend.hcl` files in
+  any directory
+  - Ensures generated backend configuration files are not committed to the repository
+
+### Fixed
+
+- **State Path Verification**
+  - Verified state file key uses correct path: `application_state/terraform.tfstate`
+  - Confirmed all scripts and workflows use the `APPLICATION_PREFIX` repository
+  variable correctly
+  - Ensured state file isolation between `application_infra` and `application` directories
+
 ## [2026-01-21] - Backend State Configuration Standardization
 
 ### Changed
