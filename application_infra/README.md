@@ -870,6 +870,76 @@ chmod +x ./mirror-images-to-ecr.sh
 - **GitHub Actions**: Automatically executed in workflow after Terraform
   validate, before `set-k8s-env.sh`
 
+#### Role Assumption Script (`assume-github-role.sh`)
+
+The `assume-github-role.sh` script provides a convenient way to assume AWS IAM
+roles for different accounts (State, Development, Production) when working in the
+terminal. This script is used internally by the ArgoCD module's external data
+resource and can also be used manually for role switching.
+
+**Purpose:**
+
+- Switch between different AWS account roles (State Account, Development Account,
+Production Account)
+- Automatically retrieve role ARNs from AWS Secrets Manager
+- Persist credentials in your current shell session
+- Clean up AWS credentials when switching roles
+
+**Usage:**
+
+```bash
+# Source the script (recommended - credentials persist in current shell)
+source ./assume-github-role.sh [state|dev|prod|clean]
+
+# Or use eval
+eval $(./assume-github-role.sh [state|dev|prod|clean])
+
+# Interactive mode (prompts for account selection)
+source ./assume-github-role.sh
+```
+
+**Options:**
+
+- `state` - Assume State Account role (for backend state operations)
+- `dev` - Assume Development Account role (for development deployments)
+- `prod` - Assume Production Account role (for production deployments)
+- `clean` - Remove all AWS credentials from environment
+- No argument - Interactive prompt for account selection
+
+**Requirements:**
+
+- AWS CLI configured with appropriate permissions
+- AWS Secrets Manager access to retrieve role ARNs (secret: `github-role`)
+- `jq` command-line tool for JSON parsing
+- ExternalId stored in AWS Secrets Manager (secret: `external-id`) for deployment
+account roles
+
+**Example:**
+
+```bash
+# Assume production account role
+source ./assume-github-role.sh prod
+
+# Verify credentials
+aws sts get-caller-identity
+
+# Clean up credentials
+source ./assume-github-role.sh clean
+```
+
+**Integration:**
+
+- **ArgoCD Module**: Used by the ArgoCD module's external data resource to assume
+the correct deployment account role when querying capability status
+- **Manual Use**: Can be used manually for role switching when working with
+AWS CLI or Terraform commands
+
+> [!NOTE]
+>
+> The script must be **sourced** (not executed) for credentials to persist in your
+> current shell. Use `source ./assume-github-role.sh [option]` or
+> `eval $(./assume-github-role.sh [option])`.
+
 ### Step 4: Deploy Application Infrastructure
 
 #### Option 1: Using GitHub CLI (Recommended)

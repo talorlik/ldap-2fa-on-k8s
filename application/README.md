@@ -25,8 +25,15 @@ service account)
 > components including:
 >
 > - StorageClass (for PostgreSQL and Redis persistent storage)
-> - ArgoCD Capability (for ArgoCD Applications)
+> - ArgoCD Capability (for ArgoCD Applications) - **Must be ACTIVE before deploying
+> applications**
 > - ALB DNS name (for Route53 record)
+>
+> **ArgoCD Capability Status Validation**: The application deployment scripts and
+> workflows automatically validate that the ArgoCD capability status is "ACTIVE"
+> before proceeding. If the capability is not ACTIVE, deployment will fail with
+> a clear error message. This ensures that ArgoCD Applications can be properly
+> deployed and managed.
 
 ## Architecture
 
@@ -523,10 +530,20 @@ The application reads from:
 
 - **application_infra** remote state:
   - `storage_class_name` (for PostgreSQL/Redis modules)
+  - `argocd_capability_status` (for ArgoCD Applications - **must be "ACTIVE"**)
   - `local_cluster_secret_name` (for argocd_app modules)
   - `argocd_namespace` (for argocd_app modules)
   - `argocd_project_name` (for argocd_app modules)
   - `alb_dns_name` (for Route53 record for twofa_app)
+
+> [!IMPORTANT]
+>
+> **ArgoCD Capability Status Validation**: The `setup-application.sh` script and
+> `application_provisioning.yaml` workflow automatically validate that
+> `argocd_capability_status` is "ACTIVE" before proceeding with deployment. If the
+> status is not ACTIVE, deployment will fail with a clear error message. This
+> ensures that ArgoCD Applications can be properly deployed and managed. The
+> validation prevents deployment failures due to incomplete ArgoCD capability setup.
 
 ### Deployment Order
 

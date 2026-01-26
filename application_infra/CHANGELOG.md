@@ -13,6 +13,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [2026-01-26] - ArgoCD Module External Data Resource Fix and Role Assumption Script
+
+### Changed
+
+- **ArgoCD Module External Data Resource**
+  - Fixed external data resource to correctly fetch `server_url` and `status` from
+  AWS EKS capability
+  - Improved error handling with proper error reporting via `argocd_capability_error`
+  output
+  - Enhanced JSON parsing using `jq` for reliable data extraction
+  - External data resource now uses `assume-github-role.sh` to assume the correct
+  deployment account role based on environment
+  - Added proper null/empty string handling with `trimspace()` and `try()` functions
+  in outputs
+  - Improved dependency management with `query` parameter for proper resource ordering
+  - External data resource now properly handles role assumption failures and
+  AWS CLI errors
+
+- **ArgoCD Module Outputs**
+  - Corrected `argocd_server_url` output to use `trimspace()` and `try()` for better
+  null handling
+  - Corrected `argocd_capability_status` output to use `trimspace()` and `try()`
+  for better null handling
+  - Added new `argocd_capability_error` output for error reporting when capability
+  queries fail
+  - All outputs now properly handle empty strings and null values
+
+### Added
+
+- **Role Assumption Script**
+  - Created `assume-github-role.sh` script for convenient role switching in terminal
+  - Supports assuming State Account, Development Account, or Production Account
+  roles
+  - Can be sourced (`source ./assume-github-role.sh [option]`) or executed with
+  eval (`eval $(./assume-github-role.sh [option])`) for credential persistence
+  - Automatically retrieves role ARNs from AWS Secrets Manager (secret: `github-role`)
+  - Includes `clean` option to remove all AWS credentials from environment
+  - Provides colored output and comprehensive error handling
+  - Used by ArgoCD module external data resource for proper role assumption
+  - Supports interactive account selection if no argument is provided
+
 ## [2026-01-25] - ArgoCD Module Improvements and Dependency Simplification
 
 ### Changed

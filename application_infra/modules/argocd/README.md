@@ -36,7 +36,8 @@ The ArgoCD Capability module:
 - AWS Identity Center instance must be set up
 - At least one Identity Center user or group for RBAC mapping
 - Terraform AWS provider version `>= 6.21.0` (includes `aws_eks_capability` resource)
-- Terraform Kubernetes provider version `~> 2.0` (includes `kubernetes_manifest` for CRD support)
+- Terraform Kubernetes provider version `~> 2.0` (includes `kubernetes_manifest`
+for CRD support)
 - Terraform Helm provider version `~> 2.0` (used for Helm chart deployments)
 - Terraform Time provider version `~> 0.9` (used for time-based resources)
 - Terraform version `~> 1.14.0`
@@ -105,14 +106,23 @@ module "argocd" {
 
 | Name | Description |
 | ------ | ------------- |
-| argocd_server_url | Managed Argo CD UI/API endpoint |
+| argocd_server_url | Managed Argo CD UI/API endpoint (automatically retrieved via AWS CLI) |
 | argocd_capability_name | Name of the ArgoCD capability |
-| argocd_capability_status | Status of the ArgoCD capability |
+| argocd_capability_status | Status of the ArgoCD capability (automatically retrieved via AWS CLI, should be "ACTIVE" when ready) |
+| argocd_capability_error | Error message if capability query fails (null if successful) |
 | argocd_iam_role_arn | ARN of the IAM role used by ArgoCD capability |
 | argocd_iam_role_name | Name of the IAM role used by ArgoCD capability |
 | local_cluster_secret_name | Name of the Kubernetes secret for local cluster registration |
 | argocd_namespace | Kubernetes namespace where ArgoCD resources are deployed |
 | argocd_project_name | ArgoCD project name used for cluster registration |
+
+> [!NOTE]
+>
+> The `argocd_server_url` and `argocd_capability_status` outputs are automatically
+> retrieved via an external data source that queries the AWS EKS capability using
+> AWS CLI. The external data source uses `assume-github-role.sh` to assume the
+> correct deployment account role based on the environment variable. If the capability
+> query fails, the `argocd_capability_error` output will contain the error message.
 
 ## RBAC Role Mappings
 
@@ -197,3 +207,8 @@ echo $TF_OUTPUT_argocd_server_url
 - Use the `local_cluster_secret_name` output when creating ArgoCD Applications
 - IAM policies use wildcards by default; tighten for production use
 - Delete propagation policy defaults to `RETAIN` to prevent accidental deletion
+- The external data source requires `assume-github-role.sh` script to be present
+in the root module directory
+- The external data source requires `jq` command-line tool for JSON parsing
+- Capability status must be "ACTIVE" before deploying ArgoCD Applications
+(validation is performed by application deployment scripts)

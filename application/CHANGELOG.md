@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG.md](../application_infra/CHANGELOG.md).
 
+## [2026-01-26] - ArgoCD Capability Status Validation
+
+### Added
+
+- **ArgoCD Capability Status Validation**
+  - Added ACTIVE status check in `setup-application.sh` to ensure ArgoCD capability
+  is ACTIVE before deploying applications
+  - Added ACTIVE status check in `.github/workflows/application_provisioning.yaml`
+  to validate ArgoCD capability status
+  - Both scripts and workflows now fail fast with clear error messages if
+  ArgoCD capability is not ACTIVE
+  - Prevents deployment of applications when ArgoCD capability is not ready
+  - Validation retrieves ArgoCD capability status from `application_infra` remote
+  state
+  - Provides helpful error messages guiding users to ensure ArgoCD capability is
+  deployed and active
+
+### Changed
+
+- **Application Deployment Script**
+  - Enhanced `setup-application.sh` with ArgoCD capability status validation
+  - Script now checks ArgoCD capability status before proceeding with Terraform
+  operations
+  - Improved error messages for better troubleshooting guidance
+
+- **GitHub Actions Workflow**
+  - Enhanced `application_provisioning.yaml` with ArgoCD capability status validation
+  step
+  - Workflow now validates ArgoCD capability status before proceeding with application
+  deployment
+  - Added clear error messages and status reporting in workflow output
+
 ## [2026-01-25] - Git Ignore Pattern Update and State Path Verification
 
 ### Changed

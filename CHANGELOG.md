@@ -5,7 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - Application Infrastructure Separation
+## [2026-01-26] - ArgoCD Module Improvements and Application Deployment Validation
+
+### Changed
+
+- **ArgoCD Module External Data Resource**
+  - Fixed external data resource in ArgoCD module to correctly fetch `server_url`
+  and `status` from AWS EKS capability
+  - Improved error handling with proper error reporting via `argocd_capability_error`
+  output
+  - Enhanced JSON parsing using `jq` for reliable data extraction
+  - External data resource now uses `assume-github-role.sh` to assume the correct
+  deployment account role based on environment
+  - Added proper null/empty string handling with `trimspace()` and `try()` functions
+  - Improved dependency management with `query` parameter for proper resource ordering
+
+- **ArgoCD Module Outputs**
+  - Corrected `argocd_server_url` output to use `trimspace()` and `try()` for better
+  null handling
+  - Corrected `argocd_capability_status` output to use `trimspace()` and `try()`
+  for better null handling
+  - Added new `argocd_capability_error` output for error reporting when capability
+  queries fail
+  - All outputs now properly handle empty strings and null values
+
+- **Application Deployment Validation**
+  - Added ACTIVE status check in `application/setup-application.sh` to ensure
+  ArgoCD capability is ACTIVE before deploying applications
+  - Added ACTIVE status check in `.github/workflows/application_provisioning.yaml`
+  to validate ArgoCD capability status
+  - Both scripts and workflows now fail fast with clear error messages if
+  ArgoCD capability is not ACTIVE
+  - Prevents deployment of applications when ArgoCD capability is not ready
+
+### Added
+
+- **Role Assumption Script**
+  - Created `application_infra/assume-github-role.sh` script for convenient role
+  switching in terminal
+  - Supports assuming State Account, Development Account, or Production Account
+  roles
+  - Can be sourced or executed with eval for credential persistence
+  - Automatically retrieves role ARNs from AWS Secrets Manager
+  - Includes `clean` option to remove all AWS credentials from environment
+  - Provides colored output and comprehensive error handling
+  - Used by ArgoCD module external data resource for proper role assumption
+
+## [2026-01-25] - Application Infrastructure Separation
 
 ### Changed
 

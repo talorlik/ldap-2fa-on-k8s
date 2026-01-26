@@ -205,6 +205,8 @@
                 <li><strong>Public ACM Certificates</strong>: Uses public ACM certificates (Amazon-issued) with DNS validation for browser-trusted certificates (no security warnings)</li>
                 <li><strong>Route53 Record Module</strong>: Dedicated module for Route53 A (alias) records with cross-account support and ALB zone_id mapping</li>
                 <li><strong>Automated Configuration Management</strong>: ECR repository name automatically saved to GitHub variables during backend infrastructure provisioning (eliminates manual configuration steps)</li>
+                <li><strong>ArgoCD Status Validation</strong>: Automatic validation that ArgoCD capability is "ACTIVE" before deploying applications (prevents deployment failures due to incomplete ArgoCD setup)</li>
+                <li><strong>Role Assumption Script</strong>: Convenient <code>assume-github-role.sh</code> script for switching between AWS account roles (State, Development, Production) when working in the terminal</li>
             </ul>
         </div>
     </section>
@@ -373,10 +375,11 @@
                     <li>Generates <code>backend.hcl</code> from template using <code>APPLICATION_PREFIX</code> for state file key (if it doesn't exist)</li>
                     <li>Updates <code>variables.tfvars</code> with selected values</li>
                     <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code> (from application_infra)</li>
+                    <li><strong>Validates ArgoCD capability status</strong> - Ensures ArgoCD capability is "ACTIVE" before proceeding (prevents deployment failures)</li>
                     <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
                     <li>References infrastructure outputs from <code>application_infra</code> remote state</li>
                 </ul>
-                <p><strong>Note:</strong> Application components require infrastructure to be deployed first (Steps 1-3 completed).</p>
+                <p><strong>Note:</strong> Application components require infrastructure to be deployed first (Steps 1-3 completed). The script automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, deployment will fail with a clear error message.</p>
                 <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
                 <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled in <code>variables.tfvars</code>) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>.</p>
                 <h5 id="local-step-5">Manual Deployment of 2FA Applications (Optional)</h5>
@@ -759,8 +762,10 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li>Retrieves repository variables (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_PREFIX</code>) for backend state configuration</li>
                     <li>Creates <code>backend.hcl</code> from template using <code>APPLICATION_PREFIX</code> for state file key</li>
                     <li>Retrieves password secrets (PostgreSQL, Redis) from GitHub repository secrets</li>
+                    <li><strong>Validates ArgoCD capability status</strong> - Ensures ArgoCD capability is "ACTIVE" before proceeding (prevents deployment failures)</li>
                     <li>Runs Terraform operations to deploy PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and Route53 record for 2FA app</li>
                 </ul>
+                <p><strong>Note:</strong> The workflow automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, the workflow will fail with a clear error message. This ensures that ArgoCD Applications can be properly deployed and managed.</p>
                 <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
                 <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>.</p>
                 <h5 id="github-step-5">Manual Deployment of 2FA Applications (Optional)</h5>
@@ -1443,6 +1448,39 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
             <h5>Usage</h5>
             <pre><code>./monitor-deployments.sh</code></pre>
             <p>The script will prompt for region and environment, then automatically perform all health checks and display a summary.</p>
+            <h4>Role Assumption Script</h4>
+            <p>The project includes a convenient role assumption script (<code>assume-github-role.sh</code>) located in the <code>application_infra/</code> directory that allows you to easily switch between AWS account roles when working in the terminal.</p>
+            <h5>Features</h5>
+            <ul>
+                <li><strong>Account Role Switching:</strong> Switch between State Account, Development Account, or Production Account roles</li>
+                <li><strong>Automatic Configuration:</strong> Automatically retrieves role ARNs from AWS Secrets Manager (secret: <code>github-role</code>)</li>
+                <li><strong>Credential Persistence:</strong> Credentials persist in your current shell session when script is sourced</li>
+                <li><strong>Clean Option:</strong> Remove all AWS credentials from environment with <code>clean</code> option</li>
+                <li><strong>Interactive Mode:</strong> Prompts for account selection if no argument is provided</li>
+            </ul>
+            <h5>Usage</h5>
+            <pre><code># Source the script (recommended - credentials persist in current shell)
+source ./assume-github-role.sh [state|dev|prod|clean]
+
+# Or use eval
+eval $(./assume-github-role.sh [state|dev|prod|clean])
+
+# Interactive mode (prompts for account selection)
+source ./assume-github-role.sh</code></pre>
+            <h5>Options</h5>
+            <ul>
+                <li><code>state</code> - Assume State Account role (for backend state operations)</li>
+                <li><code>dev</code> - Assume Development Account role (for development deployments)</li>
+                <li><code>prod</code> - Assume Production Account role (for production deployments)</li>
+                <li><code>clean</code> - Remove all AWS credentials from environment</li>
+                <li>No argument - Interactive prompt for account selection</li>
+            </ul>
+            <h5>Integration</h5>
+            <ul>
+                <li><strong>ArgoCD Module:</strong> Used by the ArgoCD module's external data resource to assume the correct deployment account role when querying capability status</li>
+                <li><strong>Manual Use:</strong> Can be used manually for role switching when working with AWS CLI or Terraform commands</li>
+            </ul>
+            <p><strong>Note:</strong> The script must be <strong>sourced</strong> (not executed) for credentials to persist in your current shell. Use <code>source ./assume-github-role.sh [option]</code> or <code>eval $(./assume-github-role.sh [option])</code>.</p>
             <h5>Prerequisites</h5>
             <ul>
                 <li><code>jq</code> command-line tool installed</li>
