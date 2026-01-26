@@ -130,6 +130,7 @@ ldap-2fa-on-k8s/
 │   │   ├── openldap/           # OpenLDAP Stack HA deployment module
 │   │   ├── route53/            # Route53 hosted zone
 │   │   └── route53_record/     # Route53 A (alias) record creation
+│   ├── assume-github-role.sh   # Role assumption script for multi-account access
 │   ├── destroy-application-infra.sh
 │   ├── mirror-images-to-ecr.sh # ECR image mirroring script
 │   ├── set-k8s-env.sh
@@ -396,6 +397,8 @@ This script will:
 variables
 - Create backend.hcl from template if it doesn't exist
 - Update variables.tfvars with selected values
+- **Check ArgoCD capability status** from application_infra remote state and fail
+fast if not ACTIVE
 - Reference application_infra remote state for dependencies (StorageClass, ArgoCD,
 ALB DNS)
 - Run all Terraform commands automatically (init, workspace, validate, plan, apply)
@@ -431,6 +434,52 @@ kubectl get ingress -n ldap
 ```bash
 aws ssm start-session --target <instance-id>
 ```
+
+### AWS Account Role Switching
+
+**Switch between AWS accounts using assume-github-role.sh:**
+
+The `assume-github-role.sh` script provides a convenient way to switch between
+State Account, Development Account, and Production Account roles when working locally.
+
+```bash
+cd application_infra
+
+# Interactive mode (prompts for account selection)
+source ./assume-github-role.sh
+
+# Assume State Account role
+source ./assume-github-role.sh state
+
+# Assume Development Account role
+source ./assume-github-role.sh dev
+
+# Assume Production Account role
+source ./assume-github-role.sh prod
+
+# Clean all AWS credentials from environment
+source ./assume-github-role.sh clean
+
+# Alternative: Use eval to execute and apply exports
+eval $(./assume-github-role.sh state)
+
+# Display help
+./assume-github-role.sh --help
+```
+
+The script automatically:
+
+- Retrieves role ARNs from AWS Secrets Manager (secret: `github-role`)
+- Retrieves ExternalId from AWS Secrets Manager (secret: `external-id`) when needed
+- Assumes the specified role with temporary credentials
+- Exports credentials to your current shell environment
+- Cleans existing AWS credentials before role assumption to prevent conflicts
+- Provides colored output (INFO/SUCCESS/ERROR) for clear feedback
+- Supports case-insensitive arguments (state/State/STATE all work)
+
+**Important**: The script must be **sourced** (`source ./assume-github-role.sh`)
+for credentials to persist in your current shell. Direct execution (`./assume-github-role.sh`)
+will not set credentials unless used with `eval`.
 
 ### ECR Operations
 
@@ -893,6 +942,82 @@ workflows)
 workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - January 2026)
+
+### ArgoCD Module Resource Fix and App Deployment Validation (January 26, 2026)
+
+- **ArgoCD Module External Data Resource Improvements**:
+  - Fixed external data source in ArgoCD module to correctly fetch `server_url`
+  and `status` from AWS EKS capability
+  - Enhanced error handling with new `argocd_capability_error` output for proper
+  error reporting
+  - External data resource now uses `assume-github-role.sh` script to assume the
+  correct deployment account role based on environment
+  - Improved JSON parsing using `jq` for reliable data extraction from AWS CLI output
+  - Added proper null/empty string handling in outputs using `trimspace()` and `try()`
+  functions instead of problematic `coalesce()`
+  - Enhanced dependency management with `query` parameter for proper resource ordering
+  - External data resource properly handles role assumption failures and
+  AWS CLI errors
+  - Script locates `assume-github-role.sh` in root module directory or current directory
+  - Maps environment variable (`prod`/`dev`) to account type for role assumption
+  - All errors captured and returned in JSON format without breaking Terraform execution
+
+- **ArgoCD Module Output Corrections**:
+  - Fixed `argocd_server_url` output to use `try()` instead of `coalesce()` for
+  better null handling
+  - Fixed `argocd_capability_status` output to use `try()` instead of `coalesce()`
+  for better null handling
+  - Fixed `argocd_capability_error` output to use `try()` instead of `coalesce()`
+  (prevents "no non-null, non-empty-string arguments" error)
+  - All outputs now properly handle empty strings and null values without
+  Terraform errors
+  - Outputs return `null` when values are empty or unavailable instead of failing
+
+- **Role Assumption Script (`assume-github-role.sh`)**:
+  - Created comprehensive role assumption script for convenient AWS account switching
+  in terminal
+  - Supports assuming State Account, Development Account, or Production Account
+  roles
+  - Can be sourced (`source ./assume-github-role.sh [option]`) for credential persistence
+  in current shell
+  - Can be executed with eval (`eval $(./assume-github-role.sh [option])`) for
+  applying exports
+  - Automatically retrieves role ARNs from AWS Secrets Manager (secret: `github-role`)
+  - Automatically retrieves ExternalId from AWS Secrets Manager (secret: `external-id`)
+  when needed
+  - Includes `clean` option to remove all AWS credentials from environment
+  - Provides colored output (INFO/SUCCESS/ERROR) and comprehensive error handling
+  - Used by ArgoCD module's external data resource for proper deployment account
+  role assumption
+  - Supports interactive account selection if no argument is provided
+  - Arguments are case-insensitive (state/State/STATE all work)
+  - Includes `--help` option with usage examples and documentation
+  - Automatically cleans existing AWS credentials before role assumption to prevent
+  conflicts
+  - Located at `application_infra/assume-github-role.sh` (490+ lines)
+
+- **Application Deployment Validation**:
+  - Added ArgoCD capability ACTIVE status check in `application/setup-application.sh`
+  before deploying applications
+  - Added ArgoCD capability ACTIVE status check in `.github/workflows/application_provisioning.yaml`
+  workflow
+  - Both scripts and workflows now fail fast with clear error messages if
+  ArgoCD capability is not ACTIVE
+  - Prevents deployment of ArgoCD Applications when ArgoCD capability is not ready
+  - Validation retrieves ArgoCD capability status from `application_infra` remote
+  state
+  - Check includes:
+    - Verification that `application_infra` directory and `backend.hcl` exist
+    - Terraform initialization and workspace selection in `application_infra`
+    - Retrieval of `argocd_capability_status` output
+    - Status validation (must be "ACTIVE", not null or empty)
+  - Provides helpful error messages guiding users to ensure ArgoCD capability is
+  deployed and active
+  - Improves deployment reliability and prevents cryptic Kubernetes CRD errors
+
+- **Application Infrastructure Outputs**:
+  - Added `argocd_capability_error` output to expose ArgoCD capability query errors
+  - Enhanced error visibility for troubleshooting ArgoCD capability issues
 
 ### ArgoCD Module Improvements and State Path Corrections (January 25, 2026)
 
