@@ -84,6 +84,10 @@ output "argocd_capability_status" {
   value       = var.enable_argocd ? module.argocd[0].argocd_capability_status : null
 }
 
+output "argocd_capability_error" {
+  description = "Error of the ArgoCD capability (automatically retrieved via AWS CLI)"
+  value       = var.enable_argocd ? module.argocd[0].argocd_capability_error : null
+}
 output "argocd_iam_role_arn" {
   description = "ARN of the IAM role used by ArgoCD capability"
   value       = var.enable_argocd ? module.argocd[0].argocd_iam_role_arn : null

@@ -96,6 +96,62 @@ jobs:
           role-session-name: GitHubActions-ApplicationProvision-State
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Check ArgoCD capability status
+        id: check_argocd
+        working-directory: ./application_infra
+        run: |
+          WORKSPACE="${{ env.AWS_REGION }}-${{ inputs.environment }}"
+          
+          # Initialize terraform if needed
+          if [ ! -d ".terraform" ]; then
+            echo "Initializing application_infra terraform for status check..."
+            terraform init -backend-config="backend.hcl" > /dev/null 2>&1
+            if [ $? -ne 0 ]; then
+              echo "::error::Failed to initialize application_infra terraform"
+              exit 1
+            fi
+          fi
+          
+          # Select workspace
+          terraform workspace select "$WORKSPACE" > /dev/null 2>&1
+          if [ $? -ne 0 ]; then
+            echo "::error::Failed to select workspace $WORKSPACE in application_infra"
+            exit 1
+          fi
+          
+          # Get ArgoCD capability status output
+          ARGOCD_STATUS=$(terraform output -raw argocd_capability_status 2>/dev/null)
+          EXIT_CODE=$?
+          
+          # Fail if status output command failed
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::ArgoCD capability status not available (failed to retrieve from application_infra)"
+            echo "::error::Please ensure ArgoCD capability is deployed in application_infra before deploying applications."
+            exit 1
+          fi
+          
+          # Trim whitespace and set output
+          ARGOCD_STATUS=$(echo "$ARGOCD_STATUS" | tr -d '[:space:]')
+          echo "status=$ARGOCD_STATUS" >> $GITHUB_OUTPUT
+          
+          # Fail if status is empty or null
+          if [ -z "$ARGOCD_STATUS" ] || [ "$ARGOCD_STATUS" = "null" ]; then
+            echo "::error::ArgoCD capability status is not set or is null"
+            echo "::error::Please ensure ArgoCD capability is deployed and active in application_infra before deploying applications."
+            exit 1
+          fi
+          
+          echo "ArgoCD capability status: $ARGOCD_STATUS"
+
+      - name: Validate ArgoCD status
+        run: |
+          if [ "${{ steps.check_argocd.outputs.status }}" != "ACTIVE" ]; then
+            echo "::error::ArgoCD capability status is '${{ steps.check_argocd.outputs.status }}', but expected 'ACTIVE'"
+            echo "::error::Please ensure ArgoCD capability is fully deployed and active before deploying applications."
+            exit 1
+          fi
+          echo "✅ ArgoCD capability is ACTIVE - proceeding with deployment"
+
       - name: Create backend.hcl from placeholder
         run: |
           # Only create if it doesn't exist (matching setup-application.sh behavior)

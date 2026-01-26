@@ -1,16 +1,34 @@
-output "argocd_server_url" {
-  description = "Managed Argo CD UI/API endpoint (automatically retrieved via AWS CLI)"
-  value       = data.external.argocd_capability.result.server_url != "" ? data.external.argocd_capability.result.server_url : null
-}
+# output "argocd_server_url" {
+#   description = "Managed Argo CD UI/API endpoint (automatically retrieved via AWS CLI)"
+#   value = try(aws_eks_capability.argocd.configuration[0].argo_cd[0].server_url, null)
+# }
 
-output "argocd_capability_name" {
-  description = "Name of the ArgoCD capability"
-  value       = local.argocd_capability_name
+output "argocd_server_url" {
+  value = (
+    trimspace(try(data.external.argocd_capability.result.server_url, "")) != ""
+    ? data.external.argocd_capability.result.server_url
+    : null
+  )
 }
 
 output "argocd_capability_status" {
-  description = "Status of the ArgoCD capability (automatically retrieved via AWS CLI)"
-  value       = data.external.argocd_capability.result.status != "" ? data.external.argocd_capability.result.status : null
+  value = (
+    trimspace(try(data.external.argocd_capability.result.status, "")) != ""
+    ? data.external.argocd_capability.result.status
+    : null
+  )
+}
+
+output "argocd_capability_error" {
+  value = (
+    trimspace(try(data.external.argocd_capability.result.error, "")) != ""
+    ? data.external.argocd_capability.result.error
+    : null
+  )
+}
+output "argocd_capability_name" {
+  description = "Name of the ArgoCD capability"
+  value       = local.argocd_capability_name
 }
 
 output "argocd_iam_role_arn" {

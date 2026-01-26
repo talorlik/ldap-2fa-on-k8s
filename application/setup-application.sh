@@ -472,6 +472,90 @@ echo ""
 # Terraform workspace name (same as backend_infra and application_infra)
 WORKSPACE_NAME="${AWS_REGION}-${ENVIRONMENT}"
 
+# Function to check ArgoCD capability status from application_infra
+check_argocd_status() {
+    local infra_dir="../application_infra"
+    local status_output
+    local argocd_status
+    
+    # Check if application_infra directory exists
+    if [ ! -d "$infra_dir" ]; then
+        print_error "application_infra directory not found at $infra_dir"
+        return 1
+    fi
+    
+    # Check if backend.hcl exists in application_infra
+    if [ ! -f "$infra_dir/backend.hcl" ]; then
+        print_error "backend.hcl not found in application_infra. Ensure infrastructure is deployed first."
+        return 1
+    fi
+    
+    # Change to application_infra directory
+    pushd "$infra_dir" > /dev/null || return 1
+    
+    # Initialize terraform if needed (quiet mode)
+    if [ ! -d ".terraform" ]; then
+        print_info "Initializing application_infra terraform for status check..."
+        terraform init -backend-config="backend.hcl" > /dev/null 2>&1 || {
+            print_error "Failed to initialize application_infra terraform"
+            popd > /dev/null
+            return 1
+        }
+    fi
+    
+    # Select workspace
+    terraform workspace select "${WORKSPACE_NAME}" > /dev/null 2>&1 || {
+        print_error "Failed to select workspace ${WORKSPACE_NAME} in application_infra"
+        popd > /dev/null
+        return 1
+    }
+    
+    # Get ArgoCD capability status output
+    status_output=$(terraform output -raw argocd_capability_status 2>/dev/null)
+    local exit_code=$?
+    
+    # Return to original directory
+    popd > /dev/null
+    
+    # Fail if status output command failed
+    if [ $exit_code -ne 0 ]; then
+        print_error "ArgoCD capability status not available (failed to retrieve from application_infra)"
+        print_error "Please ensure ArgoCD capability is deployed in application_infra before deploying applications."
+        return 1
+    fi
+    
+    # Trim whitespace
+    argocd_status=$(echo "$status_output" | tr -d '[:space:]')
+    
+    # Fail if status is empty or null
+    if [ -z "$argocd_status" ] || [ "$argocd_status" = "null" ]; then
+        print_error "ArgoCD capability status is not set or is null"
+        print_error "Please ensure ArgoCD capability is deployed and active in application_infra before deploying applications."
+        return 1
+    fi
+    
+    print_info "ArgoCD capability status: ${argocd_status}"
+    
+    # Fail if status is not ACTIVE
+    if [ "$argocd_status" != "ACTIVE" ]; then
+        print_error "ArgoCD capability status is '${argocd_status}', but expected 'ACTIVE'"
+        print_error "Please ensure ArgoCD capability is fully deployed and active before deploying applications."
+        return 1
+    fi
+    
+    print_success "ArgoCD capability is ACTIVE - proceeding with deployment"
+    return 0
+}
+
+# Check ArgoCD status before proceeding with any Terraform operations
+print_info "Checking ArgoCD capability status from application_infra..."
+if ! check_argocd_status; then
+    print_error "ArgoCD capability status check failed. Deployment aborted."
+    exit 1
+fi
+
+echo ""
+
 # Terraform init
 print_info "Running terraform init with backend configuration..."
 terraform init -backend-config="${BACKEND_FILE}"
@@ -483,6 +567,8 @@ terraform workspace select "${WORKSPACE_NAME}" 2>/dev/null || terraform workspac
 # Terraform validate
 print_info "Running terraform validate..."
 terraform validate
+
+echo ""
 
 # Set Kubernetes environment variables
 # Use the infrastructure's set-k8s-env.sh script (shared between infrastructure and application)
