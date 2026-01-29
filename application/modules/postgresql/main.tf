@@ -17,18 +17,18 @@ locals {
   postgresql_values = templatefile(
     local.values_template_path,
     {
-      secret_name              = var.secret_name
-      database_name            = var.database_name
-      database_username        = var.database_username
-      storage_class            = var.storage_class
-      storage_size             = var.storage_size
-      resources_requests_cpu   = var.resources.requests.cpu
+      secret_name               = var.secret_name
+      database_name             = var.database_name
+      database_username         = var.database_username
+      storage_class             = var.storage_class
+      storage_size              = var.storage_size
+      resources_requests_cpu    = var.resources.requests.cpu
       resources_requests_memory = var.resources.requests.memory
-      resources_limits_cpu     = var.resources.limits.cpu
-      resources_limits_memory  = var.resources.limits.memory
-      ecr_registry             = var.ecr_registry
-      ecr_repository           = var.ecr_repository
-      image_tag                = var.image_tag
+      resources_limits_cpu      = var.resources.limits.cpu
+      resources_limits_memory   = var.resources.limits.memory
+      ecr_registry              = var.ecr_registry
+      ecr_repository            = var.ecr_repository
+      image_tag                 = var.image_tag
     }
   )
 }
@@ -73,7 +73,7 @@ resource "kubernetes_secret" "postgresql_password" {
 
 # PostgreSQL Helm release
 resource "helm_release" "postgresql" {
-  name       = local.name
+  name = local.name
   # repository = "https://charts.bitnami.com/bitnami"
   repository = "oci://registry-1.docker.io/bitnamicharts"
   chart      = "postgresql"

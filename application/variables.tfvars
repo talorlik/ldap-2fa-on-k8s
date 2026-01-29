@@ -1,9 +1,9 @@
-env                    = "prod"
-region                 = "us-east-1"
-prefix                 = "talo-tf"
+env    = "prod"
+region = "us-east-1"
+prefix = "talo-tf"
 
 ##################### Domain ##########################
-domain_name = "talorlik.com"
+domain_name    = "talorlik.com"
 twofa_app_host = "app.talorlik.com"
 
 ##################### PostgreSQL User Storage ##########################
@@ -36,13 +36,13 @@ ses_sender_domain         = "talorlik.com"
 enable_sms_2fa = true
 
 # SNS configuration
-sns_topic_name          = "2fa-sms"
-sns_display_name        = "TALO LDAP 2FA Verification"
-sns_iam_role_name       = "2fa-sns-publisher"
+sns_topic_name            = "2fa-sms"
+sns_display_name          = "TALO LDAP 2FA Verification"
+sns_iam_role_name         = "2fa-sns-publisher"
 configure_sms_preferences = false
-sms_sender_id           = "TALO2FA"
-sms_type                = "Transactional"
-sms_monthly_spend_limit = 100
+sms_sender_id             = "TALO2FA"
+sms_type                  = "Transactional"
+sms_monthly_spend_limit   = 100
 
 ##################### ArgoCD Applications ##########################
 enable_argocd_apps = true
@@ -65,6 +65,6 @@ argocd_app_frontend_namespace = "2fa-app"
 # argocd_app_sync_policy_automated = true
 # argocd_app_sync_policy_prune     = true
 # argocd_app_sync_policy_self_heal  = true
-deployment_account_role_arn = "arn:aws:iam::944880695150:role/github-role"
+deployment_account_role_arn    = "arn:aws:iam::944880695150:role/github-role"
 deployment_account_external_id = "5f8697f36412ae83d62efc0a2ebd898fbb4a1721f0da986d9fa1ea7769223f47"
-state_account_role_arn = "arn:aws:iam::395323424870:role/github-role"
+state_account_role_arn         = "arn:aws:iam::395323424870:role/github-role"
