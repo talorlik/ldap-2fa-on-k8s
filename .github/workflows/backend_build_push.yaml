@@ -68,8 +68,8 @@ jobs:
         id: build
         working-directory: ./application/backend
         run: |
-          # Generate image tag using commit SHA
-          IMAGE_TAG="${{ env.IMAGE_NAME }}-${{ github.sha }}"
+          # Generate image tag: commit SHA + run ID so re-runs get a unique tag (ECR tags are immutable)
+          IMAGE_TAG="${{ env.IMAGE_NAME }}-${{ github.sha }}-${{ github.run_id }}"
 
           # Build the Docker image
           docker build -t ${{ steps.ecr-info.outputs.ecr_repo_url }}:${IMAGE_TAG} .
