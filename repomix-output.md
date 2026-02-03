@@ -250,7 +250,7 @@ repomix.config.json
  4: {{- define "ldap-2fa-backend.name" -}}
  5: {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
  6: {{- end }}
- 7: 
+ 7:
  8: {{/*
  9: Create a default fully qualified app name.
 10: We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
@@ -268,14 +268,14 @@ repomix.config.json
 22: {{- end }}
 23: {{- end }}
 24: {{- end }}
-25: 
+25:
 26: {{/*
 27: Create chart name and version as used by the chart label.
 28: */}}
 29: {{- define "ldap-2fa-backend.chart" -}}
 30: {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 31: {{- end }}
-32: 
+32:
 33: {{/*
 34: Common labels
 35: */}}
@@ -287,7 +287,7 @@ repomix.config.json
 41: {{- end }}
 42: app.kubernetes.io/managed-by: {{ .Release.Service }}
 43: {{- end }}
-44: 
+44:
 45: {{/*
 46: Selector labels
 47: */}}
@@ -295,7 +295,7 @@ repomix.config.json
 49: app.kubernetes.io/name: {{ include "ldap-2fa-backend.name" . }}
 50: app.kubernetes.io/instance: {{ .Release.Name }}
 51: {{- end }}
-52: 
+52:
 53: {{/*
 54: Create the name of the service account to use
 55: */}}
@@ -394,7 +394,7 @@ repomix.config.json
 ## File: application/backend/helm/ldap-2fa-backend/templates/NOTES.txt
 ```
  1: LDAP 2FA Backend API has been deployed!
- 2: 
+ 2:
  3: 1. Get the application URL:
  4: {{- if .Values.ingress.enabled }}
  5: {{- range $host := .Values.ingress.hosts }}
@@ -416,20 +416,20 @@ repomix.config.json
 21:   kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "ldap-2fa-backend.fullname" . }} 8000:{{ .Values.service.port }}
 22:   echo "Visit http://127.0.0.1:8000/api/healthz"
 23: {{- end }}
-24: 
+24:
 25: 2. API Endpoints:
 26:    - Health Check: GET /api/healthz
 27:    - Enroll MFA:   POST /api/auth/enroll
 28:    - Login:        POST /api/auth/login
-29: 
+29:
 30: 3. Test the health endpoint:
 31:    curl -s https://{{ (index .Values.ingress.hosts 0).host }}/api/healthz | jq
-32: 
+32:
 33: 4. Enroll a user for MFA:
 34:    curl -X POST https://{{ (index .Values.ingress.hosts 0).host }}/api/auth/enroll \
 35:      -H "Content-Type: application/json" \
 36:      -d '{"username": "testuser", "password": "testpassword"}'
-37: 
+37:
 38: 5. Login with MFA:
 39:    curl -X POST https://{{ (index .Values.ingress.hosts 0).host }}/api/auth/login \
 40:      -H "Content-Type: application/json" \
@@ -1037,47 +1037,47 @@ repomix.config.json
 ```
  1: # Stage 1: Build stage
  2: FROM python:3.12-slim AS builder
- 3: 
+ 3:
  4: WORKDIR /app
- 5: 
+ 5:
  6: # Install build dependencies
  7: RUN apt-get update && apt-get install -y --no-install-recommends \
  8:     gcc \
  9:     libldap2-dev \
 10:     libsasl2-dev \
 11:     && rm -rf /var/lib/apt/lists/*
-12: 
+12:
 13: # Copy requirements and install dependencies
 14: COPY src/requirements.txt .
 15: RUN pip install --no-cache-dir --user -r requirements.txt
-16: 
+16:
 17: # Stage 2: Runtime stage
 18: FROM python:3.12-slim
-19: 
+19:
 20: # Create non-root user for security
 21: RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-22: 
+22:
 23: WORKDIR /app
-24: 
+24:
 25: # Install runtime dependencies only
 26: RUN apt-get update && apt-get install -y --no-install-recommends \
-27:     libldap-2.5-0 \
+27:     libldap2 \
 28:     libsasl2-2 \
 29:     && rm -rf /var/lib/apt/lists/* \
 30:     && apt-get clean
-31: 
+31:
 32: # Copy installed packages from builder
 33: COPY --from=builder /root/.local /home/appuser/.local
-34: 
+34:
 35: # Copy application code
 36: COPY src/app ./app
-37: 
+37:
 38: # Set environment variables
 39: ENV PATH=/home/appuser/.local/bin:$PATH \
 40:     PYTHONDONTWRITEBYTECODE=1 \
 41:     PYTHONUNBUFFERED=1 \
 42:     PYTHONPATH=/app
-43: 
+43:
 44: # Default environment variables (can be overridden)
 45: ENV LDAP_HOST=openldap-stack-ha.ldap.svc.cluster.local \
 46:     LDAP_PORT=389 \
@@ -1091,17 +1091,17 @@ repomix.config.json
 54:     APP_NAME="LDAP 2FA Backend API" \
 55:     DEBUG=false \
 56:     LOG_LEVEL=INFO
-57: 
+57:
 58: # Switch to non-root user
 59: USER appuser
-60: 
+60:
 61: # Expose port
 62: EXPOSE 8000
-63: 
+63:
 64: # Health check
 65: HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 66:     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/healthz')" || exit 1
-67: 
+67:
 68: # Run the application with gunicorn for production
 69: CMD ["gunicorn", "app.main:app", \
 70:     "--bind", "0.0.0.0:8000", \
@@ -1138,7 +1138,7 @@ repomix.config.json
  4: {{- define "ldap-2fa-frontend.name" -}}
  5: {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
  6: {{- end }}
- 7: 
+ 7:
  8: {{/*
  9: Create a default fully qualified app name.
 10: We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
@@ -1156,14 +1156,14 @@ repomix.config.json
 22: {{- end }}
 23: {{- end }}
 24: {{- end }}
-25: 
+25:
 26: {{/*
 27: Create chart name and version as used by the chart label.
 28: */}}
 29: {{- define "ldap-2fa-frontend.chart" -}}
 30: {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 31: {{- end }}
-32: 
+32:
 33: {{/*
 34: Common labels
 35: */}}
@@ -1175,7 +1175,7 @@ repomix.config.json
 41: {{- end }}
 42: app.kubernetes.io/managed-by: {{ .Release.Service }}
 43: {{- end }}
-44: 
+44:
 45: {{/*
 46: Selector labels
 47: */}}
@@ -1183,7 +1183,7 @@ repomix.config.json
 49: app.kubernetes.io/name: {{ include "ldap-2fa-frontend.name" . }}
 50: app.kubernetes.io/instance: {{ .Release.Name }}
 51: {{- end }}
-52: 
+52:
 53: {{/*
 54: Create the name of the service account to use
 55: */}}
@@ -1364,7 +1364,7 @@ repomix.config.json
 ## File: application/frontend/helm/ldap-2fa-frontend/templates/NOTES.txt
 ```
  1: LDAP 2FA Frontend has been deployed!
- 2: 
+ 2:
  3: 1. Get the application URL:
  4: {{- if .Values.ingress.enabled }}
  5: {{- range $host := .Values.ingress.hosts }}
@@ -1386,17 +1386,17 @@ repomix.config.json
 21:   kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "ldap-2fa-frontend.fullname" . }} 8080:{{ .Values.service.port }}
 22:   echo "Visit http://127.0.0.1:8080"
 23: {{- end }}
-24: 
+24:
 25: 2. Features:
 26:    - User enrollment for MFA (generates QR code for authenticator apps)
 27:    - Login with LDAP credentials + TOTP code
 28:    - Responsive design with dark mode support
-29: 
+29:
 30: 3. The frontend communicates with the backend via relative URLs:
 31:    - /api/healthz - Health check
 32:    - /api/auth/enroll - MFA enrollment
 33:    - /api/auth/login - Login with 2FA
-34: 
+34:
 35: 4. Ensure the backend is deployed and accessible at the same host:
 36:    kubectl get ingress -n {{ .Release.Namespace }}
 ```
@@ -1466,30 +1466,30 @@ repomix.config.json
 ```
  1: # Stage 1: Build stage (for any potential future build steps like minification)
  2: FROM node:20-alpine AS builder
- 3: 
+ 3:
  4: WORKDIR /app
- 5: 
+ 5:
  6: # Copy source files
  7: COPY src/ ./src/
- 8: 
+ 8:
  9: # In a real-world scenario, you might add build steps here:
 10: # - npm install
 11: # - npm run build (minify, bundle, etc.)
-12: 
+12:
 13: # For now, we just copy the files as-is since we're using vanilla HTML/CSS/JS
-14: 
+14:
 15: # Stage 2: Production stage with nginx
 16: FROM nginx:1.27-alpine
-17: 
+17:
 18: # Remove default nginx configuration
 19: RUN rm -rf /etc/nginx/conf.d/default.conf
-20: 
+20:
 21: # Copy custom nginx configuration
 22: COPY nginx.conf /etc/nginx/conf.d/default.conf
-23: 
+23:
 24: # Copy static files from builder
 25: COPY --from=builder /app/src/ /usr/share/nginx/html/
-26: 
+26:
 27: # Create non-root user and set permissions
 28: RUN addgroup -g 1000 -S appgroup && \
 29:     adduser -u 1000 -S appuser -G appgroup && \
@@ -1499,17 +1499,17 @@ repomix.config.json
 33:     chown -R appuser:appgroup /etc/nginx/conf.d && \
 34:     touch /var/run/nginx.pid && \
 35:     chown -R appuser:appgroup /var/run/nginx.pid
-36: 
+36:
 37: # Switch to non-root user
 38: USER appuser
-39: 
+39:
 40: # Expose port
 41: EXPOSE 80
-42: 
+42:
 43: # Health check
 44: HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 45:     CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
-46: 
+46:
 47: # Start nginx
 48: CMD ["nginx", "-g", "daemon off;"]
 ```
@@ -1520,17 +1520,17 @@ repomix.config.json
  2:     listen 80;
  3:     listen [::]:80;
  4:     server_name _;
- 5: 
+ 5:
  6:     # Root directory for static files
  7:     root /usr/share/nginx/html;
  8:     index index.html;
- 9: 
+ 9:
 10:     # Security headers
 11:     add_header X-Frame-Options "SAMEORIGIN" always;
 12:     add_header X-Content-Type-Options "nosniff" always;
 13:     add_header X-XSS-Protection "1; mode=block" always;
 14:     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-15: 
+15:
 16:     # Gzip compression
 17:     gzip on;
 18:     gzip_vary on;
@@ -1544,11 +1544,11 @@ repomix.config.json
 26:         application/json
 27:         application/xml
 28:         image/svg+xml;
-29: 
+29:
 30:     # Serve static files
 31:     location / {
 32:         try_files $uri $uri/ /index.html;
-33: 
+33:
 34:         # Cache static assets
 35:         location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
 36:             expires 1y;
@@ -1556,21 +1556,21 @@ repomix.config.json
 38:             access_log off;
 39:         }
 40:     }
-41: 
+41:
 42:     # Health check endpoint
 43:     location /health {
 44:         access_log off;
 45:         return 200 "healthy\n";
 46:         add_header Content-Type text/plain;
 47:     }
-48: 
+48:
 49:     # Deny access to hidden files
 50:     location ~ /\. {
 51:         deny all;
 52:         access_log off;
 53:         log_not_found off;
 54:     }
-55: 
+55:
 56:     # Custom error pages
 57:     error_page 404 /index.html;
 58:     error_page 500 502 503 504 /50x.html;
@@ -1642,22 +1642,22 @@ repomix.config.json
  6: #     length(kubernetes_ingress_v1.ingress_alb.status[0].load_balancer[0].ingress) > 0
  7: #   ) ? kubernetes_ingress_v1.ingress_alb.status[0].load_balancer[0].ingress[0].hostname : "ALB is still provisioning"
  8: # }
- 9: 
+ 9:
 10: output "ingress_class_name" {
 11:   description = "Name of the IngressClass for shared ALB"
 12:   value       = kubernetes_ingress_class_v1.ingressclass_alb.metadata[0].name
 13: }
-14: 
+14:
 15: output "ingress_class_params_name" {
 16:   description = "Name of the IngressClassParams for ALB configuration"
 17:   value       = local.ingressclassparams_alb_name
 18: }
-19: 
+19:
 20: output "alb_scheme" {
 21:   description = "ALB scheme configured in IngressClassParams"
 22:   value       = var.alb_scheme
 23: }
-24: 
+24:
 25: output "alb_ip_address_type" {
 26:   description = "ALB IP address type configured in IngressClassParams"
 27:   value       = var.alb_ip_address_type
@@ -1670,62 +1670,62 @@ repomix.config.json
   2:   description = "Deployment environment"
   3:   type        = string
   4: }
-  5: 
+  5:
   6: variable "region" {
   7:   description = "Deployment region"
   8:   type        = string
   9: }
- 10: 
+ 10:
  11: variable "prefix" {
  12:   description = "Name added to all resources"
  13:   type        = string
  14: }
- 15: 
+ 15:
  16: variable "cluster_name" {
  17:   description = "Name of the EKS cluster"
  18:   type        = string
  19: }
- 20: 
+ 20:
  21: variable "argocd_role_name_component" {
  22:   description = "Name component for ArgoCD IAM role (between prefix and env)"
  23:   type        = string
  24:   default     = "argocd-role"
  25: }
- 26: 
+ 26:
  27: variable "argocd_capability_name_component" {
  28:   description = "Name component for ArgoCD capability (between prefix and env)"
  29:   type        = string
  30:   default     = "argocd"
  31: }
- 32: 
+ 32:
  33: variable "argocd_namespace" {
  34:   description = "Kubernetes namespace for ArgoCD resources"
  35:   type        = string
  36:   default     = "argocd"
  37: }
- 38: 
+ 38:
  39: variable "argocd_project_name" {
  40:   description = "ArgoCD project name for cluster registration"
  41:   type        = string
  42:   default     = "default"
  43: }
- 44: 
+ 44:
  45: variable "local_cluster_secret_name" {
  46:   description = "Name of the Kubernetes secret for local cluster registration"
  47:   type        = string
  48:   default     = "local-cluster"
  49: }
- 50: 
+ 50:
  51: variable "idc_instance_arn" {
  52:   description = "ARN of the AWS Identity Center instance used for Argo CD auth"
  53:   type        = string
  54: }
- 55: 
+ 55:
  56: variable "idc_region" {
  57:   description = "Region of the Identity Center instance"
  58:   type        = string
  59: }
- 60: 
+ 60:
  61: variable "rbac_role_mappings" {
  62:   description = "List of RBAC role mappings for Identity Center groups/users"
  63:   type = list(object({
@@ -1737,13 +1737,13 @@ repomix.config.json
  69:   }))
  70:   default = []
  71: }
- 72: 
+ 72:
  73: variable "argocd_vpce_ids" {
  74:   description = "Optional list of VPC endpoint IDs for private access to Argo CD"
  75:   type        = list(string)
  76:   default     = []
  77: }
- 78: 
+ 78:
  79: variable "delete_propagation_policy" {
  80:   description = "Delete propagation policy for ArgoCD capability (RETAIN or DELETE)"
  81:   type        = string
@@ -1753,44 +1753,44 @@ repomix.config.json
  85:     error_message = "Delete propagation policy must be either 'RETAIN' or 'DELETE'"
  86:   }
  87: }
- 88: 
+ 88:
  89: # IAM Policy Resources
  90: variable "iam_policy_eks_resources" {
  91:   description = "List of EKS resource ARNs for IAM policy (use ['*'] for all clusters)"
  92:   type        = list(string)
  93:   default     = ["*"]
  94: }
- 95: 
+ 95:
  96: variable "iam_policy_secrets_manager_resources" {
  97:   description = "List of Secrets Manager secret ARNs for IAM policy (use ['*'] for all secrets)"
  98:   type        = list(string)
  99:   default     = ["*"]
 100: }
-101: 
+101:
 102: variable "iam_policy_code_connections_resources" {
 103:   description = "List of CodeConnections connection ARNs for IAM policy (use ['*'] for all connections)"
 104:   type        = list(string)
 105:   default     = ["*"]
 106: }
-107: 
+107:
 108: variable "enable_ecr_access" {
 109:   description = "Whether to enable ECR access in IAM policy (for pulling container images)"
 110:   type        = bool
 111:   default     = false
 112: }
-113: 
+113:
 114: variable "iam_policy_ecr_resources" {
 115:   description = "List of ECR repository ARNs for IAM policy (use ['*'] for all repositories)"
 116:   type        = list(string)
 117:   default     = ["*"]
 118: }
-119: 
+119:
 120: variable "enable_codecommit_access" {
 121:   description = "Whether to enable CodeCommit access in IAM policy (for Git repository access)"
 122:   type        = bool
 123:   default     = false
 124: }
-125: 
+125:
 126: variable "iam_policy_codecommit_resources" {
 127:   description = "List of CodeCommit repository ARNs for IAM policy (use ['*'] for all repositories)"
 128:   type        = list(string)
@@ -1804,32 +1804,32 @@ repomix.config.json
  2:   description = "Name of the ArgoCD Application"
  3:   value       = kubernetes_manifest.argocd_app.manifest.metadata.name
  4: }
- 5: 
+ 5:
  6: output "app_namespace" {
  7:   description = "Namespace where the ArgoCD Application is deployed"
  8:   value       = kubernetes_manifest.argocd_app.manifest.metadata.namespace
  9: }
-10: 
+10:
 11: output "app_uid" {
 12:   description = "UID of the ArgoCD Application resource"
 13:   value       = kubernetes_manifest.argocd_app.manifest.metadata.uid
 14: }
-15: 
+15:
 16: output "destination_namespace" {
 17:   description = "Target Kubernetes namespace for the application"
 18:   value       = var.destination_namespace
 19: }
-20: 
+20:
 21: output "repo_url" {
 22:   description = "Git repository URL for the Application"
 23:   value       = var.repo_url
 24: }
-25: 
+25:
 26: output "repo_path" {
 27:   description = "Path within the repository"
 28:   value       = var.repo_path
 29: }
-30: 
+30:
 31: output "target_revision" {
 32:   description = "Git branch/tag/commit being synced"
 33:   value       = var.target_revision
@@ -1850,12 +1850,12 @@ repomix.config.json
  2:   description = "Name of the EKS cluster"
  3:   type        = string
  4: }
- 5: 
+ 5:
  6: variable "namespace" {
  7:   description = "Kubernetes namespace where OpenLDAP is deployed"
  8:   type        = string
  9: }
-10: 
+10:
 11: variable "domain_name" {
 12:   description = "Domain name for certificate DNS names"
 13:   type        = string
@@ -1868,12 +1868,12 @@ repomix.config.json
  2:   description = "Name of the network policy for secure namespace communication"
  3:   value       = kubernetes_network_policy_v1.namespace_secure_communication.metadata[0].name
  4: }
- 5: 
+ 5:
  6: output "network_policy_namespace" {
  7:   description = "Namespace where the network policy is applied"
  8:   value       = kubernetes_network_policy_v1.namespace_secure_communication.metadata[0].namespace
  9: }
-10: 
+10:
 11: output "network_policy_uid" {
 12:   description = "UID of the network policy resource"
 13:   value       = kubernetes_network_policy_v1.namespace_secure_communication.metadata[0].uid
@@ -1895,27 +1895,27 @@ repomix.config.json
  2:   description = "PostgreSQL service hostname"
  3:   value       = "postgresql.${var.namespace}.svc.cluster.local"
  4: }
- 5: 
+ 5:
  6: output "port" {
  7:   description = "PostgreSQL service port"
  8:   value       = 5432
  9: }
-10: 
+10:
 11: output "database" {
 12:   description = "Database name"
 13:   value       = var.database_name
 14: }
-15: 
+15:
 16: output "username" {
 17:   description = "Database username"
 18:   value       = var.database_username
 19: }
-20: 
+20:
 21: output "connection_url" {
 22:   description = "PostgreSQL connection URL (without password)"
 23:   value       = "postgresql+asyncpg://${var.database_username}@postgresql.${var.namespace}.svc.cluster.local:5432/${var.database_name}"
 24: }
-25: 
+25:
 26: output "namespace" {
 27:   description = "Kubernetes namespace where PostgreSQL is deployed"
 28:   value       = var.namespace
@@ -1928,32 +1928,32 @@ repomix.config.json
  2:   description = "Whether Redis is enabled"
  3:   value       = var.enable_redis
  4: }
- 5: 
+ 5:
  6: output "redis_host" {
  7:   description = "Redis service hostname"
  8:   value       = var.enable_redis ? "redis-master.${var.namespace}.svc.cluster.local" : ""
  9: }
-10: 
+10:
 11: output "redis_port" {
 12:   description = "Redis service port"
 13:   value       = 6379
 14: }
-15: 
+15:
 16: output "redis_namespace" {
 17:   description = "Kubernetes namespace where Redis is deployed"
 18:   value       = var.enable_redis ? var.namespace : ""
 19: }
-20: 
+20:
 21: output "redis_password_secret_name" {
 22:   description = "Name of the Kubernetes secret containing Redis password"
 23:   value       = var.enable_redis ? var.secret_name : ""
 24: }
-25: 
+25:
 26: output "redis_password_secret_key" {
 27:   description = "Key in the secret for Redis password"
 28:   value       = "redis-password"
 29: }
-30: 
+30:
 31: output "redis_connection_url" {
 32:   description = "Redis connection URL (without password)"
 33:   value       = var.enable_redis ? "redis://redis-master.${var.namespace}.svc.cluster.local:6379/0" : ""
@@ -1966,17 +1966,17 @@ repomix.config.json
  2:   description = "ACM certificate ARN (validated and ready for use)"
  3:   value       = module.acm.acm_certificate_arn
  4: }
- 5: 
+ 5:
  6: output "domain_name" {
  7:   description = "Root domain name"
  8:   value       = local.domain_name
  9: }
-10: 
+10:
 11: output "zone_id" {
 12:   description = "Route53 hosted zone ID"
 13:   value       = local.zone_id
 14: }
-15: 
+15:
 16: output "name_servers" {
 17:   description = "Route53 name servers for the hosted zone (for registrar configuration)"
 18:   value       = try(data.aws_route53_zone.this[0].name_servers, aws_route53_zone.this[0].name_servers)
@@ -1989,34 +1989,34 @@ repomix.config.json
  2:   description = "Deployment environment (for tagging)"
  3:   type        = string
  4: }
- 5: 
+ 5:
  6: variable "region" {
  7:   description = "Deployment region"
  8:   type        = string
  9: }
-10: 
+10:
 11: variable "prefix" {
 12:   description = "Prefix for the resources"
 13:   type        = string
 14: }
-15: 
+15:
 16: variable "domain_name" {
 17:   description = "Root domain name (e.g., talorlik.com)"
 18:   type        = string
 19: }
-20: 
+20:
 21: variable "subject_alternative_names" {
 22:   description = "List of subject alternative names for the ACM certificate (e.g., [\"*.talorlik.com\"])"
 23:   type        = list(string)
 24:   default     = []
 25: }
-26: 
+26:
 27: variable "use_existing_route53_zone" {
 28:   description = "Whether to use an existing Route53 zone"
 29:   type        = bool
 30:   default     = false
 31: }
-32: 
+32:
 33: variable "tags" {
 34:   description = "Tags to apply to the resources"
 35:   type        = map(string)
@@ -2029,20 +2029,20 @@ repomix.config.json
  1: # Route53 A (alias) record pointing to an ALB
  2: resource "aws_route53_record" "this" {
  3:   provider = aws.state_account
- 4: 
+ 4:
  5:   zone_id = var.zone_id
  6:   name    = var.name
  7:   type    = "A"
- 8: 
+ 8:
  9:   alias {
 10:     name                   = var.alb_dns_name
 11:     zone_id                = var.alb_zone_id
 12:     evaluate_target_health = var.evaluate_target_health
 13:   }
-14: 
+14:
 15:   lifecycle {
 16:     create_before_destroy = true
-17: 
+17:
 18:     # Precondition: Ensure ALB DNS name is never null or empty
 19:     precondition {
 20:       condition     = var.alb_dns_name != null && var.alb_dns_name != ""
@@ -2058,12 +2058,12 @@ repomix.config.json
  2:   description = "Route53 record name"
  3:   value       = aws_route53_record.this.name
  4: }
- 5: 
+ 5:
  6: output "record_fqdn" {
  7:   description = "Fully qualified domain name (FQDN) of the Route53 record"
  8:   value       = aws_route53_record.this.fqdn
  9: }
-10: 
+10:
 11: output "record_id" {
 12:   description = "Route53 record ID"
 13:   value       = aws_route53_record.this.id
@@ -2076,22 +2076,22 @@ repomix.config.json
  2:   description = "Route53 hosted zone ID for creating DNS records"
  3:   type        = string
  4: }
- 5: 
+ 5:
  6: variable "name" {
  7:   description = "DNS record name (e.g., phpldapadmin.talorlik.com)"
  8:   type        = string
  9: }
-10: 
+10:
 11: variable "alb_dns_name" {
 12:   description = "DNS name of the ALB to point the record to"
 13:   type        = string
 14: }
-15: 
+15:
 16: variable "alb_zone_id" {
 17:   description = "ALB canonical hosted zone ID for Route53 alias records. This should be computed from the region mapping."
 18:   type        = string
 19: }
-20: 
+20:
 21: variable "evaluate_target_health" {
 22:   description = "Whether to evaluate target health for the alias record"
 23:   type        = bool
@@ -2105,27 +2105,27 @@ repomix.config.json
  2:   description = "Verified sender email address"
  3:   value       = var.sender_email
  4: }
- 5: 
+ 5:
  6: output "sender_domain" {
  7:   description = "Verified sender domain (if configured)"
  8:   value       = var.sender_domain
  9: }
-10: 
+10:
 11: output "iam_role_arn" {
 12:   description = "ARN of the IAM role for SES access"
 13:   value       = aws_iam_role.ses_sender.arn
 14: }
-15: 
+15:
 16: output "iam_role_name" {
 17:   description = "Name of the IAM role for SES access"
 18:   value       = aws_iam_role.ses_sender.name
 19: }
-20: 
+20:
 21: output "email_identity_arn" {
 22:   description = "ARN of the SES email identity"
 23:   value       = var.sender_domain != null ? aws_ses_domain_identity.sender[0].arn : aws_ses_email_identity.sender[0].arn
 24: }
-25: 
+25:
 26: output "verification_status" {
 27:   description = "Instructions for email verification"
 28:   value       = var.sender_domain == null ? "Check inbox of ${var.sender_email} and click verification link from AWS" : "Domain verification via DNS records"
@@ -2138,57 +2138,57 @@ repomix.config.json
  2:   description = "Deployment environment"
  3:   type        = string
  4: }
- 5: 
+ 5:
  6: variable "region" {
  7:   description = "Deployment region"
  8:   type        = string
  9: }
-10: 
+10:
 11: variable "prefix" {
 12:   description = "Name prefix for resources"
 13:   type        = string
 14: }
-15: 
+15:
 16: variable "cluster_name" {
 17:   description = "EKS cluster name for IRSA"
 18:   type        = string
 19: }
-20: 
+20:
 21: variable "sender_email" {
 22:   description = "Email address to send verification emails from (must be verified in SES)"
 23:   type        = string
 24: }
-25: 
+25:
 26: variable "sender_domain" {
 27:   description = "Domain to verify in SES for sending emails. If null, will verify sender_email as individual address."
 28:   type        = string
 29:   default     = null
 30: }
-31: 
+31:
 32: variable "iam_role_name" {
 33:   description = "Name component for the SES IAM role"
 34:   type        = string
 35:   default     = "ses-sender"
 36: }
-37: 
+37:
 38: variable "service_account_namespace" {
 39:   description = "Kubernetes namespace for the service account"
 40:   type        = string
 41:   default     = "ldap-2fa"
 42: }
-43: 
+43:
 44: variable "service_account_name" {
 45:   description = "Name of the Kubernetes service account"
 46:   type        = string
 47:   default     = "ldap-2fa-backend"
 48: }
-49: 
+49:
 50: variable "route53_zone_id" {
 51:   description = "Route53 zone ID for domain verification records (optional, for domain verification)"
 52:   type        = string
 53:   default     = null
 54: }
-55: 
+55:
 56: variable "tags" {
 57:   description = "Tags to apply to resources"
 58:   type        = map(string)
@@ -2204,32 +2204,32 @@ repomix.config.json
   4: # - SNS Topic for SMS notifications
   5: # - IAM Role for EKS Service Account (IRSA) to publish to SNS
   6: # - IAM Policy for SNS SMS publishing
-  7: 
+  7:
   8: locals {
   9:   sns_topic_name = "${var.prefix}-${var.region}-${var.sns_topic_name}-${var.env}"
  10:   iam_role_name  = "${var.prefix}-${var.region}-${var.iam_role_name}-${var.env}"
  11: }
- 12: 
+ 12:
  13: # Data source to get AWS account ID
  14: data "aws_caller_identity" "current" {}
- 15: 
+ 15:
  16: # Data source to get EKS cluster OIDC provider
  17: data "aws_eks_cluster" "cluster" {
  18:   name = var.cluster_name
  19: }
- 20: 
+ 20:
  21: # SNS Topic for SMS messages
  22: resource "aws_sns_topic" "sms" {
  23:   name         = local.sns_topic_name
  24:   display_name = var.sns_display_name
- 25: 
+ 25:
  26:   tags = var.tags
  27: }
- 28: 
+ 28:
  29: # SNS Topic Policy - allows the IAM role to publish
  30: resource "aws_sns_topic_policy" "sms" {
  31:   arn = aws_sns_topic.sms.arn
- 32: 
+ 32:
  33:   policy = jsonencode({
  34:     Version = "2012-10-17"
  35:     Id      = "SNSTopicPolicy"
@@ -2246,11 +2246,11 @@ repomix.config.json
  46:     ]
  47:   })
  48: }
- 49: 
+ 49:
  50: # IAM Role for EKS Service Account (IRSA)
  51: resource "aws_iam_role" "sns_publisher" {
  52:   name = local.iam_role_name
- 53: 
+ 53:
  54:   assume_role_policy = jsonencode({
  55:     Version = "2012-10-17"
  56:     Statement = [
@@ -2269,15 +2269,15 @@ repomix.config.json
  69:       }
  70:     ]
  71:   })
- 72: 
+ 72:
  73:   tags = var.tags
  74: }
- 75: 
+ 75:
  76: # IAM Policy for SNS SMS publishing
  77: resource "aws_iam_role_policy" "sns_publish" {
  78:   name = "${local.iam_role_name}-policy"
  79:   role = aws_iam_role.sns_publisher.id
- 80: 
+ 80:
  81:   policy = jsonencode({
  82:     Version = "2012-10-17"
  83:     Statement = [
@@ -2325,15 +2325,15 @@ repomix.config.json
 125:     ]
 126:   })
 127: }
-128: 
+128:
 129: # Set SMS attributes for the account (optional - for production use)
 130: resource "aws_sns_sms_preferences" "sms_preferences" {
 131:   count = var.configure_sms_preferences ? 1 : 0
-132: 
+132:
 133:   default_sender_id   = var.sms_sender_id
 134:   default_sms_type    = var.sms_type
 135:   monthly_spend_limit = var.sms_monthly_spend_limit
-136: 
+136:
 137:   # Note: delivery_status_iam_role_arn and delivery_status_success_sampling_rate
 138:   # can be configured for SMS delivery status logging
 139: }
@@ -2345,22 +2345,22 @@ repomix.config.json
  2:   description = "ARN of the SNS topic for SMS"
  3:   value       = aws_sns_topic.sms.arn
  4: }
- 5: 
+ 5:
  6: output "sns_topic_name" {
  7:   description = "Name of the SNS topic"
  8:   value       = aws_sns_topic.sms.name
  9: }
-10: 
+10:
 11: output "iam_role_arn" {
 12:   description = "ARN of the IAM role for SNS publishing"
 13:   value       = aws_iam_role.sns_publisher.arn
 14: }
-15: 
+15:
 16: output "iam_role_name" {
 17:   description = "Name of the IAM role"
 18:   value       = aws_iam_role.sns_publisher.name
 19: }
-20: 
+20:
 21: output "service_account_annotation" {
 22:   description = "Annotation to add to Kubernetes service account for IRSA"
 23:   value = {
@@ -2375,64 +2375,64 @@ repomix.config.json
  2:   description = "Deployment environment"
  3:   type        = string
  4: }
- 5: 
+ 5:
  6: variable "region" {
  7:   description = "AWS region"
  8:   type        = string
  9: }
-10: 
+10:
 11: variable "prefix" {
 12:   description = "Prefix for resource names"
 13:   type        = string
 14: }
-15: 
+15:
 16: variable "cluster_name" {
 17:   description = "Name of the EKS cluster"
 18:   type        = string
 19: }
-20: 
+20:
 21: variable "sns_topic_name" {
 22:   description = "Name component for the SNS topic"
 23:   type        = string
 24:   default     = "2fa-sms"
 25: }
-26: 
+26:
 27: variable "sns_display_name" {
 28:   description = "Display name for the SNS topic (appears in SMS sender)"
 29:   type        = string
 30:   default     = "2FA Verification"
 31: }
-32: 
+32:
 33: variable "iam_role_name" {
 34:   description = "Name component for the IAM role"
 35:   type        = string
 36:   default     = "2fa-sns-publisher"
 37: }
-38: 
+38:
 39: variable "service_account_namespace" {
 40:   description = "Kubernetes namespace for the service account"
 41:   type        = string
 42:   default     = "2fa-app"
 43: }
-44: 
+44:
 45: variable "service_account_name" {
 46:   description = "Name of the Kubernetes service account"
 47:   type        = string
 48:   default     = "ldap-2fa-backend"
 49: }
-50: 
+50:
 51: variable "configure_sms_preferences" {
 52:   description = "Whether to configure account-level SMS preferences"
 53:   type        = bool
 54:   default     = false
 55: }
-56: 
+56:
 57: variable "sms_sender_id" {
 58:   description = "Default sender ID for SMS messages (max 11 alphanumeric characters)"
 59:   type        = string
 60:   default     = "2FA"
 61: }
-62: 
+62:
 63: variable "sms_type" {
 64:   description = "Default SMS type: Promotional or Transactional"
 65:   type        = string
@@ -2442,13 +2442,13 @@ repomix.config.json
 69:     error_message = "SMS type must be either 'Promotional' or 'Transactional'"
 70:   }
 71: }
-72: 
+72:
 73: variable "sms_monthly_spend_limit" {
 74:   description = "Monthly spend limit for SMS in USD"
 75:   type        = number
 76:   default     = 10
 77: }
-78: 
+78:
 79: variable "tags" {
 80:   description = "Tags to apply to resources"
 81:   type        = map(string)
@@ -2468,10 +2468,10 @@ repomix.config.json
  1: # Resources in the Kubernetes Cluster such as StorageClass
  2: # *** EKS Auto mode has its own EBS CSI driver ***
  3: # There is no need to install one
- 4: 
+ 4:
  5: # *** EKS Auto Mode takes care of IAM permissions ***
  6: # There is no need to attach AmazonEBSCSIDriverPolicy to the EKS Node IAM Role
- 7: 
+ 7:
  8: # EBS Storage Class
  9: resource "kubernetes_storage_class" "ebs" {
 10:   metadata {
@@ -2480,18 +2480,18 @@ repomix.config.json
 13:       "storageclass.kubernetes.io/is-default-class" = "true"
 14:     }
 15:   }
-16: 
+16:
 17:   # *** This setting specifies the EKS Auto Mode provisioner ***
 18:   storage_provisioner = "ebs.csi.eks.amazonaws.com"
-19: 
+19:
 20:   # The reclaim policy for a PersistentVolume tells the cluster
 21:   # what to do with the volume after it has been released of its claim
 22:   reclaim_policy = "Delete"
-23: 
+23:
 24:   # Delay the binding and provisioning of a PersistentVolume until a Pod
 25:   # using the PersistentVolumeClaim is created
 26:   volume_binding_mode = "WaitForFirstConsumer"
-27: 
+27:
 28:   # see StorageClass Parameters Reference here:
 29:   # https://docs.aws.amazon.com/eks/latest/userguide/create-storage-class.html
 30:   parameters = {
@@ -2499,13 +2499,13 @@ repomix.config.json
 32:     encrypted = "true"
 33:   }
 34: }
-35: 
+35:
 36: # EBS Persistent Volume Claim
 37: resource "kubernetes_persistent_volume_claim_v1" "ebs_pvc" {
 38:   metadata {
 39:     name = "${var.prefix}-${var.region}-${var.ebs_claim_name}-${var.env}"
 40:   }
-41: 
+41:
 42:   spec {
 43:     # Volume can be mounted as read-write by a single node
 44:     #
@@ -2514,21 +2514,21 @@ repomix.config.json
 47:     #
 48:     # Using EKS Auto Mode it appears to only allow one pod to access it
 49:     access_modes = ["ReadWriteOnce"]
-50: 
+50:
 51:     resources {
 52:       requests = {
 53:         storage = "1Gi"
 54:       }
 55:     }
-56: 
+56:
 57:     storage_class_name = kubernetes_storage_class.ebs.metadata[0].name
 58:   }
-59: 
+59:
 60:   # Setting this allows `Terraform apply` to continue
 61:   # Otherwise it would hang here waiting for claim to bind to a pod
 62:   wait_until_bound = false
 63: }
-64: 
+64:
 65: # This will create the PVC, which will wait until a pod needs it, and then create a PersistentVolume
 ```
 
@@ -2538,22 +2538,22 @@ repomix.config.json
  2:   description = "Deployment environment"
  3:   type        = string
  4: }
- 5: 
+ 5:
  6: variable "region" {
  7:   description = "Deployment region"
  8:   type        = string
  9: }
-10: 
+10:
 11: variable "prefix" {
 12:   description = "Name added to all resources"
 13:   type        = string
 14: }
-15: 
+15:
 16: variable "ebs_name" {
 17:   description = "The name of the EBS"
 18:   type        = string
 19: }
-20: 
+20:
 21: variable "ebs_claim_name" {
 22:   description = "The name of the EBS claim"
 23:   type        = string
@@ -2565,12 +2565,12 @@ repomix.config.json
  1: locals {
  2:   ecr_name = "${var.prefix}-${var.region}-${var.ecr_name}-${var.env}"
  3: }
- 4: 
+ 4:
  5: resource "aws_ecr_repository" "ecr" {
  6:   name                 = local.ecr_name
  7:   image_tag_mutability = var.image_tag_mutability
  8:   force_delete         = true
- 9: 
+ 9:
 10:   tags = merge(
 11:     {
 12:       Name = "${local.ecr_name}"
@@ -2578,7 +2578,7 @@ repomix.config.json
 14:     var.tags
 15:   )
 16: }
-17: 
+17:
 18: resource "aws_ecr_lifecycle_policy" "ecr_policy" {
 19:   repository = aws_ecr_repository.ecr.name
 20:   policy     = var.policy
@@ -2591,32 +2591,32 @@ repomix.config.json
  2:   description = "Deployment environment"
  3:   type        = string
  4: }
- 5: 
+ 5:
  6: variable "region" {
  7:   description = "Deployment region"
  8:   type        = string
  9:   default     = "us-east-1"
 10: }
-11: 
+11:
 12: variable "prefix" {
 13:   description = "Name added to all resources"
 14:   type        = string
 15: }
-16: 
+16:
 17: variable "ecr_name" {
 18:   description = "The name of the ECR"
 19:   type        = string
 20: }
-21: 
+21:
 22: variable "image_tag_mutability" {
 23:   description = "The value that determines if the image is overridable"
 24:   type        = string
 25: }
-26: 
+26:
 27: variable "policy" {
 28:   type = string
 29: }
-30: 
+30:
 31: variable "tags" {
 32:   type = map(string)
 33: }
@@ -2645,10 +2645,10 @@ repomix.config.json
  5:       version = "= 6.21.0"
  6:     }
  7:   }
- 8: 
+ 8:
  9:   required_version = "~> 1.14.0"
 10: }
-11: 
+11:
 12: provider "aws" {
 13:   region = var.region
 14: }
@@ -3869,37 +3869,37 @@ repomix.config.json
  2:   description = "Managed Argo CD UI/API endpoint (automatically retrieved via AWS CLI)"
  3:   value       = data.external.argocd_capability.result.server_url != "" ? data.external.argocd_capability.result.server_url : null
  4: }
- 5: 
+ 5:
  6: output "argocd_capability_name" {
  7:   description = "Name of the ArgoCD capability"
  8:   value       = local.argocd_capability_name
  9: }
-10: 
+10:
 11: output "argocd_capability_status" {
 12:   description = "Status of the ArgoCD capability (automatically retrieved via AWS CLI)"
 13:   value       = data.external.argocd_capability.result.status != "" ? data.external.argocd_capability.result.status : null
 14: }
-15: 
+15:
 16: output "argocd_iam_role_arn" {
 17:   description = "ARN of the IAM role used by ArgoCD capability"
 18:   value       = aws_iam_role.argocd_capability.arn
 19: }
-20: 
+20:
 21: output "argocd_iam_role_name" {
 22:   description = "Name of the IAM role used by ArgoCD capability"
 23:   value       = aws_iam_role.argocd_capability.name
 24: }
-25: 
+25:
 26: output "local_cluster_secret_name" {
 27:   description = "Name of the Kubernetes secret for local cluster registration"
 28:   value       = kubernetes_secret.argocd_local_cluster.metadata[0].name
 29: }
-30: 
+30:
 31: output "argocd_namespace" {
 32:   description = "Kubernetes namespace where ArgoCD resources are deployed"
 33:   value       = var.argocd_namespace
 34: }
-35: 
+35:
 36: output "argocd_project_name" {
 37:   description = "ArgoCD project name used for cluster registration"
 38:   value       = var.argocd_project_name
@@ -3920,7 +3920,7 @@ repomix.config.json
 10:     }
 11:     spec = {
 12:       project = var.argocd_project_name
-13: 
+13:
 14:       source = {
 15:         repoURL        = var.repo_url
 16:         targetRevision = var.target_revision
@@ -3947,13 +3947,13 @@ repomix.config.json
 37:           } : null
 38:         } : null
 39:       }
-40: 
+40:
 41:       destination = {
 42:         name      = var.cluster_name_in_argo
 43:         namespace = var.destination_namespace
 44:         server    = var.destination_server != null ? var.destination_server : null
 45:       }
-46: 
+46:
 47:       syncPolicy = var.sync_policy != null ? {
 48:         automated = var.sync_policy.automated != null ? {
 49:           prune      = var.sync_policy.automated.prune
@@ -3970,7 +3970,7 @@ repomix.config.json
 60:           } : null
 61:         } : null
 62:       } : null
-63: 
+63:
 64:       ignoreDifferences    = length(var.ignore_differences) > 0 ? var.ignore_differences : null
 65:       revisionHistoryLimit = var.revision_history_limit
 66:     }
@@ -3984,63 +3984,63 @@ repomix.config.json
   2:   description = "Name of the ArgoCD Application"
   3:   type        = string
   4: }
-  5: 
+  5:
   6: variable "argocd_namespace" {
   7:   description = "Kubernetes namespace where ArgoCD Application will be created"
   8:   type        = string
   9:   default     = "argocd"
  10: }
- 11: 
+ 11:
  12: variable "argocd_project_name" {
  13:   description = "ArgoCD project name for the Application"
  14:   type        = string
  15:   default     = "default"
  16: }
- 17: 
+ 17:
  18: variable "cluster_name_in_argo" {
  19:   description = "Name of the cluster in ArgoCD (from cluster registration secret)"
  20:   type        = string
  21: }
- 22: 
+ 22:
  23: variable "repo_url" {
  24:   description = "Git repository URL containing application manifests"
  25:   type        = string
  26: }
- 27: 
+ 27:
  28: variable "target_revision" {
  29:   description = "Git branch, tag, or commit to sync (default: HEAD)"
  30:   type        = string
  31:   default     = "HEAD"
  32: }
- 33: 
+ 33:
  34: variable "repo_path" {
  35:   description = "Path within the repository to the application manifests"
  36:   type        = string
  37: }
- 38: 
+ 38:
  39: variable "destination_namespace" {
  40:   description = "Target Kubernetes namespace for the application"
  41:   type        = string
  42: }
- 43: 
+ 43:
  44: variable "destination_server" {
  45:   description = "Optional Kubernetes server URL (defaults to cluster_name_in_argo)"
  46:   type        = string
  47:   default     = null
  48: }
- 49: 
+ 49:
  50: variable "app_labels" {
  51:   description = "Labels to apply to the ArgoCD Application resource"
  52:   type        = map(string)
  53:   default     = {}
  54: }
- 55: 
+ 55:
  56: variable "app_annotations" {
  57:   description = "Annotations to apply to the ArgoCD Application resource"
  58:   type        = map(string)
  59:   default     = {}
  60: }
- 61: 
+ 61:
  62: variable "sync_policy" {
  63:   description = "Sync policy configuration for the Application"
  64:   type = object({
@@ -4061,7 +4061,7 @@ repomix.config.json
  79:   })
  80:   default = null
  81: }
- 82: 
+ 82:
  83: variable "ignore_differences" {
  84:   description = "List of ignore differences configurations"
  85:   type = list(object({
@@ -4075,13 +4075,13 @@ repomix.config.json
  93:   }))
  94:   default = []
  95: }
- 96: 
+ 96:
  97: variable "revision_history_limit" {
  98:   description = "Number of application revisions to keep in history"
  99:   type        = number
 100:   default     = 5
 101: }
-102: 
+102:
 103: variable "helm_config" {
 104:   description = "Helm-specific configuration (for Helm charts)"
 105:   type = object({
@@ -4095,7 +4095,7 @@ repomix.config.json
 113:   })
 114:   default = null
 115: }
-116: 
+116:
 117: variable "kustomize_config" {
 118:   description = "Kustomize-specific configuration"
 119:   type = object({
@@ -4115,7 +4115,7 @@ repomix.config.json
 133:   })
 134:   default = null
 135: }
-136: 
+136:
 137: variable "directory_config" {
 138:   description = "Directory-specific configuration (for plain manifests)"
 139:   type = object({
@@ -4145,7 +4145,7 @@ repomix.config.json
   1: # Network Policies for securing internal cluster communication
   2: # These policies enforce secure communication between all services in the namespace
   3: # Generic approach: Any service can talk to any service, but only on secure ports
-  4: 
+  4:
   5: # Generic Network Policy: Allow secure inter-pod communication within namespace
   6: # This policy applies to ALL pods in the namespace and allows them to communicate
   7: # with each other, but only on secure/encrypted ports
@@ -4154,12 +4154,12 @@ repomix.config.json
  10:     name      = "namespace-secure-communication"
  11:     namespace = var.namespace
  12:   }
- 13: 
+ 13:
  14:   spec {
  15:     # Apply to all pods in the namespace
  16:     pod_selector {}
  17:     policy_types = ["Ingress", "Egress"]
- 18: 
+ 18:
  19:     # Ingress: Allow traffic from any pod in the same namespace on secure ports
  20:     ingress {
  21:       # Allow from any pod in the same namespace
@@ -4171,7 +4171,7 @@ repomix.config.json
  27:         protocol = "TCP"
  28:       }
  29:     }
- 30: 
+ 30:
  31:     ingress {
  32:       from {
  33:         pod_selector {}
@@ -4181,7 +4181,7 @@ repomix.config.json
  37:         protocol = "TCP"
  38:       }
  39:     }
- 40: 
+ 40:
  41:     # Allow HTTPS on common alternative ports if needed
  42:     ingress {
  43:       from {
@@ -4192,7 +4192,7 @@ repomix.config.json
  48:         protocol = "TCP"
  49:       }
  50:     }
- 51: 
+ 51:
  52:     # Ingress: Allow traffic from any pod in other namespaces on secure ports
  53:     # This enables cross-namespace communication for LDAP service access
  54:     ingress {
@@ -4205,7 +4205,7 @@ repomix.config.json
  61:         protocol = "TCP"
  62:       }
  63:     }
- 64: 
+ 64:
  65:     ingress {
  66:       from {
  67:         namespace_selector {}
@@ -4215,7 +4215,7 @@ repomix.config.json
  71:         protocol = "TCP"
  72:       }
  73:     }
- 74: 
+ 74:
  75:     ingress {
  76:       from {
  77:         namespace_selector {}
@@ -4225,7 +4225,7 @@ repomix.config.json
  81:         protocol = "TCP"
  82:       }
  83:     }
- 84: 
+ 84:
  85:     # Egress: Allow traffic to any pod in the same namespace on secure ports
  86:     egress {
  87:       # Allow to any pod in the same namespace
@@ -4237,7 +4237,7 @@ repomix.config.json
  93:         protocol = "TCP"
  94:       }
  95:     }
- 96: 
+ 96:
  97:     egress {
  98:       to {
  99:         pod_selector {}
@@ -4247,7 +4247,7 @@ repomix.config.json
 103:         protocol = "TCP"
 104:       }
 105:     }
-106: 
+106:
 107:     egress {
 108:       to {
 109:         pod_selector {}
@@ -4257,7 +4257,7 @@ repomix.config.json
 113:         protocol = "TCP"
 114:       }
 115:     }
-116: 
+116:
 117:     # Egress: Allow DNS resolution (required for service discovery)
 118:     egress {
 119:       to {
@@ -4268,7 +4268,7 @@ repomix.config.json
 124:         protocol = "UDP"
 125:       }
 126:     }
-127: 
+127:
 128:     egress {
 129:       to {
 130:         namespace_selector {}
@@ -4278,7 +4278,7 @@ repomix.config.json
 134:         protocol = "TCP"
 135:       }
 136:     }
-137: 
+137:
 138:     # Egress: Allow HTTPS for external API calls (2FA providers, etc.)
 139:     egress {
 140:       ports {
@@ -4286,7 +4286,7 @@ repomix.config.json
 142:         protocol = "TCP"
 143:       }
 144:     }
-145: 
+145:
 146:     # Egress: Allow HTTP for external API calls if needed (though HTTPS is preferred)
 147:     # Note: This is included for compatibility, but services should prefer HTTPS
 148:     egress {
@@ -4297,7 +4297,7 @@ repomix.config.json
 153:     }
 154:   }
 155: }
-156: 
+156:
 157: # Note: We don't need a separate default deny policy because:
 158: # 1. The namespace_secure_communication policy above applies to all pods
 159: # 2. It only allows specific secure ports (443, 636, 8443)
@@ -4313,41 +4313,41 @@ repomix.config.json
  4:   domain_name = trimsuffix(local.domain, ".")
  5:   zone_id     = try(data.aws_route53_zone.this[0].zone_id, aws_route53_zone.this[0].zone_id)
  6: }
- 7: 
+ 7:
  8: data "aws_route53_zone" "this" {
  9:   count = var.use_existing_route53_zone ? 1 : 0
-10: 
+10:
 11:   name         = local.domain_name
 12:   private_zone = false
 13: }
-14: 
+14:
 15: # Create Route53 hosted zone and ACM certificate
 16: resource "aws_route53_zone" "this" {
 17:   count = var.use_existing_route53_zone ? 0 : 1
-18: 
+18:
 19:   name = local.domain_name
-20: 
+20:
 21:   tags = {
 22:     Name      = local.domain_name
 23:     Env       = var.env
 24:     Terraform = "true"
 25:   }
 26: }
-27: 
+27:
 28: module "acm" {
 29:   source  = "terraform-aws-modules/acm/aws"
 30:   version = "6.2.0"
-31: 
+31:
 32:   domain_name = local.domain_name
 33:   zone_id     = local.zone_id
-34: 
+34:
 35:   subject_alternative_names = var.subject_alternative_names
-36: 
+36:
 37:   validation_method = "DNS"
-38: 
+38:
 39:   wait_for_validation = true
 40:   validation_timeout  = "30m"
-41: 
+41:
 42:   tags = {
 43:     Name      = local.domain_name
 44:     Env       = var.env
@@ -4367,7 +4367,7 @@ repomix.config.json
  7:     }
  8:   }
  9: }
-10: 
+10:
 11: # Provider alias for state account (inherited from parent module)
 12: # This allows Route53 resources to be created in the state account
 13: # when Route53 hosted zone is in a different account than deployment account
@@ -4381,33 +4381,33 @@ repomix.config.json
   4:  * Configures AWS SES for sending verification emails in the LDAP 2FA application.
   5:  * Includes IAM role for IRSA to allow the backend pod to send emails.
   6:  */
-  7: 
+  7:
   8: locals {
   9:   role_name = "${var.prefix}-${var.region}-${var.iam_role_name}-${var.env}"
  10: }
- 11: 
+ 11:
  12: # Get EKS cluster data for IRSA
  13: data "aws_eks_cluster" "cluster" {
  14:   name = var.cluster_name
  15: }
- 16: 
+ 16:
  17: # OIDC provider for IRSA
  18: data "aws_iam_openid_connect_provider" "cluster" {
  19:   url = data.aws_eks_cluster.cluster.identity[0].oidc[0].issuer
  20: }
- 21: 
+ 21:
  22: # Verify sender email address (if not using domain verification)
  23: resource "aws_ses_email_identity" "sender" {
  24:   count = var.sender_domain == null ? 1 : 0
  25:   email = var.sender_email
  26: }
- 27: 
+ 27:
  28: # Verify sender domain (if domain is provided)
  29: resource "aws_ses_domain_identity" "sender" {
  30:   count  = var.sender_domain != null ? 1 : 0
  31:   domain = var.sender_domain
  32: }
- 33: 
+ 33:
  34: # Domain verification DNS record (if using domain verification and Route53)
  35: # Note: Provider is passed from parent module via providers block
  36: resource "aws_route53_record" "ses_verification" {
@@ -4419,13 +4419,13 @@ repomix.config.json
  42:   ttl      = 600
  43:   records  = [aws_ses_domain_identity.sender[0].verification_token]
  44: }
- 45: 
+ 45:
  46: # DKIM for domain (if using domain verification)
  47: resource "aws_ses_domain_dkim" "sender" {
  48:   count  = var.sender_domain != null ? 1 : 0
  49:   domain = aws_ses_domain_identity.sender[0].domain
  50: }
- 51: 
+ 51:
  52: # DKIM DNS records (if using domain verification and Route53)
  53: # Note: Provider is passed from parent module via providers block
  54: resource "aws_route53_record" "ses_dkim" {
@@ -4437,12 +4437,12 @@ repomix.config.json
  60:   ttl      = 600
  61:   records  = ["${aws_ses_domain_dkim.sender[0].dkim_tokens[count.index]}.dkim.amazonses.com"]
  62: }
- 63: 
+ 63:
  64: # IAM policy for SES send email
  65: resource "aws_iam_policy" "ses_send" {
  66:   name        = "${local.role_name}-policy"
  67:   description = "Allow sending emails via SES for LDAP 2FA verification"
- 68: 
+ 68:
  69:   policy = jsonencode({
  70:     Version = "2012-10-17"
  71:     Statement = [
@@ -4461,14 +4461,14 @@ repomix.config.json
  84:       }
  85:     ]
  86:   })
- 87: 
+ 87:
  88:   tags = var.tags
  89: }
- 90: 
+ 90:
  91: # IAM role for IRSA
  92: resource "aws_iam_role" "ses_sender" {
  93:   name = local.role_name
- 94: 
+ 94:
  95:   assume_role_policy = jsonencode({
  96:     Version = "2012-10-17"
  97:     Statement = [
@@ -4487,10 +4487,10 @@ repomix.config.json
 110:       }
 111:     ]
 112:   })
-113: 
+113:
 114:   tags = var.tags
 115: }
-116: 
+116:
 117: # Attach policy to role
 118: resource "aws_iam_role_policy_attachment" "ses_send" {
 119:   role       = aws_iam_role.ses_sender.name
@@ -4509,7 +4509,7 @@ repomix.config.json
  7:     }
  8:   }
  9: }
-10: 
+10:
 11: # Provider alias for state account (inherited from parent module)
 12: # This allows Route53 resources to be created in the state account
 13: # when Route53 hosted zone is in a different account than deployment account
@@ -4520,7 +4520,7 @@ repomix.config.json
 1: output "ebs_pvc_name" {
 2:   value = kubernetes_persistent_volume_claim_v1.ebs_pvc.metadata[0].name
 3: }
-4: 
+4:
 5: output "ebs_storage_class_name" {
 6:   value = kubernetes_storage_class.ebs.metadata[0].name
 7: }
@@ -4531,20 +4531,20 @@ repomix.config.json
  1: output "ecr_name" {
  2:   value = aws_ecr_repository.ecr.name
  3: }
- 4: 
+ 4:
  5: output "ecr_arn" {
  6:   value = aws_ecr_repository.ecr.arn
  7: }
- 8: 
+ 8:
  9: output "ecr_url" {
 10:   value = aws_ecr_repository.ecr.repository_url
 11: }
-12: 
+12:
 13: output "ecr_registry" {
 14:   description = "ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)"
 15:   value       = split("/", aws_ecr_repository.ecr.repository_url)[0]
 16: }
-17: 
+17:
 18: output "ecr_repository" {
 19:   description = "ECR repository name (without registry prefix)"
 20:   value       = split("/", aws_ecr_repository.ecr.repository_url)[1]
@@ -4555,17 +4555,17 @@ repomix.config.json
 ```hcl
   1: # Create VPC endpoints (Private Links) for SSM Session Manager access to nodes
   2: # and for AWS services used by the 2FA application (SNS, STS)
-  3: 
+  3:
   4: resource "aws_security_group" "vpc_endpoint_sg" {
   5:   name        = "${var.prefix}-${var.region}-${var.endpoint_sg_name}-${var.env}"
   6:   description = "Security group for VPC endpoints"
   7:   vpc_id      = var.vpc_id
-  8: 
+  8:
   9:   tags = merge(var.tags, {
  10:     Name = "${var.prefix}-${var.region}-${var.endpoint_sg_name}-${var.env}"
  11:   })
  12: }
- 13: 
+ 13:
  14: resource "aws_vpc_security_group_ingress_rule" "vpc_endpoint_sg_ingress" {
  15:   description                  = "Allow EKS Nodes to access VPC Endpoints"
  16:   from_port                    = 443
@@ -4574,7 +4574,7 @@ repomix.config.json
  19:   referenced_security_group_id = var.node_security_group_id
  20:   security_group_id            = aws_security_group.vpc_endpoint_sg.id
  21: }
- 22: 
+ 22:
  23: # Allow ingress from VPC CIDR for pods that may not use node security group
  24: resource "aws_vpc_security_group_ingress_rule" "vpc_endpoint_sg_ingress_vpc" {
  25:   description       = "Allow VPC CIDR to access VPC Endpoints"
@@ -4584,13 +4584,13 @@ repomix.config.json
  29:   cidr_ipv4         = var.vpc_cidr
  30:   security_group_id = aws_security_group.vpc_endpoint_sg.id
  31: }
- 32: 
+ 32:
  33: resource "aws_vpc_security_group_egress_rule" "vpc_endpoint_sg_egress" {
  34:   ip_protocol       = "-1"
  35:   cidr_ipv4         = "0.0.0.0/0"
  36:   security_group_id = aws_security_group.vpc_endpoint_sg.id
  37: }
- 38: 
+ 38:
  39: # SSM Endpoints for Session Manager
  40: resource "aws_vpc_endpoint" "private_link_ssm" {
  41:   vpc_id              = var.vpc_id
@@ -4599,12 +4599,12 @@ repomix.config.json
  44:   security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
  45:   subnet_ids          = var.private_subnets
  46:   private_dns_enabled = true
- 47: 
+ 47:
  48:   tags = merge(var.tags, {
  49:     Name = "private-link-ssm"
  50:   })
  51: }
- 52: 
+ 52:
  53: resource "aws_vpc_endpoint" "private_link_ssmmessages" {
  54:   vpc_id              = var.vpc_id
  55:   service_name        = "com.amazonaws.${var.region}.ssmmessages"
@@ -4612,12 +4612,12 @@ repomix.config.json
  57:   security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
  58:   subnet_ids          = var.private_subnets
  59:   private_dns_enabled = true
- 60: 
+ 60:
  61:   tags = merge(var.tags, {
  62:     Name = "private-link-ssmmessages"
  63:   })
  64: }
- 65: 
+ 65:
  66: resource "aws_vpc_endpoint" "private_link_ec2messages" {
  67:   vpc_id              = var.vpc_id
  68:   service_name        = "com.amazonaws.${var.region}.ec2messages"
@@ -4625,41 +4625,41 @@ repomix.config.json
  70:   security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
  71:   subnet_ids          = var.private_subnets
  72:   private_dns_enabled = true
- 73: 
+ 73:
  74:   tags = merge(var.tags, {
  75:     Name = "private-link-ec2messages"
  76:   })
  77: }
- 78: 
+ 78:
  79: # STS Endpoint - Required for IRSA (IAM Roles for Service Accounts)
  80: # Pods need to call STS to assume IAM roles via web identity
  81: resource "aws_vpc_endpoint" "private_link_sts" {
  82:   count = var.enable_sts_endpoint ? 1 : 0
- 83: 
+ 83:
  84:   vpc_id              = var.vpc_id
  85:   service_name        = "com.amazonaws.${var.region}.sts"
  86:   vpc_endpoint_type   = "Interface"
  87:   security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
  88:   subnet_ids          = var.private_subnets
  89:   private_dns_enabled = true
- 90: 
+ 90:
  91:   tags = merge(var.tags, {
  92:     Name = "private-link-sts"
  93:   })
  94: }
- 95: 
+ 95:
  96: # SNS Endpoint - Required for SMS 2FA functionality
  97: # Pods need to call SNS to send SMS verification codes
  98: resource "aws_vpc_endpoint" "private_link_sns" {
  99:   count = var.enable_sns_endpoint ? 1 : 0
-100: 
+100:
 101:   vpc_id              = var.vpc_id
 102:   service_name        = "com.amazonaws.${var.region}.sns"
 103:   vpc_endpoint_type   = "Interface"
 104:   security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
 105:   subnet_ids          = var.private_subnets
 106:   private_dns_enabled = true
-107: 
+107:
 108:   tags = merge(var.tags, {
 109:     Name = "private-link-sns"
 110:   })
@@ -4672,32 +4672,32 @@ repomix.config.json
  2:   description = "Security group ID for VPC endpoints"
  3:   value       = aws_security_group.vpc_endpoint_sg.id
  4: }
- 5: 
+ 5:
  6: output "vpc_endpoint_ssm_id" {
  7:   description = "VPC endpoint ID for SSM"
  8:   value       = aws_vpc_endpoint.private_link_ssm.id
  9: }
-10: 
+10:
 11: output "vpc_endpoint_ssmmessages_id" {
 12:   description = "VPC endpoint ID for SSM Messages"
 13:   value       = aws_vpc_endpoint.private_link_ssmmessages.id
 14: }
-15: 
+15:
 16: output "vpc_endpoint_ec2messages_id" {
 17:   description = "VPC endpoint ID for EC2 Messages"
 18:   value       = aws_vpc_endpoint.private_link_ec2messages.id
 19: }
-20: 
+20:
 21: output "vpc_endpoint_sts_id" {
 22:   description = "VPC endpoint ID for STS (IRSA)"
 23:   value       = var.enable_sts_endpoint ? aws_vpc_endpoint.private_link_sts[0].id : null
 24: }
-25: 
+25:
 26: output "vpc_endpoint_sns_id" {
 27:   description = "VPC endpoint ID for SNS (SMS 2FA)"
 28:   value       = var.enable_sns_endpoint ? aws_vpc_endpoint.private_link_sns[0].id : null
 29: }
-30: 
+30:
 31: output "vpc_endpoint_ids" {
 32:   description = "List of all VPC endpoint IDs"
 33:   value = compact([
@@ -4716,54 +4716,54 @@ repomix.config.json
  2:   description = "Deployment environment"
  3:   type        = string
  4: }
- 5: 
+ 5:
  6: variable "region" {
  7:   description = "Deployment region"
  8:   type        = string
  9: }
-10: 
+10:
 11: variable "prefix" {
 12:   description = "Name added to all resources"
 13:   type        = string
 14: }
-15: 
+15:
 16: variable "endpoint_sg_name" {
 17:   description = "The name of the endpoint security group"
 18:   type        = string
 19: }
-20: 
+20:
 21: variable "node_security_group_id" {
 22:   description = "The ID of the node security group"
 23:   type        = string
 24: }
-25: 
+25:
 26: variable "vpc_id" {
 27:   description = "The ID of the VPC"
 28:   type        = string
 29: }
-30: 
+30:
 31: variable "vpc_cidr" {
 32:   description = "The CIDR block of the VPC (for security group rules)"
 33:   type        = string
 34: }
-35: 
+35:
 36: variable "private_subnets" {
 37:   description = "The IDs of the private subnets"
 38:   type        = list(string)
 39: }
-40: 
+40:
 41: variable "enable_sts_endpoint" {
 42:   description = "Whether to create STS VPC endpoint (required for IRSA)"
 43:   type        = bool
 44:   default     = true
 45: }
-46: 
+46:
 47: variable "enable_sns_endpoint" {
 48:   description = "Whether to create SNS VPC endpoint (required for SMS 2FA)"
 49:   type        = bool
 50:   default     = false
 51: }
-52: 
+52:
 53: variable "tags" {
 54:   description = "Tags to add to the resources"
 55:   type        = map(string)
@@ -5194,12 +5194,12 @@ repomix.config.json
  2:   description = "Deployment environment"
  3:   type        = string
  4: }
- 5: 
+ 5:
  6: variable "region" {
  7:   description = "Deployment region"
  8:   type        = string
  9: }
-10: 
+10:
 11: variable "prefix" {
 12:   description = "Name added to all resources"
 13:   type        = string
@@ -8123,34 +8123,34 @@ repomix.config.json
  2: fastapi==0.115.6
  3: uvicorn[standard]==0.34.0
  4: gunicorn==23.0.0
- 5: 
+ 5:
  6: # Settings management
  7: pydantic==2.10.4
  8: pydantic-settings==2.7.1
- 9: 
+ 9:
 10: # LDAP
 11: ldap3==2.9.1
-12: 
+12:
 13: # AWS SDK for SNS (SMS) and SES (Email)
 14: boto3==1.35.81
-15: 
+15:
 16: # Database (PostgreSQL)
 17: sqlalchemy[asyncio]==2.0.36
 18: asyncpg==0.30.0
 19: alembic==1.14.0
-20: 
+20:
 21: # Redis for SMS OTP storage
 22: redis==5.2.1
-23: 
+23:
 24: # Password hashing
 25: bcrypt==4.2.1
-26: 
+26:
 27: # JWT for session management
 28: PyJWT==2.10.1
-29: 
+29:
 30: # Email validation
 31: email-validator==2.2.0
-32: 
+32:
 33: # Production server
 34: python-multipart==0.0.20
 ```
@@ -11622,53 +11622,53 @@ repomix.config.json
  2:   description = "Environment suffix used to name resources"
  3:   type        = string
  4: }
- 5: 
+ 5:
  6: variable "region" {
  7:   description = "Deployment region"
  8:   type        = string
  9: }
-10: 
+10:
 11: variable "prefix" {
 12:   description = "Prefix used to name resources"
 13:   type        = string
 14: }
-15: 
+15:
 16: variable "app_name" {
 17:   description = "Application name"
 18:   type        = string
 19: }
-20: 
+20:
 21: variable "cluster_name" {
 22:   description = "Name of EKS Cluster where ALB is to be deployed"
 23:   type        = string
 24: }
-25: 
+25:
 26: # variable "ingress_alb_name" {
 27: #   description = "Name component for ingress ALB resource (between prefix and env)"
 28: #   type        = string
 29: # }
-30: 
+30:
 31: # variable "service_alb_name" {
 32: #   description = "Name component for service ALB resource (between prefix and env)"
 33: #   type        = string
 34: # }
-35: 
+35:
 36: variable "ingressclass_alb_name" {
 37:   description = "Name component for ingressclass ALB resource (between prefix and env)"
 38:   type        = string
 39: }
-40: 
+40:
 41: variable "ingressclassparams_alb_name" {
 42:   description = "Name component for ingressclassparams ALB resource (between prefix and env)"
 43:   type        = string
 44: }
-45: 
+45:
 46: variable "acm_certificate_arn" {
 47:   description = "ACM certificate ARN for HTTPS/TLS termination at ALB"
 48:   type        = string
 49:   default     = null
 50: }
-51: 
+51:
 52: variable "alb_scheme" {
 53:   description = "ALB scheme: internet-facing or internal"
 54:   type        = string
@@ -11678,7 +11678,7 @@ repomix.config.json
 58:     error_message = "ALB scheme must be either 'internet-facing' or 'internal'"
 59:   }
 60: }
-61: 
+61:
 62: variable "alb_ip_address_type" {
 63:   description = "ALB IP address type: ipv4 or dualstack"
 64:   type        = string
@@ -11688,27 +11688,27 @@ repomix.config.json
 68:     error_message = "ALB IP address type must be either 'ipv4' or 'dualstack'"
 69:   }
 70: }
-71: 
+71:
 72: variable "alb_group_name" {
 73:   description = "ALB group name for grouping multiple Ingress resources to share a single ALB. This is an internal Kubernetes identifier (max 63 characters)."
 74:   type        = string
 75:   default     = null # If null, will be derived from app_name
 76: }
-77: 
+77:
 78: variable "kubernetes_master" {
 79:   description = "Kubernetes API server endpoint (KUBERNETES_MASTER environment variable). Set by set-k8s-env.sh or GitHub workflow."
 80:   type        = string
 81:   default     = null
 82:   nullable    = true
 83: }
-84: 
+84:
 85: variable "kube_config_path" {
 86:   description = "Path to kubeconfig file (KUBE_CONFIG_PATH environment variable). Set by set-k8s-env.sh or GitHub workflow."
 87:   type        = string
 88:   default     = null
 89:   nullable    = true
 90: }
-91: 
+91:
 92: variable "wait_for_crd" {
 93:   description = "Whether to wait for EKS Auto Mode CRD to be available before creating IngressClassParams. Set to true for initial cluster deployments, false after cluster is established."
 94:   type        = bool
@@ -12681,25 +12681,25 @@ repomix.config.json
 ```hcl
  1: # Get current AWS account ID and caller identity for unique bucket naming and dynamic principal
  2: data "aws_caller_identity" "current" {}
- 3: 
+ 3:
  4: resource "aws_s3_bucket" "terraform_state" {
  5:   # Include account ID in bucket name to ensure global uniqueness
  6:   bucket        = "${var.prefix}-${data.aws_caller_identity.current.account_id}-s3-tfstate"
  7:   force_destroy = true
- 8: 
+ 8:
  9:   tags = {
 10:     Name      = "${var.prefix}-${data.aws_caller_identity.current.account_id}-s3-tfstate"
 11:     Env       = var.env
 12:     Terraform = true
 13:   }
 14: }
-15: 
+15:
 16: resource "aws_s3_bucket_acl" "terraform_state_acl" {
 17:   bucket     = aws_s3_bucket.terraform_state.bucket
 18:   acl        = "private"
 19:   depends_on = [aws_s3_bucket_ownership_controls.terraform_state_acl_ownership]
 20: }
-21: 
+21:
 22: # Resource to avoid error "AccessControlListNotSupported: The bucket does not allow ACLs"
 23: resource "aws_s3_bucket_ownership_controls" "terraform_state_acl_ownership" {
 24:   bucket = aws_s3_bucket.terraform_state.bucket
@@ -12707,24 +12707,24 @@ repomix.config.json
 26:     object_ownership = "ObjectWriter"
 27:   }
 28: }
-29: 
+29:
 30: resource "aws_s3_bucket_versioning" "terraform_state_versioning" {
 31:   bucket = aws_s3_bucket.terraform_state.bucket
 32:   versioning_configuration {
 33:     status = "Enabled"
 34:   }
 35: }
-36: 
+36:
 37: # Block public access to the state bucket
 38: resource "aws_s3_bucket_public_access_block" "terraform_state_public_block" {
 39:   bucket = aws_s3_bucket.terraform_state.bucket
-40: 
+40:
 41:   block_public_acls       = true
 42:   block_public_policy     = true
 43:   ignore_public_acls      = true
 44:   restrict_public_buckets = true
 45: }
-46: 
+46:
 47: resource "aws_s3_bucket_policy" "terraform_state_policy" {
 48:   bucket = aws_s3_bucket.terraform_state.bucket
 49:   depends_on = [
@@ -12754,7 +12754,7 @@ repomix.config.json
 73:     ]
 74:   })
 75: }
-76: 
+76:
 77: # Add bucket encryption to hide sensitive state data
 78: resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state_encryption" {
 79:   bucket = aws_s3_bucket.terraform_state.bucket
@@ -13837,7 +13837,7 @@ repomix.config.json
 ```hcl
   1: # cert-manager for automated TLS certificate management
   2: # This creates self-signed certificates for OpenLDAP internal TLS
-  3: 
+  3:
   4: # Install cert-manager via Helm
   5: resource "helm_release" "cert_manager" {
   6:   name             = "cert-manager"
@@ -13846,22 +13846,22 @@ repomix.config.json
   9:   version          = "v1.13.2"
  10:   namespace        = "cert-manager"
  11:   create_namespace = true
- 12: 
+ 12:
  13:   set {
  14:     name  = "installCRDs"
  15:     value = "true"
  16:   }
- 17: 
+ 17:
  18:   set {
  19:     name  = "webhook.timeoutSeconds"
  20:     value = "30"
  21:   }
- 22: 
+ 22:
  23:   set {
  24:     name  = "prometheus.enabled"
  25:     value = "false"
  26:   }
- 27: 
+ 27:
  28:   atomic          = true
  29:   cleanup_on_fail = true
  30:   recreate_pods   = true
@@ -13871,18 +13871,18 @@ repomix.config.json
  34:   wait_for_jobs   = true
  35:   upgrade_install = true
  36: }
- 37: 
+ 37:
  38: # Wait for cert-manager webhook to be fully ready before creating certificates
  39: # This ensures the webhook can validate certificate resources
  40: resource "time_sleep" "wait_for_cert_manager_webhook" {
  41:   depends_on      = [helm_release.cert_manager]
  42:   create_duration = "30s"
  43: }
- 44: 
+ 44:
  45: # Create a self-signed ClusterIssuer
  46: resource "kubernetes_manifest" "selfsigned_issuer" {
  47:   depends_on = [time_sleep.wait_for_cert_manager_webhook]
- 48: 
+ 48:
  49:   manifest = {
  50:     apiVersion = "cert-manager.io/v1"
  51:     kind       = "ClusterIssuer"
@@ -13893,18 +13893,18 @@ repomix.config.json
  56:       selfSigned = {}
  57:     }
  58:   }
- 59: 
+ 59:
  60:   wait {
  61:     fields = {
  62:       "status.conditions[?(@.type=='Ready')].status" = "True"
  63:     }
  64:   }
  65: }
- 66: 
+ 66:
  67: # Create Certificate Authority (CA) certificate
  68: resource "kubernetes_manifest" "openldap_ca" {
  69:   depends_on = [kubernetes_manifest.selfsigned_issuer]
- 70: 
+ 70:
  71:   manifest = {
  72:     apiVersion = "cert-manager.io/v1"
  73:     kind       = "Certificate"
@@ -13928,18 +13928,18 @@ repomix.config.json
  91:       }
  92:     }
  93:   }
- 94: 
+ 94:
  95:   wait {
  96:     fields = {
  97:       "status.conditions[?(@.type=='Ready')].status" = "True"
  98:     }
  99:   }
 100: }
-101: 
+101:
 102: # Create Issuer based on the CA certificate
 103: resource "kubernetes_manifest" "openldap_ca_issuer" {
 104:   depends_on = [kubernetes_manifest.openldap_ca]
-105: 
+105:
 106:   manifest = {
 107:     apiVersion = "cert-manager.io/v1"
 108:     kind       = "Issuer"
@@ -13953,18 +13953,18 @@ repomix.config.json
 116:       }
 117:     }
 118:   }
-119: 
+119:
 120:   wait {
 121:     fields = {
 122:       "status.conditions[?(@.type=='Ready')].status" = "True"
 123:     }
 124:   }
 125: }
-126: 
+126:
 127: # Create TLS certificate for OpenLDAP
 128: resource "kubernetes_manifest" "openldap_tls" {
 129:   depends_on = [kubernetes_manifest.openldap_ca_issuer]
-130: 
+130:
 131:   manifest = {
 132:     apiVersion = "cert-manager.io/v1"
 133:     kind       = "Certificate"
@@ -14002,7 +14002,7 @@ repomix.config.json
 165:       }
 166:     }
 167:   }
-168: 
+168:
 169:   wait {
 170:     fields = {
 171:       "status.conditions[?(@.type=='Ready')].status" = "True"
@@ -14017,27 +14017,27 @@ repomix.config.json
  2:   description = "Kubernetes namespace for OpenLDAP"
  3:   value       = kubernetes_namespace.openldap.metadata[0].name
  4: }
- 5: 
+ 5:
  6: output "secret_name" {
  7:   description = "Name of the Kubernetes secret for OpenLDAP passwords"
  8:   value       = kubernetes_secret.openldap_passwords.metadata[0].name
  9: }
-10: 
+10:
 11: output "helm_release_name" {
 12:   description = "Name of the Helm release"
 13:   value       = helm_release.openldap.name
 14: }
-15: 
+15:
 16: output "phpldapadmin_ingress_hostname" {
 17:   description = "Hostname from phpLDAPadmin ingress (ALB DNS name)"
 18:   value       = try(data.kubernetes_ingress_v1.phpldapadmin.status[0].load_balancer[0].ingress[0].hostname, null)
 19: }
-20: 
+20:
 21: output "ltb_passwd_ingress_hostname" {
 22:   description = "Hostname from ltb-passwd ingress (ALB DNS name)"
 23:   value       = try(data.kubernetes_ingress_v1.ltb_passwd.status[0].load_balancer[0].ingress[0].hostname, null)
 24: }
-25: 
+25:
 26: output "alb_dns_name" {
 27:   description = "ALB DNS name (from either ingress)"
 28:   value = try(
@@ -14046,19 +14046,19 @@ repomix.config.json
 31:     ""
 32:   )
 33: }
-34: 
-35: 
+34:
+35:
 36: ##################### Network Policies ##########################
 37: output "network_policy_name" {
 38:   description = "Name of the network policy for secure namespace communication"
 39:   value       = var.enable_network_policies ? module.network_policies[0].network_policy_name : null
 40: }
-41: 
+41:
 42: output "network_policy_namespace" {
 43:   description = "Namespace where the network policy is applied"
 44:   value       = var.enable_network_policies ? module.network_policies[0].network_policy_namespace : null
 45: }
-46: 
+46:
 47: output "network_policy_uid" {
 48:   description = "UID of the network policy resource"
 49:   value       = var.enable_network_policies ? module.network_policies[0].network_policy_uid : null
@@ -14071,82 +14071,82 @@ repomix.config.json
   2:   description = "Deployment environment"
   3:   type        = string
   4: }
-  5: 
+  5:
   6: variable "region" {
   7:   description = "Deployment region"
   8:   type        = string
   9: }
- 10: 
+ 10:
  11: variable "prefix" {
  12:   description = "Name prefix for resources"
  13:   type        = string
  14: }
- 15: 
+ 15:
  16: variable "app_name" {
  17:   description = "Full application name (computed in parent module as prefix-region-app_name-env)"
  18:   type        = string
  19: }
- 20: 
+ 20:
  21: variable "openldap_ldap_domain" {
  22:   description = "OpenLDAP domain (e.g., ldap.talorlik.internal)"
  23:   type        = string
  24: }
- 25: 
+ 25:
  26: variable "openldap_admin_password" {
  27:   description = "OpenLDAP admin password. MUST be set via TF_VAR_OPENLDAP_ADMIN_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
  28:   type        = string
  29:   sensitive   = true
  30: }
- 31: 
+ 31:
  32: variable "openldap_config_password" {
  33:   description = "OpenLDAP config password. MUST be set via TF_VAR_OPENLDAP_CONFIG_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
  34:   type        = string
  35:   sensitive   = true
  36: }
- 37: 
+ 37:
  38: variable "openldap_secret_name" {
  39:   description = "Name of the Kubernetes secret for OpenLDAP passwords"
  40:   type        = string
  41: }
- 42: 
+ 42:
  43: variable "storage_class_name" {
  44:   description = "Name of the Kubernetes StorageClass to use for OpenLDAP PVC"
  45:   type        = string
  46: }
- 47: 
+ 47:
  48: variable "namespace" {
  49:   description = "Kubernetes namespace for OpenLDAP"
  50:   type        = string
  51:   default     = "ldap"
  52: }
- 53: 
+ 53:
  54: variable "phpldapadmin_host" {
  55:   description = "Hostname for phpLDAPadmin ingress (e.g., phpldapadmin.talorlik.com). Derived from domain_name if not provided."
  56:   type        = string
  57: }
- 58: 
+ 58:
  59: variable "ltb_passwd_host" {
  60:   description = "Hostname for ltb-passwd ingress (e.g., passwd.talorlik.com). Derived from domain_name if not provided."
  61:   type        = string
  62: }
- 63: 
+ 63:
  64: variable "use_alb" {
  65:   description = "Whether to use ALB for ingress"
  66:   type        = bool
  67:   default     = true
  68: }
- 69: 
+ 69:
  70: variable "ingress_class_name" {
  71:   description = "Name of the IngressClass for ALB (from ALB module)"
  72:   type        = string
  73:   default     = null
  74: }
- 75: 
+ 75:
  76: variable "alb_load_balancer_name" {
  77:   description = "Custom name for the AWS ALB (appears in AWS console). Must be ≤ 32 characters per AWS constraints."
  78:   type        = string
  79: }
- 80: 
+ 80:
  81: variable "alb_target_type" {
  82:   description = "ALB target type: ip or instance"
  83:   type        = string
@@ -14156,70 +14156,70 @@ repomix.config.json
  87:     error_message = "ALB target type must be either 'ip' or 'instance'"
  88:   }
  89: }
- 90: 
+ 90:
  91: variable "acm_cert_arn" {
  92:   description = "ARN of the ACM certificate for HTTPS"
  93:   type        = string
  94: }
- 95: 
+ 95:
  96: variable "alb_ssl_policy" {
  97:   description = "ALB SSL policy for HTTPS listeners"
  98:   type        = string
  99: }
-100: 
-101: 
+100:
+101:
 102: variable "tags" {
 103:   description = "Tags to apply to resources"
 104:   type        = map(string)
 105:   default     = {}
 106: }
-107: 
+107:
 108: variable "helm_chart_version" {
 109:   description = "OpenLDAP Helm chart version"
 110:   type        = string
 111:   default     = "4.0.1"
 112: }
-113: 
+113:
 114: variable "helm_chart_repository" {
 115:   description = "Helm chart repository URL"
 116:   type        = string
 117:   default     = "https://jp-gouin.github.io/helm-openldap"
 118: }
-119: 
+119:
 120: variable "helm_chart_name" {
 121:   description = "Helm chart name"
 122:   type        = string
 123:   default     = "openldap-stack-ha"
 124: }
-125: 
+125:
 126: variable "helm_release_name" {
 127:   description = "Helm release name"
 128:   type        = string
 129:   default     = "openldap-stack-ha"
 130: }
-131: 
+131:
 132: variable "values_template_path" {
 133:   description = "Path to the OpenLDAP values template file"
 134:   type        = string
 135:   default     = null
 136: }
-137: 
+137:
 138: variable "enable_network_policies" {
 139:   description = "Whether to enable network policies for the OpenLDAP namespace"
 140:   type        = bool
 141:   default     = true
 142: }
-143: 
+143:
 144: variable "ecr_registry" {
 145:   description = "ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)"
 146:   type        = string
 147: }
-148: 
+148:
 149: variable "ecr_repository" {
 150:   description = "ECR repository name"
 151:   type        = string
 152: }
-153: 
+153:
 154: variable "openldap_image_tag" {
 155:   description = "OpenLDAP image tag in ECR"
 156:   type        = string
@@ -15841,65 +15841,65 @@ repomix.config.json
   2:   description = "Deployment environment"
   3:   type        = string
   4: }
-  5: 
+  5:
   6: variable "region" {
   7:   description = "Deployment region"
   8:   type        = string
   9: }
- 10: 
+ 10:
  11: variable "prefix" {
  12:   description = "Name prefix for resources"
  13:   type        = string
  14: }
- 15: 
+ 15:
  16: variable "namespace" {
  17:   description = "Kubernetes namespace for PostgreSQL"
  18:   type        = string
  19:   default     = "ldap-2fa"
  20: }
- 21: 
+ 21:
  22: variable "secret_name" {
  23:   description = "Name of the Kubernetes secret for PostgreSQL password"
  24:   type        = string
  25:   default     = "postgresql-secret"
  26: }
- 27: 
+ 27:
  28: variable "chart_version" {
  29:   description = "PostgreSQL Helm chart version"
  30:   type        = string
  31:   default     = "18.1.15"
  32: }
- 33: 
+ 33:
  34: variable "database_name" {
  35:   description = "Name of the database to create"
  36:   type        = string
  37:   default     = "ldap2fa"
  38: }
- 39: 
+ 39:
  40: variable "database_username" {
  41:   description = "Database username"
  42:   type        = string
  43:   default     = "ldap2fa"
  44: }
- 45: 
+ 45:
  46: variable "database_password" {
  47:   description = "Database password"
  48:   type        = string
  49:   sensitive   = true
  50: }
- 51: 
+ 51:
  52: variable "storage_class" {
  53:   description = "Storage class for PostgreSQL PVC"
  54:   type        = string
  55:   default     = ""
  56: }
- 57: 
+ 57:
  58: variable "storage_size" {
  59:   description = "Storage size for PostgreSQL PVC"
  60:   type        = string
  61:   default     = "8Gi"
  62: }
- 63: 
+ 63:
  64: variable "resources" {
  65:   description = "Resource limits and requests for PostgreSQL"
  66:   type = object({
@@ -15923,29 +15923,29 @@ repomix.config.json
  84:     }
  85:   }
  86: }
- 87: 
+ 87:
  88: variable "tags" {
  89:   description = "Tags to apply to resources"
  90:   type        = map(string)
  91:   default     = {}
  92: }
- 93: 
+ 93:
  94: variable "ecr_registry" {
  95:   description = "ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)"
  96:   type        = string
  97: }
- 98: 
+ 98:
  99: variable "ecr_repository" {
 100:   description = "ECR repository name"
 101:   type        = string
 102: }
-103: 
+103:
 104: variable "image_tag" {
 105:   description = "PostgreSQL image tag in ECR"
 106:   type        = string
 107:   default     = "postgresql-latest"
 108: }
-109: 
+109:
 110: variable "values_template_path" {
 111:   description = "Path to the PostgreSQL values template file"
 112:   type        = string
@@ -15959,70 +15959,70 @@ repomix.config.json
   2:   description = "Deployment environment"
   3:   type        = string
   4: }
-  5: 
+  5:
   6: variable "region" {
   7:   description = "Deployment region"
   8:   type        = string
   9: }
- 10: 
+ 10:
  11: variable "prefix" {
  12:   description = "Name prefix added to all resources"
  13:   type        = string
  14: }
- 15: 
+ 15:
  16: variable "enable_redis" {
  17:   description = "Enable Redis deployment"
  18:   type        = bool
  19:   default     = false
  20: }
- 21: 
+ 21:
  22: variable "namespace" {
  23:   description = "Kubernetes namespace for Redis"
  24:   type        = string
  25:   default     = "redis"
  26: }
- 27: 
+ 27:
  28: variable "secret_name" {
  29:   description = "Name of the Kubernetes secret for Redis password"
  30:   type        = string
  31:   default     = "redis-secret"
  32: }
- 33: 
+ 33:
  34: variable "redis_password" {
  35:   description = "Redis authentication password (from GitHub Secrets via TF_VAR_redis_password)"
  36:   type        = string
  37:   sensitive   = true
- 38: 
+ 38:
  39:   validation {
  40:     condition     = length(var.redis_password) >= 8
  41:     error_message = "Redis password must be at least 8 characters."
  42:   }
  43: }
- 44: 
+ 44:
  45: variable "chart_version" {
  46:   description = "Bitnami Redis Helm chart version"
  47:   type        = string
  48:   default     = "24.0.9"
  49: }
- 50: 
+ 50:
  51: variable "storage_class_name" {
  52:   description = "Storage class for Redis PVC"
  53:   type        = string
  54:   default     = ""
  55: }
- 56: 
+ 56:
  57: variable "storage_size" {
  58:   description = "Storage size for Redis PVC"
  59:   type        = string
  60:   default     = "1Gi"
  61: }
- 62: 
+ 62:
  63: variable "persistence_enabled" {
  64:   description = "Enable persistence for Redis data"
  65:   type        = bool
  66:   default     = true
  67: }
- 68: 
+ 68:
  69: variable "resources" {
  70:   description = "Resource limits and requests for Redis"
  71:   type = object({
@@ -16046,41 +16046,41 @@ repomix.config.json
  89:     }
  90:   }
  91: }
- 92: 
+ 92:
  93: variable "metrics_enabled" {
  94:   description = "Enable Prometheus metrics exporter"
  95:   type        = bool
  96:   default     = false
  97: }
- 98: 
+ 98:
  99: variable "tags" {
 100:   description = "Tags to apply to resources"
 101:   type        = map(string)
 102:   default     = {}
 103: }
-104: 
+104:
 105: variable "backend_namespace" {
 106:   description = "Namespace where the backend pods are deployed (for network policy)"
 107:   type        = string
 108:   default     = "twofa-backend"
 109: }
-110: 
+110:
 111: variable "ecr_registry" {
 112:   description = "ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)"
 113:   type        = string
 114: }
-115: 
+115:
 116: variable "ecr_repository" {
 117:   description = "ECR repository name"
 118:   type        = string
 119: }
-120: 
+120:
 121: variable "image_tag" {
 122:   description = "Redis image tag in ECR"
 123:   type        = string
 124:   default     = "redis-latest"
 125: }
-126: 
+126:
 127: variable "values_template_path" {
 128:   description = "Path to the Redis values template file"
 129:   type        = string
@@ -16092,60 +16092,60 @@ repomix.config.json
 ```
  1: # Local .terraform directories
  2: **/.terraform/*
- 3: 
+ 3:
  4: # .tfstate files
  5: *.tfstate
  6: *.tfstate.*
- 7: 
+ 7:
  8: # Crash log files
  9: crash.log
 10: crash.*.log
-11: 
+11:
 12: # Exclude all .tfvars files, which are likely to contain sensitive data, such as
 13: # password, private keys, and other secrets. These should not be part of version
 14: # control as they are data points which are potentially sensitive and subject
 15: # to change depending on the environment.
 16: # *.tfvars
 17: *.tfvars.json
-18: 
+18:
 19: # Ignore override files as they are usually used to override resources locally and so
 20: # are not checked in
 21: override.tf
 22: override.tf.json
 23: *_override.tf
 24: *_override.tf.json
-25: 
+25:
 26: # Ignore transient lock info files created by terraform apply
 27: .terraform.tfstate.lock.info
-28: 
+28:
 29: # Include override files you do wish to add to version control using negated pattern
 30: # !example_override.tf
-31: 
+31:
 32: # Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
 33: # example: *tfplan*
 34: *.plan
 35: *.tfplan
-36: 
+36:
 37: # Ignore CLI configuration files
 38: .terraformrc
 39: terraform.rc
-40: 
+40:
 41: .cursor/
-42: 
+42:
 43: .idea/
-44: 
+44:
 45: .vscode/
 46: # Snyk Security Extension - AI Rules (auto-generated)
 47: .cursor/rules/snyk_rules.mdc
-48: 
+48:
 49: # Generated backend configuration (created from tfstate-backend-values-template.hcl)
 50: backend_infra/backend.hcl
 51: application/backend.hcl
-52: 
+52:
 53: .env
-54: 
+54:
 55: .DS_Store
-56: 
+56:
 57: ca-config.json
 58: ca.csr
 59: ca-cert.pem
@@ -16155,21 +16155,21 @@ repomix.config.json
 ```hcl
   1: # *** EKS Auto mode has its own load balancer driver ***
   2: # So there is no need to configure AWS Load Balancer Controller
-  3: 
+  3:
   4: # *** EKS Auto Mode takes care of IAM permissions ***
   5: # There is no need to attach AWSLoadBalancerControllerIAMPolicy to the EKS Node IAM Role
-  6: 
+  6:
   7: locals {
   8:   # ingress_alb_name            = "${var.prefix}-${var.region}-${var.ingress_alb_name}-${var.env}"
   9:   # service_alb_name            = "${var.prefix}-${var.region}-${var.service_alb_name}-${var.env}"
  10:   ingressclass_alb_name       = "${var.prefix}-${var.region}-${var.ingressclass_alb_name}-${var.env}"
  11:   ingressclassparams_alb_name = "${var.prefix}-${var.region}-${var.ingressclassparams_alb_name}-${var.env}"
  12: }
- 13: 
+ 13:
  14: # Kubernetes Ingress and Service resources commented out
  15: # These are not needed - OpenLDAP Helm chart creates its own Ingress resources
  16: # which will use the IngressClass defined below
- 17: 
+ 17:
  18: # resource "kubernetes_ingress_v1" "ingress_alb" {
  19: #   metadata {
  20: #     name      = local.ingress_alb_name
@@ -16237,7 +16237,7 @@ repomix.config.json
  82: #     type = "ClusterIP"
  83: #   }
  84: # }
- 85: 
+ 85:
  86: # The IngressClassParams resource is a custom Kubernetes resource (CRD) provided by EKS Auto Mode.
  87: # We use the `kubernetes_manifest` resource to manage it in a Terraform-native way.
  88: #
@@ -16267,7 +16267,7 @@ repomix.config.json
 112: # - Per-Ingress ALB configuration (load-balancer-name, listen-ports, ssl-redirect, target-type)
 113: #   should be defined at the Ingress level via annotations
 114: # - All Ingresses using this IngressClass inherit cluster-wide settings from IngressClassParams
-115: 
+115:
 116: # Optional: Add a delay for initial cluster setup to allow EKS Auto Mode to install CRDs
 117: #
 118: # IMPORTANT: There is NO Terraform resource that represents "CRD is installed"
@@ -16284,13 +16284,13 @@ repomix.config.json
 129:   # Always create the resource, but use 0s duration when wait_for_crd is false
 130:   # This allows us to always reference it in depends_on (which requires a static list)
 131:   create_duration = var.wait_for_crd ? "30s" : "0s"
-132: 
+132:
 133:   # Trigger recreation if cluster changes (helps with new cluster deployments)
 134:   triggers = {
 135:     cluster_name = var.cluster_name
 136:   }
 137: }
-138: 
+138:
 139: resource "kubernetes_manifest" "ingressclassparams_alb" {
 140:   # Wait for:
 141:   # 1. The Kubernetes provider to be configured (implicit via data.aws_eks_cluster)
@@ -16300,7 +16300,7 @@ repomix.config.json
 145:   # resource for it. The time_sleep is a workaround for the asynchronous CRD installation.
 146:   # When wait_for_crd is false, time_sleep has 0s duration (no actual delay).
 147:   depends_on = [time_sleep.wait_for_eks_auto_mode]
-148: 
+148:
 149:   manifest = {
 150:     apiVersion = "eks.amazonaws.com/v1"
 151:     kind       = "IngressClassParams"
@@ -16320,7 +16320,7 @@ repomix.config.json
 165:       } : {}
 166:     )
 167:   }
-168: 
+168:
 169:   # Wait for the resource to be created and ready
 170:   # This ensures the resource exists before dependent resources are created
 171:   wait {
@@ -16328,26 +16328,26 @@ repomix.config.json
 173:       "metadata.name" = local.ingressclassparams_alb_name
 174:     }
 175:   }
-176: 
+176:
 177:   # Use server-side apply to handle conflicts better
 178:   # This is safer for custom resources that might be managed elsewhere
 179:   computed_fields = ["metadata.labels", "metadata.annotations"]
 180: }
-181: 
+181:
 182: # IngressClass binds Ingress resources to EKS Auto Mode controller
 183: # and references IngressClassParams for cluster-wide ALB defaults
 184: resource "kubernetes_ingress_class_v1" "ingressclass_alb" {
 185:   depends_on = [kubernetes_manifest.ingressclassparams_alb]
 186:   metadata {
 187:     name = local.ingressclass_alb_name
-188: 
+188:
 189:     # Use this annotation to set an IngressClass as Default
 190:     # If an Ingress doesn't specify a class, it will use the Default
 191:     annotations = {
 192:       "ingressclass.kubernetes.io/is-default-class" = "true"
 193:     }
 194:   }
-195: 
+195:
 196:   spec {
 197:     # Configures the IngressClass to use EKS Auto Mode (built-in load balancer driver)
 198:     controller = "eks.amazonaws.com/alb"
@@ -16366,168 +16366,168 @@ repomix.config.json
   1: locals {
   2:   argocd_role_name       = "${var.prefix}-${var.region}-${var.argocd_role_name_component}-${var.env}"
   3:   argocd_capability_name = "${var.prefix}-${var.region}-${var.argocd_capability_name_component}-${var.env}"
-  4: 
+  4:
   5:   tags = {
   6:     Env       = "${var.env}"
   7:     Terraform = "true"
   8:   }
   9: }
- 10: 
+ 10:
  11: # IAM Trust Policy for ArgoCD Capability Role
  12: data "aws_iam_policy_document" "argocd_assume_role" {
  13:   statement {
  14:     effect = "Allow"
- 15: 
+ 15:
  16:     principals {
  17:       type        = "Service"
  18:       identifiers = ["capabilities.eks.amazonaws.com"]
  19:     }
- 20: 
+ 20:
  21:     actions = [
  22:       "sts:AssumeRole",
  23:       "sts:TagSession",
  24:     ]
  25:   }
  26: }
- 27: 
+ 27:
  28: # IAM Role for ArgoCD Capability
  29: resource "aws_iam_role" "argocd_capability" {
  30:   name = local.argocd_role_name
- 31: 
+ 31:
  32:   assume_role_policy = data.aws_iam_policy_document.argocd_assume_role.json
- 33: 
+ 33:
  34:   tags = merge(
  35:     local.tags,
  36:     {
  37:       Name = local.argocd_role_name
  38:     }
  39:   )
- 40: 
+ 40:
  41:   # Force replacement if trust policy changes to ensure AWS validates correctly
  42:   lifecycle {
  43:     create_before_destroy = true
  44:   }
  45: }
- 46: 
+ 46:
  47: # IAM Policy Document for ArgoCD Capability
  48: data "aws_iam_policy_document" "argocd_capability" {
  49:   statement {
  50:     sid    = "EKSDescribe"
  51:     effect = "Allow"
- 52: 
+ 52:
  53:     actions = [
  54:       "eks:DescribeCluster",
  55:       "eks:ListClusters",
  56:       "eks:DescribeUpdate",
  57:       "eks:ListUpdates"
  58:     ]
- 59: 
+ 59:
  60:     resources = var.iam_policy_eks_resources
  61:   }
- 62: 
+ 62:
  63:   statement {
  64:     sid    = "SecretsManager"
  65:     effect = "Allow"
- 66: 
+ 66:
  67:     actions = [
  68:       "secretsmanager:GetSecretValue",
  69:       "secretsmanager:DescribeSecret",
  70:       "secretsmanager:ListSecrets"
  71:     ]
- 72: 
+ 72:
  73:     resources = var.iam_policy_secrets_manager_resources
  74:   }
- 75: 
+ 75:
  76:   statement {
  77:     sid    = "CodeConnections"
  78:     effect = "Allow"
- 79: 
+ 79:
  80:     actions = [
  81:       "codeconnections:ListConnections",
  82:       "codeconnections:GetConnection"
  83:     ]
- 84: 
+ 84:
  85:     resources = var.iam_policy_code_connections_resources
  86:   }
- 87: 
+ 87:
  88:   dynamic "statement" {
  89:     for_each = var.enable_ecr_access ? [1] : []
  90:     content {
  91:       sid    = "ECRAccess"
  92:       effect = "Allow"
- 93: 
+ 93:
  94:       actions = [
  95:         "ecr:GetAuthorizationToken",
  96:         "ecr:BatchCheckLayerAvailability",
  97:         "ecr:GetDownloadUrlForLayer",
  98:         "ecr:BatchGetImage"
  99:       ]
-100: 
+100:
 101:       resources = var.iam_policy_ecr_resources
 102:     }
 103:   }
-104: 
+104:
 105:   dynamic "statement" {
 106:     for_each = var.enable_codecommit_access ? [1] : []
 107:     content {
 108:       sid    = "CodeCommitAccess"
 109:       effect = "Allow"
-110: 
+110:
 111:       actions = [
 112:         "codecommit:GitPull",
 113:         "codecommit:GetRepository"
 114:       ]
-115: 
+115:
 116:       resources = var.iam_policy_codecommit_resources
 117:     }
 118:   }
 119: }
-120: 
+120:
 121: # Attach IAM Policy to Role
 122: resource "aws_iam_role_policy" "argocd_capability" {
 123:   name   = "${local.argocd_role_name}-policy"
 124:   role   = aws_iam_role.argocd_capability.id
 125:   policy = data.aws_iam_policy_document.argocd_capability.json
 126: }
-127: 
+127:
 128: # EKS Cluster Data Source
 129: data "aws_eks_cluster" "this" {
 130:   name = var.cluster_name
 131: }
-132: 
+132:
 133: # Wait for IAM role to propagate before creating EKS capability
 134: resource "time_sleep" "wait_for_iam_propagation" {
 135:   depends_on = [
 136:     aws_iam_role.argocd_capability,
 137:     aws_iam_role_policy.argocd_capability
 138:   ]
-139: 
+139:
 140:   create_duration = "30s"
 141: }
-142: 
+142:
 143: # EKS Capability for ArgoCD
 144: resource "aws_eks_capability" "argocd" {
 145:   cluster_name    = var.cluster_name
 146:   capability_name = local.argocd_capability_name
 147:   type            = "ARGOCD"
-148: 
+148:
 149:   role_arn                  = aws_iam_role.argocd_capability.arn
 150:   delete_propagation_policy = var.delete_propagation_policy
-151: 
+151:
 152:   configuration {
 153:     argo_cd {
 154:       namespace = var.argocd_namespace
-155: 
+155:
 156:       aws_idc {
 157:         idc_instance_arn = var.idc_instance_arn
 158:         idc_region       = var.idc_region
 159:       }
-160: 
+160:
 161:       dynamic "rbac_role_mapping" {
 162:         for_each = var.rbac_role_mappings
 163:         content {
 164:           role = rbac_role_mapping.value.role
-165: 
+165:
 166:           dynamic "identity" {
 167:             for_each = rbac_role_mapping.value.identities
 168:             content {
@@ -16537,7 +16537,7 @@ repomix.config.json
 172:           }
 173:         }
 174:       }
-175: 
+175:
 176:       dynamic "network_access" {
 177:         for_each = length(var.argocd_vpce_ids) > 0 ? [1] : []
 178:         content {
@@ -16546,7 +16546,7 @@ repomix.config.json
 181:       }
 182:     }
 183:   }
-184: 
+184:
 185:   tags = merge(
 186:     local.tags,
 187:     {
@@ -16555,14 +16555,14 @@ repomix.config.json
 190:       "eks:capabilityType" = "ARGOCD"
 191:     }
 192:   )
-193: 
+193:
 194:   depends_on = [
 195:     aws_iam_role.argocd_capability,
 196:     aws_iam_role_policy.argocd_capability,
 197:     time_sleep.wait_for_iam_propagation
 198:   ]
 199: }
-200: 
+200:
 201: # External data source to query ArgoCD capability details via AWS CLI
 202: # This automatically retrieves server_url and status without manual CLI commands
 203: data "external" "argocd_capability" {
@@ -16572,7 +16572,7 @@ repomix.config.json
 207:       echo '{"server_url":"","status":"","error":"jq is required but not installed"}' >&2
 208:       exit 1
 209:     fi
-210: 
+210:
 211:     # Query the capability
 212:     result=$(aws eks describe-capability \
 213:       --cluster-name "${var.cluster_name}" \
@@ -16584,7 +16584,7 @@ repomix.config.json
 219:       echo '{"server_url":"","status":""}'
 220:       exit 0
 221:     }
-222: 
+222:
 223:     # Extract and format as JSON using jq
 224:     echo "$result" | jq -c '{
 225:       server_url: (.capability.configuration.argoCd.serverUrl // .configuration.argoCd.serverUrl // ""),
@@ -16592,10 +16592,10 @@ repomix.config.json
 227:     }' 2>/dev/null || echo '{"server_url":"","status":""}'
 228:   EOT
 229:   ]
-230: 
+230:
 231:   depends_on = [aws_eks_capability.argocd]
 232: }
-233: 
+233:
 234: # Cluster Registration Secret
 235: resource "kubernetes_secret" "argocd_local_cluster" {
 236:   metadata {
@@ -16605,15 +16605,15 @@ repomix.config.json
 240:       "argocd.argoproj.io/secret-type" = "cluster"
 241:     }
 242:   }
-243: 
+243:
 244:   data = {
 245:     name    = base64encode(var.local_cluster_secret_name)
 246:     server  = base64encode(data.aws_eks_cluster.this.arn)
 247:     project = base64encode(var.argocd_project_name)
 248:   }
-249: 
+249:
 250:   type = "Opaque"
-251: 
+251:
 252:   depends_on = [
 253:     aws_eks_capability.argocd
 254:   ]
@@ -16626,48 +16626,48 @@ repomix.config.json
   2:   description = "DNS name of the shared ALB created by Ingress resources"
   3:   value       = var.use_alb ? local.alb_dns_name : null
   4: }
-  5: 
+  5:
   6: output "route53_acm_cert_arn" {
   7:   description = "ACM certificate ARN (validated and ready for use)"
   8:   value       = data.aws_acm_certificate.this.arn
   9: }
- 10: 
+ 10:
  11: output "route53_domain_name" {
  12:   description = "Root domain name"
  13:   value       = var.domain_name
  14: }
- 15: 
+ 15:
  16: output "route53_zone_id" {
  17:   description = "Route53 hosted zone ID"
  18:   value       = data.aws_route53_zone.this.zone_id
  19: }
- 20: 
+ 20:
  21: output "route53_name_servers" {
  22:   description = "Route53 name servers (for registrar configuration)"
  23:   value       = data.aws_route53_zone.this.name_servers
  24: }
- 25: 
+ 25:
  26: ##################### ALB Module ##########################
  27: output "alb_ingress_class_name" {
  28:   description = "Name of the IngressClass for shared ALB"
  29:   value       = var.use_alb ? module.alb[0].ingress_class_name : null
  30: }
- 31: 
+ 31:
  32: output "alb_ingress_class_params_name" {
  33:   description = "Name of the IngressClassParams for ALB configuration"
  34:   value       = var.use_alb ? module.alb[0].ingress_class_params_name : null
  35: }
- 36: 
+ 36:
  37: output "alb_scheme" {
  38:   description = "ALB scheme configured in IngressClassParams"
  39:   value       = var.use_alb ? module.alb[0].alb_scheme : null
  40: }
- 41: 
+ 41:
  42: output "alb_ip_address_type" {
  43:   description = "ALB IP address type configured in IngressClassParams"
  44:   value       = var.use_alb ? module.alb[0].alb_ip_address_type : null
  45: }
- 46: 
+ 46:
  47: ##################### Network Policies Module ##########################
  48: # Network policies are created within the openldap module
  49: # These outputs expose the network policy information from the openldap module
@@ -16675,113 +16675,113 @@ repomix.config.json
  51:   description = "Name of the network policy for secure namespace communication"
  52:   value       = module.openldap.network_policy_name
  53: }
- 54: 
+ 54:
  55: output "network_policy_namespace" {
  56:   description = "Namespace where the network policy is applied"
  57:   value       = module.openldap.network_policy_namespace
  58: }
- 59: 
+ 59:
  60: output "network_policy_uid" {
  61:   description = "UID of the network policy resource"
  62:   value       = module.openldap.network_policy_uid
  63: }
- 64: 
+ 64:
  65: ##################### PostgreSQL ##########################
  66: output "postgresql_host" {
  67:   description = "PostgreSQL service hostname"
  68:   value       = var.enable_postgresql ? module.postgresql[0].host : null
  69: }
- 70: 
+ 70:
  71: output "postgresql_connection_url" {
  72:   description = "PostgreSQL connection URL (without password)"
  73:   value       = var.enable_postgresql ? module.postgresql[0].connection_url : null
  74: }
- 75: 
+ 75:
  76: output "postgresql_database" {
  77:   description = "PostgreSQL database name"
  78:   value       = var.enable_postgresql ? module.postgresql[0].database : null
  79: }
- 80: 
+ 80:
  81: ##################### SES Email ##########################
  82: output "ses_sender_email" {
  83:   description = "SES verified sender email"
  84:   value       = var.enable_email_verification ? module.ses[0].sender_email : null
  85: }
- 86: 
+ 86:
  87: output "ses_iam_role_arn" {
  88:   description = "ARN of the IAM role for SES access (for IRSA)"
  89:   value       = var.enable_email_verification ? module.ses[0].iam_role_arn : null
  90: }
- 91: 
+ 91:
  92: output "ses_verification_status" {
  93:   description = "SES verification status/instructions"
  94:   value       = var.enable_email_verification ? module.ses[0].verification_status : null
  95: }
- 96: 
+ 96:
  97: ##################### SNS SMS 2FA ##########################
  98: output "sns_topic_arn" {
  99:   description = "ARN of the SNS topic for SMS 2FA"
 100:   value       = var.enable_sms_2fa ? module.sns[0].sns_topic_arn : null
 101: }
-102: 
+102:
 103: output "sns_topic_name" {
 104:   description = "Name of the SNS topic"
 105:   value       = var.enable_sms_2fa ? module.sns[0].sns_topic_name : null
 106: }
-107: 
+107:
 108: output "sns_iam_role_arn" {
 109:   description = "ARN of the IAM role for SNS publishing (for IRSA)"
 110:   value       = var.enable_sms_2fa ? module.sns[0].iam_role_arn : null
 111: }
-112: 
+112:
 113: output "sns_service_account_annotation" {
 114:   description = "Annotation to add to Kubernetes service account for IRSA"
 115:   value       = var.enable_sms_2fa ? module.sns[0].service_account_annotation : null
 116: }
-117: 
+117:
 118: ##################### Redis SMS OTP Storage ##########################
 119: output "redis_host" {
 120:   description = "Redis service hostname"
 121:   value       = var.enable_redis ? module.redis[0].redis_host : null
 122: }
-123: 
+123:
 124: output "redis_port" {
 125:   description = "Redis service port"
 126:   value       = var.enable_redis ? module.redis[0].redis_port : null
 127: }
-128: 
+128:
 129: output "redis_namespace" {
 130:   description = "Kubernetes namespace where Redis is deployed"
 131:   value       = var.enable_redis ? module.redis[0].redis_namespace : null
 132: }
-133: 
+133:
 134: output "redis_password_secret_name" {
 135:   description = "Name of the Kubernetes secret containing Redis password"
 136:   value       = var.enable_redis ? module.redis[0].redis_password_secret_name : null
 137: }
-138: 
+138:
 139: output "redis_password_secret_key" {
 140:   description = "Key in the secret for Redis password"
 141:   value       = var.enable_redis ? module.redis[0].redis_password_secret_key : null
 142: }
-143: 
+143:
 144: ##################### 2FA Application ##########################
 145: output "twofa_app_url" {
 146:   description = "URL for the 2FA application (frontend)"
 147:   value       = var.twofa_app_host != null ? "https://${var.twofa_app_host}" : null
 148: }
-149: 
+149:
 150: output "twofa_api_url" {
 151:   description = "URL for the 2FA API (backend)"
 152:   value       = var.twofa_app_host != null ? "https://${var.twofa_app_host}/api" : null
 153: }
-154: 
+154:
 155: ##################### ArgoCD Applications ##########################
 156: output "argocd_backend_app_name" {
 157:   description = "Name of the ArgoCD Application for backend"
 158:   value       = var.enable_argocd_apps ? var.argocd_app_backend_name : null
 159: }
-160: 
+160:
 161: output "argocd_frontend_app_name" {
 162:   description = "Name of the ArgoCD Application for frontend"
 163:   value       = var.enable_argocd_apps ? var.argocd_app_frontend_name : null
@@ -16792,11 +16792,11 @@ repomix.config.json
 ```hcl
   1: # Dynamic Account ID
   2: data "aws_caller_identity" "current" {}
-  3: 
+  3:
   4: data "aws_availability_zones" "available" {
   5:   state = "available"
   6: }
-  7: 
+  7:
   8: # Logging Prefix Pattern
   9: locals {
  10:   current_identity = data.aws_caller_identity.current.arn
@@ -16820,7 +16820,7 @@ repomix.config.json
  28:     Terraform = "true"
  29:   }
  30: }
- 31: 
+ 31:
  32: module "vpc" {
  33:   source  = "terraform-aws-modules/vpc/aws"
  34:   version = "6.5.1"
@@ -16841,72 +16841,72 @@ repomix.config.json
  49:     "kubernetes.io/role/elb"                      = 1
  50:     "kubernetes.io/cluster/${local.cluster_name}" = "shared"
  51:   }
- 52: 
+ 52:
  53:   create_database_subnet_group = false
  54:   # manage_default_network_acl    = false
  55:   # manage_default_route_table    = false
  56:   # manage_default_security_group = false
- 57: 
+ 57:
  58:   enable_dns_hostnames = true
  59:   enable_dns_support   = true
- 60: 
+ 60:
  61:   enable_dhcp_options      = true
  62:   dhcp_options_domain_name = "ec2.internal"
- 63: 
+ 63:
  64:   enable_nat_gateway = true
  65:   single_nat_gateway = true
  66:   nat_gateway_tags = {
  67:     "Name"                                        = "${local.ngw_name}"
  68:     "kubernetes.io/cluster/${local.cluster_name}" = "shared"
  69:   }
- 70: 
+ 70:
  71:   create_igw             = true
  72:   create_egress_only_igw = false
  73:   enable_vpn_gateway     = false
- 74: 
+ 74:
  75:   private_route_table_tags = {
  76:     Name = local.route_table_name
  77:   }
- 78: 
+ 78:
  79:   igw_tags = {
  80:     Name = "${local.igw_name}"
  81:   }
- 82: 
+ 82:
  83:   tags = local.tags
  84: }
- 85: 
+ 85:
  86: module "eks" {
  87:   source  = "terraform-aws-modules/eks/aws"
  88:   version = "21.9.0"
- 89: 
+ 89:
  90:   name                   = local.cluster_name
  91:   kubernetes_version     = var.k8s_version
  92:   endpoint_public_access = true
- 93: 
+ 93:
  94:   enable_cluster_creator_admin_permissions = true
- 95: 
+ 95:
  96:   # Enable OIDC provider for IRSA (IAM Roles for Service Accounts)
  97:   # This is required for pods to assume IAM roles (e.g., for SNS access)
  98:   enable_irsa = true
- 99: 
+ 99:
 100:   compute_config = {
 101:     enabled    = true
 102:     node_pools = ["general-purpose"]
 103:   }
-104: 
+104:
 105:   vpc_id     = module.vpc.vpc_id
 106:   subnet_ids = module.vpc.private_subnets
-107: 
+107:
 108:   enabled_log_types           = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 109:   create_cloudwatch_log_group = true
-110: 
+110:
 111:   node_iam_role_additional_policies = {
 112:     "AmazonSSMManagedInstanceCore" = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 113:   }
-114: 
+114:
 115:   tags = local.tags
 116: }
-117: 
+117:
 118: module "endpoints" {
 119:   source                 = "./modules/endpoints"
 120:   env                    = var.env
@@ -16921,7 +16921,7 @@ repomix.config.json
 129:   enable_sns_endpoint    = var.enable_sns_endpoint
 130:   tags                   = local.tags
 131: }
-132: 
+132:
 133: # module "ebs" {
 134: #   source         = "./modules/ebs"
 135: #   env            = var.env
@@ -16933,7 +16933,7 @@ repomix.config.json
 141: #   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
 142: #   depends_on = [module.eks]
 143: # }
-144: 
+144:
 145: module "ecr" {
 146:   source               = "./modules/ecr"
 147:   env                  = var.env
@@ -17158,7 +17158,7 @@ repomix.config.json
   1: locals {
   2:   # Determine values template path
   3:   values_template_path = var.values_template_path != null ? var.values_template_path : "${path.module}/../../helm/openldap-values.tpl.yaml"
-  4: 
+  4:
   5:   openldap_values = templatefile(
   6:     local.values_template_path,
   7:     {
@@ -17182,19 +17182,19 @@ repomix.config.json
  25:     }
  26:   )
  27: }
- 28: 
+ 28:
  29: # Create namespace for OpenLDAP
  30: resource "kubernetes_namespace" "openldap" {
  31:   metadata {
  32:     name = var.namespace
- 33: 
+ 33:
  34:     labels = {
  35:       name        = var.namespace
  36:       environment = var.env
  37:       managed-by  = "terraform"
  38:     }
  39:   }
- 40: 
+ 40:
  41:   lifecycle {
  42:     # Ignore changes to labels that might be modified by ArgoCD, Helm, or other controllers
  43:     ignore_changes = [
@@ -17203,28 +17203,28 @@ repomix.config.json
  46:     ]
  47:   }
  48: }
- 49: 
+ 49:
  50: # Create Kubernetes secret for OpenLDAP passwords
  51: # Passwords are sourced from GitHub Secrets via TF_VAR_openldap_admin_password and TF_VAR_openldap_config_password
  52: resource "kubernetes_secret" "openldap_passwords" {
  53:   metadata {
  54:     name      = var.openldap_secret_name
  55:     namespace = kubernetes_namespace.openldap.metadata[0].name
- 56: 
+ 56:
  57:     labels = {
  58:       app         = "openldap"
  59:       environment = var.env
  60:       managed-by  = "terraform"
  61:     }
  62:   }
- 63: 
+ 63:
  64:   data = {
  65:     "LDAP_ADMIN_PASSWORD"        = var.openldap_admin_password
  66:     "LDAP_CONFIG_ADMIN_PASSWORD" = var.openldap_config_password
  67:   }
- 68: 
+ 68:
  69:   type = "Opaque"
- 70: 
+ 70:
  71:   lifecycle {
  72:     # Ignore changes to labels/annotations that might be modified by ArgoCD, Helm, or other controllers
  73:     # This prevents Terraform from trying to recreate the secret if it's modified externally
@@ -17235,20 +17235,20 @@ repomix.config.json
  78:     # Create before destroy to avoid downtime if secret needs to be recreated
  79:     create_before_destroy = true
  80:   }
- 81: 
+ 81:
  82:   depends_on = [kubernetes_namespace.openldap]
  83: }
- 84: 
+ 84:
  85: # Helm release for OpenLDAP Stack HA
  86: resource "helm_release" "openldap" {
  87:   name       = var.helm_release_name
  88:   repository = var.helm_chart_repository
  89:   chart      = var.helm_chart_name
  90:   version    = var.helm_chart_version
- 91: 
+ 91:
  92:   namespace        = kubernetes_namespace.openldap.metadata[0].name
  93:   create_namespace = false
- 94: 
+ 94:
  95:   atomic          = true
  96:   cleanup_on_fail = true
  97:   # Force recreation on configuration changes
@@ -17259,46 +17259,46 @@ repomix.config.json
 102:   upgrade_install = true
 103:   # 5 minute timeout as requested
 104:   timeout = 300 # 5 minutes in seconds
-105: 
+105:
 106:   # Allow replacement if name conflict occurs
 107:   replace = true
-108: 
+108:
 109:   values = [local.openldap_values]
-110: 
+110:
 111:   depends_on = [
 112:     kubernetes_namespace.openldap,
 113:     kubernetes_secret.openldap_passwords,
 114:   ]
 115: }
-116: 
+116:
 117: # Create Network Policies for secure internal cluster communication
 118: # Generic policies: Any service can communicate with any service, but only on secure ports
 119: module "network_policies" {
 120:   source = "../network-policies"
-121: 
+121:
 122:   count = var.enable_network_policies ? 1 : 0
-123: 
+123:
 124:   namespace = var.namespace
-125: 
+125:
 126:   depends_on = [helm_release.openldap]
 127: }
-128: 
+128:
 129: # Get Ingress resources created by Helm chart to extract ALB DNS names
 130: data "kubernetes_ingress_v1" "phpldapadmin" {
 131:   metadata {
 132:     name      = "${var.helm_release_name}-phpldapadmin"
 133:     namespace = var.namespace
 134:   }
-135: 
+135:
 136:   depends_on = [helm_release.openldap]
 137: }
-138: 
+138:
 139: data "kubernetes_ingress_v1" "ltb_passwd" {
 140:   metadata {
 141:     name      = "${var.helm_release_name}-ltb-passwd"
 142:     namespace = var.namespace
 143:   }
-144: 
+144:
 145:   depends_on = [helm_release.openldap]
 146: }
 ```
@@ -17312,13 +17312,13 @@ repomix.config.json
   5:  * in the LDAP 2FA application. Provides TTL-based automatic expiration
   6:  * and shared state across backend replicas.
   7:  */
-  8: 
+  8:
   9: locals {
  10:   name = "${var.prefix}-${var.region}-redis-${var.env}"
- 11: 
+ 11:
  12:   # Determine values template path
  13:   values_template_path = var.values_template_path != null ? var.values_template_path : "${path.module}/../../helm/redis-values.tpl.yaml"
- 14: 
+ 14:
  15:   # Build Redis Helm values using templatefile
  16:   # Note: We pass the secret name variable (not resource) to avoid circular dependency
  17:   # The secret resource is created separately with the same name
@@ -17340,59 +17340,59 @@ repomix.config.json
  33:     }
  34:   )
  35: }
- 36: 
+ 36:
  37: # Create namespace for Redis
  38: resource "kubernetes_namespace" "redis" {
  39:   count = var.enable_redis ? 1 : 0
- 40: 
+ 40:
  41:   metadata {
  42:     name = var.namespace
- 43: 
+ 43:
  44:     labels = {
  45:       name        = var.namespace
  46:       environment = var.env
  47:       managed-by  = "terraform"
  48:     }
  49:   }
- 50: 
+ 50:
  51:   lifecycle {
  52:     ignore_changes = [metadata[0].labels]
  53:   }
  54: }
- 55: 
+ 55:
  56: # Create Kubernetes secret for Redis password
  57: # Password is sourced from GitHub Secrets via TF_VAR_redis_password
  58: resource "kubernetes_secret" "redis_password" {
  59:   count = var.enable_redis ? 1 : 0
- 60: 
+ 60:
  61:   metadata {
  62:     name      = var.secret_name
  63:     namespace = kubernetes_namespace.redis[0].metadata[0].name
- 64: 
+ 64:
  65:     labels = {
  66:       app         = local.name
  67:       environment = var.env
  68:       managed-by  = "terraform"
  69:     }
  70:   }
- 71: 
+ 71:
  72:   data = {
  73:     "redis-password" = var.redis_password
  74:   }
- 75: 
+ 75:
  76:   type = "Opaque"
  77: }
- 78: 
+ 78:
  79: # Redis Helm release using Bitnami chart
  80: resource "helm_release" "redis" {
  81:   count = var.enable_redis ? 1 : 0
- 82: 
+ 82:
  83:   name       = local.name
  84:   repository = "https://charts.bitnami.com/bitnami"
  85:   chart      = "redis"
  86:   version    = var.chart_version
  87:   namespace  = kubernetes_namespace.redis[0].metadata[0].name
- 88: 
+ 88:
  89:   atomic          = true
  90:   cleanup_on_fail = true
  91:   recreate_pods   = true
@@ -17401,36 +17401,36 @@ repomix.config.json
  94:   wait_for_jobs   = true
  95:   timeout         = 600 # Reduced from 1200 to 600 seconds (10 min) for faster debugging
  96:   upgrade_install = true
- 97: 
+ 97:
  98:   # Allow replacement if name conflict occurs
  99:   replace = true
-100: 
+100:
 101:   # Use templatefile to inject values into the official Bitnami Redis Helm chart values template
 102:   # Note: The secret name is passed to the template, and the secret resource is created separately
 103:   values = [local.redis_values]
-104: 
+104:
 105:   depends_on = [
 106:     kubernetes_namespace.redis[0],
 107:     kubernetes_secret.redis_password[0],
 108:   ]
 109: }
-110: 
+110:
 111: # Network Policy: Allow backend pods to connect to Redis
 112: # This policy restricts Redis access to only the backend namespace/pods
 113: resource "kubernetes_network_policy_v1" "allow_backend_to_redis" {
 114:   count = var.enable_redis ? 1 : 0
-115: 
+115:
 116:   metadata {
 117:     name      = "allow-backend-to-redis"
 118:     namespace = kubernetes_namespace.redis[0].metadata[0].name
-119: 
+119:
 120:     labels = {
 121:       app         = local.name
 122:       environment = var.env
 123:       managed-by  = "terraform"
 124:     }
 125:   }
-126: 
+126:
 127:   spec {
 128:     # Apply to Redis pods
 129:     pod_selector {
@@ -17438,9 +17438,9 @@ repomix.config.json
 131:         "app.kubernetes.io/name" = "redis"
 132:       }
 133:     }
-134: 
+134:
 135:     policy_types = ["Ingress"]
-136: 
+136:
 137:     # Allow ingress from backend namespace on Redis port
 138:     ingress {
 139:       from {
@@ -17460,7 +17460,7 @@ repomix.config.json
 153:         port     = 6379
 154:       }
 155:     }
-156: 
+156:
 157:     # Allow ingress from within the Redis namespace (for Redis probes, etc.)
 158:     ingress {
 159:       from {
@@ -17472,7 +17472,7 @@ repomix.config.json
 165:       }
 166:     }
 167:   }
-168: 
+168:
 169:   depends_on = [
 170:     kubernetes_namespace.redis[0],
 171:     helm_release.redis[0],
@@ -17501,19 +17501,19 @@ repomix.config.json
  17:       version = "~> 0.9"
  18:     }
  19:   }
- 20: 
+ 20:
  21:   backend "s3" {
  22:     # Backend configuration provided via backend.hcl file
  23:     encrypt      = true
  24:     use_lockfile = true
  25:   }
- 26: 
+ 26:
  27:   required_version = "~> 1.14.0"
  28: }
- 29: 
+ 29:
  30: provider "aws" {
  31:   region = var.region
- 32: 
+ 32:
  33:   # Assume role in deployment account (Account B) if role ARN is provided
  34:   # This allows GitHub Actions to authenticate with Account A (for state)
  35:   # while Terraform provider uses Account B (for resource deployment)
@@ -17526,12 +17526,12 @@ repomix.config.json
  42:     }
  43:   }
  44: }
- 45: 
+ 45:
  46: # Provider alias for state account (where Route53 hosted zone and Private CA reside)
  47: provider "aws" {
  48:   alias  = "state_account"
  49:   region = var.region
- 50: 
+ 50:
  51:   # Assume role in state account if role ARN is provided
  52:   # This allows querying Route53 hosted zones from the state account
  53:   # while deploying resources to the deployment account
@@ -17544,12 +17544,12 @@ repomix.config.json
  60:     }
  61:   }
  62: }
- 63: 
+ 63:
  64: # Read backend.hcl to get bucket and region for remote state
  65: data "local_file" "backend_config" {
  66:   filename = "${path.module}/backend.hcl"
  67: }
- 68: 
+ 68:
  69: locals {
  70:   # Parse backend.hcl to extract bucket, and region
  71:   # backend.hcl format: bucket = "value", region = "value"
@@ -17563,7 +17563,7 @@ repomix.config.json
  79:     regex("region\\s*=\\s*\"([^\"]+)\"", data.local_file.backend_config.content)[0],
  80:     var.region
  81:   )
- 82: 
+ 82:
  83:   # Determine workspace name: use provided variable or derive from region and env
  84:   # This matches the workspace naming convention used in scripts: ${region}-${env}
  85:   # The workspace argument in terraform_remote_state will handle the workspace prefix automatically
@@ -17572,19 +17572,19 @@ repomix.config.json
  88:     "${var.region}-${var.env}"
  89:   )
  90: }
- 91: 
+ 91:
  92: # Retrieve cluster name from backend_infra state
  93: # Uses the workspace argument to automatically handle workspace-prefixed state keys
  94: # Reference: https://developer.hashicorp.com/terraform/language/state/remote-state-data
  95: data "terraform_remote_state" "backend_infra" {
  96:   count   = local.backend_bucket != null ? 1 : 0
  97:   backend = "s3"
- 98: 
+ 98:
  99:   # Use workspace argument to specify which workspace state to access
 100:   # For S3 backend: "default" workspace uses base key, other workspaces use env:/${workspace}/${key}
 101:   # Always pass the workspace value explicitly to ensure correct state lookup
 102:   workspace = local.terraform_workspace
-103: 
+103:
 104:   config = merge(
 105:     {
 106:       bucket = local.backend_bucket
@@ -17601,7 +17601,7 @@ repomix.config.json
 117:     } : {}
 118:   )
 119: }
-120: 
+120:
 121: locals {
 122:   # Get cluster name from remote state if available, otherwise use provided value or calculate it
 123:   cluster_name = coalesce(
@@ -17610,21 +17610,21 @@ repomix.config.json
 126:     "${var.prefix}-${var.region}-${var.cluster_name_component}-${var.env}"
 127:   )
 128: }
-129: 
+129:
 130: data "aws_eks_cluster" "cluster" {
 131:   name = local.cluster_name
 132: }
-133: 
+133:
 134: data "aws_eks_cluster_auth" "cluster" {
 135:   name = local.cluster_name
 136: }
-137: 
+137:
 138: provider "kubernetes" {
 139:   host                   = data.aws_eks_cluster.cluster.endpoint
 140:   cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
 141:   token                  = data.aws_eks_cluster_auth.cluster.token
 142: }
-143: 
+143:
 144: provider "helm" {
 145:   kubernetes {
 146:     host                   = data.aws_eks_cluster.cluster.endpoint
@@ -17640,137 +17640,137 @@ repomix.config.json
   2:   description = "The AWS Account ID"
   3:   value       = local.current_account
   4: }
-  5: 
+  5:
   6: output "region" {
   7:   description = "The AWS region"
   8:   value       = var.region
   9: }
- 10: 
+ 10:
  11: output "env" {
  12:   description = "The Environment e.g. prod"
  13:   value       = var.env
  14: }
- 15: 
+ 15:
  16: output "prefix" {
  17:   description = "The prefix to all names"
  18:   value       = var.prefix
  19: }
- 20: 
+ 20:
  21: ###################### VPC ######################
  22: output "vpc_id" {
  23:   description = "The VPC's ID"
  24:   value       = module.vpc.vpc_id
  25: }
- 26: 
+ 26:
  27: output "default_security_group_id" {
  28:   description = "The default security group for the VPC"
  29:   value       = module.vpc.default_security_group_id
  30: }
- 31: 
+ 31:
  32: output "public_subnets" {
  33:   description = "The VPC's associated public subnets."
  34:   value       = module.vpc.public_subnets
  35: }
- 36: 
+ 36:
  37: output "private_subnets" {
  38:   description = "The VPC's associated private subnets."
  39:   value       = module.vpc.private_subnets
  40: }
- 41: 
+ 41:
  42: output "igw_id" {
  43:   description = "The Internet Gateway's ID"
  44:   value       = module.vpc.igw_id
  45: }
- 46: 
+ 46:
  47: ########## Kubernetes Cluster ##############
- 48: 
+ 48:
  49: output "cluster_name" {
  50:   description = "The Name of Kubernetes Cluster"
  51:   value       = local.cluster_name
  52: }
- 53: 
+ 53:
  54: output "cluster_endpoint" {
  55:   description = "EKS Cluster API Endpoint"
  56:   value       = module.eks.cluster_endpoint
  57: }
- 58: 
+ 58:
  59: output "cluster_arn" {
  60:   description = "EKS Cluster ARN"
  61:   value       = module.eks.cluster_arn
  62: }
- 63: 
+ 63:
  64: output "oidc_provider_arn" {
  65:   description = "OIDC provider ARN for IRSA"
  66:   value       = module.eks.oidc_provider_arn
  67: }
- 68: 
+ 68:
  69: output "oidc_provider_url" {
  70:   description = "OIDC provider URL (without https://)"
  71:   value       = replace(module.eks.cluster_oidc_issuer_url, "https://", "")
  72: }
- 73: 
+ 73:
  74: ##################### VPC Endpoints ##########################
  75: output "vpc_endpoint_sg_id" {
  76:   description = "Security group ID for VPC endpoints"
  77:   value       = module.endpoints.vpc_endpoint_sg_id
  78: }
- 79: 
+ 79:
  80: output "vpc_endpoint_ssm_id" {
  81:   description = "VPC endpoint ID for SSM"
  82:   value       = module.endpoints.vpc_endpoint_ssm_id
  83: }
- 84: 
+ 84:
  85: output "vpc_endpoint_ssmmessages_id" {
  86:   description = "VPC endpoint ID for SSM Messages"
  87:   value       = module.endpoints.vpc_endpoint_ssmmessages_id
  88: }
- 89: 
+ 89:
  90: output "vpc_endpoint_ec2messages_id" {
  91:   description = "VPC endpoint ID for EC2 Messages"
  92:   value       = module.endpoints.vpc_endpoint_ec2messages_id
  93: }
- 94: 
+ 94:
  95: output "vpc_endpoint_ids" {
  96:   description = "List of all VPC endpoint IDs"
  97:   value       = module.endpoints.vpc_endpoint_ids
  98: }
- 99: 
+ 99:
 100: output "vpc_endpoint_sts_id" {
 101:   description = "VPC endpoint ID for STS (IRSA)"
 102:   value       = module.endpoints.vpc_endpoint_sts_id
 103: }
-104: 
+104:
 105: output "vpc_endpoint_sns_id" {
 106:   description = "VPC endpoint ID for SNS (SMS 2FA)"
 107:   value       = module.endpoints.vpc_endpoint_sns_id
 108: }
-109: 
+109:
 110: ##################### ECR ##########################
 111: output "ecr_name" {
 112:   description = "ECR repository name"
 113:   value       = module.ecr.ecr_name
 114: }
-115: 
+115:
 116: output "ecr_arn" {
 117:   description = "ECR repository ARN"
 118:   value       = module.ecr.ecr_arn
 119: }
-120: 
+120:
 121: output "ecr_url" {
 122:   description = "ECR repository URL"
 123:   value       = module.ecr.ecr_url
 124: }
-125: 
+125:
 126: output "ecr_registry" {
 127:   description = "ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com)"
 128:   value       = module.ecr.ecr_registry
 129: }
-130: 
+130:
 131: output "ecr_repository" {
 132:   description = "ECR repository name (without registry prefix)"
 133:   value       = module.ecr.ecr_repository
 134: }
-135: 
+135:
 136: ##################### EBS ##########################
 137: # output "ebs_pvc_name" {
 138: #   value = module.ebs.ebs_pvc_name
@@ -18175,24 +18175,24 @@ repomix.config.json
   2:   description = "Deployment environment"
   3:   type        = string
   4: }
-  5: 
+  5:
   6: variable "region" {
   7:   description = "Deployment region"
   8:   type        = string
   9: }
- 10: 
+ 10:
  11: variable "prefix" {
  12:   description = "Name added to all resources"
  13:   type        = string
  14: }
- 15: 
+ 15:
  16: variable "deployment_account_role_arn" {
  17:   description = "ARN of the IAM role to assume in the deployment account (Account B). Required when using GitHub Actions with multi-account setup."
  18:   type        = string
  19:   default     = null
  20:   nullable    = true
  21: }
- 22: 
+ 22:
  23: variable "deployment_account_external_id" {
  24:   description = "ExternalId for cross-account role assumption security. Required when assuming roles in deployment accounts. Must match the ExternalId configured in the deployment account role's Trust Relationship. Retrieved from AWS Secrets Manager (secret: 'external-id') for local deployment or GitHub secret (AWS_ASSUME_EXTERNAL_ID) for GitHub Actions."
  25:   type        = string
@@ -18200,89 +18200,89 @@ repomix.config.json
  27:   nullable    = true
  28:   sensitive   = true
  29: }
- 30: 
+ 30:
  31: ###################### VPC #########################
- 32: 
+ 32:
  33: variable "vpc_name" {
  34:   description = "The name of the VPC"
  35:   type        = string
  36: }
- 37: 
+ 37:
  38: variable "vpc_cidr" {
  39:   description = "CIDR block for VPC"
  40:   type        = string
  41: }
- 42: 
+ 42:
  43: variable "igw_name" {
  44:   description = "The name of the Internet Gateway"
  45:   type        = string
  46: }
- 47: 
+ 47:
  48: variable "ngw_name" {
  49:   description = "The name of the NAT Gateway"
  50:   type        = string
  51: }
- 52: 
+ 52:
  53: variable "route_table_name" {
  54:   description = "The name of the route table"
  55:   type        = string
  56: }
- 57: 
+ 57:
  58: ############ Kubernetes Cluster #################
- 59: 
+ 59:
  60: variable "k8s_version" {
  61:   description = "The version of Kubernetes to deploy."
  62:   type        = string
  63: }
- 64: 
+ 64:
  65: variable "cluster_name" {
  66:   description = "The Name of Kubernetes Cluster"
  67:   type        = string
  68: }
- 69: 
+ 69:
  70: ##################### Endpoints ##########################
- 71: 
+ 71:
  72: variable "endpoint_sg_name" {
  73:   description = "The name of the endpoint security group"
  74:   type        = string
  75: }
- 76: 
+ 76:
  77: variable "enable_sts_endpoint" {
  78:   description = "Whether to create STS VPC endpoint (required for IRSA)"
  79:   type        = bool
  80:   default     = true
  81: }
- 82: 
+ 82:
  83: variable "enable_sns_endpoint" {
  84:   description = "Whether to create SNS VPC endpoint (required for SMS 2FA)"
  85:   type        = bool
  86:   default     = false
  87: }
- 88: 
+ 88:
  89: ##################### EBS ##########################
- 90: 
+ 90:
  91: variable "ebs_name" {
  92:   description = "The name of the EBS"
  93:   type        = string
  94: }
- 95: 
+ 95:
  96: variable "ebs_claim_name" {
  97:   description = "The name of the EBS claim"
  98:   type        = string
  99: }
-100: 
+100:
 101: ##################### ECR ##########################
-102: 
+102:
 103: variable "ecr_name" {
 104:   description = "The name of the ECR"
 105:   type        = string
 106: }
-107: 
+107:
 108: variable "image_tag_mutability" {
 109:   description = "The value that determines if the image is overridable"
 110:   type        = string
 111: }
-112: 
+112:
 113: variable "ecr_lifecycle_policy" {}
 ```
 
@@ -18536,13 +18536,13 @@ repomix.config.json
   4:  * Deploys PostgreSQL using the Bitnami Helm chart for user storage
   5:  * in the LDAP 2FA application signup system.
   6:  */
-  7: 
+  7:
   8: locals {
   9:   name = "${var.prefix}-${var.region}-postgresql-${var.env}"
- 10: 
+ 10:
  11:   # Determine values template path
  12:   values_template_path = var.values_template_path != null ? var.values_template_path : "${path.module}/../../helm/postgresql-values.tpl.yaml"
- 13: 
+ 13:
  14:   # Build PostgreSQL Helm values using templatefile
  15:   # Note: We pass the secret name variable (not resource) to avoid circular dependency
  16:   # The secret resource is created separately with the same name
@@ -18564,45 +18564,45 @@ repomix.config.json
  32:     }
  33:   )
  34: }
- 35: 
+ 35:
  36: # Create namespace if it doesn't exist
  37: resource "kubernetes_namespace" "postgresql" {
  38:   metadata {
  39:     name = var.namespace
- 40: 
+ 40:
  41:     labels = {
  42:       name        = var.namespace
  43:       environment = var.env
  44:       managed-by  = "terraform"
  45:     }
  46:   }
- 47: 
+ 47:
  48:   lifecycle {
  49:     ignore_changes = [metadata[0].labels]
  50:   }
  51: }
- 52: 
+ 52:
  53: # Create Kubernetes secret for PostgreSQL password
  54: # Password is sourced from GitHub Secrets via TF_VAR_postgresql_database_password
  55: resource "kubernetes_secret" "postgresql_password" {
  56:   metadata {
  57:     name      = var.secret_name
  58:     namespace = kubernetes_namespace.postgresql.metadata[0].name
- 59: 
+ 59:
  60:     labels = {
  61:       app         = local.name
  62:       environment = var.env
  63:       managed-by  = "terraform"
  64:     }
  65:   }
- 66: 
+ 66:
  67:   data = {
  68:     "password" = var.database_password
  69:   }
- 70: 
+ 70:
  71:   type = "Opaque"
  72: }
- 73: 
+ 73:
  74: # PostgreSQL Helm release
  75: resource "helm_release" "postgresql" {
  76:   name       = local.name
@@ -18611,7 +18611,7 @@ repomix.config.json
  79:   chart      = "postgresql"
  80:   version    = var.chart_version
  81:   namespace  = kubernetes_namespace.postgresql.metadata[0].name
- 82: 
+ 82:
  83:   atomic          = true
  84:   cleanup_on_fail = true
  85:   recreate_pods   = true
@@ -18620,14 +18620,14 @@ repomix.config.json
  88:   wait_for_jobs   = true
  89:   timeout         = 600 # Reduced from 1200 to 600 seconds (10 min) for faster debugging
  90:   upgrade_install = true
- 91: 
+ 91:
  92:   # Allow replacement if name conflict occurs
  93:   replace = true
- 94: 
+ 94:
  95:   # Use templatefile to inject values into the official Bitnami PostgreSQL Helm chart values template
  96:   # Note: The secret name is passed to the template, and the secret resource is created separately
  97:   values = [local.postgresql_values]
- 98: 
+ 98:
  99:   depends_on = [
 100:     kubernetes_namespace.postgresql,
 101:     kubernetes_secret.postgresql_password,
@@ -19122,19 +19122,19 @@ repomix.config.json
  9:       version = "~> 2.0"
 10:     }
 11:   }
-12: 
+12:
 13:   backend "s3" {
 14:     # Backend configuration provided via backend.hcl file
 15:     encrypt      = true
 16:     use_lockfile = true
 17:   }
-18: 
+18:
 19:   required_version = "~> 1.14.0"
 20: }
-21: 
+21:
 22: provider "aws" {
 23:   region = var.region
-24: 
+24:
 25:   # Assume role in deployment account (Account B) if role ARN is provided
 26:   # This allows GitHub Actions to authenticate with Account A (for state)
 27:   # while Terraform provider uses Account B (for resource deployment)
@@ -19147,13 +19147,13 @@ repomix.config.json
 34:     }
 35:   }
 36: }
-37: 
+37:
 38: provider "kubernetes" {
 39:   host                   = module.eks.cluster_endpoint
 40:   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
 41:   token                  = data.aws_eks_cluster_auth.cluster.token
 42: }
-43: 
+43:
 44: data "aws_eks_cluster_auth" "cluster" {
 45:   name = module.eks.cluster_name
 46: }
@@ -20363,23 +20363,23 @@ repomix.config.json
 ```hcl
   1: locals {
   2:   storage_class_name = "${var.prefix}-${var.region}-${var.storage_class_name}-${var.env}"
-  3: 
+  3:
   4:   # Retrieve ECR information from backend_infra state
   5:   ecr_registry   = try(data.terraform_remote_state.backend_infra[0].outputs.ecr_registry, "")
   6:   ecr_repository = try(data.terraform_remote_state.backend_infra[0].outputs.ecr_repository, "")
-  7: 
+  7:
   8:   tags = {
   9:     Env       = "${var.env}"
  10:     Terraform = "true"
  11:   }
  12: }
- 13: 
+ 13:
  14: data "aws_route53_zone" "this" {
  15:   provider     = aws.state_account
  16:   name         = var.domain_name
  17:   private_zone = false
  18: }
- 19: 
+ 19:
  20: # ACM Certificate must be in the deployment account (not state account)
  21: # EKS Auto Mode ALB controller cannot access cross-account certificates
  22: # The certificate must exist in the same account where the ALB is created
@@ -20393,7 +20393,7 @@ repomix.config.json
  30:   most_recent = true
  31:   statuses    = ["ISSUED"]
  32: }
- 33: 
+ 33:
  34: # Create StorageClass for OpenLDAP PVC
  35: resource "kubernetes_storage_class_v1" "this" {
  36:   metadata {
@@ -20402,19 +20402,19 @@ repomix.config.json
  39:       "storageclass.kubernetes.io/is-default-class" = "true"
  40:     } : {}
  41:   }
- 42: 
+ 42:
  43:   storage_provisioner    = "ebs.csi.eks.amazonaws.com"
  44:   reclaim_policy         = "Delete"
  45:   volume_binding_mode    = "Immediate" # Changed from WaitForFirstConsumer to prevent PVC binding deadlocks
  46:   allow_volume_expansion = true
- 47: 
+ 47:
  48:   parameters = {
  49:     type      = var.storage_class_type
  50:     encrypted = tostring(var.storage_class_encrypted)
  51:   }
- 52: 
+ 52:
  53:   depends_on = [data.aws_eks_cluster.cluster]
- 54: 
+ 54:
  55:   lifecycle {
  56:     # Prevent Terraform from trying to recreate if the resource already exists
  57:     # This helps when the resource exists but isn't in state
@@ -20425,10 +20425,10 @@ repomix.config.json
  62:     replace_triggered_by = []
  63:   }
  64: }
- 65: 
+ 65:
  66: # module "route53" {
  67: #   source = "./modules/route53"
- 68: 
+ 68:
  69: #   use_existing_route53_zone = var.use_existing_route53_zone
  70: #   env                       = var.env
  71: #   region                    = var.region
@@ -20437,10 +20437,10 @@ repomix.config.json
  74: #   subject_alternative_names = var.subject_alternative_names
  75: #   tags                      = local.tags
  76: # }
- 77: 
+ 77:
  78: locals {
  79:   app_name = "${var.prefix}-${var.region}-${var.app_name}-${var.env}"
- 80: 
+ 80:
  81:   # ALB group name: Kubernetes identifier (max 63 chars) used to group Ingresses
  82:   # If alb_group_name is set, concatenate with prefix, region, and env (truncate to 63 chars if needed)
  83:   # If not set, use app_name (truncate to 63 chars if needed)
@@ -20451,7 +20451,7 @@ repomix.config.json
  88:     ) : (
  89:     length(local.app_name) > 63 ? substr(local.app_name, 0, 63) : local.app_name
  90:   )
- 91: 
+ 91:
  92:   # ALB load balancer name: AWS resource name (max 32 chars per AWS constraints)
  93:   # If alb_load_balancer_name is set, concatenate with prefix, region, and env (truncate to 32 chars if needed)
  94:   # If not set, use alb_group_name (truncate to 32 chars if needed)
@@ -20462,7 +20462,7 @@ repomix.config.json
  99:     ) : (
 100:     length(local.alb_group_name) > 32 ? substr(local.alb_group_name, 0, 32) : local.alb_group_name
 101:   )
-102: 
+102:
 103:   # ALB zone_id mapping by region (for Route53 alias records)
 104:   # These are the canonical hosted zone IDs for Application Load Balancers
 105:   alb_zone_ids = {
@@ -20481,13 +20481,13 @@ repomix.config.json
 118:     "sa-east-1"      = "Z2P70J7HTTTPLU"
 119:   }
 120:   alb_zone_id = lookup(local.alb_zone_ids, var.region, "Z35SXDOTRQ7X7K")
-121: 
+121:
 122:   # ALB DNS name: Query AWS directly using the ALB name.
 123:   # While this is the preferred approach, we are reliant on the OpenLDAP module
 124:   # being fully deployed as this guarantees that an Ingress resource exists, which triggers ALB creation.
 125:   # The ALB must exist before this can be queried.
 126:   alb_dns_name = var.use_alb ? data.aws_lb.alb[0].dns_name : null
-127: 
+127:
 128:   # Derive hostnames from domain_name if not explicitly provided
 129:   # These are used for Route53 records and must be non-null
 130:   # Note: domain_name is a required variable (not a resource), so no depends_on is needed
@@ -20496,14 +20496,14 @@ repomix.config.json
 133:   ltb_passwd_host   = coalesce(var.ltb_passwd_host, "passwd.${var.domain_name}")
 134:   twofa_app_host    = coalesce(var.twofa_app_host, "app.${var.domain_name}")
 135: }
-136: 
+136:
 137: # ALB module creates IngressClass and IngressClassParams for EKS Auto Mode
 138: # The Ingress/Service resources in the module are commented out (not needed)
 139: module "alb" {
 140:   source = "./modules/alb"
-141: 
+141:
 142:   count = var.use_alb ? 1 : 0
-143: 
+143:
 144:   env          = var.env
 145:   region       = var.region
 146:   prefix       = var.prefix
@@ -20517,181 +20517,181 @@ repomix.config.json
 154:   alb_scheme                  = var.alb_scheme
 155:   alb_ip_address_type         = var.alb_ip_address_type
 156:   alb_group_name              = local.alb_group_name
-157: 
+157:
 158:   wait_for_crd = var.wait_for_crd
 159: }
-160: 
+160:
 161: ##################### OpenLDAP ##########################
-162: 
+162:
 163: # OpenLDAP Module
 164: module "openldap" {
 165:   source = "./modules/openldap"
-166: 
+166:
 167:   env    = var.env
 168:   region = var.region
 169:   prefix = var.prefix
-170: 
+170:
 171:   app_name                 = local.app_name
 172:   openldap_ldap_domain     = var.openldap_ldap_domain
 173:   openldap_admin_password  = var.openldap_admin_password
 174:   openldap_config_password = var.openldap_config_password
 175:   openldap_secret_name     = var.openldap_secret_name
 176:   storage_class_name       = local.storage_class_name
-177: 
+177:
 178:   # ECR image configuration
 179:   ecr_registry       = local.ecr_registry
 180:   ecr_repository     = local.ecr_repository
 181:   openldap_image_tag = var.openldap_image_tag
-182: 
+182:
 183:   # Use derived values from locals to ensure non-null values
 184:   # These are derived from domain_name if not explicitly provided
 185:   phpldapadmin_host = local.phpldapadmin_host
 186:   ltb_passwd_host   = local.ltb_passwd_host
-187: 
+187:
 188:   use_alb                = var.use_alb
 189:   ingress_class_name     = var.use_alb ? module.alb[0].ingress_class_name : null
 190:   alb_load_balancer_name = local.alb_load_balancer_name
 191:   alb_target_type        = var.alb_target_type
 192:   alb_ssl_policy         = var.alb_ssl_policy
 193:   acm_cert_arn           = data.aws_acm_certificate.this.arn
-194: 
+194:
 195:   tags = local.tags
-196: 
+196:
 197:   depends_on = [
 198:     kubernetes_storage_class_v1.this,
 199:     module.alb,
 200:   ]
 201: }
-202: 
+202:
 203: # Query AWS for ALB DNS name using the load balancer name.
 204: # While querying AWS directly is the preferred approach, we are reliant on the OpenLDAP module
 205: # being fully deployed as this guarantees that an Ingress resource exists, which triggers ALB creation.
 206: data "aws_lb" "alb" {
 207:   count = var.use_alb ? 1 : 0
 208:   name  = local.alb_load_balancer_name
-209: 
+209:
 210:   # Ensure OpenLDAP module is fully deployed (creates Ingress which triggers ALB creation)
 211:   depends_on = [module.openldap]
 212: }
-213: 
+213:
 214: ##################### Route53 Records ##########################
-215: 
+215:
 216: # Route53 A (alias) records for all subdomains pointing to ALB
 217: # All records use consistent ALB data source approach to avoid timing issues
-218: 
+218:
 219: # Route53 record for phpLDAPadmin
 220: module "route53_record_phpldapadmin" {
 221:   source = "./modules/route53_record"
-222: 
+222:
 223:   count = var.use_alb && local.phpldapadmin_host != "" ? 1 : 0
-224: 
+224:
 225:   zone_id      = data.aws_route53_zone.this.zone_id
 226:   name         = local.phpldapadmin_host
 227:   alb_dns_name = data.aws_lb.alb[0].dns_name
 228:   alb_zone_id  = local.alb_zone_id
-229: 
+229:
 230:   depends_on = [
 231:     module.openldap, # Ensures Ingress is created (which triggers ALB creation)
 232:     data.aws_lb.alb, # Ensures ALB exists before creating record
 233:   ]
-234: 
+234:
 235:   providers = {
 236:     aws.state_account = aws.state_account
 237:   }
 238: }
-239: 
+239:
 240: # Route53 record for ltb-passwd
 241: module "route53_record_ltb_passwd" {
 242:   source = "./modules/route53_record"
-243: 
+243:
 244:   count = var.use_alb && local.ltb_passwd_host != "" ? 1 : 0
-245: 
+245:
 246:   zone_id      = data.aws_route53_zone.this.zone_id
 247:   name         = local.ltb_passwd_host
 248:   alb_dns_name = data.aws_lb.alb[0].dns_name
 249:   alb_zone_id  = local.alb_zone_id
-250: 
+250:
 251:   depends_on = [
 252:     module.openldap, # Ensures Ingress is created (which triggers ALB creation)
 253:     data.aws_lb.alb, # Ensures ALB exists before creating record
 254:   ]
-255: 
+255:
 256:   providers = {
 257:     aws.state_account = aws.state_account
 258:   }
 259: }
-260: 
+260:
 261: # Route53 record for 2FA application
 262: module "route53_record_twofa_app" {
 263:   source = "./modules/route53_record"
-264: 
+264:
 265:   count = var.use_alb && local.twofa_app_host != "" ? 1 : 0
-266: 
+266:
 267:   zone_id      = data.aws_route53_zone.this.zone_id
 268:   name         = local.twofa_app_host
 269:   alb_dns_name = data.aws_lb.alb[0].dns_name
 270:   alb_zone_id  = local.alb_zone_id
-271: 
+271:
 272:   depends_on = [
 273:     module.openldap, # Ensures Ingress is created (which triggers ALB creation)
 274:     data.aws_lb.alb, # Ensures ALB exists before creating record
 275:   ]
-276: 
+276:
 277:   providers = {
 278:     aws.state_account = aws.state_account
 279:   }
 280: }
-281: 
+281:
 282: ##################### ArgoCD ##########################
-283: 
+283:
 284: # ArgoCD Capability Module
 285: # Deployed early to allow other modules to depend on it
 286: module "argocd" {
 287:   source = "./modules/argocd"
-288: 
+288:
 289:   count = var.enable_argocd ? 1 : 0
-290: 
+290:
 291:   env    = var.env
 292:   region = var.region
 293:   prefix = var.prefix
-294: 
+294:
 295:   cluster_name = local.cluster_name
-296: 
+296:
 297:   argocd_role_name_component       = var.argocd_role_name_component
 298:   argocd_capability_name_component = var.argocd_capability_name_component
 299:   argocd_namespace                 = var.argocd_namespace
 300:   argocd_project_name              = var.argocd_project_name
-301: 
+301:
 302:   idc_instance_arn = var.idc_instance_arn
 303:   idc_region       = var.idc_region
-304: 
+304:
 305:   rbac_role_mappings        = var.argocd_rbac_role_mappings
 306:   argocd_vpce_ids           = var.argocd_vpce_ids
 307:   delete_propagation_policy = var.argocd_delete_propagation_policy
 308: }
-309: 
+309:
 310: # Wait for ArgoCD capability to be fully deployed and ACTIVE
 311: # This ensures proper deployment ordering when ArgoCD is enabled
 312: resource "time_sleep" "wait_for_argocd" {
 313:   count = var.enable_argocd ? 1 : 0
-314: 
+314:
 315:   create_duration = "3m" # Wait 60 seconds for ArgoCD capability to be ready
-316: 
+316:
 317:   depends_on = [module.argocd]
 318: }
-319: 
+319:
 320: ##################### PostgreSQL for User Storage ##########################
-321: 
+321:
 322: # PostgreSQL Module for user signup data storage
 323: module "postgresql" {
 324:   source = "./modules/postgresql"
-325: 
+325:
 326:   count = var.enable_postgresql ? 1 : 0
-327: 
+327:
 328:   env    = var.env
 329:   region = var.region
 330:   prefix = var.prefix
-331: 
+331:
 332:   namespace         = var.postgresql_namespace
 333:   secret_name       = var.postgresql_secret_name
 334:   database_name     = var.postgresql_database_name
@@ -20699,14 +20699,14 @@ repomix.config.json
 336:   database_password = var.postgresql_database_password
 337:   storage_class     = local.storage_class_name
 338:   storage_size      = var.postgresql_storage_size
-339: 
+339:
 340:   # ECR image configuration
 341:   ecr_registry   = local.ecr_registry
 342:   ecr_repository = local.ecr_repository
 343:   image_tag      = var.postgresql_image_tag
-344: 
+344:
 345:   tags = local.tags
-346: 
+346:
 347:   # Static list: always depends on OpenLDAP
 348:   # ArgoCD dependency is handled implicitly through module ordering (ArgoCD is defined before this module)
 349:   depends_on = [
@@ -20714,19 +20714,19 @@ repomix.config.json
 351:     data.aws_lb.alb
 352:   ]
 353: }
-354: 
+354:
 355: ##################### Redis for SMS OTP Storage ##########################
-356: 
+356:
 357: # Redis Module for centralized SMS OTP code storage with TTL-based expiration
 358: module "redis" {
 359:   source = "./modules/redis"
-360: 
+360:
 361:   count = var.enable_redis ? 1 : 0
-362: 
+362:
 363:   env    = var.env
 364:   region = var.region
 365:   prefix = var.prefix
-366: 
+366:
 367:   enable_redis       = var.enable_redis
 368:   namespace          = var.redis_namespace
 369:   secret_name        = var.redis_secret_name
@@ -20734,17 +20734,17 @@ repomix.config.json
 371:   storage_class_name = local.storage_class_name
 372:   storage_size       = var.redis_storage_size
 373:   chart_version      = var.redis_chart_version
-374: 
+374:
 375:   # ECR image configuration
 376:   ecr_registry   = local.ecr_registry
 377:   ecr_repository = local.ecr_repository
 378:   image_tag      = var.redis_image_tag
-379: 
+379:
 380:   # Network policy configuration
 381:   backend_namespace = var.argocd_app_backend_namespace
-382: 
+382:
 383:   tags = local.tags
-384: 
+384:
 385:   # Static list: always depends on OpenLDAP
 386:   # ArgoCD dependency is handled implicitly through module ordering (ArgoCD is defined before this module)
 387:   depends_on = [
@@ -20752,29 +20752,29 @@ repomix.config.json
 389:     data.aws_lb.alb
 390:   ]
 391: }
-392: 
+392:
 393: ##################### SES for Email Verification ##########################
-394: 
+394:
 395: # SES Module for email verification
 396: module "ses" {
 397:   source = "./modules/ses"
-398: 
+398:
 399:   count = var.enable_email_verification ? 1 : 0
-400: 
+400:
 401:   env          = var.env
 402:   region       = var.region
 403:   prefix       = var.prefix
 404:   cluster_name = local.cluster_name
-405: 
+405:
 406:   sender_email              = var.ses_sender_email
 407:   sender_domain             = var.ses_sender_domain
 408:   iam_role_name             = var.ses_iam_role_name
 409:   service_account_namespace = var.argocd_app_backend_namespace
 410:   service_account_name      = "ldap-2fa-backend"
 411:   route53_zone_id           = var.ses_route53_zone_id != null ? var.ses_route53_zone_id : data.aws_route53_zone.this.zone_id
-412: 
+412:
 413:   tags = local.tags
-414: 
+414:
 415:   # Pass state account provider for Route53 resources
 416:   # If state_account_role_arn is null, state_account provider uses default credentials
 417:   # Note: ses module needs both aws and aws.state_account
@@ -20783,40 +20783,40 @@ repomix.config.json
 420:     aws.state_account = aws.state_account
 421:   }
 422: }
-423: 
+423:
 424: ##################### SNS for SMS 2FA ##########################
-425: 
+425:
 426: # SNS Module for SMS-based 2FA verification
 427: module "sns" {
 428:   source = "./modules/sns"
-429: 
+429:
 430:   count = var.enable_sms_2fa ? 1 : 0
-431: 
+431:
 432:   env          = var.env
 433:   region       = var.region
 434:   prefix       = var.prefix
 435:   cluster_name = local.cluster_name
-436: 
+436:
 437:   sns_topic_name            = var.sns_topic_name
 438:   sns_display_name          = var.sns_display_name
 439:   iam_role_name             = var.sns_iam_role_name
 440:   service_account_namespace = var.argocd_app_backend_namespace
 441:   service_account_name      = "ldap-2fa-backend"
-442: 
+442:
 443:   configure_sms_preferences = var.configure_sms_preferences
 444:   sms_sender_id             = var.sms_sender_id
 445:   sms_type                  = var.sms_type
 446:   sms_monthly_spend_limit   = var.sms_monthly_spend_limit
-447: 
+447:
 448:   tags = local.tags
 449: }
-450: 
+450:
 451: ##################### ArgoCD Application - Backend
 452: module "argocd_app_backend" {
 453:   source = "./modules/argocd_app"
-454: 
+454:
 455:   count = var.enable_argocd_apps && var.enable_argocd && var.argocd_app_repo_url != null && var.argocd_app_backend_path != null ? 1 : 0
-456: 
+456:
 457:   app_name              = var.argocd_app_backend_name
 458:   argocd_namespace      = var.argocd_namespace
 459:   argocd_project_name   = var.argocd_project_name
@@ -20825,7 +20825,7 @@ repomix.config.json
 462:   target_revision       = var.argocd_app_target_revision
 463:   repo_path             = var.argocd_app_backend_path
 464:   destination_namespace = var.argocd_app_backend_namespace
-465: 
+465:
 466:   sync_policy = var.argocd_app_sync_policy_automated ? {
 467:     automated = {
 468:       prune       = var.argocd_app_sync_policy_prune
@@ -20835,13 +20835,13 @@ repomix.config.json
 472:     sync_options = ["CreateNamespace=true"]
 473:   } : null
 474: }
-475: 
+475:
 476: # ArgoCD Application - Frontend
 477: module "argocd_app_frontend" {
 478:   source = "./modules/argocd_app"
-479: 
+479:
 480:   count = var.enable_argocd_apps && var.enable_argocd && var.argocd_app_repo_url != null && var.argocd_app_frontend_path != null ? 1 : 0
-481: 
+481:
 482:   app_name              = var.argocd_app_frontend_name
 483:   argocd_namespace      = var.argocd_namespace
 484:   argocd_project_name   = var.argocd_project_name
@@ -20850,7 +20850,7 @@ repomix.config.json
 487:   target_revision       = var.argocd_app_target_revision
 488:   repo_path             = var.argocd_app_frontend_path
 489:   destination_namespace = var.argocd_app_frontend_namespace
-490: 
+490:
 491:   sync_policy = var.argocd_app_sync_policy_automated ? {
 492:     automated = {
 493:       prune       = var.argocd_app_sync_policy_prune
@@ -20868,24 +20868,24 @@ repomix.config.json
   2:   description = "Deployment environment"
   3:   type        = string
   4: }
-  5: 
+  5:
   6: variable "region" {
   7:   description = "Deployment region"
   8:   type        = string
   9: }
- 10: 
+ 10:
  11: variable "prefix" {
  12:   description = "Name added to all resources"
  13:   type        = string
  14: }
- 15: 
+ 15:
  16: variable "deployment_account_role_arn" {
  17:   description = "ARN of the IAM role to assume in the deployment account (Account B). Required when using GitHub Actions with multi-account setup."
  18:   type        = string
  19:   default     = null
  20:   nullable    = true
  21: }
- 22: 
+ 22:
  23: variable "deployment_account_external_id" {
  24:   description = "ExternalId for cross-account role assumption security. Required when assuming roles in deployment accounts. Must match the ExternalId configured in the deployment account role's Trust Relationship. Retrieved from AWS Secrets Manager (secret: 'external-id') for local deployment or GitHub secret (AWS_ASSUME_EXTERNAL_ID) for GitHub Actions."
  25:   type        = string
@@ -20893,104 +20893,104 @@ repomix.config.json
  27:   nullable    = true
  28:   sensitive   = true
  29: }
- 30: 
+ 30:
  31: variable "state_account_role_arn" {
  32:   description = "ARN of the IAM role to assume in the state account (where Route53 hosted zone and ACM certificate reside). Required when Route53 and ACM resources are in a different account than the deployment account."
  33:   type        = string
  34:   default     = null
  35:   nullable    = true
  36: }
- 37: 
+ 37:
  38: ##################### OpenLDAP ##########################
  39: variable "app_name" {
  40:   description = "Application name"
  41:   type        = string
  42: }
- 43: 
+ 43:
  44: variable "openldap_ldap_domain" {
  45:   description = "OpenLDAP domain (e.g., ldap.talorlik.internal)"
  46:   type        = string
  47: }
- 48: 
+ 48:
  49: variable "openldap_admin_password" {
  50:   description = "OpenLDAP admin password. MUST be set via TF_VAR_OPENLDAP_ADMIN_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
  51:   type        = string
  52:   sensitive   = true
  53:   # No default - must be provided via environment variable or .env file
  54: }
- 55: 
+ 55:
  56: variable "openldap_config_password" {
  57:   description = "OpenLDAP config password. MUST be set via TF_VAR_OPENLDAP_CONFIG_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
  58:   type        = string
  59:   sensitive   = true
  60:   # No default - must be provided via environment variable or .env file
  61: }
- 62: 
+ 62:
  63: variable "openldap_secret_name" {
  64:   description = "Name of the Kubernetes secret for OpenLDAP passwords"
  65:   type        = string
  66:   default     = "openldap-secret"
  67: }
- 68: 
+ 68:
  69: variable "openldap_image_tag" {
  70:   description = "OpenLDAP image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
  71:   type        = string
  72:   default     = "openldap-1.5.0"
  73: }
- 74: 
+ 74:
  75: variable "postgresql_image_tag" {
  76:   description = "PostgreSQL image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
  77:   type        = string
  78:   default     = "postgresql-latest"
  79: }
- 80: 
+ 80:
  81: variable "redis_image_tag" {
  82:   description = "Redis image tag in ECR. Corresponds to the tag created by mirror-images-to-ecr.sh"
  83:   type        = string
  84:   default     = "redis-latest"
  85: }
- 86: 
+ 86:
  87: ##################### Storage ##########################
- 88: 
+ 88:
  89: variable "storage_class_name" {
  90:   description = "Name of the Kubernetes StorageClass to create and use for OpenLDAP PVC"
  91:   type        = string
  92: }
- 93: 
+ 93:
  94: variable "storage_class_type" {
  95:   description = "EBS volume type for the StorageClass (gp2, gp3, io1, io2, etc.)"
  96:   type        = string
  97: }
- 98: 
+ 98:
  99: variable "storage_class_encrypted" {
 100:   description = "Whether to encrypt EBS volumes created by the StorageClass"
 101:   type        = bool
 102: }
-103: 
+103:
 104: variable "storage_class_is_default" {
 105:   description = "Whether to mark this StorageClass as the default for the cluster"
 106:   type        = bool
 107: }
-108: 
+108:
 109: ##################### Route53 ##########################
-110: 
+110:
 111: variable "domain_name" {
 112:   description = "Root domain name for Route53 hosted zone and ACM certificate (e.g., talorlik.com)"
 113:   type        = string
 114: }
-115: 
+115:
 116: # variable "subject_alternative_names" {
 117: #   description = "List of subject alternative names for the ACM certificate (e.g., [\"*.talorlik.com\"])"
 118: #   type        = list(string)
 119: #   default     = []
 120: # }
-121: 
+121:
 122: # variable "use_existing_route53_zone" {
 123: #   description = "Whether to use an existing Route53 zone"
 124: #   type        = bool
 125: #   default     = false
 126: # }
-127: 
+127:
 128: # Use ALB - can set this to false for to get NLB
 129: ### NLB not yet implemented. If false you get no load balancer
 130: variable "use_alb" {
@@ -20998,61 +20998,61 @@ repomix.config.json
 132:   type        = bool
 133:   default     = true
 134: }
-135: 
+135:
 136: # variable "ingress_alb_name" {
 137: #   description = "Name component for ingress ALB resource (between prefix and env)"
 138: #   type        = string
 139: # }
-140: 
+140:
 141: # variable "service_alb_name" {
 142: #   description = "Name component for service ALB resource (between prefix and env)"
 143: #   type        = string
 144: # }
-145: 
+145:
 146: variable "ingressclass_alb_name" {
 147:   description = "Name component for ingressclass ALB resource (between prefix and env)"
 148:   type        = string
 149: }
-150: 
+150:
 151: variable "ingressclassparams_alb_name" {
 152:   description = "Name component for ingressclassparams ALB resource (between prefix and env)"
 153:   type        = string
 154: }
-155: 
+155:
 156: ##################### ALB Configuration ##########################
-157: 
+157:
 158: variable "alb_group_name" {
 159:   description = "ALB group name for grouping multiple Ingress resources to share a single ALB. This is an internal Kubernetes identifier (max 63 characters)."
 160:   type        = string
 161:   default     = null # If null, will be derived from app_name
 162: }
-163: 
+163:
 164: variable "alb_load_balancer_name" {
 165:   description = "Custom name for the AWS ALB (appears in AWS console). Must be ≤ 32 characters per AWS constraints. If null, defaults to alb_group_name (truncated to 32 chars if needed)."
 166:   type        = string
 167:   default     = null
 168: }
-169: 
+169:
 170: variable "phpldapadmin_host" {
 171:   description = "Hostname for phpLDAPadmin ingress (e.g., phpldapadmin.talorlik.com). If null, will be derived from domain_name"
 172:   type        = string
 173:   default     = null
 174:   nullable    = true
 175: }
-176: 
+176:
 177: variable "ltb_passwd_host" {
 178:   description = "Hostname for ltb-passwd ingress (e.g., passwd.talorlik.com). If null, will be derived from domain_name"
 179:   type        = string
 180:   default     = null
 181:   nullable    = true
 182: }
-183: 
+183:
 184: variable "twofa_app_host" {
 185:   description = "Hostname for 2FA application ingress (e.g., app.talorlik.com). If null, will be derived from domain_name"
 186:   type        = string
 187:   default     = null
 188: }
-189: 
+189:
 190: variable "alb_scheme" {
 191:   description = "ALB scheme: internet-facing or internal"
 192:   type        = string
@@ -21062,7 +21062,7 @@ repomix.config.json
 196:     error_message = "ALB scheme must be either 'internet-facing' or 'internal'"
 197:   }
 198: }
-199: 
+199:
 200: variable "alb_target_type" {
 201:   description = "ALB target type: ip or instance"
 202:   type        = string
@@ -21072,13 +21072,13 @@ repomix.config.json
 206:     error_message = "ALB target type must be either 'ip' or 'instance'"
 207:   }
 208: }
-209: 
+209:
 210: variable "alb_ssl_policy" {
 211:   description = "ALB SSL policy for HTTPS listeners"
 212:   type        = string
 213:   default     = "ELBSecurityPolicy-TLS13-1-0-PQ-2025-09"
 214: }
-215: 
+215:
 216: variable "alb_ip_address_type" {
 217:   description = "ALB IP address type: ipv4 or dualstack"
 218:   type        = string
@@ -21088,156 +21088,156 @@ repomix.config.json
 222:     error_message = "ALB IP address type must be either 'ipv4' or 'dualstack'"
 223:   }
 224: }
-225: 
+225:
 226: variable "cluster_name" {
 227:   description = "Full name of the EKS cluster (will be retrieved from backend_infra remote state if backend.hcl exists, otherwise must be provided)"
 228:   type        = string
 229:   default     = null
 230: }
-231: 
+231:
 232: variable "cluster_name_component" {
 233:   description = "Name component for cluster (used only if cluster_name not provided and remote state unavailable). Full name format: prefix-region-cluster_name_component-env"
 234:   type        = string
 235:   default     = "kc"
 236: }
-237: 
+237:
 238: variable "terraform_workspace" {
 239:   description = "Terraform workspace name for remote state lookup. If null, will be derived from region and env as 'region-env'. This ensures the correct workspace state is used when fetching ECR registry information from backend_infra."
 240:   type        = string
 241:   default     = null
 242:   nullable    = true
 243: }
-244: 
+244:
 245: variable "kubernetes_master" {
 246:   description = "Kubernetes API server endpoint (KUBERNETES_MASTER environment variable). Set by set-k8s-env.sh or GitHub workflow. Can be set via TF_VAR_kubernetes_master."
 247:   type        = string
 248:   default     = null
 249:   nullable    = true
 250: }
-251: 
+251:
 252: variable "kube_config_path" {
 253:   description = "Path to kubeconfig file (KUBE_CONFIG_PATH environment variable). Set by set-k8s-env.sh or GitHub workflow. Can be set via TF_VAR_kube_config_path."
 254:   type        = string
 255:   default     = null
 256:   nullable    = true
 257: }
-258: 
+258:
 259: variable "wait_for_crd" {
 260:   description = "Whether to wait for EKS Auto Mode CRD to be available before creating IngressClassParams. Set to true for initial cluster deployments, false after cluster is established."
 261:   type        = bool
 262:   default     = false
 263: }
-264: 
+264:
 265: ##################### PostgreSQL User Storage ##########################
-266: 
+266:
 267: variable "enable_postgresql" {
 268:   description = "Whether to deploy PostgreSQL for user storage"
 269:   type        = bool
 270:   default     = true
 271: }
-272: 
+272:
 273: variable "postgresql_namespace" {
 274:   description = "Kubernetes namespace for PostgreSQL"
 275:   type        = string
 276:   default     = "ldap-2fa"
 277: }
-278: 
+278:
 279: variable "postgresql_database_name" {
 280:   description = "PostgreSQL database name"
 281:   type        = string
 282:   default     = "ldap2fa"
 283: }
-284: 
+284:
 285: variable "postgresql_database_username" {
 286:   description = "PostgreSQL database username"
 287:   type        = string
 288:   default     = "ldap2fa"
 289: }
-290: 
+290:
 291: variable "postgresql_database_password" {
 292:   description = "PostgreSQL database password. MUST be set via TF_VAR_POSTGRESQL_PASSWORD environment variable or GitHub Secret."
 293:   type        = string
 294:   sensitive   = true
 295: }
-296: 
+296:
 297: variable "postgresql_secret_name" {
 298:   description = "Name of the Kubernetes secret for PostgreSQL password"
 299:   type        = string
 300:   default     = "postgresql-secret"
 301: }
-302: 
+302:
 303: variable "postgresql_storage_size" {
 304:   description = "PostgreSQL storage size"
 305:   type        = string
 306:   default     = "8Gi"
 307: }
-308: 
+308:
 309: ##################### SES Email Verification ##########################
-310: 
+310:
 311: variable "enable_email_verification" {
 312:   description = "Whether to enable email verification using SES"
 313:   type        = bool
 314:   default     = true
 315: }
-316: 
+316:
 317: variable "ses_sender_email" {
 318:   description = "Email address to send verification emails from"
 319:   type        = string
 320:   default     = "noreply@example.com"
 321: }
-322: 
+322:
 323: variable "ses_sender_domain" {
 324:   description = "Domain to verify in SES (optional, for domain-level verification)"
 325:   type        = string
 326:   default     = null
 327: }
-328: 
+328:
 329: variable "ses_iam_role_name" {
 330:   description = "Name component for the SES IAM role"
 331:   type        = string
 332:   default     = "ses-sender"
 333: }
-334: 
+334:
 335: variable "ses_route53_zone_id" {
 336:   description = "Route53 zone ID for SES domain verification (optional, defaults to main domain zone)"
 337:   type        = string
 338:   default     = null
 339: }
-340: 
+340:
 341: ##################### SNS SMS 2FA ##########################
-342: 
+342:
 343: variable "enable_sms_2fa" {
 344:   description = "Whether to enable SMS-based 2FA using SNS"
 345:   type        = bool
 346:   default     = false
 347: }
-348: 
+348:
 349: variable "sns_topic_name" {
 350:   description = "Name component for the SNS topic"
 351:   type        = string
 352: }
-353: 
+353:
 354: variable "sns_display_name" {
 355:   description = "Display name for the SNS topic (appears in SMS sender)"
 356:   type        = string
 357: }
-358: 
+358:
 359: variable "sns_iam_role_name" {
 360:   description = "Name component for the SNS IAM role"
 361:   type        = string
 362: }
-363: 
+363:
 364: variable "configure_sms_preferences" {
 365:   description = "Whether to configure account-level SMS preferences"
 366:   type        = bool
 367:   default     = false
 368: }
-369: 
+369:
 370: variable "sms_sender_id" {
 371:   description = "Default sender ID for SMS messages (max 11 alphanumeric characters)"
 372:   type        = string
 373: }
-374: 
+374:
 375: variable "sms_type" {
 376:   description = "Default SMS type: Promotional or Transactional"
 377:   type        = string
@@ -21246,98 +21246,98 @@ repomix.config.json
 380:     error_message = "SMS type must be either 'Promotional' or 'Transactional'"
 381:   }
 382: }
-383: 
+383:
 384: variable "sms_monthly_spend_limit" {
 385:   description = "Monthly spend limit for SMS in USD"
 386:   type        = number
 387: }
-388: 
+388:
 389: ##################### Redis SMS OTP Storage ##########################
-390: 
+390:
 391: variable "enable_redis" {
 392:   description = "Enable Redis deployment for SMS OTP storage"
 393:   type        = bool
 394:   default     = false
 395: }
-396: 
+396:
 397: variable "redis_password" {
 398:   description = "Redis authentication password (from GitHub Secrets via TF_VAR_REDIS_PASSWORD)"
 399:   type        = string
 400:   sensitive   = true
 401:   default     = ""
-402: 
+402:
 403:   validation {
 404:     condition     = var.enable_redis == false || length(var.redis_password) >= 8
 405:     error_message = "Redis password must be at least 8 characters when Redis is enabled."
 406:   }
 407: }
-408: 
+408:
 409: variable "redis_secret_name" {
 410:   description = "Name of the Kubernetes secret for Redis password"
 411:   type        = string
 412:   default     = "redis-secret"
 413: }
-414: 
+414:
 415: variable "redis_namespace" {
 416:   description = "Kubernetes namespace for Redis"
 417:   type        = string
 418:   default     = "redis"
 419: }
-420: 
+420:
 421: variable "redis_storage_size" {
 422:   description = "Redis PVC storage size"
 423:   type        = string
 424:   default     = "1Gi"
 425: }
-426: 
+426:
 427: variable "redis_chart_version" {
 428:   description = "Bitnami Redis Helm chart version"
 429:   type        = string
 430:   default     = "19.6.4"
 431: }
-432: 
+432:
 433: ##################### ArgoCD ##########################
-434: 
+434:
 435: variable "enable_argocd" {
 436:   description = "Whether to enable ArgoCD capability deployment"
 437:   type        = bool
 438:   default     = false
 439: }
-440: 
+440:
 441: variable "argocd_role_name_component" {
 442:   description = "Name component for ArgoCD IAM role (between prefix and env)"
 443:   type        = string
 444: }
-445: 
+445:
 446: variable "argocd_capability_name_component" {
 447:   description = "Name component for ArgoCD capability (between prefix and env)"
 448:   type        = string
 449: }
-450: 
+450:
 451: variable "argocd_namespace" {
 452:   description = "Kubernetes namespace for ArgoCD resources"
 453:   type        = string
 454: }
-455: 
+455:
 456: variable "argocd_project_name" {
 457:   description = "ArgoCD project name for cluster registration"
 458:   type        = string
 459: }
-460: 
+460:
 461: variable "idc_instance_arn" {
 462:   description = "ARN of the AWS Identity Center instance used for Argo CD auth"
 463:   type        = string
 464:   default     = null
 465:   nullable    = true
 466: }
-467: 
+467:
 468: variable "idc_region" {
 469:   description = "Region of the Identity Center instance"
 470:   type        = string
 471:   default     = null
 472:   nullable    = true
 473: }
-474: 
+474:
 475: variable "argocd_rbac_role_mappings" {
 476:   description = "List of RBAC role mappings for Identity Center groups/users"
 477:   type = list(object({
@@ -21349,13 +21349,13 @@ repomix.config.json
 483:   }))
 484:   default = []
 485: }
-486: 
+486:
 487: variable "argocd_vpce_ids" {
 488:   description = "Optional list of VPC endpoint IDs for private access to Argo CD"
 489:   type        = list(string)
 490:   default     = []
 491: }
-492: 
+492:
 493: variable "argocd_delete_propagation_policy" {
 494:   description = "Delete propagation policy for ArgoCD capability (RETAIN or DELETE)"
 495:   type        = string
@@ -21364,76 +21364,76 @@ repomix.config.json
 498:     error_message = "Delete propagation policy must be either 'RETAIN' or 'DELETE'"
 499:   }
 500: }
-501: 
+501:
 502: ##################### ArgoCD Applications ##########################
-503: 
+503:
 504: variable "enable_argocd_apps" {
 505:   description = "Whether to enable ArgoCD Application deployments"
 506:   type        = bool
 507:   default     = false
 508: }
-509: 
+509:
 510: variable "argocd_app_repo_url" {
 511:   description = "Git repository URL containing application manifests. Supports both HTTPS (https://github.com/user/repo.git) and SSH (git@github.com:user/repo.git) URLs. SSH URLs require SSH key credentials to be configured via a Kubernetes Secret with label 'argocd.argoproj.io/secret-type: repository'"
 512:   type        = string
 513:   default     = null
 514:   nullable    = true
 515: }
-516: 
+516:
 517: variable "argocd_app_target_revision" {
 518:   description = "Git branch, tag, or commit to sync (default: HEAD)"
 519:   type        = string
 520:   default     = "HEAD"
 521: }
-522: 
+522:
 523: # Backend App Configuration
 524: variable "argocd_app_backend_name" {
 525:   description = "Name of the ArgoCD Application for backend"
 526:   type        = string
 527: }
-528: 
+528:
 529: variable "argocd_app_backend_path" {
 530:   description = "Path within the repository to the backend application manifests"
 531:   type        = string
 532:   default     = null
 533:   nullable    = true
 534: }
-535: 
+535:
 536: variable "argocd_app_backend_namespace" {
 537:   description = "Target Kubernetes namespace for the backend application"
 538:   type        = string
 539: }
-540: 
+540:
 541: # Frontend App Configuration
 542: variable "argocd_app_frontend_name" {
 543:   description = "Name of the ArgoCD Application for frontend"
 544:   type        = string
 545: }
-546: 
+546:
 547: variable "argocd_app_frontend_path" {
 548:   description = "Path within the repository to the frontend application manifests"
 549:   type        = string
 550:   default     = null
 551:   nullable    = true
 552: }
-553: 
+553:
 554: variable "argocd_app_frontend_namespace" {
 555:   description = "Target Kubernetes namespace for the frontend application"
 556:   type        = string
 557: }
-558: 
+558:
 559: variable "argocd_app_sync_policy_automated" {
 560:   description = "Enable automated sync policy for ArgoCD Applications"
 561:   type        = bool
 562:   default     = true
 563: }
-564: 
+564:
 565: variable "argocd_app_sync_policy_prune" {
 566:   description = "Enable prune for automated sync (delete resources not in Git)"
 567:   type        = bool
 568:   default     = true
 569: }
-570: 
+570:
 571: variable "argocd_app_sync_policy_self_heal" {
 572:   description = "Enable self-heal for automated sync (auto-sync on drift detection)"
 573:   type        = bool

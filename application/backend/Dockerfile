@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 FROM ${PY_IMAGE} AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libldap-2.5-0 \
+    libldap2 \
     libsasl2-2 \
     && rm -rf /var/lib/apt/lists/*
 

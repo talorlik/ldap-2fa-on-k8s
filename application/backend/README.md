@@ -192,7 +192,7 @@ image.
 and creates a Python virtual environment with all required packages.
 
 2. **Runtime Stage**: Creates a minimal runtime image with only runtime dependencies
-(libldap-2.5-0, libsasl2-2) and copies the virtual environment from the build stage.
+(libldap2, libsasl2-2) and copies the virtual environment from the build stage.
 
 #### Building the Image
 

@@ -311,6 +311,157 @@ data "external" "argocd_capability" {
   depends_on = [time_sleep.wait_for_argocd]
 }
 
+# ClusterRole for ArgoCD application-controller
+# Based on official ArgoCD manifests: https://github.com/argoproj/argo-cd/blob/master/manifests/cluster-rbac/application-controller/argocd-application-controller-clusterrole.yaml
+# ArgoCD needs full CRUD permissions (create, update, patch, delete, get, list, watch) on all resources
+# to properly sync applications from Git to the cluster and remove resources when applications are deleted
+resource "kubernetes_manifest" "argocd_application_controller_clusterrole" {
+  manifest = {
+    apiVersion = "rbac.authorization.k8s.io/v1"
+    kind       = "ClusterRole"
+    metadata = {
+      name = "${local.argocd_capability_name}-application-controller"
+      labels = {
+        "app.kubernetes.io/name"       = "argocd"
+        "app.kubernetes.io/instance"   = local.argocd_capability_name
+        "app.kubernetes.io/managed-by" = "terraform"
+      }
+    }
+    rules = [
+      # Full permissions on all resources across all API groups
+      # This matches the official ArgoCD application-controller ClusterRole
+      # ArgoCD needs these permissions to:
+      # - Create resources when syncing applications
+      # - Update resources when Git state changes
+      # - Delete resources when applications are removed or resources are deleted from Git
+      # - Manage resources across all namespaces
+      # - Handle custom resources (CRDs) defined in Git repositories
+      {
+        apiGroups = ["*"]
+        resources = ["*"]
+        verbs     = ["*"]
+      },
+      # Non-resource URLs (for cluster-level operations)
+      {
+        nonResourceURLs = ["*"]
+        verbs           = ["*"]
+      }
+    ]
+  }
+
+  depends_on = [
+    kubernetes_namespace_v1.argocd,
+    aws_eks_capability.argocd
+  ]
+}
+
+# ClusterRoleBinding to grant ArgoCD service accounts permission to sync application resources
+# Binds all ArgoCD service accounts to the application-controller ClusterRole
+# AWS EKS ArgoCD Capability typically creates: argocd-application-controller, argocd-repo-server, argocd-server, argocd-redis
+resource "kubernetes_manifest" "argocd_application_controller_clusterrolebinding" {
+  manifest = {
+    apiVersion = "rbac.authorization.k8s.io/v1"
+    kind       = "ClusterRoleBinding"
+    metadata = {
+      name = "${local.argocd_capability_name}-application-controller"
+      labels = {
+        "app.kubernetes.io/name"       = "argocd"
+        "app.kubernetes.io/instance"   = local.argocd_capability_name
+        "app.kubernetes.io/managed-by" = "terraform"
+      }
+    }
+    roleRef = {
+      apiGroup = "rbac.authorization.k8s.io"
+      kind     = "ClusterRole"
+      name     = "${local.argocd_capability_name}-application-controller"
+    }
+    subjects = [
+      {
+        kind      = "ServiceAccount"
+        namespace = var.argocd_namespace
+        name      = "argocd-application-controller"
+      },
+      {
+        kind      = "ServiceAccount"
+        namespace = var.argocd_namespace
+        name      = "argocd-repo-server"
+      },
+      {
+        kind      = "ServiceAccount"
+        namespace = var.argocd_namespace
+        name      = "argocd-server"
+      },
+      {
+        kind      = "ServiceAccount"
+        namespace = var.argocd_namespace
+        name      = "argocd-redis"
+      }
+    ]
+  }
+
+  depends_on = [
+    kubernetes_namespace_v1.argocd,
+    aws_eks_capability.argocd,
+    kubernetes_manifest.argocd_application_controller_clusterrole
+  ]
+}
+
+# Associate access policy with the automatically-created EKS Access Entry
+# AWS EKS automatically creates an access entry for the ArgoCD Capability IAM role when the capability is created.
+# We don't need to manage the access entry itself - we just need to associate additional access policies with it.
+# This grants the ArgoCD Capability IAM role full cluster admin permissions (in addition to the ArgoCD-specific policies
+# that are automatically associated), which is required for ArgoCD to sync applications and manage resources
+# across all namespaces, including cluster-scoped resources like runtimeclasses.node.k8s.io
+resource "aws_eks_access_policy_association" "argocd_capability_cluster_admin" {
+  cluster_name  = var.cluster_name
+  principal_arn = aws_iam_role.argocd_capability.arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [
+    aws_eks_capability.argocd
+  ]
+}
+
+# ClusterRoleBinding for IAM role-based authentication (kept for backward compatibility)
+# Note: EKS Access Entry with access policy is the preferred method for IAM role-based RBAC
+# This ClusterRoleBinding may still be needed for some edge cases
+resource "kubernetes_manifest" "argocd_application_controller_iam_role_binding" {
+  manifest = {
+    apiVersion = "rbac.authorization.k8s.io/v1"
+    kind       = "ClusterRoleBinding"
+    metadata = {
+      name = "${local.argocd_capability_name}-application-controller-iam"
+      labels = {
+        "app.kubernetes.io/name"       = "argocd"
+        "app.kubernetes.io/instance"   = local.argocd_capability_name
+        "app.kubernetes.io/managed-by" = "terraform"
+      }
+    }
+    roleRef = {
+      apiGroup = "rbac.authorization.k8s.io"
+      kind     = "ClusterRole"
+      name     = "${local.argocd_capability_name}-application-controller"
+    }
+    subjects = [
+      {
+        kind = "User"
+        name = aws_iam_role.argocd_capability.arn
+      }
+    ]
+  }
+
+  depends_on = [
+    kubernetes_namespace_v1.argocd,
+    aws_eks_capability.argocd,
+    aws_iam_role.argocd_capability,
+    kubernetes_manifest.argocd_application_controller_clusterrole
+  ]
+}
+
 # Cluster Registration Secret
 resource "kubernetes_secret" "argocd_local_cluster" {
   metadata {
