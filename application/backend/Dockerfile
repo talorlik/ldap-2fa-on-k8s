@@ -1,11 +1,13 @@
-ARG PY_IMAGE=python:3.15.0a5-slim-trixie
+ARG PY_IMAGE=python:3.12-slim-bookworm
 
 # Stage 1: Build
 FROM ${PY_IMAGE} AS builder
 WORKDIR /app
 
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    g++ \
     libldap2-dev \
     libsasl2-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -18,9 +20,10 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Stage 2: Runtime
 FROM ${PY_IMAGE} AS runtime
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libldap2 \
+    libldap-2.5-0 \
     libsasl2-2 \
     && rm -rf /var/lib/apt/lists/*
 

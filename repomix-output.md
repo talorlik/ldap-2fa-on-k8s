@@ -1061,7 +1061,7 @@ repomix.config.json
 24:
 25: # Install runtime dependencies only
 26: RUN apt-get update && apt-get install -y --no-install-recommends \
-27:     libldap2 \
+27:     libldap-2.5-0 \
 28:     libsasl2-2 \
 29:     && rm -rf /var/lib/apt/lists/* \
 30:     && apt-get clean
