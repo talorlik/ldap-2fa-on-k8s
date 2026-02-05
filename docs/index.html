@@ -207,6 +207,8 @@
                 <li><strong>Automated Configuration Management</strong>: ECR repository name automatically saved to GitHub variables during backend infrastructure provisioning (eliminates manual configuration steps)</li>
                 <li><strong>ArgoCD Status Validation</strong>: Automatic validation that ArgoCD capability is "ACTIVE" before deploying applications (prevents deployment failures due to incomplete ArgoCD setup)</li>
                 <li><strong>Role Assumption Script</strong>: Convenient <code>assume-github-role.sh</code> script for switching between AWS account roles (State, Development, Production) when working in the terminal</li>
+                <li><strong>Unique Build Image Tags</strong>: Backend and frontend build workflows use commit SHA plus run ID for image tags (<code>&lt;name&gt;-&lt;sha&gt;-&lt;run_id&gt;</code>), preventing ECR tag conflicts when re-running workflows</li>
+                <li><strong>ArgoCD Access Entry</strong>: ArgoCD Capability uses EKS Access Policy association for cluster admin permissions, ensuring reliable GitOps sync across namespaces and cluster-scoped resources</li>
             </ul>
         </div>
     </section>
@@ -382,6 +384,14 @@
                 <p><strong>Note:</strong> Application components require infrastructure to be deployed first (Steps 1-3 completed). The script automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, deployment will fail with a clear error message.</p>
                 <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
                 <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled in <code>variables.tfvars</code>) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>.</p>
+                <p><strong>Important:</strong> The deployment of the backend and frontend applications <strong>depends on running both</strong> the <strong>Backend Build and Push</strong> (<code>backend_build_push.yaml</code>) and <strong>Frontend Build and Push</strong> (<code>frontend_build_push.yaml</code>) workflows. These workflows must be run immediately after completing Step 4 (GitHub → Actions → select workflow → Run workflow, choose environment and region).</p>
+                <p><strong>Why both are required:</strong></p>
+                <ul>
+                    <li>Without the backend image, ArgoCD cannot sync the backend application (image pull fails)</li>
+                    <li>Without the frontend image, ArgoCD cannot sync the frontend application (image pull fails)</li>
+                    <li>Both container images do not exist in ECR until you run the build workflows</li>
+                    <li>Without these images, ArgoCD cannot sync the 2FA applications and manual Helm deployment will fail</li>
+                </ul>
                 <h5 id="local-step-5">Manual Deployment of 2FA Applications (Optional)</h5>
                 <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-3 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), <code>aws</code> CLI, and optionally <code>docker</code> for manual builds.</p>
                 <p><strong>Overview:</strong> The deployment process involves building and pushing Docker images, gathering configuration values, creating namespace, deploying backend and frontend Helm charts, and verifying deployment.</p>
@@ -396,7 +406,7 @@
                             <li>Select environment (prod or dev)</li>
                             <li>Click "Run workflow"</li>
                             <li>Wait for the workflow to complete</li>
-                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-backend-&lt;commit-sha&gt;</code>)</li>
+                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-backend-&lt;commit-sha&gt;-&lt;run-id&gt;</code>; unique per run to avoid ECR tag conflicts)</li>
                         </ul>
                     </li>
                     <li><strong>Build and push frontend image:</strong>
@@ -406,7 +416,7 @@
                             <li>Select environment (prod or dev)</li>
                             <li>Click "Run workflow"</li>
                             <li>Wait for the workflow to complete</li>
-                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-frontend-&lt;commit-sha&gt;</code>)</li>
+                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-frontend-&lt;commit-sha&gt;-&lt;run-id&gt;</code>; unique per run to avoid ECR tag conflicts)</li>
                         </ul>
                     </li>
                 </ol>
@@ -768,6 +778,14 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <p><strong>Note:</strong> The workflow automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, the workflow will fail with a clear error message. This ensures that ArgoCD Applications can be properly deployed and managed.</p>
                 <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
                 <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>.</p>
+                <p><strong>Important:</strong> The deployment of the backend and frontend applications <strong>depends on running both</strong> the <strong>Backend Build and Push</strong> (<code>backend_build_push.yaml</code>) and <strong>Frontend Build and Push</strong> (<code>frontend_build_push.yaml</code>) workflows. These workflows must be run immediately after completing Step 4 (GitHub → Actions → select workflow → Run workflow, choose environment and region).</p>
+                <p><strong>Why both are required:</strong></p>
+                <ul>
+                    <li>Without the backend image, ArgoCD cannot sync the backend application (image pull fails)</li>
+                    <li>Without the frontend image, ArgoCD cannot sync the frontend application (image pull fails)</li>
+                    <li>Both container images do not exist in ECR until you run the build workflows</li>
+                    <li>Without these images, ArgoCD cannot sync the 2FA applications and manual Helm deployment will fail</li>
+                </ul>
                 <h5 id="github-step-5">Manual Deployment of 2FA Applications (Optional)</h5>
                 <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-4 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), and <code>aws</code> CLI.</p>
                 <p><strong>Overview:</strong> The deployment process involves building and pushing Docker images, gathering configuration values, creating namespace, deploying backend and frontend Helm charts, and verifying deployment.</p>
@@ -781,7 +799,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                             <li>Select environment (prod or dev)</li>
                             <li>Click "Run workflow"</li>
                             <li>Wait for the workflow to complete</li>
-                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-backend-&lt;commit-sha&gt;</code>)</li>
+                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-backend-&lt;commit-sha&gt;-&lt;run-id&gt;</code>; unique per run to avoid ECR tag conflicts)</li>
                         </ul>
                     </li>
                     <li><strong>Build and push frontend image:</strong>
@@ -791,7 +809,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                             <li>Select environment (prod or dev)</li>
                             <li>Click "Run workflow"</li>
                             <li>Wait for the workflow to complete</li>
-                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-frontend-&lt;commit-sha&gt;</code>)</li>
+                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-frontend-&lt;commit-sha&gt;-&lt;run-id&gt;</code>; unique per run to avoid ECR tag conflicts)</li>
                         </ul>
                     </li>
                 </ol>
@@ -817,9 +835,9 @@ HOSTNAME="app.talorlik.com"  # Adjust to your domain
 # Get ECR repository URL
 ECR_URL=$(terraform output -raw ecr_url)
 
-# Get image tags (from GitHub Actions workflow output)
-BACKEND_TAG="ldap-2fa-backend-&lt;commit-sha&gt;"  # From workflow output
-FRONTEND_TAG="ldap-2fa-frontend-&lt;commit-sha&gt;"  # From workflow output
+# Get image tags (from GitHub Actions workflow output; format: &lt;name&gt;-&lt;commit-sha&gt;-&lt;run-id&gt;)
+BACKEND_TAG="ldap-2fa-backend-&lt;commit-sha&gt;-&lt;run-id&gt;"  # From workflow output
+FRONTEND_TAG="ldap-2fa-frontend-&lt;commit-sha&gt;-&lt;run-id&gt;"  # From workflow output
 
 # Get SES IAM Role ARN (for IRSA)
 SES_ROLE_ARN=$(terraform output -raw ses_iam_role_arn)
@@ -1301,8 +1319,11 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
             </div>
             <div class="doc-item">
                 <a href="../application_infra/CHANGELOG.md">Application Infrastructure Changelog</a>
+                <p>OpenLDAP, ALB, ArgoCD Capability, and infrastructure changes</p>
+            </div>
+            <div class="doc-item">
                 <a href="../application/CHANGELOG.md">Application Changelog</a>
-                <p>Application infrastructure changes (2FA app, OpenLDAP, supporting services)</p>
+                <p>2FA app, PostgreSQL, Redis, SES, SNS, and ArgoCD Applications changes</p>
             </div>
             <div class="doc-item">
                 <a href="../tf_backend_state/CHANGELOG.md">Terraform Backend State Changelog</a>

@@ -3,6 +3,21 @@
 This guide provides step-by-step instructions for deploying the backend and frontend
 applications after the infrastructure has been successfully deployed.
 
+> **Important:** The deployment of the backend and frontend applications **depends
+> on running both** the **Backend Build and Push** (`backend_build_push.yaml`) and
+> **Frontend Build and Push** (`frontend_build_push.yaml`) GitHub Actions workflows.
+> These workflows must be run immediately after deploying the application (Terraform
+> Application Provisioning or `setup-application.sh`) so that images are available
+> for ArgoCD or manual Helm deployment.
+>
+> **Why both are required:**
+>
+> - Without the backend image, ArgoCD cannot sync the backend application
+> (image pull fails)
+> - Without the frontend image, ArgoCD cannot sync the frontend application
+> (image pull fails)
+> - Both container images do not exist in ECR until you run the build workflows
+
 ## Prerequisites
 
 ✅ **Infrastructure must be deployed:**
@@ -22,11 +37,17 @@ Route53, etc.
 
 The deployment process involves:
 
-1. **Build and push Docker images** to ECR (backend and frontend)
+1. **Build and push Docker images** to ECR (**both backend and frontend are required**)
 2. **Gather required configuration values** from Terraform outputs
 3. **Deploy backend Helm chart** with proper values
 4. **Deploy frontend Helm chart** with proper values
 5. **Verify deployment**
+
+> [!IMPORTANT]
+>
+> **Both build workflows must be completed** before ArgoCD can sync or manual Helm
+> deployment can succeed. The backend and frontend applications cannot be deployed
+> without their respective container images in ECR.
 
 ## Step 1: Build and Push Docker Images
 

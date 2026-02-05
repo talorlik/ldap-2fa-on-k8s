@@ -404,11 +404,20 @@ if [ -z "$TF_VAR_REDIS_PASSWORD_VALUE" ]; then
 fi
 print_success "Retrieved TF_VAR_REDIS_PASSWORD"
 
+# Extract OpenLDAP admin password from tf-vars secret (for backend LDAP bind / ldap-admin-secret)
+TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_ADMIN_PASSWORD" || echo "")
+if [ -z "$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE" ]; then
+    print_error "Failed to retrieve TF_VAR_OPENLDAP_ADMIN_PASSWORD from secret"
+    exit 1
+fi
+print_success "Retrieved TF_VAR_OPENLDAP_ADMIN_PASSWORD"
+
 # Export as environment variables for Terraform
 # Note: TF_VAR environment variables are case-sensitive and must match variable names in variables.tf
 # Secrets in AWS/GitHub remain uppercase, but environment variables must be lowercase
 export TF_VAR_postgresql_database_password="$TF_VAR_POSTGRESQL_PASSWORD_VALUE"
 export TF_VAR_redis_password="$TF_VAR_REDIS_PASSWORD_VALUE"
+export TF_VAR_openldap_admin_password="$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE"
 
 print_success "Retrieved and exported all secrets from AWS Secrets Manager"
 echo ""
@@ -477,22 +486,22 @@ check_argocd_status() {
     local infra_dir="../application_infra"
     local status_output
     local argocd_status
-    
+
     # Check if application_infra directory exists
     if [ ! -d "$infra_dir" ]; then
         print_error "application_infra directory not found at $infra_dir"
         return 1
     fi
-    
+
     # Check if backend.hcl exists in application_infra
     if [ ! -f "$infra_dir/backend.hcl" ]; then
         print_error "backend.hcl not found in application_infra. Ensure infrastructure is deployed first."
         return 1
     fi
-    
+
     # Change to application_infra directory
     pushd "$infra_dir" > /dev/null || return 1
-    
+
     # Initialize terraform if needed (quiet mode)
     if [ ! -d ".terraform" ]; then
         print_info "Initializing application_infra terraform for status check..."
@@ -502,47 +511,47 @@ check_argocd_status() {
             return 1
         }
     fi
-    
+
     # Select workspace
     terraform workspace select "${WORKSPACE_NAME}" > /dev/null 2>&1 || {
         print_error "Failed to select workspace ${WORKSPACE_NAME} in application_infra"
         popd > /dev/null
         return 1
     }
-    
+
     # Get ArgoCD capability status output
     status_output=$(terraform output -raw argocd_capability_status 2>/dev/null)
     local exit_code=$?
-    
+
     # Return to original directory
     popd > /dev/null
-    
+
     # Fail if status output command failed
     if [ $exit_code -ne 0 ]; then
         print_error "ArgoCD capability status not available (failed to retrieve from application_infra)"
         print_error "Please ensure ArgoCD capability is deployed in application_infra before deploying applications."
         return 1
     fi
-    
+
     # Trim whitespace
     argocd_status=$(echo "$status_output" | tr -d '[:space:]')
-    
+
     # Fail if status is empty or null
     if [ -z "$argocd_status" ] || [ "$argocd_status" = "null" ]; then
         print_error "ArgoCD capability status is not set or is null"
         print_error "Please ensure ArgoCD capability is deployed and active in application_infra before deploying applications."
         return 1
     fi
-    
+
     print_info "ArgoCD capability status: ${argocd_status}"
-    
+
     # Fail if status is not ACTIVE
     if [ "$argocd_status" != "ACTIVE" ]; then
         print_error "ArgoCD capability status is '${argocd_status}', but expected 'ACTIVE'"
         print_error "Please ensure ArgoCD capability is fully deployed and active before deploying applications."
         return 1
     fi
-    
+
     print_success "ArgoCD capability is ACTIVE - proceeding with deployment"
     return 0
 }
@@ -618,3 +627,8 @@ terraform apply -auto-approve terraform.tfplan
 
 echo ""
 print_success "Script completed successfully!"
+echo ""
+print_info "IMPORTANT: The backend and frontend container images do not exist in ECR until you run the build workflows."
+print_info "Run the 'Backend Build and Push' and 'Frontend Build and Push' workflows now (GitHub → Actions → select workflow → Run workflow, choose environment and region)."
+print_info "Without these images, ArgoCD cannot sync the 2FA applications and manual Helm deployment will fail."
+echo ""

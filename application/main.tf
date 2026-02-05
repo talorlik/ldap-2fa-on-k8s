@@ -167,6 +167,41 @@ module "sns" {
   tags = local.tags
 }
 
+##################### Backend namespace and LDAP admin secret
+# Backend pod expects secret "ldap-admin-secret" with key LDAP_ADMIN_PASSWORD in its namespace.
+# We create the namespace so Terraform owns it; we create the secret when openldap_admin_password is set.
+resource "kubernetes_namespace" "backend_app" {
+  count = var.enable_argocd_apps && var.argocd_app_backend_path != null ? 1 : 0
+
+  metadata {
+    name = var.argocd_app_backend_namespace
+    labels = {
+      "app.kubernetes.io/managed-by" = "terraform"
+    }
+  }
+}
+
+resource "kubernetes_secret" "ldap_admin" {
+  count = var.enable_argocd_apps && var.argocd_app_backend_path != null && var.openldap_admin_password != "" ? 1 : 0
+
+  metadata {
+    name      = "ldap-admin-secret"
+    namespace = kubernetes_namespace.backend_app[0].metadata[0].name
+    labels = {
+      "app.kubernetes.io/name"       = "ldap-2fa-backend"
+      "app.kubernetes.io/managed-by" = "terraform"
+    }
+  }
+
+  data = {
+    "LDAP_ADMIN_PASSWORD" = var.openldap_admin_password
+  }
+
+  type = "Opaque"
+
+  depends_on = [kubernetes_namespace.backend_app]
+}
+
 ##################### ArgoCD Application - Backend
 module "argocd_app_backend" {
   source = "./modules/argocd_app"
@@ -192,7 +227,8 @@ module "argocd_app_backend" {
   } : null
 
   depends_on = [
-    data.terraform_remote_state.application_infra
+    data.terraform_remote_state.application_infra,
+    kubernetes_secret.ldap_admin,
   ]
 }
 

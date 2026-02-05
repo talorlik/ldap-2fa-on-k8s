@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [2026-02-03] - ArgoCD Access Entry Association and Cluster Admin Policy
+
+### Changed
+
+- **ArgoCD Capability Permissions**
+  - Corrected ArgoCD cluster access by associating EKS Access Policy with the
+  automatically-created EKS Access Entry
+  - Added `aws_eks_access_policy_association.argocd_capability_cluster_admin`
+  resource to grant the ArgoCD Capability IAM role
+  `AmazonEKSClusterAdminPolicy` (cluster scope)
+  - EKS automatically creates an access entry for the ArgoCD Capability IAM role
+  when the capability is created; the module now associates the access policy
+  with that principal ARN
+  - Retained existing ClusterRoleBinding for backward compatibility with IAM
+  role-based RBAC
+  - Ensures ArgoCD can sync applications and manage cluster-scoped resources
+  (e.g., runtimeclasses.node.k8s.io) across all namespaces
+
 ## [2026-01-26] - ArgoCD Module External Data Resource Fix and Role Assumption Script
 
 ### Changed

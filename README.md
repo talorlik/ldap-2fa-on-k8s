@@ -187,7 +187,6 @@ ldap-2fa-on-k8s/
 │   ├── PRD-ADMIN-FUNCS.md
 │   ├── PRD-SIGNUP-MAN.md
 │   ├── PRD-SMS-MAN.md
-│   ├── PRD-OPENLDAP.md        # OpenLDAP deployment requirements
 │   ├── providers.tf
 │   ├── README.md
 │   ├── setup-application.sh
@@ -655,6 +654,24 @@ This deploys:
 - ArgoCD Applications for backend and frontend GitOps deployments
 - Route53 record for the 2FA application
 
+> [!IMPORTANT]
+>
+> **Deployment requires both build workflows:** The deployment of the backend and
+> frontend applications **depends on running both** the **Backend Build and Push**
+> (`backend_build_push.yaml`) and **Frontend Build and Push** (`frontend_build_push.yaml`)
+> workflows. These workflows must be run immediately after completing Step 4
+> (GitHub → Actions → select workflow → Run workflow, choose environment and region).
+>
+> **Why both are required:**
+>
+> - Without the backend image, ArgoCD cannot sync the backend application
+> (image pull fails).
+> - Without the frontend image, ArgoCD cannot sync the frontend application
+> (image pull fails).
+> - Both container images do not exist in ECR until you run the build workflows.
+> - Without these images, ArgoCD cannot sync the 2FA applications and manual Helm
+> deployment will fail.
+
 > [!NOTE]
 >
 > 📖 **For detailed information about the application deployment**, including
@@ -767,6 +784,24 @@ The script will:
 account role ARN
 - Set Kubernetes environment variables using `set-k8s-env.sh` (from application_infra)
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
+
+> [!IMPORTANT]
+>
+> **Deployment requires both build workflows:** The deployment of the backend and
+> frontend applications **depends on running both** the **Backend Build and Push**
+> (`backend_build_push.yaml`) and **Frontend Build and Push** (`frontend_build_push.yaml`)
+> workflows. These workflows must be run immediately after running `setup-application.sh`
+> (GitHub → Actions → select workflow → Run workflow, choose environment and region).
+>
+> **Why both are required:**
+>
+> - Without the backend image, ArgoCD cannot sync the backend application
+> (image pull fails).
+> - Without the frontend image, ArgoCD cannot sync the frontend application
+> (image pull fails).
+> - Both container images do not exist in ECR until you run the build workflows.
+> - Without these images, ArgoCD cannot sync the 2FA applications and manual Helm
+> deployment will fail.
 
 #### Manual Terraform Commands (Alternative)
 
@@ -1104,28 +1139,28 @@ management, and approval workflows
 storage with TTL
 - [OpenLDAP Deployment PRD](application_infra/PRD-OPENLDAP.md) - OpenLDAP deployment
 requirements and configuration
-- [Security Improvements](application/SECURITY-IMPROVEMENTS.md) - Security
+- [Security Improvements](application_infra/SECURITY-IMPROVEMENTS.md) - Security
 enhancements and best practices
 
 ### Module Documentation
 
-- [ALB Module](application/modules/alb/README.md) - EKS Auto Mode ALB configuration
-- [ArgoCD Module](application/modules/argocd/README.md) - AWS managed ArgoCD
+- [ALB Module](application_infra/modules/alb/README.md) - EKS Auto Mode ALB configuration
+- [ArgoCD Module](application_infra/modules/argocd/README.md) - AWS managed ArgoCD
 setup
 - [ArgoCD Application Module](application/modules/argocd_app/README.md) -
 GitOps application deployment
-- [cert-manager Module](application/modules/cert-manager/README.md) - TLS
+- [cert-manager Module](application_infra/modules/cert-manager/README.md) - TLS
 certificate management
-- [Network Policies Module](application/modules/network-policies/README.md) -
-Pod-to-pod security
+- [Network Policies](application_infra/modules/network-policies/README.md) -
+  Pod-to-pod security
 - [PostgreSQL Module](application/modules/postgresql/README.md) - User data and
 verification token storage
 - [Redis Module](application/modules/redis/README.md) - SMS OTP code storage
 - [SES Module](application/modules/ses/README.md) - Email verification and
 notifications
 - [SNS Module](application/modules/sns/README.md) - SMS 2FA integration
-- [Route53 Record Module](application/modules/route53_record/README.md) - Route53
-A (alias) records for ALB
+- [Route53 Record Module](application_infra/modules/route53_record/README.md) -
+  Route53 A (alias) records for ALB
 - [VPC Endpoints Module](backend_infra/modules/endpoints/README.md) - Private
 AWS service access
 - [ECR Module](backend_infra/modules/ecr/README.md) - Container registry setup
@@ -1135,8 +1170,10 @@ AWS service access
 - [Project Changelog](CHANGELOG.md) - All project changes
 - [Backend Infrastructure Changelog](backend_infra/CHANGELOG.md) - VPC, EKS,
 VPC endpoints, and ECR changes
-- [Application Infrastructure Changelog](application/CHANGELOG.md) - OpenLDAP,
-2FA app, and supporting services changes
+- [Application Infrastructure Changelog](application_infra/CHANGELOG.md) -
+  OpenLDAP, ALB, ArgoCD Capability, and infrastructure changes
+- [Application Changelog](application/CHANGELOG.md) - 2FA app, PostgreSQL,
+  Redis, SES, SNS, and ArgoCD Applications changes
 - [Terraform Backend State Changelog](tf_backend_state/CHANGELOG.md) - S3 state
 management changes
 
@@ -1165,7 +1202,7 @@ rate limiting
 endpoints
 - **Public ACM Certificates**: Browser-trusted certificates with automatic renewal
 
-See [Security Improvements](application/SECURITY-IMPROVEMENTS.md) for detailed
+See [Security Improvements](application_infra/SECURITY-IMPROVEMENTS.md) for detailed
 security documentation.
 
 ## Operations & Monitoring

@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-02-03] - Build Workflow Image Tags, ArgoCD Access Entry, and Backend Dockerfile
+
+### Changed
+
+- **Build Workflow Image Tag Creation**
+  - Updated backend and frontend build workflows to generate unique image tags
+  using both commit SHA and GitHub run ID: `<image-name>-<sha>-<run_id>`
+  - Prevents tag conflicts when re-running the same workflow (ECR tags are
+  immutable)
+  - Ensures each workflow run produces a distinct tag that can be pushed to ECR
+  - Updated commit message format for automated Helm values updates
+
+- **ArgoCD Module: Access Entry and Cluster Role**
+  - Corrected ArgoCD capability permissions by associating EKS Access Policy
+  with the automatically-created EKS Access Entry
+  - Added `aws_eks_access_policy_association.argocd_capability_cluster_admin`
+  to grant the ArgoCD Capability IAM role full cluster admin via
+  `AmazonEKSClusterAdminPolicy`
+  - Access entry is created automatically by EKS when the capability is created;
+  the module now only associates the access policy with the principal ARN
+  - Retained ClusterRoleBinding for backward compatibility with IAM role-based
+  RBAC
+  - Ensures ArgoCD can sync applications and manage resources across all
+  namespaces and cluster-scoped resources
+
+- **Backend Dockerfile and Documentation**
+  - Corrected Python LDAP library usage in backend Dockerfile (libldap2-dev,
+  libsasl2-dev for build; libldap-2.5-0, libsasl2-2 for runtime)
+  - Updated backend README to reflect current Dockerfile and deployment
+  - Documentation updates across affected docs
+
 ## [2026-01-26] - ArgoCD Module Improvements and Application Deployment Validation
 
 ### Changed

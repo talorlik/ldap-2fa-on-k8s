@@ -7,6 +7,7 @@ name: Application Destroying
 # - AWS_ASSUME_EXTERNAL_ID: ExternalId for cross-account role assumption security
 # - TF_VAR_POSTGRESQL_PASSWORD: PostgreSQL database password
 # - TF_VAR_REDIS_PASSWORD: Redis password for SMS OTP storage
+# - TF_VAR_OPENLDAP_ADMIN_PASSWORD: OpenLDAP admin password (for backend ldap-admin-secret)
 #
 # Note: GitHub workflows use repository secrets, while bash scripts use AWS Secrets Manager.
 # The secrets listed above must be configured in GitHub repository settings.
@@ -61,6 +62,8 @@ jobs:
       TF_VAR_postgresql_database_password: ${{ secrets.TF_VAR_POSTGRESQL_PASSWORD }}
       # Redis password for SMS OTP storage
       TF_VAR_redis_password: ${{ secrets.TF_VAR_REDIS_PASSWORD }}
+      # OpenLDAP admin password for backend LDAP bind (ldap-admin-secret)
+      TF_VAR_openldap_admin_password: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
     defaults:
       run:
         working-directory: ./application

@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG.md](../application_infra/CHANGELOG.md).
 
+## [2026-02-03] - Build Workflow Image Tags and Backend Dockerfile
+
+### Changed
+
+- **Build Workflow Image Tag Format**
+  - Backend and frontend build workflows now generate unique image tags:
+  `<image-name>-<commit-sha>-<run_id>` (e.g.,
+  `ldap-2fa-backend-<sha>-<run_id>`)
+  - Prevents ECR tag conflicts when re-running workflows (ECR tags are
+  immutable)
+  - Each workflow run produces a distinct tag; Helm values are updated and
+  committed with the new tag
+
+- **Backend Dockerfile and README**
+  - Corrected Python LDAP dependencies in Dockerfile (libldap2-dev,
+  libsasl2-dev for build stage; libldap-2.5-0, libsasl2-2 for runtime)
+  - Updated backend README to reflect current Dockerfile and deployment
+  steps
+
 ## [2026-01-26] - ArgoCD Capability Status Validation
 
 ### Added

@@ -67,6 +67,15 @@ variable "twofa_app_host" {
 }
 
 
+##################### LDAP credentials for 2FA Backend ##########################
+
+variable "openldap_admin_password" {
+  description = "OpenLDAP admin password for backend LDAP bind. MUST be set via TF_VAR_OPENLDAP_ADMIN_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 ##################### PostgreSQL User Storage ##########################
 
 variable "enable_postgresql" {
