@@ -41,6 +41,10 @@ print_info() {
     echo -e "${YELLOW}INFO:${NC} $1"
 }
 
+print_warning() {
+    echo -e "${YELLOW}WARNING:${NC} $1"
+}
+
 # Check if AWS CLI is installed
 if ! command -v aws &> /dev/null; then
     print_error "AWS CLI is not installed."
