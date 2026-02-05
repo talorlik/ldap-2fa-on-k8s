@@ -106,13 +106,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Fetch latest changes from remote to handle parallel workflow runs
-          echo "Fetching latest changes from remote..."
-          git fetch origin main
-
-          # Ensure we're on main branch and up-to-date with remote
-          git checkout main
-          git rebase origin/main
+          VALUES_FILE="application/backend/helm/ldap-2fa-backend/values.yaml"
 
           # Check if there are changes to commit
           if git diff --quiet; then
@@ -120,15 +114,41 @@ jobs:
             exit 0
           fi
 
-          git add application/backend/helm/ldap-2fa-backend/values.yaml
+          # Save the file content before any git operations
+          # This ensures we can re-apply changes if rebase fails
+          cat "${VALUES_FILE}" > /tmp/values_backup.yaml
+
+          # Stage and commit the changes first
+          git add "${VALUES_FILE}"
           git commit -m "chore(backend): update image tag to ${{ steps.build.outputs.image_tag }}
 
           Automated update by GitHub Actions workflow.
           Commit: ${{ github.sha }}
           "
 
+          # Fetch latest changes and rebase our commit on top
+          # This handles parallel workflow runs where another workflow may have pushed
+          echo "Fetching latest changes from remote..."
+          git fetch origin main
+
+          # Rebase our commit on top of the latest remote changes
+          # Since workflows modify different files, this should succeed without conflicts
+          if ! git rebase origin/main; then
+            echo "⚠️ Rebase failed, resetting and re-applying changes..."
+            git rebase --abort || true
+            git reset --hard origin/main
+            git checkout main
+            # Restore our changes from backup
+            cp /tmp/values_backup.yaml "${VALUES_FILE}"
+            git add "${VALUES_FILE}"
+            git commit -m "chore(backend): update image tag to ${{ steps.build.outputs.image_tag }}
+
+          Automated update by GitHub Actions workflow.
+          Commit: ${{ github.sha }}
+          "
+          fi
+
           # Push changes with retry logic to handle parallel workflow runs
-          # Since workflows modify different files, rebase should succeed without conflicts
           MAX_RETRIES=3
           RETRY_COUNT=0
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
@@ -140,7 +160,20 @@ jobs:
               if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
                 echo "⚠️ Push failed, fetching latest changes and retrying (attempt $RETRY_COUNT/$MAX_RETRIES)..."
                 git fetch origin main
-                git rebase origin/main
+                if ! git rebase origin/main; then
+                  echo "⚠️ Rebase conflict during retry, resetting and re-applying..."
+                  git rebase --abort || true
+                  git reset --hard origin/main
+                  git checkout main
+                  # Restore our changes from backup
+                  cp /tmp/values_backup.yaml "${VALUES_FILE}"
+                  git add "${VALUES_FILE}"
+                  git commit -m "chore(backend): update image tag to ${{ steps.build.outputs.image_tag }}
+
+          Automated update by GitHub Actions workflow.
+          Commit: ${{ github.sha }}
+          "
+                fi
                 sleep 2
               else
                 echo "❌ Failed to push after $MAX_RETRIES attempts"
