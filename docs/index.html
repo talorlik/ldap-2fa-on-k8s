@@ -64,7 +64,8 @@
                                         <li><a href="#local-step-1">Step 1: Deploy Terraform Backend State Infrastructure</a></li>
                                         <li><a href="#local-step-2">Step 2: Deploy Backend Infrastructure</a></li>
                                         <li><a href="#local-step-3">Step 3: Deploy Application Infrastructure</a></li>
-                                        <li><a href="#local-step-4">Step 4: Deploy 2FA Applications (Backend and Frontend)</a></li>
+                                        <li><a href="#local-step-4">Step 4: Build Container Images (Required Before Application Deployment)</a></li>
+                                        <li><a href="#local-step-5">Step 5: Deploy Application</a></li>
                                         <li><a href="#local-destroy">Destroying Infrastructure (Local)</a></li>
                                     </ul>
                                 </li>
@@ -73,7 +74,8 @@
                                         <li><a href="#github-step-1">Step 1: Deploy Terraform Backend State Infrastructure</a></li>
                                         <li><a href="#github-step-2">Step 2: Deploy Backend Infrastructure</a></li>
                                         <li><a href="#github-step-3">Step 3: Deploy Application Infrastructure</a></li>
-                                        <li><a href="#github-step-4">Step 4: Deploy 2FA Applications (Backend and Frontend)</a></li>
+                                        <li><a href="#github-step-4">Step 4: Build Container Images (Required Before Application Deployment)</a></li>
+                                        <li><a href="#github-step-5">Step 5: Deploy Application</a></li>
                                         <li><a href="#github-destroy">Destroying Infrastructure (GitHub Actions)</a></li>
                                     </ul>
                                 </li>
@@ -358,7 +360,38 @@
                     <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code></li>
                     <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
                 </ul>
-                <h5 id="local-step-4">Step 4: Deploy Application</h5>
+                <h5 id="local-step-4">Step 4: Build Container Images (Required Before Application Deployment)</h5>
+                <p><strong>Important:</strong> Before deploying the application in Step 5, you <strong>must</strong> run both the <strong>Backend Build and Push</strong> and <strong>Frontend Build and Push</strong> workflows to build and push the container images to ECR. These images are required for ArgoCD to sync the applications or for manual Helm deployment.</p>
+                <p><strong>Why both are required:</strong></p>
+                <ul>
+                    <li>Without the backend image, ArgoCD cannot sync the backend application (image pull fails)</li>
+                    <li>Without the frontend image, ArgoCD cannot sync the frontend application (image pull fails)</li>
+                    <li>Both container images do not exist in ECR until you run the build workflows</li>
+                    <li>Without these images, ArgoCD cannot sync the 2FA applications and manual Helm deployment will fail</li>
+                </ul>
+                <p><strong>Build and push both images using GitHub Actions:</strong></p>
+                <ol>
+                    <li><strong>Build and push backend image:</strong>
+                        <ul>
+                            <li>Go to GitHub → Actions → "Backend Build and Push"</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Select environment (prod or dev)</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Wait for the workflow to complete</li>
+                        </ul>
+                    </li>
+                    <li><strong>Build and push frontend image:</strong>
+                        <ul>
+                            <li>Go to GitHub → Actions → "Frontend Build and Push"</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Select environment (prod or dev)</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Wait for the workflow to complete</li>
+                        </ul>
+                    </li>
+                </ol>
+                <p><strong>Note:</strong> These workflows can be run in parallel since they modify different files. They will automatically handle git conflicts if both run simultaneously.</p>
+                <h5 id="local-step-5">Step 5: Deploy Application</h5>
                 <p>Deploy PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and 2FA application (backend/frontend):</p>
                 <pre><code>cd application
 ./setup-application.sh</code></pre>
@@ -384,15 +417,8 @@
                 <p><strong>Note:</strong> Application components require infrastructure to be deployed first (Steps 1-3 completed). The script automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, deployment will fail with a clear error message.</p>
                 <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
                 <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled in <code>variables.tfvars</code>) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>.</p>
-                <p><strong>Important:</strong> The deployment of the backend and frontend applications <strong>depends on running both</strong> the <strong>Backend Build and Push</strong> (<code>backend_build_push.yaml</code>) and <strong>Frontend Build and Push</strong> (<code>frontend_build_push.yaml</code>) workflows. These workflows must be run immediately after completing Step 4 (GitHub → Actions → select workflow → Run workflow, choose environment and region).</p>
-                <p><strong>Why both are required:</strong></p>
-                <ul>
-                    <li>Without the backend image, ArgoCD cannot sync the backend application (image pull fails)</li>
-                    <li>Without the frontend image, ArgoCD cannot sync the frontend application (image pull fails)</li>
-                    <li>Both container images do not exist in ECR until you run the build workflows</li>
-                    <li>Without these images, ArgoCD cannot sync the 2FA applications and manual Helm deployment will fail</li>
-                </ul>
-                <h5 id="local-step-5">Manual Deployment of 2FA Applications (Optional)</h5>
+                <p><strong>After Step 5:</strong> If ArgoCD Applications are enabled, ArgoCD will automatically detect the git changes (from the build workflows in Step 4) and sync the deployments. The container images are already in ECR, so ArgoCD can successfully pull and deploy them.</p>
+                <h5 id="local-step-6">Manual Deployment of 2FA Applications (Optional)</h5>
                 <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-3 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), <code>aws</code> CLI, and optionally <code>docker</code> for manual builds.</p>
                 <p><strong>Overview:</strong> The deployment process involves building and pushing Docker images, gathering configuration values, creating namespace, deploying backend and frontend Helm charts, and verifying deployment.</p>
                 <p><strong>4.1: Build and Push Docker Images</strong></p>
@@ -754,7 +780,38 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li>Retrieves OpenLDAP password secrets from GitHub repository secrets</li>
                     <li>Runs Terraform operations to deploy OpenLDAP stack, ALB, Route53 records (for phpldapadmin and ltb-passwd), ArgoCD Capability, and StorageClass</li>
                 </ul>
-                <h5 id="github-step-4">Step 4: Deploy Application</h5>
+                <h5 id="github-step-4">Step 4: Build Container Images (Required Before Application Deployment)</h5>
+                <p><strong>Important:</strong> Before deploying the application in Step 5, you <strong>must</strong> run both the <strong>Backend Build and Push</strong> and <strong>Frontend Build and Push</strong> workflows to build and push the container images to ECR. These images are required for ArgoCD to sync the applications or for manual Helm deployment.</p>
+                <p><strong>Why both are required:</strong></p>
+                <ul>
+                    <li>Without the backend image, ArgoCD cannot sync the backend application (image pull fails)</li>
+                    <li>Without the frontend image, ArgoCD cannot sync the frontend application (image pull fails)</li>
+                    <li>Both container images do not exist in ECR until you run the build workflows</li>
+                    <li>Without these images, ArgoCD cannot sync the 2FA applications and manual Helm deployment will fail</li>
+                </ul>
+                <p><strong>Build and push both images:</strong></p>
+                <ol>
+                    <li><strong>Build and push backend image:</strong>
+                        <ul>
+                            <li>Go to GitHub → Actions → "Backend Build and Push"</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Select environment (prod or dev)</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Wait for the workflow to complete</li>
+                        </ul>
+                    </li>
+                    <li><strong>Build and push frontend image:</strong>
+                        <ul>
+                            <li>Go to GitHub → Actions → "Frontend Build and Push"</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Select environment (prod or dev)</li>
+                            <li>Click "Run workflow"</li>
+                            <li>Wait for the workflow to complete</li>
+                        </ul>
+                    </li>
+                </ol>
+                <p><strong>Note:</strong> These workflows can be run in parallel since they modify different files. They will automatically handle git conflicts if both run simultaneously.</p>
+                <h5 id="github-step-5">Step 5: Deploy Application</h5>
                 <ol>
                     <li>Go to GitHub → <strong>Actions</strong> tab</li>
                     <li>Select <strong>"Application Provisioning"</strong> workflow</li>
@@ -778,16 +835,9 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <p><strong>Note:</strong> The workflow automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, the workflow will fail with a clear error message. This ensures that ArgoCD Applications can be properly deployed and managed.</p>
                 <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
                 <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>.</p>
-                <p><strong>Important:</strong> The deployment of the backend and frontend applications <strong>depends on running both</strong> the <strong>Backend Build and Push</strong> (<code>backend_build_push.yaml</code>) and <strong>Frontend Build and Push</strong> (<code>frontend_build_push.yaml</code>) workflows. These workflows must be run immediately after completing Step 4 (GitHub → Actions → select workflow → Run workflow, choose environment and region).</p>
-                <p><strong>Why both are required:</strong></p>
-                <ul>
-                    <li>Without the backend image, ArgoCD cannot sync the backend application (image pull fails)</li>
-                    <li>Without the frontend image, ArgoCD cannot sync the frontend application (image pull fails)</li>
-                    <li>Both container images do not exist in ECR until you run the build workflows</li>
-                    <li>Without these images, ArgoCD cannot sync the 2FA applications and manual Helm deployment will fail</li>
-                </ul>
-                <h5 id="github-step-5">Manual Deployment of 2FA Applications (Optional)</h5>
-                <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-4 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), and <code>aws</code> CLI.</p>
+                <p><strong>After Step 5:</strong> If ArgoCD Applications are enabled, ArgoCD will automatically detect the git changes (from the build workflows in Step 4) and sync the deployments. The container images are already in ECR, so ArgoCD can successfully pull and deploy them.</p>
+                <h5 id="github-step-6">Manual Deployment of 2FA Applications (Optional)</h5>
+                <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-5 completed, including building container images). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), and <code>aws</code> CLI.</p>
                 <p><strong>Overview:</strong> The deployment process involves building and pushing Docker images, gathering configuration values, creating namespace, deploying backend and frontend Helm charts, and verifying deployment.</p>
                 <p><strong>5.1: Build and Push Docker Images</strong></p>
                 <p><strong>Using GitHub Actions (Recommended)</strong></p>
@@ -1019,12 +1069,20 @@ helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
                         <li><strong>See:</strong> <a href="../application_infra/README.md">Application Infrastructure README</a> | <a href="../application/README.md">Application Deployment README</a></li>
                     </ul>
                 </li>
+                <li><strong>Build Container Images</strong>
+                    <ul>
+                        <li><strong>Purpose:</strong> Build and push backend and frontend container images to ECR</li>
+                        <li><strong>Required:</strong> Must be completed <strong>BEFORE</strong> deploying the application</li>
+                        <li><strong>Workflows:</strong> "Backend Build and Push" and "Frontend Build and Push" (can run in parallel)</li>
+                        <li><strong>Note:</strong> These workflows update Helm values.yaml files with new image tags and commit changes to git</li>
+                    </ul>
+                </li>
                 <li><strong>Deploy Application</strong>
                     <ul>
                         <li><strong>Purpose:</strong> Deploys the 2FA application components, including PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and the 2FA application (backend/frontend)</li>
                         <li><strong>Components:</strong> PostgreSQL (user registration data), Redis (SMS OTP storage), AWS SES (email verification), AWS SNS (SMS 2FA), ArgoCD Applications (GitOps), Route53 record (for 2FA app), Backend application (Python FastAPI), Frontend application (HTML/JS/CSS + nginx)</li>
                         <li><strong>Account:</strong> Deployment Account (Account B)</li>
-                        <li><strong>Prerequisites:</strong> Application infrastructure (Step 3) must be deployed first, including StorageClass, ArgoCD Capability, and ALB DNS name</li>
+                        <li><strong>Prerequisites:</strong> Application infrastructure (Step 3) must be deployed first, including StorageClass, ArgoCD Capability, and ALB DNS name. <strong>Container images must be built and pushed to ECR before deployment</strong> (see Build Container Images step above).</li>
                         <li><strong>Local:</strong> <code>cd application && ./setup-application.sh</code></li>
                         <li><strong>GitHub Actions:</strong> "Application Provisioning" workflow</li>
                         <li><strong>See:</strong> <a href="../application/README.md">Application Deployment README</a> for complete deployment guide</li>

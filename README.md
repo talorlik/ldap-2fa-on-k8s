@@ -656,11 +656,13 @@ This deploys:
 
 > [!IMPORTANT]
 >
-> **Deployment requires both build workflows:** The deployment of the backend and
+> **Build workflows must run BEFORE Step 4:** The deployment of the backend and
 > frontend applications **depends on running both** the **Backend Build and Push**
 > (`backend_build_push.yaml`) and **Frontend Build and Push** (`frontend_build_push.yaml`)
-> workflows. These workflows must be run immediately after completing Step 4
-> (GitHub → Actions → select workflow → Run workflow, choose environment and region).
+> workflows **BEFORE** completing Step 4. These workflows must be run first
+> (GitHub → Actions → select workflow → Run workflow, choose environment and region)
+> to ensure container images are available in ECR before ArgoCD tries to sync or
+> manual Helm deployment is attempted.
 >
 > **Why both are required:**
 >
@@ -787,11 +789,14 @@ account role ARN
 
 > [!IMPORTANT]
 >
-> **Deployment requires both build workflows:** The deployment of the backend and
-> frontend applications **depends on running both** the **Backend Build and Push**
-> (`backend_build_push.yaml`) and **Frontend Build and Push** (`frontend_build_push.yaml`)
-> workflows. These workflows must be run immediately after running `setup-application.sh`
-> (GitHub → Actions → select workflow → Run workflow, choose environment and region).
+> **Build workflows must run BEFORE deploying the application:** The deployment
+> of the backend and frontend applications **depends on running both** the
+> **Backend Build and Push** (`backend_build_push.yaml`) and
+> **Frontend Build and Push** (`frontend_build_push.yaml`) workflows
+> **BEFORE** running `setup-application.sh`. These workflows must be run
+> first (GitHub → Actions → select workflow → Run workflow, choose environment
+> and region) to ensure container images are available in ECR before ArgoCD tries
+> to sync or manual Helm deployment is attempted.
 >
 > **Why both are required:**
 >

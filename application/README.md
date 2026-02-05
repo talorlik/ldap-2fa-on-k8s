@@ -504,12 +504,14 @@ This script will:
 
 > [!IMPORTANT]
 >
-> **Deployment requires both build workflows:** The deployment of the backend and
-> frontend applications **depends on running both** the **Backend Build and Push**
-> (`backend_build_push.yaml`) and **Frontend Build and Push** (`frontend_build_push.yaml`)
-> workflows. These workflows must be run immediately after deploying the application
-> (Step 2) (GitHub → Actions → select workflow → Run workflow, choose environment
-> and region).
+> **Build workflows must run BEFORE deploying the application:** The deployment
+> of the backend and frontend applications **depends on running both** the
+> **Backend Build and Push** (`backend_build_push.yaml`) and
+> **Frontend Build and Push** (`frontend_build_push.yaml`) workflows
+> **before** deploying the application (Step 2). These workflows must be run first
+> (GitHub → Actions → select workflow → Run workflow, choose environment and region)
+> to ensure container images are available in ECR before ArgoCD tries to sync or
+> manual Helm deployment is attempted.
 >
 > **Why both are required:**
 >
@@ -566,10 +568,14 @@ The application reads from:
 
 ### Deployment Order
 
-1. **backend_infra/** - Deploy first (provides EKS cluster, ECR)
+1. **backend_infra/** - Deploy first (provides EKS cluster, ECR).
 2. **application_infra/** - Deploy second (provides StorageClass, ArgoCD Capability,
-ALB)
-3. **application/** - Deploy last (depends on both infrastructure layers)
+ALB).
+3. **Build workflows** - Run **Backend Build and Push** and
+**Frontend Build and Push** workflows **BEFORE** deploying the application
+(ensures container images exist in ECR).
+4. **application/** - Deploy last (depends on both infrastructure layers and requires
+container images in ECR).
 
 ## Outputs
 
