@@ -781,36 +781,27 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li>Runs Terraform operations to deploy OpenLDAP stack, ALB, Route53 records (for phpldapadmin and ltb-passwd), ArgoCD Capability, and StorageClass</li>
                 </ul>
                 <h5 id="github-step-4">Step 4: Build Container Images (Required Before Application Deployment)</h5>
-                <p><strong>Important:</strong> Before deploying the application in Step 5, you <strong>must</strong> run both the <strong>Backend Build and Push</strong> and <strong>Frontend Build and Push</strong> workflows to build and push the container images to ECR. These images are required for ArgoCD to sync the applications or for manual Helm deployment.</p>
-                <p><strong>Why both are required:</strong></p>
-                <ul>
-                    <li>Without the backend image, ArgoCD cannot sync the backend application (image pull fails)</li>
-                    <li>Without the frontend image, ArgoCD cannot sync the frontend application (image pull fails)</li>
-                    <li>Both container images do not exist in ECR until you run the build workflows</li>
-                    <li>Without these images, ArgoCD cannot sync the 2FA applications and manual Helm deployment will fail</li>
-                </ul>
-                <p><strong>Build and push both images:</strong></p>
                 <ol>
-                    <li><strong>Build and push backend image:</strong>
+                    <li>Go to GitHub → <strong>Actions</strong> tab</li>
+                    <li>Run <strong>"Backend Build and Push"</strong> workflow:
                         <ul>
-                            <li>Go to GitHub → Actions → "Backend Build and Push"</li>
-                            <li>Click "Run workflow"</li>
+                            <li>Select the workflow</li>
+                            <li>Click <strong>"Run workflow"</strong></li>
                             <li>Select environment (prod or dev)</li>
-                            <li>Click "Run workflow"</li>
-                            <li>Wait for the workflow to complete</li>
+                            <li>Click <strong>"Run workflow"</strong></li>
                         </ul>
                     </li>
-                    <li><strong>Build and push frontend image:</strong>
+                    <li>Run <strong>"Frontend Build and Push"</strong> workflow:
                         <ul>
-                            <li>Go to GitHub → Actions → "Frontend Build and Push"</li>
-                            <li>Click "Run workflow"</li>
+                            <li>Select the workflow</li>
+                            <li>Click <strong>"Run workflow"</strong></li>
                             <li>Select environment (prod or dev)</li>
-                            <li>Click "Run workflow"</li>
-                            <li>Wait for the workflow to complete</li>
+                            <li>Click <strong>"Run workflow"</strong></li>
                         </ul>
                     </li>
                 </ol>
-                <p><strong>Note:</strong> These workflows can be run in parallel since they modify different files. They will automatically handle git conflicts if both run simultaneously.</p>
+                <p><strong>What the workflows do:</strong></p>
+                <p>Both workflows build Docker images, push them to ECR, update Helm values.yaml files with new image tags, and commit changes to the repository. These workflows can be run in parallel since they modify different files.</p>
                 <h5 id="github-step-5">Step 5: Deploy Application</h5>
                 <ol>
                     <li>Go to GitHub → <strong>Actions</strong> tab</li>
@@ -822,132 +813,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li>Monitor the workflow execution</li>
                 </ol>
                 <p><strong>What the workflow does:</strong></p>
-                <ul>
-                    <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> for backend state operations</li>
-                    <li>Uses environment-specific deployment account role ARN</li>
-                    <li>Uses <code>AWS_ASSUME_EXTERNAL_ID</code> for cross-account role assumption</li>
-                    <li>Retrieves repository variables (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_PREFIX</code>) for backend state configuration</li>
-                    <li>Creates <code>backend.hcl</code> from template using <code>APPLICATION_PREFIX</code> for state file key</li>
-                    <li>Retrieves password secrets (PostgreSQL, Redis) from GitHub repository secrets</li>
-                    <li><strong>Validates ArgoCD capability status</strong> - Ensures ArgoCD capability is "ACTIVE" before proceeding (prevents deployment failures)</li>
-                    <li>Runs Terraform operations to deploy PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and Route53 record for 2FA app</li>
-                </ul>
-                <p><strong>Note:</strong> The workflow automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, the workflow will fail with a clear error message. This ensures that ArgoCD Applications can be properly deployed and managed.</p>
-                <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
-                <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>.</p>
-                <p><strong>After Step 5:</strong> If ArgoCD Applications are enabled, ArgoCD will automatically detect the git changes (from the build workflows in Step 4) and sync the deployments. The container images are already in ECR, so ArgoCD can successfully pull and deploy them.</p>
-                <h5 id="github-step-6">Manual Deployment of 2FA Applications (Optional)</h5>
-                <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-5 completed, including building container images). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), and <code>aws</code> CLI.</p>
-                <p><strong>Overview:</strong> The deployment process involves building and pushing Docker images, gathering configuration values, creating namespace, deploying backend and frontend Helm charts, and verifying deployment.</p>
-                <p><strong>5.1: Build and Push Docker Images</strong></p>
-                <p><strong>Using GitHub Actions (Recommended)</strong></p>
-                <ol>
-                    <li><strong>Build and push backend image:</strong>
-                        <ul>
-                            <li>Go to GitHub → Actions → "Backend Build and Push"</li>
-                            <li>Click "Run workflow"</li>
-                            <li>Select environment (prod or dev)</li>
-                            <li>Click "Run workflow"</li>
-                            <li>Wait for the workflow to complete</li>
-                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-backend-&lt;commit-sha&gt;-&lt;run-id&gt;</code>; unique per run to avoid ECR tag conflicts)</li>
-                        </ul>
-                    </li>
-                    <li><strong>Build and push frontend image:</strong>
-                        <ul>
-                            <li>Go to GitHub → Actions → "Frontend Build and Push"</li>
-                            <li>Click "Run workflow"</li>
-                            <li>Select environment (prod or dev)</li>
-                            <li>Click "Run workflow"</li>
-                            <li>Wait for the workflow to complete</li>
-                            <li>Note the image tag from the workflow output (format: <code>ldap-2fa-frontend-&lt;commit-sha&gt;-&lt;run-id&gt;</code>; unique per run to avoid ECR tag conflicts)</li>
-                        </ul>
-                    </li>
-                </ol>
-                <p>The GitHub Actions workflows automatically build Docker images, push to ECR, update Helm values.yaml files with new image tags, and commit changes to the repository.</p>
-                <p><strong>5.2: Gather Required Configuration Values</strong></p>
-                <p>Get the required values from Terraform outputs (run these commands locally or in a GitHub Actions workflow):</p>
-                <pre><code>cd application
-
-# Get IngressClass name
-INGRESS_CLASS=$(terraform output -raw alb_ingress_class_name)
-
-# Get ALB load balancer name (from variables.tfvars or compute it)
-PREFIX="talo-tf"  # From your variables
-REGION="us-east-1"  # Your region
-ALB_LB_NAME="alb"
-ENV="prod"  # or "dev"
-ALB_NAME="${PREFIX}-${REGION}-${ALB_LB_NAME}-${ENV}"
-ALB_NAME=$(echo "${ALB_NAME}" | cut -c1-32)  # Truncate to 32 chars
-
-# Get hostname (from variables.tfvars: twofa_app_host)
-HOSTNAME="app.talorlik.com"  # Adjust to your domain
-
-# Get ECR repository URL
-ECR_URL=$(terraform output -raw ecr_url)
-
-# Get image tags (from GitHub Actions workflow output; format: &lt;name&gt;-&lt;commit-sha&gt;-&lt;run-id&gt;)
-BACKEND_TAG="ldap-2fa-backend-&lt;commit-sha&gt;-&lt;run-id&gt;"  # From workflow output
-FRONTEND_TAG="ldap-2fa-frontend-&lt;commit-sha&gt;-&lt;run-id&gt;"  # From workflow output
-
-# Get SES IAM Role ARN (for IRSA)
-SES_ROLE_ARN=$(terraform output -raw ses_iam_role_arn)
-
-# Get SNS IAM Role ARN (for IRSA, if SMS 2FA is enabled)
-SNS_ROLE_ARN=$(terraform output -raw sns_iam_role_arn 2>/dev/null || echo "")
-
-# Get PostgreSQL connection info
-POSTGRES_HOST=$(terraform output -raw postgresql_host)
-
-# Get Redis connection info
-REDIS_HOST=$(terraform output -raw redis_host)
-REDIS_PORT=$(terraform output -raw redis_port)
-
-# Get SES sender email
-SES_SENDER_EMAIL=$(terraform output -raw ses_sender_email)
-
-# Get SNS topic ARN (if SMS 2FA is enabled)
-SNS_TOPIC_ARN=$(terraform output -raw sns_topic_arn 2>/dev/null || echo "")</code></pre>
-                <p><strong>5.3: Create Namespace</strong></p>
-                <pre><code>kubectl create namespace 2fa-app</code></pre>
-                <p><strong>5.4: Deploy Backend Application</strong></p>
-                <p>Create a values file for the backend deployment (same as local deployment) and deploy:</p>
-                <pre><code>cd application/backend/helm
-
-helm upgrade --install ldap-2fa-backend ldap-2fa-backend \
-  --namespace 2fa-app \
-  --create-namespace \
-  --values /tmp/backend-values.yaml \
-  --wait \
-  --timeout 10m</code></pre>
-                <p><strong>Note:</strong> The backend values file should include image configuration, ingress settings, service account with IRSA annotation, LDAP configuration, database configuration, email configuration, SMS configuration (if enabled), and Redis configuration (if SMS is enabled). See <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a> for the complete values file template.</p>
-                <p><strong>5.5: Deploy Frontend Application</strong></p>
-                <pre><code>cd application/frontend/helm
-
-helm upgrade --install ldap-2fa-frontend ldap-2fa-frontend \
-  --namespace 2fa-app \
-  --create-namespace \
-  --values /tmp/frontend-values.yaml \
-                  --wait \
-                  --timeout 10m</code></pre>
-                <p><strong>5.6: Verify Deployment</strong></p>
-                <p>Check deployment status using the same verification commands as local deployment (check pods, services, ingress, logs, health endpoints, and ALB target health).</p>
-                <p><strong>5.7: Access the Application</strong></p>
-                <p>Once deployed, access the application at:</p>
-                <ul>
-                    <li><strong>Frontend:</strong> <code>https://${HOSTNAME}</code> (e.g., <code>https://app.talorlik.com</code>)</li>
-                    <li><strong>Backend API:</strong> <code>https://${HOSTNAME}/api</code> (e.g., <code>https://app.talorlik.com/api</code>)</li>
-                    <li><strong>API Documentation:</strong> <code>https://${HOSTNAME}/api/docs</code> (Swagger UI)</li>
-                </ul>
-                <p><strong>5.8: Updating Deployments</strong></p>
-                <p>To update the applications after code changes:</p>
-                <ol>
-                    <li><strong>Rebuild and push images</strong> via GitHub Actions workflows</li>
-                    <li><strong>Upgrade Helm releases</strong> with new image tags (same commands as local deployment)</li>
-                </ol>
-                <p><strong>5.9: Alternative: Enable ArgoCD Applications</strong></p>
-                <p>If you prefer GitOps deployment via ArgoCD, enable ArgoCD applications in <code>variables.tfvars</code> and apply Terraform changes. ArgoCD will automatically deploy the applications from Git.</p>
-                <p><strong>For detailed deployment instructions:</strong> <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a></p>
-                <p><strong>For backend and frontend documentation:</strong> <a href="../application/backend/README.md">Backend API Documentation</a> | <a href="../application/frontend/README.md">Frontend Application Documentation</a></p>
+                <p>Deploys PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and Route53 record for 2FA app. The workflow validates that the ArgoCD capability status is "ACTIVE" before proceeding and uses AWS role-based authentication for secure cross-account operations.</p>
                 <h5 id="github-destroy">Destroying Infrastructure (GitHub Actions)</h5>
                 <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order.</p>
                 <ol>

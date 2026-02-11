@@ -225,7 +225,7 @@ ldapAdmin:
 
 sms:
   # Enable SMS-based 2FA
-  enabled: false
+  enabled: true
   # AWS region for SNS
   awsRegion: "us-east-1"
   # SNS topic ARN (optional - for subscriptions/notifications)
@@ -253,7 +253,7 @@ serviceAccountIAM:
 
 redis:
   # Enable Redis for SMS OTP storage
-  enabled: false
+  enabled: true
   # Redis service hostname
   host: "redis-master.redis.svc.cluster.local"
   # Redis service port
@@ -267,7 +267,7 @@ redis:
   # External secret for Redis password
   existingSecret:
     # Enable using external secret for Redis password
-    enabled: false
+    enabled: true
     # Name of the existing secret containing Redis password
     name: "redis-secret"
     # Key in the secret containing the password

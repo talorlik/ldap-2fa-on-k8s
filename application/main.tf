@@ -202,6 +202,59 @@ resource "kubernetes_secret" "ldap_admin" {
   depends_on = [kubernetes_namespace.backend_app]
 }
 
+# Copy PostgreSQL secret to backend namespace
+# Backend application needs postgresql-secret in its own namespace (2fa-app)
+# but PostgreSQL module creates it in ldap-2fa namespace
+resource "kubernetes_secret" "postgresql_secret_backend_namespace" {
+  count = var.enable_argocd_apps && var.argocd_app_backend_path != null && var.enable_postgresql ? 1 : 0
+
+  metadata {
+    name      = var.postgresql_secret_name
+    namespace = kubernetes_namespace.backend_app[0].metadata[0].name
+    labels = {
+      "app.kubernetes.io/name"       = "ldap-2fa-backend"
+      "app.kubernetes.io/managed-by" = "terraform"
+    }
+  }
+
+  data = {
+    "password" = var.postgresql_database_password
+  }
+
+  type = "Opaque"
+
+  depends_on = [
+    kubernetes_namespace.backend_app,
+    module.postgresql,
+  ]
+}
+
+# Copy Redis secret to backend namespace (if Redis is enabled)
+# Backend application may need redis-secret in its own namespace
+resource "kubernetes_secret" "redis_secret_backend_namespace" {
+  count = var.enable_argocd_apps && var.argocd_app_backend_path != null && var.enable_redis ? 1 : 0
+
+  metadata {
+    name      = var.redis_secret_name
+    namespace = kubernetes_namespace.backend_app[0].metadata[0].name
+    labels = {
+      "app.kubernetes.io/name"       = "ldap-2fa-backend"
+      "app.kubernetes.io/managed-by" = "terraform"
+    }
+  }
+
+  data = {
+    "redis-password" = var.redis_password
+  }
+
+  type = "Opaque"
+
+  depends_on = [
+    kubernetes_namespace.backend_app,
+    module.redis,
+  ]
+}
+
 ##################### ArgoCD Application - Backend
 module "argocd_app_backend" {
   source = "./modules/argocd_app"
@@ -229,6 +282,16 @@ module "argocd_app_backend" {
   depends_on = [
     data.terraform_remote_state.application_infra,
     kubernetes_secret.ldap_admin,
+    # PostgreSQL secret in backend namespace (created when enable_postgresql=true)
+    # Terraform will handle count=0 gracefully
+    kubernetes_secret.postgresql_secret_backend_namespace,
+    # Redis secret in backend namespace (created when enable_redis=true)
+    # Terraform will handle count=0 gracefully
+    kubernetes_secret.redis_secret_backend_namespace,
+    # Modules ensure PostgreSQL and Redis are deployed first
+    # These are safe to reference even with count (Terraform handles it)
+    module.postgresql,
+    module.redis,
   ]
 }
 
