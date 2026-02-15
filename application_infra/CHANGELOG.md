@@ -245,8 +245,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Helm Release Attributes for Safer Deployments**
-  - Added comprehensive Helm release attributes to all modules
-  (OpenLDAP, PostgreSQL, Redis, cert-manager) for safer and more reliable deployments:
+  - Added comprehensive Helm release attributes to modules (OpenLDAP, PostgreSQL,
+  Redis) for safer and more reliable deployments. cert-manager module code was
+  also updated but the module is not invoked in main.tf:
     - `atomic: true` - Prevents partial deployments by rolling back on failure
     - `force_update: true` - Enables forced updates when needed
     - `replace: true` - Prevents resource name conflicts and allows reuse of names
@@ -437,7 +438,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced PostgreSQL module README with chart repository information
   - Updated Redis module README with latest configuration details
   - Improved ALB module README with latest annotation strategy
-  - Enhanced cert-manager and ArgoCD module documentation
+  - Enhanced ArgoCD module documentation. cert-manager module README was also
+  updated (module exists but is not invoked).
   - Added comprehensive Route53 module README documentation
 
 - **Helm Values Template Organization**
@@ -486,8 +488,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Documentation Improvements**
   - Removed duplication by replacing detailed module descriptions with links to
   module READMEs
-  - Enhanced cross-references to module documentation (ALB, ArgoCD, cert-manager,
-  Network Policies, PostgreSQL, Redis, SES, SNS, Route53 Record)
+  - Enhanced cross-references to module documentation (ALB, ArgoCD, Network
+  Policies, PostgreSQL, Redis, SES, SNS, Route53 Record). cert-manager module
+  is documented but not invoked.
   - Updated component descriptions to be more concise with links to detailed documentation
   - Improved consistency across documentation files
   - Added comprehensive documentation for Route53 record module

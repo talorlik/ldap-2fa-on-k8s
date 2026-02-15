@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-02-11] - Destroy Confirmation, Backend Namespace Secrets, and App Docs
+
+### Added
+
+- **Destroy Workflow Confirmation**
+  - All destroy workflows (Application, Application Infrastructure, Backend
+  Infrastructure, TF Backend State) now require an explicit confirmation input
+  - When running a destroy workflow in GitHub Actions, you must type `yes` in the
+  "Type 'yes' to confirm destruction" input; the workflow fails otherwise
+  - Reduces risk of accidental destruction from mis-clicks or mistaken workflow
+  runs
+
+- **Backend Namespace Secrets**
+  - Terraform now creates `ldap-admin-secret` in the backend application namespace
+  (2fa-app) so the backend can authenticate to LDAP
+  - Uses `TF_VAR_OPENLDAP_ADMIN_PASSWORD` (GitHub secret) or OpenLDAP admin
+  password from AWS Secrets Manager for local runs
+  - Application destroy workflow comment updated to list
+  `TF_VAR_OPENLDAP_ADMIN_PASSWORD` as required for backend ldap-admin-secret
+
+- **Application Documentation**
+  - [PASSWORD_FLOW.md](application/PASSWORD_FLOW.md) – Password and MFA flow
+  documentation
+  - [REDIS_ENABLEMENT_SUMMARY.md](application/REDIS_ENABLEMENT_SUMMARY.md) –
+  Redis enablement and SMS OTP summary
+  - [SECRET_DEPENDENCIES.md](application/SECRET_DEPENDENCIES.md) – Which
+  components require which secrets (PostgreSQL, Redis, LDAP admin)
+
+### Changed
+
+- **Documentation**
+  - README and docs/index.html updated to describe destroy confirmation for
+  GitHub Actions and correct destroy order (Application → Application
+  Infrastructure → Backend Infrastructure → State)
+  - docs/index.html streamlined: removed long duplicate manual deployment
+  section in favor of link to DEPLOY-2FA-APPS.md; condensed Step 5 and build
+  steps
+
 ## [2026-02-03] - Build Workflow Image Tags, ArgoCD Access Entry, and Backend Dockerfile
 
 ### Changed
@@ -156,8 +194,9 @@ code
   - Enables independent deployment ordering and clearer separation of concerns
 
 - **Infrastructure Components (`application_infra/`)**
-  - Contains infrastructure Terraform modules: ALB, ArgoCD Capability, cert-manager,
-    network-policies, OpenLDAP, Route53, Route53 Record (for phpldapadmin and ltb_passwd)
+  - Contains infrastructure Terraform modules: ALB, ArgoCD Capability,
+    network-policies, OpenLDAP, Route53, Route53 Record (for phpldapadmin and ltb_passwd).
+    cert-manager module exists but is not invoked in main.tf.
   - Contains infrastructure scripts: `setup-application-infra.sh`, `destroy-application-infra.sh`,
     `mirror-images-to-ecr.sh`, `set-k8s-env.sh`
   - Contains infrastructure documentation: ALB, ArgoCD Capability, Domain, OpenLDAP,
@@ -288,7 +327,8 @@ code
 
 - **Helm Release Attributes for Safer Deployments**
   - Added comprehensive Helm release attributes to all application modules
-  (OpenLDAP, PostgreSQL, Redis, cert-manager) for safer and more reliable deployments
+  (OpenLDAP, PostgreSQL, Redis) for safer and more reliable deployments. The
+  cert-manager module code was also updated but the module is not invoked in main.tf.
   - Attributes include: atomic, force_update, replace, cleanup_on_fail,
   recreate_pods, wait, wait_for_jobs, upgrade_install
   - Prevents partial deployments, enables proper rollbacks, and ensures resource
@@ -453,7 +493,8 @@ code
 
 - **Module Documentation Updates**
   - Updated all module READMEs with standardized Helm values passing documentation
-  - Enhanced PostgreSQL, Redis, OpenLDAP, ALB, cert-manager, and ArgoCD module documentation
+  - Enhanced PostgreSQL, Redis, OpenLDAP, ALB, and ArgoCD module documentation
+  - cert-manager module README was also updated (module exists but is not invoked)
   - Added comprehensive Route53 module README documentation
   - Improved consistency and clarity across all module documentation
 

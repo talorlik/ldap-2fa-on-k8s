@@ -42,36 +42,44 @@ HTML/JS/CSS frontend
 **DevOps & Security:**
 
 - **ArgoCD** (AWS EKS managed service) for GitOps deployments
-- **cert-manager** for automatic TLS certificate management
 - **Network Policies** for securing pod-to-pod communication
 - **IRSA** (IAM Roles for Service Accounts) for secure AWS API access from pods
 
 ## Prerequisites
 
-- AWS Account(s) with appropriate permissions
-  - **State Account (Account A)**: For Terraform state storage (S3)
-  - **Deployment Account (Account B)**: For infrastructure resources (EKS, ALB,
-  Route53, etc.)
+- **Two AWS Accounts minimum** — the project uses a split architecture. The table
+  below shows what resides in each account.
+
+  | Resource | Account A (State Account) | Account B (Deployment Account) |
+  | ---------- | --------------------------- | -------------------------------- |
+  | Terraform state (S3 bucket) | ✓ | |
+  | AWS Secrets Manager (`github-role`, `tf-vars`, `external-id`) | ✓ | |
+  | Route53 Hosted Zone | ✓ | |
+  | Route53 DNS records (including ACM validation CNAMEs) | ✓ | |
+  | ACM Certificate (requested, validated, stored) | | ✓ (each dev/prod) |
+  | EKS, VPC, ALB, ECR, application resources | | ✓ |
+
+  **Account A (State Account)** holds shared, centrally managed resources: state
+  storage, secrets, and DNS (domain + hosted zone). Terraform reads state and
+  secrets from here, and creates DNS validation records here for ACM.
+
+  **Account B (Deployment Account)** holds infrastructure and applications. Each
+  environment (development, production) can use a separate Deployment Account.
+  ACM certificates are requested and stored here (required because the ALB and
+  certificate must be in the same account).
 - GitHub Account
 - Fork the repository:
 [ldap-2fa-on-k8s](https://github.com/talorlik/ldap-2fa-on-k8s.git)
 - AWS SSO/OIDC configured (see [GitHub Repository
 Configuration](#github-repository-configuration))
-- Route53 hosted zone must already exist (or create it manually)
-- **Public ACM Certificate Setup**: Public ACM certificates must be requested in
-  each deployment account and validated using DNS records in the State Account's
-  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](application_infra/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
-  for detailed setup instructions with step-by-step AWS CLI commands.
-- ACM certificate must already exist and be validated in the same region as the
-  EKS cluster
-  - Certificate must be a public ACM certificate (Amazon-issued) requested in
-    the Deployment Account
-  - Certificate must exist in the Deployment Account (not State Account)
-  - Certificate must be validated and in `ISSUED` status
-  - DNS validation records must be created in Route53 hosted zone in the State
-    Account
-  - See [Cross-Account Access Documentation](application_infra/CROSS-ACCOUNT-ACCESS.md)
-    for details
+- **Domain and DNS (Account A)**: Route53 hosted zone for your domain must exist
+  in the State Account. All DNS records (including ACM validation CNAMEs) are
+  created here.
+- **ACM certificates (Account B)**: Request a public ACM certificate in each
+  Deployment Account. Validation uses CNAME records in Account A's Route53.
+  Certificate must be in `ISSUED` status and in the same region as the EKS
+  cluster. See [Public ACM Certificate Setup and DNS Validation](application_infra/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  for step-by-step AWS CLI commands.
 - **Docker (for Local Deployment)**: Docker must be installed and running for
   ECR image mirroring. The `mirror-images-to-ecr.sh` script requires Docker to
   pull images from Docker Hub and push them to ECR. This step is automatically
@@ -114,7 +122,7 @@ ldap-2fa-on-k8s/
 │   ├── modules/                     # Infrastructure Terraform modules
 │   │   ├── alb/                     # Application Load Balancer
 │   │   ├── argocd/                  # ArgoCD Capability (AWS managed service)
-│   │   ├── cert-manager/            # TLS certificate management
+│   │   ├── cert-manager/            # TLS certificate management (module exists, not currently used)
 │   │   ├── network-policies/        # Pod-to-pod security
 │   │   ├── openldap/                # OpenLDAP stack
 │   │   ├── route53/                 # Route53 hosted zone
@@ -180,6 +188,9 @@ ldap-2fa-on-k8s/
 │   │   └── sns/                     # AWS SNS for SMS
 │   ├── CHANGELOG.md
 │   ├── DEPLOY-2FA-APPS.md
+│   ├── PASSWORD_FLOW.md
+│   ├── REDIS_ENABLEMENT_SUMMARY.md
+│   ├── SECRET_DEPENDENCIES.md
 │   ├── destroy-application.sh
 │   ├── main.tf
 │   ├── outputs.tf
@@ -248,35 +259,40 @@ SES, SNS
 
 ## Multi-Account Architecture
 
-This project uses a **multi-account architecture** for enhanced security:
+This project uses a **multi-account architecture** for enhanced security. See
+the [Prerequisites](#prerequisites) table for a quick reference of what resides
+in each account.
 
-- **Account A (State Account)**: Stores Terraform state files in S3
-  - S3 bucket with versioning enabled and server-side encryption (AES256)
-  - S3 file-based locking (`use_lockfile = true`) for state file
-    concurrency control
-  - IAM-based access control with OIDC authentication (no access keys
-    required)
-  - GitHub Actions authenticates with Account A for backend operations
-  - Provides isolation between state storage and resource deployment
+- **Account A (State Account)**: Holds shared, centrally managed resources
+  - **Terraform state**: S3 bucket with versioning, encryption, and file-based
+    locking
+  - **AWS Secrets Manager**: Secrets `github-role`, `tf-vars`, and `external-id`
+    (used by local scripts for role ARNs, passwords, and cross-account ExternalId)
+  - **Route53 Hosted Zone**: Domain and DNS; CNAME records for ACM validation
+    are created here
+  - IAM-based access control with OIDC (no access keys); GitHub Actions uses
+    Account A for backend operations and Route53 access
 
-- **Account B (Deployment Account)**: Contains all infrastructure resources
-  - EKS cluster, VPC, ALB, Route53, and other AWS resources
-  - Terraform provider assumes Account B role via cross-account role assumption
-  - Provides isolation and separation of concerns
+- **Account B (Deployment Account)**: Holds infrastructure and applications
+  - EKS cluster, VPC, ALB, ECR, application workloads
+  - **ACM Certificates**: Requested and stored here (ALB and certificate must
+    be in the same account); validated via CNAME records in Account A's Route53
+  - Separate Deployment Accounts for dev and prod (optional)
+  - Terraform provider assumes Account B role for resource deployment
 
 ### How It Works
 
 1. **GitHub Actions** assumes Account A role (via OIDC) for Terraform backend
-access
+   and Route53
 2. **Terraform backend** uses Account A credentials to read/write state files
 3. **Terraform AWS provider** assumes Account B role (via `assume_role`) for
-resource deployment
-4. **Remote state** data sources use Account A credentials to read state from
-Account A
+   resource deployment
+4. **Remote state** and Route53 use Account A credentials; ACM lives in
+Account B
 
 This architecture ensures:
 
-- State files are isolated in a dedicated account
+- State, secrets, and DNS are isolated in a dedicated account
 - Resource deployment uses separate credentials
 - Enhanced security through account separation
 - Better compliance and audit capabilities
@@ -629,7 +645,6 @@ This deploys:
 
 - OpenLDAP Stack HA with PhpLdapAdmin and LTB-passwd
 - ALB with host-based routing for LDAP UIs
-- cert-manager for TLS certificates
 - Network policies for security
 - ArgoCD Capability for GitOps (optional)
 - StorageClass for persistent storage (used by application components)
@@ -942,13 +957,18 @@ The script will:
 
 ### Destroy Workflows (GitHub Actions)
 
+All destroy workflows require an explicit confirmation: when you click "Run
+workflow", you must type **yes** in the "Type 'yes' to confirm destruction"
+input; otherwise the workflow will not run.
+
 #### Destroy Application
 
 1. Go to GitHub → Actions tab
 2. Select "Application Destroying" workflow
 3. Click "Run workflow"
-4. Select environment (prod or dev) and region
-5. Click "Run workflow"
+4. Type **yes** in the confirmation input
+5. Select environment (prod or dev) and region
+6. Click "Run workflow"
 
 The workflow will:
 
@@ -963,8 +983,9 @@ The workflow will:
 1. Go to GitHub → Actions tab
 2. Select "Application Infrastructure Destroying" workflow
 3. Click "Run workflow"
-4. Select environment (prod or dev) and region
-5. Click "Run workflow"
+4. Type **yes** in the confirmation input
+5. Select environment (prod or dev) and region
+6. Click "Run workflow"
 
 The workflow will:
 
@@ -979,8 +1000,9 @@ The workflow will:
 1. Go to GitHub → Actions tab
 2. Select "Backend Infrastructure Destroying" workflow
 3. Click "Run workflow"
-4. Select environment (prod or dev) and region
-5. Click "Run workflow"
+4. Type **yes** in the confirmation input
+5. Select environment (prod or dev) and region
+6. Click "Run workflow"
 
 The workflow will:
 
@@ -1019,7 +1041,8 @@ on the EKS cluster. Key components include:
 - **Application Load Balancer (ALB)** via EKS Auto Mode for internet-facing access
 - **StorageClass** for persistent storage (used by application components)
 - **ArgoCD Capability** (AWS managed service) for GitOps deployments
-- **Security**: cert-manager for TLS, Network Policies for pod-to-pod security
+- **Security**: TLS termination at ALB via ACM certificates, Network Policies for
+pod-to-pod security
 
 For detailed architecture diagrams, component descriptions, and deployment instructions,
 see the [Application Infrastructure README](application_infra/README.md).
@@ -1129,8 +1152,7 @@ After deployment:
 - [Backend Infrastructure README](backend_infra/README.md) - VPC, EKS, IRSA, VPC
 endpoints, and ECR documentation
 - [Application Infrastructure README](application_infra/README.md) - OpenLDAP, ALB,
-ArgoCD Capability
-app, ALB, ArgoCD, and deployment instructions
+  ArgoCD Capability, and deployment instructions
 
 ### Application Documentation
 
@@ -1146,6 +1168,12 @@ storage with TTL
 requirements and configuration
 - [Security Improvements](application_infra/SECURITY-IMPROVEMENTS.md) - Security
 enhancements and best practices
+- [Secret Dependencies](application/SECRET_DEPENDENCIES.md) - Which components
+require which secrets (PostgreSQL, Redis, LDAP admin)
+- [Password and MFA Flow](application/PASSWORD_FLOW.md) - Password and MFA flow
+documentation
+- [Redis Enablement Summary](application/REDIS_ENABLEMENT_SUMMARY.md) - Redis
+enablement and SMS OTP summary
 
 ### Module Documentation
 
@@ -1155,7 +1183,7 @@ setup
 - [ArgoCD Application Module](application/modules/argocd_app/README.md) -
 GitOps application deployment
 - [cert-manager Module](application_infra/modules/cert-manager/README.md) - TLS
-certificate management
+certificate management (module exists, not currently used)
 - [Network Policies](application_infra/modules/network-policies/README.md) -
   Pod-to-pod security
 - [PostgreSQL Module](application/modules/postgresql/README.md) - User data and
@@ -1190,8 +1218,8 @@ secrets (CI/CD)
 - **IRSA**: Pods assume IAM roles via OIDC—no long-lived AWS credentials
 - **VPC Endpoints**: AWS service access (SSM, STS, SNS) goes through private
 endpoints—no public internet exposure
-- **TLS Termination**: HTTPS at ALB using ACM certificates; internal TLS via
-cert-manager
+- **TLS Termination**: HTTPS at ALB using ACM certificates; OpenLDAP uses
+auto-generated self-signed certificates (cert-manager module available but not used)
 - **LDAP Security**: ClusterIP only (not exposed externally), cross-namespace
 access on secure ports only
 - **Network Policies**: Pod-to-pod communication restricted to encrypted ports

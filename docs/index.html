@@ -183,7 +183,6 @@
         <div class="card">
             <ul>
                 <li><strong>ArgoCD</strong> (AWS EKS managed service) for GitOps deployments with AWS Identity Center authentication</li>
-                <li><strong>cert-manager</strong> for automatic TLS certificate management</li>
                 <li><strong>Network Policies</strong> for securing pod-to-pod communication with cross-namespace support</li>
                 <li><strong>IRSA</strong> (IAM Roles for Service Accounts) for secure AWS API access from pods without credentials</li>
                 <li><strong>VPC Endpoints</strong> for private AWS service access (SSM, STS, SNS) without internet exposure</li>
@@ -220,37 +219,24 @@
         <h3 id="prerequisites">Prerequisites</h3>
         <div class="card">
             <ul>
-                <li><strong>AWS Account(s)</strong> with appropriate permissions
-                    <ul>
-                        <li><strong>State Account (Account A)</strong>: For Terraform state storage (S3)</li>
-                        <li><strong>Deployment Account (Account B)</strong>: For infrastructure resources (EKS, ALB, Route53, etc.)</li>
-                    </ul>
+                <li><strong>Two AWS Accounts minimum</strong> — split architecture. Quick reference:
+                    <table class="account-split-table">
+                        <thead><tr><th>Resource</th><th>Account A (State)</th><th>Account B (Deployment)</th></tr></thead>
+                        <tbody>
+                            <tr><td>Terraform state (S3)</td><td>✓</td><td></td></tr>
+                            <tr><td>AWS Secrets Manager (github-role, tf-vars, external-id)</td><td>✓</td><td></td></tr>
+                            <tr><td>Route53 Hosted Zone</td><td>✓</td><td></td></tr>
+                            <tr><td>Route53 DNS records (incl. ACM validation CNAMEs)</td><td>✓</td><td></td></tr>
+                            <tr><td>ACM Certificate (requested, validated, stored)</td><td></td><td>✓ (each dev/prod)</td></tr>
+                            <tr><td>EKS, VPC, ALB, ECR, application resources</td><td></td><td>✓</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="card-note"><strong>Account A</strong> holds state, secrets, and DNS. <strong>Account B</strong> holds infrastructure and ACM certificates (ALB and certificate must be in the same account).</p>
                 </li>
                 <li><strong>GitHub Account</strong> and repository fork: <a href="https://github.com/talorlik/ldap-2fa-on-k8s.git" target="_blank">ldap-2fa-on-k8s</a></li>
                 <li><strong>AWS SSO/OIDC</strong> configured (see <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a>)</li>
-                <li><strong>Route53 hosted zone</strong> must already exist (or create it manually)
-                    <ul>
-                        <li>Can be in State Account (different from deployment account) - automatically accessed via <code>state_account_role_arn</code></li>
-                        <li>See <a href="../application_infra/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
-                    </ul>
-                </li>
-                <li><strong>Public ACM Certificate Setup</strong>: Public ACM certificates must be requested in each deployment account and validated using DNS records in the State Account's Route53 hosted zone
-                    <ul>
-                        <li>See <a href="../application_infra/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation">Public ACM Certificate Setup and DNS Validation</a> for detailed setup instructions</li>
-                        <li>Includes step-by-step AWS CLI commands for requesting certificates, creating DNS validation records, and verifying certificate status</li>
-                        <li>Each deployment account (development, production) has its own public ACM certificate</li>
-                        <li>Certificates are automatically renewed by ACM</li>
-                    </ul>
-                </li>
-                <li><strong>ACM certificate</strong> must already exist and be validated in the same region as the EKS cluster
-                    <ul>
-                        <li>Certificate must be a public ACM certificate (Amazon-issued) requested in the Deployment Account</li>
-                        <li>Certificate must exist in the Deployment Account (not State Account)</li>
-                        <li>Certificate must be validated and in <code>ISSUED</code> status</li>
-                        <li>DNS validation records must be created in Route53 hosted zone in the State Account</li>
-                        <li>See <a href="../application_infra/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for details</li>
-                    </ul>
-                </li>
+                <li><strong>Domain and DNS (Account A)</strong>: Route53 hosted zone for your domain must exist in the State Account. All DNS records (including ACM validation CNAMEs) are created here.</li>
+                <li><strong>ACM certificates (Account B)</strong>: Request a public ACM certificate in each Deployment Account. Validation uses CNAME records in Account A's Route53. Certificate must be in <code>ISSUED</code> status and in the same region as the EKS cluster. See <a href="../application_infra/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation">Public ACM Certificate Setup and DNS Validation</a> for step-by-step AWS CLI commands.</li>
                 <li><strong>GitHub Secrets and Variables</strong> configured (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a> for complete details):
                     <ul>
                         <li><strong>Required Secrets:</strong>
@@ -703,11 +689,16 @@ terraform apply</code></pre>
                 <p><strong>For detailed deployment instructions:</strong> <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a></p>
                 <p><strong>For backend and frontend documentation:</strong> <a href="../application/backend/README.md">Backend API Documentation</a> | <a href="../application/frontend/README.md">Frontend Application Documentation</a></p>
                 <h5 id="local-destroy">Destroying Infrastructure (Local)</h5>
-                <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order.</p>
+                <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order: Application → Application Infrastructure → Backend Infrastructure → State.</p>
                 <ol>
-                    <li><strong>Destroy Application Infrastructure:</strong>
+                    <li><strong>Destroy Application:</strong>
                         <pre><code>cd application
 ./destroy-application.sh</code></pre>
+                        <p>Script will prompt for region and environment, then require confirmation ('yes', then 'DESTROY')</p>
+                    </li>
+                    <li><strong>Destroy Application Infrastructure:</strong>
+                        <pre><code>cd application_infra
+./destroy-application-infra.sh</code></pre>
                         <p>Script will prompt for region and environment, then require confirmation ('yes', then 'DESTROY')</p>
                     </li>
                     <li><strong>Destroy Backend Infrastructure:</strong>
@@ -815,13 +806,15 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <p><strong>What the workflow does:</strong></p>
                 <p>Deploys PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and Route53 record for 2FA app. The workflow validates that the ArgoCD capability status is "ACTIVE" before proceeding and uses AWS role-based authentication for secure cross-account operations.</p>
                 <h5 id="github-destroy">Destroying Infrastructure (GitHub Actions)</h5>
-                <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order.</p>
+                <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order: Application → Application Infrastructure → Backend Infrastructure → State.</p>
+                <p><strong>Confirmation required:</strong> Each destroy workflow requires you to type <strong>yes</strong> in the "Type 'yes' to confirm destruction" input when you run the workflow; otherwise the workflow will not proceed.</p>
                 <ol>
                     <li><strong>Destroy Application:</strong>
                         <ul>
                             <li>Go to GitHub → <strong>Actions</strong> tab</li>
                             <li>Select <strong>"Application Destroying"</strong> workflow</li>
                             <li>Click <strong>"Run workflow"</strong></li>
+                            <li>Type <strong>yes</strong> in the confirmation input</li>
                             <li>Select environment (prod or dev) and region</li>
                             <li>Click <strong>"Run workflow"</strong></li>
                         </ul>
@@ -831,6 +824,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                             <li>Go to GitHub → <strong>Actions</strong> tab</li>
                             <li>Select <strong>"Application Infra Destroying"</strong> workflow</li>
                             <li>Click <strong>"Run workflow"</strong></li>
+                            <li>Type <strong>yes</strong> in the confirmation input</li>
                             <li>Select environment (prod or dev) and region</li>
                             <li>Click <strong>"Run workflow"</strong></li>
                         </ul>
@@ -840,6 +834,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                             <li>Go to GitHub → <strong>Actions</strong> tab</li>
                             <li>Select <strong>"Backend Infra Destroying"</strong> workflow</li>
                             <li>Click <strong>"Run workflow"</strong></li>
+                            <li>Type <strong>yes</strong> in the confirmation input</li>
                             <li>Select environment (prod or dev) and region</li>
                             <li>Click <strong>"Run workflow"</strong></li>
                         </ul>
@@ -848,7 +843,9 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <ul>
                             <li>Go to GitHub → <strong>Actions</strong> tab</li>
                             <li>Select <strong>"TF Backend State Destroying"</strong> workflow</li>
-                            <li>Click <strong>"Run workflow"</strong> → <strong>"Run workflow"</strong></li>
+                            <li>Click <strong>"Run workflow"</strong></li>
+                            <li>Type <strong>yes</strong> in the confirmation input</li>
+                            <li>Click <strong>"Run workflow"</strong></li>
                         </ul>
                     </li>
                 </ol>
@@ -923,10 +920,10 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li><strong>Components:</strong> OpenLDAP stack (HA), PhpLdapAdmin, LTB-passwd, ALB, Route53 records (for phpldapadmin and ltb-passwd), ArgoCD Capability (optional), StorageClass</li>
                         <li><strong>Account:</strong> Deployment Account (Account B)</li>
                         <li><strong>Prerequisites:</strong> Backend infrastructure (EKS cluster) must be deployed first</li>
-                        <li><strong>Additional Requirements:</strong> Route53 hosted zone and ACM certificate must exist
+                        <li><strong>Additional Requirements:</strong> Route53 hosted zone (Account A) and ACM certificate (Account B) must exist
                             <ul>
-                                <li>Route53 hosted zone and ACM certificate can be in State Account (different from deployment account)</li>
-                                <li>Automatically accessed via <code>state_account_role_arn</code> (injected by scripts/workflows)</li>
+                                <li>Route53 hosted zone in State Account; ACM certificate in Deployment Account (ALB and cert must be in same account)</li>
+                                <li>Automatically accessed via <code>state_account_role_arn</code> for Route53 (injected by scripts/workflows)</li>
                                 <li>See <a href="../application_infra/CROSS-ACCOUNT-ACCESS.md">Cross-Account Access Documentation</a> for configuration details</li>
                             </ul>
                         </li>
@@ -965,23 +962,23 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
         <h2>Architecture</h2>
         <h3 id="multi-account-architecture">Multi-Account Architecture</h3>
         <div class="card">
-            <p>This project uses a <strong>multi-account architecture</strong> for enhanced security:</p>
+            <p>This project uses a <strong>multi-account architecture</strong> for enhanced security. See the Prerequisites table above for a quick reference of what resides in each account.</p>
             <ul>
-                <li><strong>Account A (State Account)</strong>: Stores Terraform state files in S3
+                <li><strong>Account A (State Account)</strong>: Holds shared, centrally managed resources
                     <ul>
-                        <li>S3 bucket with versioning and server-side encryption (AES256)</li>
-                        <li>S3 file-based locking (<code>use_lockfile = true</code>) for state concurrency control</li>
-                        <li>GitHub Actions authenticates with Account A via OIDC for backend operations</li>
-                        <li>Provides isolation between state storage and resource deployment</li>
-                        <li>IAM-based access control with OIDC authentication (no access keys required)</li>
+                        <li><strong>Terraform state</strong>: S3 bucket with versioning, encryption, and file-based locking</li>
+                        <li><strong>AWS Secrets Manager</strong>: Secrets <code>github-role</code>, <code>tf-vars</code>, <code>external-id</code> (role ARNs, passwords, ExternalId for local scripts)</li>
+                        <li><strong>Route53 Hosted Zone</strong>: Domain and DNS; CNAME records for ACM validation are created here</li>
+                        <li>GitHub Actions authenticates with Account A via OIDC for backend operations and Route53</li>
+                        <li>IAM-based access control (no access keys required)</li>
                     </ul>
                 </li>
-                <li><strong>Account B (Deployment Account)</strong>: Contains all infrastructure resources
+                <li><strong>Account B (Deployment Account)</strong>: Holds infrastructure and applications
                     <ul>
-                        <li>EKS cluster, VPC, ALB, Route53, and other AWS resources</li>
-                        <li>Separate roles for production and development environments</li>
+                        <li>EKS cluster, VPC, ALB, ECR, application workloads</li>
+                        <li><strong>ACM Certificates</strong>: Requested and stored here (ALB and certificate must be in the same account); validated via CNAME records in Account A's Route53</li>
+                        <li>Separate roles for production and development environments (optional)</li>
                         <li>Terraform provider assumes Account B role via cross-account role assumption</li>
-                        <li>Provides isolation and separation of concerns</li>
                     </ul>
                 </li>
             </ul>
@@ -1048,7 +1045,6 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     </ul>
                 </li>
                 <li><strong>ArgoCD Capability</strong> (AWS EKS managed service) for GitOps infrastructure with AWS Identity Center</li>
-                <li><strong>cert-manager</strong> for automatic TLS certificate management</li>
                 <li><strong>Network Policies</strong> for securing pod-to-pod communication with cross-namespace support</li>
                 <li><strong>Route53 DNS</strong> records for phpldapadmin and ltb-passwd subdomains pointing to ALB</li>
                 <li><strong>Persistent Storage</strong> using EBS-backed StorageClass (shared by all namespaces)</li>
@@ -1137,6 +1133,18 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <p>Complete step-by-step guide for deploying backend and frontend 2FA applications</p>
             </div>
             <div class="doc-item">
+                <a href="../application/SECRET_DEPENDENCIES.md">Secret Dependencies</a>
+                <p>Which components require which secrets (PostgreSQL, Redis, LDAP admin)</p>
+            </div>
+            <div class="doc-item">
+                <a href="../application/PASSWORD_FLOW.md">Password and MFA Flow</a>
+                <p>Password and MFA flow documentation</p>
+            </div>
+            <div class="doc-item">
+                <a href="../application/REDIS_ENABLEMENT_SUMMARY.md">Redis Enablement Summary</a>
+                <p>Redis enablement and SMS OTP summary</p>
+            </div>
+            <div class="doc-item">
                 <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>
                 <p>Complete guide for managing secrets via GitHub and AWS Secrets Manager</p>
             </div>
@@ -1157,7 +1165,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             </div>
             <div class="doc-item">
                 <a href="../application_infra/modules/cert-manager/README.md">cert-manager Module</a>
-                <p>TLS certificate management</p>
+                <p>TLS certificate management (module exists, not currently used)</p>
             </div>
             <div class="doc-item">
                 <a href="../application_infra/modules/network-policies/README.md">Network Policies Module</a>
@@ -1349,7 +1357,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <li><strong>Secrets Management</strong>: Passwords managed via GitHub repository secrets (CI/CD) or AWS Secrets Manager (local) with automated retrieval—never committed to version control</li>
                 <li><strong>IRSA (IAM Roles for Service Accounts)</strong>: Pods assume IAM roles via OIDC—no long-lived AWS credentials stored in containers or environment variables</li>
                 <li><strong>VPC Endpoints</strong>: AWS service access (SSM, STS, SNS) routed through private endpoints—no public internet exposure for sensitive operations</li>
-                <li><strong>TLS/HTTPS</strong>: TLS termination at ALB using ACM certificates; internal cluster communication secured via cert-manager</li>
+                <li><strong>TLS/HTTPS</strong>: TLS termination at ALB using ACM certificates; OpenLDAP uses auto-generated self-signed certificates (cert-manager module available but not used)</li>
                 <li><strong>LDAP Security</strong>: ClusterIP service only (not exposed externally); cross-namespace access restricted to secure ports (443, 636, 8443)</li>
                 <li><strong>Network Policies</strong>: Kubernetes Network Policies restrict pod-to-pod communication to encrypted ports with cross-namespace support for authorized services</li>
                 <li><strong>Storage Encryption</strong>: EBS volumes encrypted by default; S3 state files encrypted with AES256 server-side encryption</li>

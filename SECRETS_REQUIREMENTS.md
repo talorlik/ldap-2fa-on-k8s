@@ -59,8 +59,13 @@ These are used for application infrastructure components:
 
 ## AWS Secrets Manager Configuration
 
-Local bash scripts retrieve secrets from AWS Secrets Manager. Two separate secrets
-are used:
+Local bash scripts retrieve secrets from AWS Secrets Manager. **Secrets reside in
+the State Account (Account A)** — the same account that holds Terraform state and
+Route53. See the [Two-Account Split Summary](application_infra/CROSS-ACCOUNT-ACCESS.md#two-account-split-summary)
+in the Cross-Account Access documentation for a full overview of what lives in
+each account.
+
+Three separate secrets are used:
 
 ### Secret 1: `github-role`
 

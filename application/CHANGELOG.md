@@ -13,6 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG.md](../application_infra/CHANGELOG.md).
 
+## [2026-02-11] - Backend Namespace Secrets and Application Documentation
+
+### Added
+
+- **Backend Namespace LDAP Secret**
+  - Added `kubernetes_secret.ldap_admin` so the backend application namespace
+  (2fa-app) has `ldap-admin-secret` for LDAP authentication
+  - Secret is populated from `TF_VAR_OPENLDAP_ADMIN_PASSWORD` (GitHub) or
+  OpenLDAP admin password from AWS Secrets Manager (local)
+  - ArgoCD Application backend module depends on this secret so the backend can
+  start with LDAP credentials
+
+- **Application Documentation**
+  - [PASSWORD_FLOW.md](PASSWORD_FLOW.md) – Password and MFA flow documentation
+  - [REDIS_ENABLEMENT_SUMMARY.md](REDIS_ENABLEMENT_SUMMARY.md) – Redis
+  enablement and SMS OTP summary
+  - [SECRET_DEPENDENCIES.md](SECRET_DEPENDENCIES.md) – Secret dependencies for
+  PostgreSQL, Redis, and LDAP admin across namespaces
+
+### Changed
+
+- **Backend Helm Values**
+  - Backend Helm values updated to reference the LDAP admin secret in the
+  backend namespace where applicable
+
 ## [2026-02-03] - Build Workflow Image Tags and Backend Dockerfile
 
 ### Changed

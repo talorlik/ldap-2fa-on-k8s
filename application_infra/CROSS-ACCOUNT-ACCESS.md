@@ -1,9 +1,23 @@
 # Cross-Account Access Configuration
 
 This document describes the cross-account access requirements between the
-**State Account** (where Route53 hosted zone resides) and the
-**Deployment Account** (where EKS cluster, ALB, ACM certificates, and application
-resources are deployed).
+**State Account (Account A)** and the **Deployment Account (Account B)**.
+
+## Two-Account Split Summary
+
+| Resource | Account A (State Account) | Account B (Deployment Account) |
+|----------|--------------------------|-------------------------------|
+| Terraform state (S3 bucket) | ✓ | |
+| AWS Secrets Manager (`github-role`, `tf-vars`, `external-id`) | ✓ | |
+| Route53 Hosted Zone | ✓ | |
+| Route53 DNS records (including ACM validation CNAMEs) | ✓ | |
+| ACM Certificate (requested, validated, stored) | | ✓ (each dev/prod) |
+| EKS, VPC, ALB, ECR, application resources | | ✓ |
+
+**Account A** holds shared, centrally managed resources: state storage, secrets
+(for local scripts: role ARNs, passwords, ExternalId), and DNS. **Account B**
+holds infrastructure and ACM certificates (required because ALB and certificate
+must be in the same account).
 
 ## Overview
 

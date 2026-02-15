@@ -20,18 +20,28 @@ EKS cluster with IRSA, VPC endpoints, ECR) (Account B - Deployment Account)
 and application dependencies (PostgreSQL, Redis, SES, SNS, ArgoCD Applications)
 (Account B - Deployment Account)
 
-**Multi-Account Architecture:**
+**Multi-Account Architecture (two accounts minimum):**
 
-- **Account A (State Account)**: Stores Terraform state files in S3, Route53
-hosted zones, and ACM certificates
-- **Account B (Deployment Accounts)**: Contains all infrastructure resources
-  - **Production Account**: Separate account for production infrastructure
-  - **Development Account**: Separate account for development infrastructure
+| Resource | Account A (State) | Account B (Deployment) |
+| ---------- | ------------------- | ------------------------ |
+| Terraform state (S3) | ✓ | |
+| AWS Secrets Manager (github-role, tf-vars, external-id) | ✓ | |
+| Route53 Hosted Zone | ✓ | |
+| Route53 DNS records (incl. ACM validation CNAMEs) | ✓ | |
+| ACM Certificate (requested, validated, stored) | | ✓ (each dev/prod) |
+| EKS, VPC, ALB, ECR, application resources | | ✓ |
+
+- **Account A (State Account)**: Holds state, secrets, and DNS. Route53 hosted
+  zone and validation CNAMEs live here. Local scripts retrieve role ARNs and
+  passwords from Secrets Manager in this account.
+- **Account B (Deployment Accounts)**: Holds infrastructure and ACM certificates
+  (ALB and certificate must be in the same account). Separate accounts for prod
+  and dev (optional).
 - GitHub Actions uses OIDC to assume Account A role for backend state operations
 - Terraform provider assumes Account B role (prod or dev) via `assume_role` for
 resource deployment with ExternalId for enhanced security
 - **State Account provider** (`aws.state_account`) assumes Account A role for
-Route53 and ACM operations (no ExternalId required)
+Route53 operations (no ExternalId required). ACM certificates live in Account B.
 - Environment-based role selection: workflows and scripts automatically select
 the appropriate deployment role ARN based on the selected environment (`prod` or
 `dev`)
@@ -125,7 +135,7 @@ ldap-2fa-on-k8s/
 │   ├── modules/                # Infrastructure Terraform modules
 │   │   ├── alb/                # IngressClass and IngressClassParams
 │   │   ├── argocd/             # ArgoCD Capability (AWS managed)
-│   │   ├── cert-manager/       # TLS certificate management
+│   │   ├── cert-manager/       # TLS certificate management (module exists, not currently used)
 │   │   ├── network-policies/   # Kubernetes NetworkPolicies
 │   │   ├── openldap/           # OpenLDAP Stack HA deployment module
 │   │   ├── route53/            # Route53 hosted zone
@@ -306,11 +316,12 @@ via DNS records in State Account's Route53 hosted zone
   for detailed setup instructions
   - Certificates are browser-trusted (no security warnings) and automatically
   renewed by ACM
-- **For local scripts**: AWS Secrets Manager secrets configured:
+- **For local scripts**: AWS Secrets Manager secrets configured **in the State
+  Account (Account A)**:
   - `github-role`: Contains `AWS_STATE_ACCOUNT_ROLE_ARN` and deployment account
   role ARNs
   - `external-id`: Contains `AWS_ASSUME_EXTERNAL_ID`
-  - `tf-vars`: Contains OpenLDAP password
+  - `tf-vars`: Contains OpenLDAP, PostgreSQL, and Redis passwords
   - See `SECRETS_REQUIREMENTS.md` for detailed setup instructions
 
 **Deploy Application Infrastructure (OpenLDAP, ALB, ArgoCD Capability):**
@@ -583,7 +594,7 @@ state (with fallback options)
 - `application_infra/modules/` - Infrastructure Terraform modules:
   - `alb/` - IngressClass and IngressClassParams for EKS Auto Mode ALB
   - `argocd/` - AWS EKS managed ArgoCD Capability
-  - `cert-manager/` - TLS certificate management (optional)
+  - `cert-manager/` - TLS certificate management (module exists, not currently used)
   - `network-policies/` - Kubernetes NetworkPolicies with cross-namespace access
   - `openldap/` - OpenLDAP Stack HA deployment with secrets, Ingress, and Route53
   - `route53/` - Route53 hosted zone creation (commented out, uses data sources)
@@ -850,7 +861,7 @@ releases → Route53 A record for twofa_app → ArgoCD Applications)
 - `application_infra/modules/` - Infrastructure-specific modules:
   - `alb/` - IngressClass and IngressClassParams for EKS Auto Mode ALB
   - `argocd/` - AWS EKS managed ArgoCD Capability for GitOps
-  - `cert-manager/` - Optional cert-manager for self-signed TLS certificates
+  - `cert-manager/` - cert-manager module for self-signed TLS (exists but not invoked)
   - `network-policies/` - Kubernetes NetworkPolicies for secure communication
   with cross-namespace access
   - `openldap/` - OpenLDAP Stack HA deployment with multi-master replication,
@@ -1083,8 +1094,8 @@ workflow or `setup-backend.sh` script (required for build workflows)
   before application
 
 - **Infrastructure Components (`application_infra/`)**
-  - Contains OpenLDAP, ALB, ArgoCD Capability, cert-manager, network-policies,
-  Route53 records (phpldapadmin, ltb-passwd)
+  - Contains OpenLDAP, ALB, ArgoCD Capability, network-policies, Route53 records
+  (phpldapadmin, ltb-passwd). cert-manager module exists but is not invoked.
   - Scripts: `setup-application-infra.sh`, `destroy-application-infra.sh`,
   `mirror-images-to-ecr.sh`, `set-k8s-env.sh`
   - Exports outputs for application use: `storage_class_name`, `local_cluster_secret_name`,
@@ -1217,7 +1228,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
 
 - **Enhanced Helm Release Attributes for Safer Deployments**:
   - Added comprehensive Helm release attributes to all application modules
-  (OpenLDAP, PostgreSQL, Redis, cert-manager):
+  (OpenLDAP, PostgreSQL, Redis):
     - `atomic: true` - Prevents partial deployments on failure
     - `force_update: true` - Enables forced updates when needed
     - `replace: true` - Prevents resource name conflicts and allows reusing names
@@ -1760,6 +1771,7 @@ Ingress annotations
 - **Added comprehensive outputs**: Backend infrastructure outputs (VPC
 endpoints, ECR) and application outputs (ALB, Route53, network policies)
 - **cert-manager module**: Optional module for self-signed TLS certificates
+(exists but not invoked)
 (exists but not actively used)
 - **CHANGELOG.md**: Detailed changelog tracking ALB configuration changes, TLS
 environment variable updates, and multi-account architecture changes
@@ -2019,7 +2031,7 @@ on first startup
   "ldap.key"`, `LDAP_TLS_CA_CRT_FILENAME: "ca.crt"`
 - **ALB TLS**: ACM certificate terminates TLS at ALB for public access
 - **cert-manager Module**: Optional module for managing custom certificates
-(currently exists but not actively used)
+(exists in codebase but is not invoked)
 
 ### Storage Configuration
 

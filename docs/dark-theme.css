@@ -14,6 +14,7 @@
     --nav-bg: #161b22;
     --nav-shadow: rgba(0, 0, 0, 0.5);
     --section-bg: #161b22;
+    --table-row-alt: #21262d;
     --link-color: #58a6ff;
 }
 
@@ -362,11 +363,25 @@ table th {
 }
 
 table tbody tr:nth-child(even) {
-    background-color: var(--section-bg);
+    background-color: var(--table-row-alt);
 }
 
 table tbody tr:hover {
     background-color: rgba(88, 166, 255, 0.1);
+}
+
+/* Account split table (prerequisites) */
+.account-split-table {
+    margin: 0.5em 0;
+}
+
+.account-split-table th,
+.account-split-table td {
+    padding: 4px 8px;
+}
+
+.card-note {
+    margin: 0.5em 0;
 }
 
 /* Deployment Options */

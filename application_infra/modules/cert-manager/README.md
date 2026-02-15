@@ -1,5 +1,9 @@
 # cert-manager Module
 
+> **Note**: This module exists in the codebase but is **not currently invoked** in
+> `application_infra/main.tf`. OpenLDAP uses auto-generated self-signed certificates
+> from the osixia/openldap image. This module is available for future integration.
+
 This module installs cert-manager and creates a self-signed TLS certificate for
 OpenLDAP internal communication.
 
