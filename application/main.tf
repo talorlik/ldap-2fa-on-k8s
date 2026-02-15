@@ -18,8 +18,9 @@ locals {
   alb_load_balancer_name = try(data.terraform_remote_state.application_infra[0].outputs.alb_load_balancer_name, "")
   alb_ingress_class_name = try(data.terraform_remote_state.application_infra[0].outputs.alb_ingress_class_name, "")
 
-  # Helm parameters for 2FA app Ingress: use shared ALB name and IngressClass so Ingresses attach to existing ALB (no conflict)
-  argocd_helm_alb_parameters = local.alb_load_balancer_name != "" && local.alb_ingress_class_name != "" ? [
+  # Helm parameters for 2FA app Ingress: use shared ALB name and IngressClass so Ingresses attach to existing ALB (no conflict).
+  # Must set paths explicitly: setting only ingress.hosts[0].host can replace the host object and drop paths (Helm --set merge behavior).
+  argocd_helm_alb_parameters_backend = local.alb_load_balancer_name != "" && local.alb_ingress_class_name != "" ? [
     {
       name         = "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/load-balancer-name"
       value        = local.alb_load_balancer_name
@@ -33,6 +34,44 @@ locals {
     {
       name         = "ingress.hosts[0].host"
       value        = local.twofa_app_host
+      force_string = true
+    },
+    {
+      name         = "ingress.hosts[0].paths[0].path"
+      value        = "/api"
+      force_string = true
+    },
+    {
+      name         = "ingress.hosts[0].paths[0].pathType"
+      value        = "Prefix"
+      force_string = true
+    }
+  ] : []
+
+  argocd_helm_alb_parameters_frontend = local.alb_load_balancer_name != "" && local.alb_ingress_class_name != "" ? [
+    {
+      name         = "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/load-balancer-name"
+      value        = local.alb_load_balancer_name
+      force_string = true
+    },
+    {
+      name         = "ingress.className"
+      value        = local.alb_ingress_class_name
+      force_string = true
+    },
+    {
+      name         = "ingress.hosts[0].host"
+      value        = local.twofa_app_host
+      force_string = true
+    },
+    {
+      name         = "ingress.hosts[0].paths[0].path"
+      value        = "/"
+      force_string = true
+    },
+    {
+      name         = "ingress.hosts[0].paths[0].pathType"
+      value        = "Prefix"
       force_string = true
     }
   ] : []
@@ -302,8 +341,8 @@ module "argocd_app_backend" {
     sync_options = ["CreateNamespace=true"]
   } : null
 
-  helm_config = length(local.argocd_helm_alb_parameters) > 0 ? {
-    parameters = local.argocd_helm_alb_parameters
+  helm_config = length(local.argocd_helm_alb_parameters_backend) > 0 ? {
+    parameters = local.argocd_helm_alb_parameters_backend
   } : null
 
   depends_on = [
@@ -346,8 +385,8 @@ module "argocd_app_frontend" {
     sync_options = ["CreateNamespace=true"]
   } : null
 
-  helm_config = length(local.argocd_helm_alb_parameters) > 0 ? {
-    parameters = local.argocd_helm_alb_parameters
+  helm_config = length(local.argocd_helm_alb_parameters_frontend) > 0 ? {
+    parameters = local.argocd_helm_alb_parameters_frontend
   } : null
 
   depends_on = [

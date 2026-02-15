@@ -32,6 +32,14 @@ name"**
     `load-balancer-name` annotation when its value is empty, so an explicit
     empty string is never sent to the controller.
 
+- **ArgoCD sync: "spec.rules[0].http.paths: Required value"**
+  - Setting only `ingress.hosts[0].host` via Helm parameters can cause Helm to
+    replace the first host entry and drop the `paths` array (known Helm `--set`
+    merge behavior). Backend and frontend now receive explicit
+    `ingress.hosts[0].paths[0].path` and `ingress.hosts[0].paths[0].pathType`
+    parameters (backend: `/api`, frontend: `/`) so the rendered Ingress always
+    has a non-empty paths array.
+
 ### Added
 
 - **Outputs `alb_load_balancer_name` and `alb_ingress_class_name`** (from
