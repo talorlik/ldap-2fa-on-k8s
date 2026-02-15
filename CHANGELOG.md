@@ -10,24 +10,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Backend: Database URL built from Kubernetes Secret (password-only)**
-  - When the backend Helm chart uses an external secret that contains only the database password (not the full URL), the app now builds the PostgreSQL connection URL from `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_NAME`, and the password from the secret. This fixes startup failure when the chart had been setting `DATABASE_URL` to the raw password.
-  - Optional: `database.externalSecret.urlKey` for full URL in secret; `database.externalSecret.passwordFile` to mount the password as a file so it is not in the process environment.
+  - When the backend Helm chart uses an external secret that contains only the
+  database password (not the full URL), the app now builds the PostgreSQL connection
+  URL from `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_NAME`,
+  and the password from the secret. This fixes startup failure when the chart had
+  been setting `DATABASE_URL` to the raw password.
+  - Optional: `database.externalSecret.urlKey` for full URL in secret;
+  `database.externalSecret.passwordFile` to mount the password as a file so it is
+  not in the process environment.
   - App supports `DATABASE_PASSWORD_FILE` to read the password from a mounted file.
 
 - **Backend: Redaction of connection strings in logs**
-  - Database startup errors are redacted so connection URLs and passwords never appear in log output (`app.utils.security.redact_connection_strings`).
+  - Database startup errors are redacted so connection URLs and passwords never
+  appear in log output (`app.utils.security.redact_connection_strings`).
 
 - **Backend: Pyright config for import resolution**
-  - `application/backend/pyrightconfig.json` with `extraPaths: ["src"]` so `from app.xxx` resolves correctly in the IDE when using the src layout.
+  - `application/backend/pyrightconfig.json` with `extraPaths: ["src"]` so
+  `from app.xxx` resolves correctly in the IDE when using the src layout.
 
 ### Changed
 
 - **Backend Helm chart**
-  - Database credentials: chart now injects either full `DATABASE_URL` from secret (when `urlKey` is set) or `DATABASE_PASSWORD` (or `DATABASE_PASSWORD_FILE` when password file is enabled) plus host/port/user/name from values/ConfigMap. ConfigMap supplies `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_NAME` when external secret is used without a full-URL key.
+  - Database credentials: chart now injects either full `DATABASE_URL` from secret
+  (when `urlKey` is set) or `DATABASE_PASSWORD` (or `DATABASE_PASSWORD_FILE` when
+  password file is enabled) plus host/port/user/name from values/ConfigMap.
+  ConfigMap supplies `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_NAME`
+  when external secret is used without a full-URL key.
   - `database.externalSecret.passwordFile.enabled` defaults to `false`.
 
 - **Backend README**
-  - Documented database configuration (URL vs components, `DATABASE_PASSWORD_FILE`), Helm database external secret options, IDE/pyright note, and security note on log redaction.
+  - Documented database configuration (URL vs components, `DATABASE_PASSWORD_FILE`),
+  Helm database external secret options, IDE/pyright note, and security note on
+  log redaction.
+
+### Fixed
+
+- **Backend Helm chart: Helm template parse error on deploy**
+  - Replaced undefined `regexReplace` with Sprig’s `regexReplaceAll` in `deployment.yaml`
+  for database password file `mountPath` and secret item `path`.
+  Fixes `ComparisonError: function "regexReplace" not defined` when Argo CD / Helm
+  renders the backend chart.
 
 ## [2026-02-11] - Destroy Confirmation, Backend Namespace Secrets, and App Docs
 

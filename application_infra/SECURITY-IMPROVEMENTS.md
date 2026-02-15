@@ -509,7 +509,9 @@ OIDC provider):
 }
 ```
 
-**Note**: ExternalId is **not required** for State Account role assumption (by design).
+> [!NOTE]
+>
+> ExternalId is **not required** for State Account role assumption (by design).
 
 > [!IMPORTANT]
 >

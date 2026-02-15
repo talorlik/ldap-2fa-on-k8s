@@ -532,8 +532,10 @@ docker tag <image>:<tag> <ecr_url>:<tag>
 docker push <ecr_url>:<tag>
 ```
 
-**Note**: The `setup-application.sh` script automatically runs the image
-mirroring script, so manual execution is typically not needed.
+> [!NOTE]
+>
+> The `setup-application.sh` script automatically runs the image
+> mirroring script, so manual execution is typically not needed.
 
 ## Key Configuration Files
 

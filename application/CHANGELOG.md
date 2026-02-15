@@ -18,24 +18,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Backend: Database URL from Kubernetes Secret (password-only)**
-  - When the Helm chart uses `database.externalSecret` with only a password (no full URL), the app now builds the connection URL from `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_NAME`, and the password from the secret. Previously the chart incorrectly set `DATABASE_URL` to the raw password, causing startup failure (SQLAlchemy could not parse the URL).
-  - Helm values: `database.host`, `database.port`, `database.user`, `database.name` for component-based config; optional `database.externalSecret.urlKey` for full URL in secret; optional `database.externalSecret.passwordFile` to mount the password as a file instead of env var.
-  - App supports `DATABASE_PASSWORD_FILE`: when set, the password is read from the file (e.g. mounted Secret) so it is not in the process environment.
+  - When the Helm chart uses `database.externalSecret` with only a password
+  (no full URL), the app now builds the connection URL from `DATABASE_HOST`,
+  `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_NAME`, and the password from the secret.
+  Previously the chart incorrectly set `DATABASE_URL` to the raw password, causing
+  startup failure (SQLAlchemy could not parse the URL).
+  - Helm values: `database.host`, `database.port`, `database.user`, `database.name`
+  for component-based config; optional `database.externalSecret.urlKey` for full
+  URL in secret; optional `database.externalSecret.passwordFile` to mount the password
+  as a file instead of env var.
+  - App supports `DATABASE_PASSWORD_FILE`: when set, the password is read from
+  the file (e.g. mounted Secret) so it is not in the process environment.
 
 - **Backend: Log redaction for database connection strings**
-  - Startup errors that may contain the connection URL or password are redacted before logging. New `app.utils.security.redact_connection_strings()` and its use in `main.py` ensure database credentials never appear in logs.
+  - Startup errors that may contain the connection URL or password are redacted
+  before logging. New `app.utils.security.redact_connection_strings()` and its
+  use in `main.py` ensure database credentials never appear in logs.
 
 - **Backend: Pyright/Pylance config for `src` layout**
-  - Added `application/backend/pyrightconfig.json` with `extraPaths: ["src"]` so IDE imports (`from app.xxx`) resolve correctly when the package lives under `src/app/`.
+  - Added `application/backend/pyrightconfig.json` with `extraPaths: ["src"]` so
+  IDE imports (`from app.xxx`) resolve correctly when the package lives under `src/app/`.
 
 ### Changed
 
 - **Backend Helm chart**
-  - Database block: when `database.externalSecret.enabled` is true and `urlKey` is set, `DATABASE_URL` is taken from that secret key; otherwise the chart injects `DATABASE_PASSWORD` (or `DATABASE_PASSWORD_FILE` when `passwordFile.enabled` is true) plus `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_NAME` from ConfigMap. ConfigMap now includes those keys when external secret is used without `urlKey`.
-  - Default `database.externalSecret.passwordFile.enabled` is `false` (password from secret via env is sufficient for most deployments).
+  - Database block: when `database.externalSecret.enabled` is true and `urlKey`
+  is set, `DATABASE_URL` is taken from that secret key; otherwise the chart injects
+  `DATABASE_PASSWORD` (or `DATABASE_PASSWORD_FILE` when `passwordFile.enabled`
+  is true) plus `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_NAME`
+  from ConfigMap. ConfigMap now includes those keys when external secret is used
+  without `urlKey`.
+  - Default `database.externalSecret.passwordFile.enabled` is `false`
+  (password from secret via env is sufficient for most deployments).
 
 - **Backend README**
-  - Documented database configuration: full URL vs component vars (`DATABASE_HOST`, `DATABASE_USER`, etc.) and `DATABASE_PASSWORD_FILE`. Documented Helm database external secret options (urlKey, passwordKey, passwordFile) and example install. Added IDE/Editor note for `pyrightconfig.json` and import resolution. Added `app/utils/security.py` to project structure. Security section updated to mention log redaction for DB credentials.
+  - Documented database configuration: full URL vs component vars (`DATABASE_HOST`,
+  `DATABASE_USER`, etc.) and `DATABASE_PASSWORD_FILE`. Documented Helm database
+  external secret options (urlKey, passwordKey, passwordFile) and example install.
+  Added IDE/Editor note for `pyrightconfig.json` and import resolution.
+  Added `app/utils/security.py` to project structure. Security section updated to
+  mention log redaction for DB credentials.
+
+### Fixed
+
+- **Backend Helm chart: Helm template parse error on deploy**
+  - Replaced undefined `regexReplace` with Sprig’s `regexReplaceAll` in the backend
+  deployment template for database password file `mountPath` and secret item `path`.
+  Fixes `ComparisonError: function "regexReplace" not defined` when Argo CD / Helm
+  renders the chart.
 
 ## [2026-02-11] - Backend Namespace Secrets and Application Documentation
 

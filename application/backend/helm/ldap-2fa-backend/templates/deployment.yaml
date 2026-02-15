@@ -315,7 +315,7 @@ spec:
           volumeMounts:
           {{- if and .Values.database.externalSecret.enabled (not .Values.database.externalSecret.urlKey) $dbPf.enabled }}
           - name: database-password
-            mountPath: {{ regexReplace "^(.*)/[^/]+$" "$1" $dbPf.mountPath }}
+            mountPath: {{ regexReplaceAll "^(.*)/[^/]+$" "$1" $dbPf.mountPath }}
             readOnly: true
           {{- end }}
           {{- with .Values.volumeMounts }}
@@ -332,7 +332,7 @@ spec:
           defaultMode: 256
           items:
             - key: {{ .Values.database.externalSecret.passwordKey }}
-              path: {{ regexReplace ".*/([^/]+)$" "$1" $dbPf.mountPath }}
+              path: {{ regexReplaceAll ".*/([^/]+)$" "$1" $dbPf.mountPath }}
       {{- end }}
       {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
