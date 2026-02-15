@@ -258,10 +258,26 @@ Pydantic Settings for type-safe configuration management.
 
 | Variable | Description | Example |
 | ---------- | ------------- | --------- |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://user:pass@host:5432/db` |
+| `DATABASE_URL` | PostgreSQL connection string (or use component vars below) | `postgresql+asyncpg://user:pass@host:5432/db` |
 | `LDAP_HOST` | LDAP server hostname | `openldap.example.com` |
 | `LDAP_ADMIN_PASSWORD` | LDAP admin password | `secret123` |
 | `JWT_SECRET_KEY` | Secret key for JWT signing | `use-a-secure-random-key` |
+
+### Database Configuration
+
+The app accepts either a full connection URL or separate connection components (e.g. when the password is provided via Kubernetes Secret):
+
+| Variable | Description |
+| ---------- | ------------- |
+| `DATABASE_URL` | Full PostgreSQL URL: `postgresql+asyncpg://user:password@host:port/database`. Used when set and valid. |
+| `DATABASE_HOST` | Database host (used with component-based config). |
+| `DATABASE_PORT` | Database port (default `5432`). |
+| `DATABASE_USER` | Database user. |
+| `DATABASE_NAME` | Database name. |
+| `DATABASE_PASSWORD` | Database password (from Secret or env). |
+| `DATABASE_PASSWORD_FILE` | Path to a file containing the password (e.g. Kubernetes Secret mounted as file). If set, the app reads the password from this file instead of `DATABASE_PASSWORD` so the password is not in the process environment. |
+
+When `DATABASE_HOST`, `DATABASE_USER`, `DATABASE_NAME`, and either `DATABASE_PASSWORD` or `DATABASE_PASSWORD_FILE` are set, the app builds `DATABASE_URL` from these. This is the pattern used by the Helm chart when `database.externalSecret` is enabled with only a password (no full URL in the secret).
 
 ### LDAP Configuration
 
@@ -390,6 +406,9 @@ backend/
 │   │   │   ├── __init__.py
 │   │   │   ├── connection.py      # Database connection management
 │   │   │   └── models.py          # SQLAlchemy models
+│   │   ├── utils/
+│   │   │   ├── __init__.py
+│   │   │   └── security.py        # Log redaction for secrets
 │   │   ├── email/
 │   │   │   ├── __init__.py
 │   │   │   └── client.py          # AWS SES email client
@@ -411,14 +430,19 @@ backend/
 └── README.md
 ```
 
+### IDE / Editor
+
+The package lives under `src/app/`. For correct import resolution (`from app.xxx`), run or open the project from the `backend` directory and ensure `src` is on the Python path. A `pyrightconfig.json` in the backend root sets `extraPaths: ["src"]` so Pylance/Pyright resolve `app` correctly. If imports still show as unresolved, reload the editor window.
+
 ### Running Tests
 
 ```bash
 # Install test dependencies
 pip install pytest pytest-asyncio httpx
 
-# Run tests
-pytest
+# Run tests (from backend root; run from src if your test runner expects it)
+cd src && pytest
+# or: PYTHONPATH=src pytest
 ```
 
 ### Code Quality
@@ -563,19 +587,27 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 ### Kubernetes Deployment
 
-The project includes Helm charts for Kubernetes deployment:
+The project includes Helm charts for Kubernetes deployment.
+
+**Database credentials from Kubernetes Secret (recommended):** Use `database.externalSecret` so the password is never in ConfigMap or values. Either store the full URL in the secret and set `database.externalSecret.urlKey` (e.g. `DATABASE_URL`), or store only the password and set `database.host`, `database.port`, `database.user`, `database.name` in values; the chart injects the password from the secret and the app builds the URL.
+
+- **Full URL in secret:** Set `database.externalSecret.urlKey: "DATABASE_URL"` and put the full `postgresql+asyncpg://...` string in that secret key.
+- **Password only in secret:** Leave `urlKey` unset; set `database.externalSecret.passwordKey` (e.g. `"password"`) and set `database.host`, `database.port`, `database.user`, `database.name` in values. Optional: `database.externalSecret.passwordFile.enabled: true` mounts the password as a file and sets `DATABASE_PASSWORD_FILE` so the password is not in the process environment.
 
 ```bash
-# Install using Helm
+# Install using Helm (with external secret for DB password)
 helm install ldap-2fa-backend ./helm/ldap-2fa-backend \
-  --set database.url="postgresql+asyncpg://..." \
+  --set database.host="postgresql.ldap-2fa.svc.cluster.local" \
+  --set database.user="ldap2fa" \
+  --set database.name="ldap2fa" \
   --set ldap.host="..." \
   --set jwt.secretKey="..."
+# Ensure the namespace has a Secret (e.g. postgresql-secret) with the DB password.
 ```
 
 ### Environment Variables
 
-Set all required environment variables in your deployment configuration (ConfigMap/Secrets).
+Set all required environment variables in your deployment configuration (ConfigMap/Secrets). Database password should come from a Kubernetes Secret (see above), not from ConfigMap or plain values.
 
 ### Health Checks
 
@@ -600,7 +632,7 @@ Secrets or a secrets management service.
    ```
 
 3. **LDAP Credentials**: Store LDAP admin credentials securely (Kubernetes Secrets).
-4. **Database Credentials**: Use strong passwords and restrict database access.
+4. **Database Credentials**: Use strong passwords and restrict database access. Provide the password only via Kubernetes Secret (env or file mount); the app redacts connection strings and passwords from startup error logs so they never appear in log output.
 5. **HTTPS**: Always use HTTPS in production. Configure TLS termination at the
 ingress level.
 6. **CORS**: Restrict CORS origins to only trusted domains in production.

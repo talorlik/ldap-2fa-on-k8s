@@ -108,11 +108,44 @@ spec:
             {{- end }}
             # Database Configuration
             {{- if .Values.database.externalSecret.enabled }}
+            {{- if .Values.database.externalSecret.urlKey }}
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.database.externalSecret.secretName }}
+                  key: {{ .Values.database.externalSecret.urlKey }}
+            {{- else }}
+            {{- if .Values.database.externalSecret.passwordFile.enabled }}
+            - name: DATABASE_PASSWORD_FILE
+              value: {{ .Values.database.externalSecret.passwordFile.mountPath | quote }}
+            {{- else }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.externalSecret.secretName }}
                   key: {{ .Values.database.externalSecret.passwordKey }}
+            {{- end }}
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: DATABASE_HOST
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: DATABASE_PORT
+            - name: DATABASE_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: DATABASE_USER
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
+                  key: DATABASE_NAME
+            {{- end }}
             {{- else }}
             - name: DATABASE_URL
               valueFrom:
@@ -277,13 +310,33 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.volumeMounts }}
+          {{- $dbPf := index .Values.database.externalSecret "passwordFile" | default dict }}
+          {{- if or (and .Values.database.externalSecret.enabled (not .Values.database.externalSecret.urlKey) $dbPf.enabled) .Values.volumeMounts }}
           volumeMounts:
+          {{- if and .Values.database.externalSecret.enabled (not .Values.database.externalSecret.urlKey) $dbPf.enabled }}
+          - name: database-password
+            mountPath: {{ regexReplace "^(.*)/[^/]+$" "$1" $dbPf.mountPath }}
+            readOnly: true
+          {{- end }}
+          {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
-      {{- with .Values.volumes }}
+          {{- end }}
+      {{- $dbPf := index .Values.database.externalSecret "passwordFile" | default dict }}
+      {{- if or (and .Values.database.externalSecret.enabled (not .Values.database.externalSecret.urlKey) $dbPf.enabled) .Values.volumes }}
       volumes:
+      {{- if and .Values.database.externalSecret.enabled (not .Values.database.externalSecret.urlKey) $dbPf.enabled }}
+      - name: database-password
+        secret:
+          secretName: {{ .Values.database.externalSecret.secretName }}
+          defaultMode: 256
+          items:
+            - key: {{ .Values.database.externalSecret.passwordKey }}
+              path: {{ regexReplace ".*/([^/]+)$" "$1" $dbPf.mountPath }}
+      {{- end }}
+      {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

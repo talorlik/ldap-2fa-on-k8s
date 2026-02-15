@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import router
 from app.config import get_settings
 from app.database import init_db, close_db
+from app.utils.security import redact_connection_strings
 
 # Configure logging
 settings = get_settings()
@@ -55,7 +56,12 @@ async def startup_event():
         await init_db()
         logger.info("Database connection established")
     except Exception as e:
-        logger.error("Failed to initialize database: %s", e)
+        # Never log raw exception message; it may contain the connection URL or password
+        logger.error(
+            "Failed to initialize database: %s - %s",
+            type(e).__name__,
+            redact_connection_strings(str(e)),
+        )
         raise
 
     logger.info("LDAP Host: %s:%s", settings.ldap_host, settings.ldap_port)

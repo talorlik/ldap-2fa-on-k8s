@@ -184,14 +184,28 @@ externalSecret:
 # =============================================================================
 
 database:
-  # PostgreSQL connection URL
+  # PostgreSQL connection URL (used when database.externalSecret.enabled is false)
   # Format: postgresql+asyncpg://user:password@host:port/database
   url: "postgresql+asyncpg://ldap2fa:ldap2fa@postgresql.ldap-2fa.svc.cluster.local:5432/ldap2fa"
-  # Use external secret for database password
+  # Connection parts used when external secret provides only the password (passwordKey)
+  # The app builds DATABASE_URL from these + DATABASE_PASSWORD from the secret
+  host: "postgresql.ldap-2fa.svc.cluster.local"
+  port: 5432
+  user: "ldap2fa"
+  name: "ldap2fa"
+  # Use external secret for database credentials
   externalSecret:
     enabled: true
     secretName: "postgresql-secret"
+    # When set: secret key that holds the full DATABASE_URL (preferred)
+    urlKey: ""
+    # When urlKey is not set: secret key that holds only the password; app builds URL from host/user/name/port + this
     passwordKey: "password"
+    # Optional: mount password as a file instead of env var (password then not in process env; not required for security)
+    passwordFile:
+      enabled: false
+      # Full path where the secret's password key will be mounted (e.g. /etc/secrets/database/password)
+      mountPath: "/etc/secrets/database/password"
 
 # =============================================================================
 # Email Configuration (AWS SES)

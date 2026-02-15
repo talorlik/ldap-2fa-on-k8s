@@ -2,8 +2,24 @@
 
 import os
 from functools import lru_cache
+from pathlib import Path
+from urllib.parse import quote_plus
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
+
+
+def _read_database_password() -> str | None:
+    """Read database password from env or from file (Kubernetes secret mount). Never log this value."""
+    file_path = os.getenv("DATABASE_PASSWORD_FILE")
+    if file_path:
+        path = Path(file_path)
+        if path.is_file():
+            try:
+                return path.read_text().strip()
+            except OSError:
+                pass
+    return os.getenv("DATABASE_PASSWORD")
 
 
 class Settings(BaseSettings):
@@ -56,10 +72,37 @@ class Settings(BaseSettings):
     redis_key_prefix: str = os.getenv("REDIS_KEY_PREFIX", "sms_otp:")
 
     # Database Configuration (PostgreSQL)
+    # When using external secret with password only, DATABASE_URL may be unset and the URL
+    # is built from DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_NAME, DATABASE_PASSWORD
     database_url: str = os.getenv(
         "DATABASE_URL",
         "postgresql+asyncpg://ldap2fa:ldap2fa@localhost:5432/ldap2fa"
     )
+
+    @model_validator(mode="after")
+    def build_database_url_from_components(self) -> "Settings":
+        """When DATABASE_HOST/USER/NAME/PASSWORD are set (password-only secret), build URL from components.
+        PASSWORD can come from DATABASE_PASSWORD (env) or DATABASE_PASSWORD_FILE (file mount; preferred so password is not in process env).
+        Also fix the case where DATABASE_URL was wrongly set to only the password (no "://")."""
+        host = os.getenv("DATABASE_HOST")
+        user = os.getenv("DATABASE_USER")
+        name = os.getenv("DATABASE_NAME")
+        password = _read_database_password()
+        url = self.database_url or ""
+        # Prefer building from components when all are set (Helm injects these when using password-only secret)
+        if host and user and name and password is not None:
+            port = os.getenv("DATABASE_PORT", "5432")
+            password_part = quote_plus(password) if password else ""
+            self.database_url = (
+                f"postgresql+asyncpg://{quote_plus(user)}:{password_part}@{host}:{port}/{quote_plus(name)}"
+            )
+        # If DATABASE_URL was set to something that is not a URL (e.g. only the password), build from components if we have them
+        elif url and "://" not in url and host and user and name:
+            port = os.getenv("DATABASE_PORT", "5432")
+            self.database_url = (
+                f"postgresql+asyncpg://{quote_plus(user)}:{quote_plus(url)}@{host}:{port}/{quote_plus(name)}"
+            )
+        return self
 
     # Email/SES Configuration
     enable_email_verification: bool = os.getenv(

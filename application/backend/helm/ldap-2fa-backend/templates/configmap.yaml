@@ -20,6 +20,12 @@ data:
   # Database Configuration
   {{- if not .Values.database.externalSecret.enabled }}
   DATABASE_URL: {{ .Values.database.url | quote }}
+  {{- else if not .Values.database.externalSecret.urlKey }}
+  # When external secret provides only password, app builds URL from these + DATABASE_PASSWORD
+  DATABASE_HOST: {{ .Values.database.host | quote }}
+  DATABASE_PORT: {{ .Values.database.port | quote }}
+  DATABASE_USER: {{ .Values.database.user | quote }}
+  DATABASE_NAME: {{ .Values.database.name | quote }}
   {{- end }}
 
   # Email/SES Configuration
