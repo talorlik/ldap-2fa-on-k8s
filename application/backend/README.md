@@ -319,7 +319,8 @@ When `DATABASE_HOST`, `DATABASE_USER`, `DATABASE_NAME`, and either `DATABASE_PAS
 | `ENABLE_EMAIL_VERIFICATION` | `true` | Enable email verification |
 | `SES_SENDER_EMAIL` | `noreply@example.com` | Verified SES sender email |
 | `EMAIL_VERIFICATION_EXPIRY_HOURS` | `24` | Email verification link expiry |
-| `APP_URL` | `http://localhost:8080` | Frontend application URL |
+| `PASSWORD_RESET_EXPIRY_HOURS` | `1` | Password reset link expiry (hours) |
+| `APP_URL` | `http://localhost:8080` | Frontend application URL (used in password reset and verification links) |
 
 ### Redis Configuration
 
@@ -338,31 +339,38 @@ When `DATABASE_HOST`, `DATABASE_USER`, `DATABASE_NAME`, and either `DATABASE_PAS
 | `APP_NAME` | `LDAP 2FA Backend API` | Application name |
 | `DEBUG` | `false` | Enable debug mode |
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| `JWT_EXPIRY_MINUTES` | `60` | JWT token expiration time |
-| `JWT_REFRESH_EXPIRY_DAYS` | `7` | Refresh token expiration time |
+| `JWT_EXPIRY_MINUTES` | `60` | JWT token expiration time (default session) |
+| `JWT_REFRESH_EXPIRY_DAYS` | `7` | Session expiry when "Remember me" is used (longer-lived JWT) |
 | `CORS_ORIGINS` | `` | Comma-separated list of allowed CORS origins |
 
 ## API Endpoints
 
 The API is organized into several endpoint groups:
 
-### Authentication Endpoints
+### Authentication Endpoints (two-step login)
 
+- `POST /api/auth/login/start` - Step 1: validate username/password; optional body field `remember_me` for longer-lived JWT; returns challenge token and MFA options (`totp_enrolled`, `sms_available`)
+- `POST /api/auth/login/totp-setup` - Generate TOTP secret for first-time Authenticator setup (body: `challenge_token`)
+- `POST /api/auth/login/verify` - Step 2: verify MFA code (body: `challenge_token`, `mfa_method`, `verification_code`); returns JWT (expiry uses `JWT_REFRESH_EXPIRY_DAYS` if remember_me was set)
+- `POST /api/auth/sms/send-code` - Send SMS code (body: `challenge_token` from login/start, or `username`+`password`)
+- `POST /api/auth/forgot-password` - Request password reset link by email (body: `email`); generic response for security
+- `POST /api/auth/reset-password` - Set new password with token from email link (body: `token`, `username`, `new_password`, `confirm_password`)
+- `POST /api/auth/login` - Legacy one-step login (username + password + verification_code)
 - `POST /api/auth/signup` - Register a new user
-- `POST /api/auth/login` - Authenticate and get JWT tokens
-- `POST /api/auth/refresh` - Refresh access token
-- `POST /api/auth/logout` - Logout and invalidate tokens
+
+### MFA / Re-enrollment
+
+- `POST /api/auth/enroll` - Re-enroll or change MFA method (active users only; TOTP or SMS)
+- `GET /api/mfa/methods` - List available MFA methods
+- `GET /api/mfa/status/{username}` - Get user MFA enrollment status
 
 ### Verification Endpoints
 
-- `POST /api/verify/email` - Verify email address with token
-- `POST /api/verify/phone` - Verify phone number with code
-- `POST /api/sms/send-code` - Request SMS verification code
+- `POST /api/auth/verify-email` - Verify email address with token
+- `POST /api/auth/verify-phone` - Verify phone number with code
+- `POST /api/auth/resend-verification` - Resend verification email or SMS
 
-### MFA Endpoints
-
-- `POST /api/mfa/enroll` - Enroll in TOTP or SMS MFA
-- `GET /api/mfa/qr-code` - Get QR code for TOTP enrollment
+Password reset: `forgot-password` sends an email with link to `APP_URL/#reset-password?token=...&username=...`; `reset-password` accepts that token and new password, updates LDAP and DB.
 
 ### Profile Endpoints
 

@@ -32,6 +32,8 @@ const App = {
     groups: [], // Cache of groups for admin
     users: [], // Cache of users for admin
     sortState: { field: 'created_at', order: 'desc' },
+    // Login MFA step state (after login/start)
+    loginChallenge: null, // { challenge_token, totp_enrolled, sms_available }
 
     /**
      * Initialize the application
@@ -39,16 +41,20 @@ const App = {
     async init() {
         this.setupTabs();
         this.setupLoginForm();
+        this.setupForgotPassword();
+        this.setupResetPasswordForm();
         this.setupSignupForm();
-        this.setupEnrollForm();
+        this.setupMfaStepPanel();
         this.setupCopySecret();
-        this.setupMfaMethodSelector();
         this.setupVerification();
         this.setupTopBar();
         this.setupProfile();
         this.setupAdminUsers();
         this.setupAdminGroups();
         this.setupModals();
+
+        // Check for reset password link (must run before other URL checks)
+        this.checkResetPasswordToken();
 
         // Check if SMS is enabled
         await this.checkMfaMethods();
@@ -129,6 +135,13 @@ const App = {
         // Hide all sections, show login
         this.hideAllSections();
         document.getElementById('login-tab').classList.add('active');
+
+        // Reset login view: show form, hide MFA step panel
+        const loginForm = document.getElementById('login-form');
+        const mfaPanel = document.getElementById('mfa-step-panel');
+        if (loginForm) loginForm.classList.remove('hidden');
+        if (mfaPanel) mfaPanel.classList.add('hidden');
+        this.loginChallenge = null;
 
         // Adjust container
         document.getElementById('main-container').classList.remove('logged-in');
@@ -242,7 +255,7 @@ const App = {
      * Update SMS options based on availability
      */
     updateSmsOptions() {
-        const smsOptions = document.querySelectorAll('#sms-option, #signup-sms-option');
+        const smsOptions = document.querySelectorAll('#signup-sms-option, #mfa-step-sms-option');
         smsOptions.forEach(option => {
             if (!this.smsEnabled) {
                 option.classList.add('disabled');
@@ -282,6 +295,149 @@ const App = {
     },
 
     /**
+     * Check for reset password link in hash (#reset-password?token=...&username=...)
+     */
+    checkResetPasswordToken() {
+        const hash = window.location.hash.slice(1) || '';
+        if (!hash.startsWith('reset-password')) return;
+        const q = hash.indexOf('?');
+        const params = q >= 0 ? new URLSearchParams(hash.substring(q + 1)) : new URLSearchParams();
+        const token = params.get('token');
+        const username = params.get('username');
+        if (!token || !username) return;
+
+        document.getElementById('reset-password-token').value = token;
+        document.getElementById('reset-password-username').value = username;
+        document.getElementById('auth-header').classList.add('hidden');
+        document.getElementById('auth-tabs').classList.add('hidden');
+        document.getElementById('login-tab').classList.add('hidden');
+        document.getElementById('signup-tab').classList.add('hidden');
+        document.getElementById('reset-password-section').classList.remove('hidden');
+        document.getElementById('reset-password-section').classList.add('active');
+    },
+
+    /**
+     * Setup forgot password link and panel
+     */
+    setupForgotPassword() {
+        const link = document.getElementById('login-forgot-password');
+        const backBtn = document.getElementById('forgot-password-back-btn');
+        const loginForm = document.getElementById('login-form');
+        const forgotPanel = document.getElementById('forgot-password-panel');
+        const form = document.getElementById('forgot-password-form');
+        const resultContainer = document.getElementById('forgot-password-result');
+
+        if (!link || !forgotPanel) return;
+
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.classList.add('hidden');
+            document.getElementById('mfa-step-panel').classList.add('hidden');
+            document.getElementById('login-result').classList.add('hidden');
+            forgotPanel.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+        });
+
+        backBtn.addEventListener('click', () => {
+            forgotPanel.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const email = form.querySelector('#forgot-password-email').value.trim();
+            if (!email) return;
+
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+            resultContainer.classList.add('hidden');
+
+            try {
+                await API.forgotPassword(email);
+                resultContainer.innerHTML = `
+                    <h3>✓ Check your email</h3>
+                    <p>If an account exists with this email, you will receive a password reset link shortly.</p>
+                `;
+                resultContainer.className = 'result-container success';
+                resultContainer.classList.remove('hidden');
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>${escapeHtml(error.message)}</p>
+                `;
+                resultContainer.className = 'result-container error';
+                resultContainer.classList.remove('hidden');
+            } finally {
+                submitBtn.classList.remove('loading');
+                submitBtn.disabled = false;
+            }
+        });
+    },
+
+    /**
+     * Setup reset password form (from email link)
+     */
+    setupResetPasswordForm() {
+        const form = document.getElementById('reset-password-form');
+        const resultContainer = document.getElementById('reset-password-result');
+        if (!form) return;
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const token = document.getElementById('reset-password-token').value;
+            const username = document.getElementById('reset-password-username').value;
+            const newPassword = form.querySelector('#reset-new-password').value;
+            const confirmPassword = form.querySelector('#reset-confirm-password').value;
+
+            if (newPassword !== confirmPassword) {
+                resultContainer.innerHTML = '<h3>❌ Passwords do not match</h3>';
+                resultContainer.className = 'result-container error';
+                resultContainer.classList.remove('hidden');
+                return;
+            }
+            if (newPassword.length < 8) {
+                resultContainer.innerHTML = '<h3>❌ Password must be at least 8 characters</h3>';
+                resultContainer.className = 'result-container error';
+                resultContainer.classList.remove('hidden');
+                return;
+            }
+
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+            resultContainer.classList.add('hidden');
+
+            try {
+                await API.resetPassword(token, username, newPassword, confirmPassword);
+                resultContainer.innerHTML = `
+                    <h3>✓ Password reset successfully</h3>
+                    <p>You can now log in with your new password.</p>
+                `;
+                resultContainer.className = 'result-container success';
+                resultContainer.classList.remove('hidden');
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+                this.showStatus('Password reset successfully. You can now log in.', 'success');
+                setTimeout(() => {
+                    document.getElementById('reset-password-section').classList.add('hidden');
+                    this.showLoggedOutState();
+                }, 2000);
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <h3>❌ Reset failed</h3>
+                    <p>${escapeHtml(error.message)}</p>
+                `;
+                resultContainer.className = 'result-container error';
+                resultContainer.classList.remove('hidden');
+            } finally {
+                submitBtn.classList.remove('loading');
+                submitBtn.disabled = false;
+            }
+        });
+    },
+
+    /**
      * Setup tab navigation
      */
     setupTabs() {
@@ -313,93 +469,11 @@ const App = {
     },
 
     /**
-     * Setup MFA method selector
-     */
-    setupMfaMethodSelector() {
-        // Enroll form
-        const enrollMethodRadios = document.querySelectorAll('input[name="mfa_method"]');
-        const phoneGroup = document.getElementById('phone-group');
-        const phoneInput = document.getElementById('enroll-phone');
-
-        enrollMethodRadios.forEach(radio => {
-            radio.addEventListener('change', () => {
-                if (radio.value === 'sms') {
-                    phoneGroup.classList.remove('hidden');
-                    phoneInput.required = true;
-                } else {
-                    phoneGroup.classList.add('hidden');
-                    phoneInput.required = false;
-                    phoneInput.value = '';
-                }
-            });
-        });
-    },
-
-    /**
-     * Setup login form handling
+     * Setup login form handling (username and password only; then MFA step)
      */
     setupLoginForm() {
         const form = document.getElementById('login-form');
         const resultContainer = document.getElementById('login-result');
-        const sendSmsBtn = document.getElementById('send-sms-btn');
-        const smsStatus = document.getElementById('sms-status');
-
-        // Send SMS code button
-        sendSmsBtn.addEventListener('click', async () => {
-            const username = form.querySelector('#login-username').value.trim();
-            const password = form.querySelector('#login-password').value;
-
-            if (!username || !password) {
-                this.showStatus('Please enter username and password first', 'warning');
-                return;
-            }
-
-            sendSmsBtn.disabled = true;
-            sendSmsBtn.textContent = 'Sending...';
-
-            try {
-                const response = await API.sendSmsCode(username, password);
-
-                smsStatus.textContent = `Code sent to ${response.phone_number}. Expires in ${response.expires_in_seconds}s`;
-                smsStatus.classList.remove('hidden');
-
-                this.showStatus('Verification code sent!', 'success');
-                this.startSmsCountdown(sendSmsBtn, response.expires_in_seconds);
-
-            } catch (error) {
-                this.showStatus(error.message, 'error');
-                sendSmsBtn.disabled = false;
-                sendSmsBtn.textContent = 'Send SMS';
-            }
-        });
-
-        // Check MFA status when username is entered
-        let mfaCheckTimeout;
-        form.querySelector('#login-username').addEventListener('blur', async (e) => {
-            const username = e.target.value.trim();
-            if (!username) return;
-
-            clearTimeout(mfaCheckTimeout);
-            mfaCheckTimeout = setTimeout(async () => {
-                try {
-                    const status = await API.getMfaStatus(username);
-                    this.userMfaMethod = status.mfa_method;
-
-                    // Show/hide SMS button based on user's MFA method
-                    if (status.enrolled && status.mfa_method === 'sms') {
-                        sendSmsBtn.classList.remove('hidden');
-                        smsStatus.textContent = `SMS will be sent to ${status.phone_number}`;
-                        smsStatus.classList.remove('hidden');
-                    } else {
-                        sendSmsBtn.classList.add('hidden');
-                        smsStatus.classList.add('hidden');
-                    }
-                } catch (error) {
-                    sendSmsBtn.classList.add('hidden');
-                    smsStatus.classList.add('hidden');
-                }
-            }, 500);
-        });
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -407,45 +481,23 @@ const App = {
             const submitBtn = form.querySelector('button[type="submit"]');
             const username = form.querySelector('#login-username').value.trim();
             const password = form.querySelector('#login-password').value;
-            const verificationCode = form.querySelector('#login-code').value.trim();
-
-            if (!/^\d{6}$/.test(verificationCode)) {
-                this.showStatus('Please enter a valid 6-digit code', 'error');
-                return;
-            }
+            const rememberMe = form.querySelector('#login-remember-me')?.checked ?? false;
 
             submitBtn.classList.add('loading');
             submitBtn.disabled = true;
             resultContainer.classList.add('hidden');
 
             try {
-                const response = await API.login(username, password, verificationCode);
+                const response = await API.loginStart(username, password, rememberMe);
 
-                // Store session
-                if (response.token) {
-                    API.setToken(response.token);
-                    this.session = {
-                        username: response.username || username,
-                        isAdmin: response.is_admin,
-                        token: response.token,
-                    };
+                this.loginChallenge = {
+                    challenge_token: response.challenge_token,
+                    totp_enrolled: response.totp_enrolled,
+                    sms_available: response.sms_available,
+                };
 
-                    this.showStatus('Login successful!', 'success');
-                    form.reset();
-                    sendSmsBtn.classList.add('hidden');
-                    smsStatus.classList.add('hidden');
-
-                    // Show logged in state
-                    this.showLoggedInState();
-                } else {
-                    resultContainer.innerHTML = `
-                        <h3>✅ Login Successful!</h3>
-                        <p>${response.message}</p>
-                    `;
-                    resultContainer.className = 'result-container success';
-                    resultContainer.classList.remove('hidden');
-                }
-
+                form.classList.add('hidden');
+                this.showMfaStepPanel();
             } catch (error) {
                 resultContainer.innerHTML = `
                     <h3>❌ Login Failed</h3>
@@ -453,11 +505,174 @@ const App = {
                 `;
                 resultContainer.className = 'result-container error';
                 resultContainer.classList.remove('hidden');
-
                 this.showStatus(error.message, 'error');
             } finally {
                 submitBtn.classList.remove('loading');
                 submitBtn.disabled = false;
+            }
+        });
+    },
+
+    /**
+     * Show MFA step panel and update options based on loginChallenge
+     */
+    showMfaStepPanel() {
+        const panel = document.getElementById('mfa-step-panel');
+        const totpOption = document.getElementById('mfa-step-totp-option');
+        const smsOption = document.getElementById('mfa-step-sms-option');
+        const totpHint = document.getElementById('mfa-step-totp-hint');
+
+        if (!this.loginChallenge) return;
+
+        totpOption.classList.remove('disabled');
+        totpOption.querySelector('input').disabled = false;
+        totpHint.textContent = this.loginChallenge.totp_enrolled
+            ? 'Enter code from your app'
+            : 'Set up Authenticator app (one-time)';
+
+        if (this.loginChallenge.sms_available) {
+            smsOption.classList.remove('disabled');
+            smsOption.querySelector('input').disabled = false;
+        } else {
+            smsOption.classList.add('disabled');
+            smsOption.querySelector('input').disabled = true;
+        }
+
+        this.updateMfaStepMethodVisibility();
+        panel.classList.remove('hidden');
+    },
+
+    /**
+     * Update MFA step UI based on selected method (TOTP vs SMS)
+     */
+    updateMfaStepMethodVisibility() {
+        const method = document.querySelector('input[name="mfa_step_method"]:checked')?.value || 'totp';
+        const totpSetup = document.getElementById('mfa-step-totp-setup');
+        const smsSend = document.getElementById('mfa-step-sms-send');
+        const smsStatus = document.getElementById('mfa-step-sms-status');
+
+        totpSetup.classList.add('hidden');
+        smsSend.classList.add('hidden');
+        smsStatus.classList.add('hidden');
+
+        if (method === 'totp') {
+            if (!this.loginChallenge.totp_enrolled) {
+                totpSetup.classList.remove('hidden');
+                this.fetchTotpSetupIfNeeded();
+            }
+        } else {
+            smsSend.classList.remove('hidden');
+        }
+    },
+
+    /**
+     * Fetch TOTP setup (QR + secret) when user selects TOTP and is not enrolled
+     */
+    async fetchTotpSetupIfNeeded() {
+        if (!this.loginChallenge || this.loginChallenge.totp_enrolled) return;
+        if (document.getElementById('mfa-step-secret').textContent) return; // already fetched
+
+        try {
+            const response = await API.loginTotpSetup(this.loginChallenge.challenge_token);
+            const qrDiv = document.getElementById('mfa-step-qr');
+            qrDiv.innerHTML = '';
+            if (typeof QRCode !== 'undefined') {
+                const canvas = document.createElement('canvas');
+                qrDiv.appendChild(canvas);
+                await QRCode.toCanvas(canvas, response.otpauth_uri, {
+                    width: 200,
+                    margin: 2,
+                    color: { dark: '#1e293b', light: '#ffffff' },
+                });
+            }
+            document.getElementById('mfa-step-secret').textContent = response.secret;
+        } catch (error) {
+            this.showStatus(error.message || 'Failed to load setup', 'error');
+        }
+    },
+
+    /**
+     * Setup MFA step panel (method selector, verify, back, copy secret, send SMS)
+     */
+    setupMfaStepPanel() {
+        const panel = document.getElementById('mfa-step-panel');
+        const backBtn = document.getElementById('mfa-step-back-btn');
+        const verifyBtn = document.getElementById('mfa-step-verify-btn');
+        const codeInput = document.getElementById('mfa-step-code');
+        const methodRadios = document.querySelectorAll('input[name="mfa_step_method"]');
+        const sendSmsBtn = document.getElementById('mfa-step-send-sms-btn');
+        const smsStatus = document.getElementById('mfa-step-sms-status');
+
+        backBtn.addEventListener('click', () => {
+            this.loginChallenge = null;
+            panel.classList.add('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('mfa-step-secret').textContent = '';
+            document.getElementById('mfa-step-qr').innerHTML = '';
+            codeInput.value = '';
+        });
+
+        methodRadios.forEach(radio => {
+            radio.addEventListener('change', () => this.updateMfaStepMethodVisibility());
+        });
+
+        sendSmsBtn.addEventListener('click', async () => {
+            if (!this.loginChallenge) return;
+            sendSmsBtn.disabled = true;
+            sendSmsBtn.textContent = 'Sending...';
+            try {
+                const response = await API.sendSmsCodeWithChallenge(this.loginChallenge.challenge_token);
+                smsStatus.textContent = `Code sent. Expires in ${response.expires_in_seconds}s`;
+                smsStatus.classList.remove('hidden');
+                this.showStatus('Verification code sent!', 'success');
+                this.startSmsCountdown(sendSmsBtn, response.expires_in_seconds);
+            } catch (error) {
+                this.showStatus(error.message, 'error');
+                sendSmsBtn.disabled = false;
+                sendSmsBtn.textContent = 'Send SMS code';
+            }
+        });
+
+        verifyBtn.addEventListener('click', async () => {
+            if (!this.loginChallenge) return;
+            const code = codeInput.value.trim();
+            if (!/^\d{6}$/.test(code)) {
+                this.showStatus('Please enter a valid 6-digit code', 'error');
+                return;
+            }
+            const method = document.querySelector('input[name="mfa_step_method"]:checked')?.value || 'totp';
+
+            verifyBtn.querySelector('.btn-text').classList.add('hidden');
+            verifyBtn.querySelector('.btn-loading').classList.remove('hidden');
+            verifyBtn.disabled = true;
+
+            try {
+                const response = await API.loginVerify(
+                    this.loginChallenge.challenge_token,
+                    method,
+                    code
+                );
+                if (response.token) {
+                    API.setToken(response.token);
+                    this.session = {
+                        username: response.username,
+                        isAdmin: response.is_admin,
+                        token: response.token,
+                    };
+                    this.loginChallenge = null;
+                    panel.classList.add('hidden');
+                    document.getElementById('login-form').classList.remove('hidden');
+                    document.getElementById('login-form').reset();
+                    codeInput.value = '';
+                    this.showStatus('Login successful!', 'success');
+                    this.showLoggedInState();
+                }
+            } catch (error) {
+                this.showStatus(error.message || 'Invalid code', 'error');
+            } finally {
+                verifyBtn.querySelector('.btn-text').classList.remove('hidden');
+                verifyBtn.querySelector('.btn-loading').classList.add('hidden');
+                verifyBtn.disabled = false;
             }
         });
     },
@@ -674,118 +889,30 @@ const App = {
     },
 
     /**
-     * Setup enrollment form handling
-     */
-    setupEnrollForm() {
-        const form = document.getElementById('enroll-form');
-        const resultContainer = document.getElementById('enroll-result');
-        const qrSection = document.getElementById('qr-section');
-        const smsSection = document.getElementById('sms-enroll-section');
-        const qrCodeDiv = document.getElementById('qr-code');
-        const secretCode = document.getElementById('secret-code');
-        const enrolledPhone = document.getElementById('enrolled-phone');
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const username = form.querySelector('#enroll-username').value.trim();
-            const password = form.querySelector('#enroll-password').value;
-            const mfaMethod = form.querySelector('input[name="mfa_method"]:checked').value;
-            const phoneNumber = form.querySelector('#enroll-phone').value.trim();
-
-            if (mfaMethod === 'sms' && !phoneNumber) {
-                this.showStatus('Please enter a phone number for SMS verification', 'error');
-                return;
-            }
-
-            submitBtn.classList.add('loading');
-            submitBtn.disabled = true;
-            resultContainer.classList.add('hidden');
-            qrSection.classList.add('hidden');
-            smsSection.classList.add('hidden');
-
-            try {
-                const response = await API.enroll(username, password, mfaMethod, phoneNumber);
-
-                if (response.success) {
-                    resultContainer.classList.remove('hidden');
-
-                    if (response.mfa_method === 'totp' && response.otpauth_uri) {
-                        qrCodeDiv.innerHTML = '';
-
-                        await QRCode.toCanvas(qrCodeDiv, response.otpauth_uri, {
-                            width: 200,
-                            margin: 2,
-                            color: {
-                                dark: '#1e293b',
-                                light: '#ffffff'
-                            }
-                        });
-
-                        secretCode.textContent = response.secret;
-                        qrSection.classList.remove('hidden');
-
-                        this.showStatus('MFA enrollment successful! Scan the QR code.', 'success');
-                    } else if (response.mfa_method === 'sms') {
-                        enrolledPhone.textContent = response.phone_number;
-                        smsSection.classList.remove('hidden');
-
-                        this.showStatus('SMS verification setup complete!', 'success');
-                    }
-
-                    form.querySelector('#enroll-password').value = '';
-                } else {
-                    throw new Error(response.message || 'Enrollment failed');
-                }
-
-            } catch (error) {
-                resultContainer.innerHTML = `
-                    <div class="result-container error">
-                        <h3>❌ Enrollment Failed</h3>
-                        <p>${escapeHtml(error.message)}</p>
-                    </div>
-                `;
-                resultContainer.classList.remove('hidden');
-                qrSection.classList.add('hidden');
-                smsSection.classList.add('hidden');
-
-                this.showStatus(error.message, 'error');
-            } finally {
-                submitBtn.classList.remove('loading');
-                submitBtn.disabled = false;
-            }
-        });
-    },
-
-    /**
-     * Setup copy secret button
+     * Setup copy secret button (MFA step TOTP setup)
      */
     setupCopySecret() {
-        const copyBtn = document.getElementById('copy-secret');
-        const secretCode = document.getElementById('secret-code');
+        const copyBtn = document.getElementById('mfa-step-copy-secret');
+        const secretCode = document.getElementById('mfa-step-secret');
+        if (!copyBtn || !secretCode) return;
 
         copyBtn.addEventListener('click', async () => {
             const secret = secretCode.textContent;
+            if (!secret) return;
 
             try {
                 await navigator.clipboard.writeText(secret);
                 this.showStatus('Secret copied to clipboard!', 'success');
-
                 const originalText = copyBtn.textContent;
                 copyBtn.textContent = 'Copied!';
-                setTimeout(() => {
-                    copyBtn.textContent = originalText;
-                }, 2000);
+                setTimeout(() => { copyBtn.textContent = originalText; }, 2000);
             } catch (err) {
-                // Fallback for older browsers
                 const textArea = document.createElement('textarea');
                 textArea.value = secret;
                 document.body.appendChild(textArea);
                 textArea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textArea);
-
                 this.showStatus('Secret copied to clipboard!', 'success');
             }
         });

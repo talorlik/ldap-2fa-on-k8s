@@ -4,11 +4,15 @@ This document outlines which components require which secrets to operate correct
 
 ## Secret Overview
 
-There are three main secrets used in the application deployment:
+There are three main secrets used in the application deployment, plus an optional
+one for first-admin seed:
 
 1. **`postgresql-secret`** - PostgreSQL database password
 2. **`redis-secret`** - Redis authentication password
 3. **`ldap-admin-secret`** - LDAP admin password for backend authentication
+4. **`admin-seed-secret`** (optional) - First admin user profile (username, email,
+name, phone). When set with all required keys, a one-time Job seeds the first admin
+so they can log in with the same username/password as LDAP. See [SECRETS_REQUIREMENTS.md](../SECRETS_REQUIREMENTS.md).
 
 ## Component Dependencies
 
@@ -133,6 +137,23 @@ will fail to:
 - Retrieve SMS verification codes
 - SMS 2FA functionality will fail
 
+#### 3.4 `admin-seed-secret` (Optional)
+
+**Usage:**
+
+- Used only when first admin seed is enabled (all `ADMIN_SEED_*` variables set in
+Terraform).
+- The one-time `admin-seed-job` reads this secret and `ldap-admin-secret` to create
+the LDAP user, add them to the admins group, and upsert the PostgreSQL user with
+email/phone pre-verified.
+- Secret keys: `ADMIN_SEED_USERNAME`, `ADMIN_SEED_EMAIL`, `ADMIN_SEED_FIRST_NAME`,
+`ADMIN_SEED_LAST_NAME`, `ADMIN_SEED_PHONE_COUNTRY_CODE`, `ADMIN_SEED_PHONE_NUMBER`.
+- Created by Terraform in the backend namespace when admin seed variables are provided
+(e.g. from GitHub Secrets or AWS `tf-vars`).
+
+**Optional:** If not set, no first admin is seeded; you can still create users via
+signup and approve them with an existing admin.
+
 ### 4. Frontend Application (`application/frontend`)
 
 **Required Secrets:** None
@@ -156,7 +177,11 @@ To ensure all components operate correctly, secrets must be deployed in this ord
     - `postgresql-secret` → copied to `2fa-app` namespace
     - `redis-secret` → copied to `2fa-app` namespace (if Redis enabled)
     - `ldap-admin-secret` → created in `2fa-app` namespace
+    - `admin-seed-secret` → created in `2fa-app` namespace (optional; when admin
+    seed vars are set)
 5. **ArgoCD Backend Application** is registered (depends on all secrets existing)
+6. **admin-seed Job** runs once (when admin-seed-secret exists) to seed the first
+admin user
 
 ## Failure Scenarios
 
@@ -196,7 +221,7 @@ kubectl get secret postgresql-secret -n ldap-2fa
 kubectl get secret redis-secret -n redis
 
 # Check all secrets in backend namespace
-kubectl get secrets -n 2fa-app | grep -E "postgresql-secret|redis-secret|ldap-admin-secret"
+kubectl get secrets -n 2fa-app | grep -E "postgresql-secret|redis-secret|ldap-admin-secret|admin-seed-secret"
 
 # Verify backend pod can access secrets
 kubectl describe pod -n 2fa-app -l app.kubernetes.io/name=ldap-2fa-backend | grep -A 10 "Environment:"

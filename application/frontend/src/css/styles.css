@@ -12,7 +12,7 @@
     --text-primary: #1e293b;
     --text-secondary: #64748b;
     --border-color: #e2e8f0;
-    --input-background: #f1f5f9;
+    --input-background: #1e293b;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
@@ -155,6 +155,7 @@ header .subtitle {
     border: 2px solid var(--border-color);
     border-radius: 10px;
     font-size: 1rem;
+    color: #ffffff;
     background: var(--input-background);
     transition: var(--transition);
 }
@@ -163,12 +164,83 @@ header .subtitle {
 .form-group select:focus {
     outline: none;
     border-color: var(--primary-color);
-    background: var(--card-background);
+    background: #334155;
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
 .form-group input::placeholder {
+    color: #94a3b8;
+}
+
+.form-row-remember {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary-color);
+}
+
+.forgot-password-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.forgot-password-link:hover {
+    text-decoration: underline;
+}
+
+.forgot-password-panel {
+    margin-top: 20px;
+}
+
+.forgot-password-panel h3 {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.forgot-password-subtitle {
     color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+}
+
+.forgot-password-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.reset-password-section {
+    padding: 0;
+}
+
+.reset-password-section h2 {
+    font-size: 1.35rem;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.reset-password-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-bottom: 24px;
 }
 
 /* Phone input group */
@@ -297,6 +369,47 @@ header .subtitle {
 }
 
 /* QR Code section */
+/* MFA step panel (after username/password login) */
+.mfa-step-panel {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-color);
+}
+
+.mfa-step-panel.hidden {
+    display: none !important;
+}
+
+.mfa-step-panel h3 {
+    margin: 0 0 4px 0;
+    color: var(--text-primary);
+}
+
+.mfa-step-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 0 0 20px 0;
+}
+
+.mfa-step-totp-setup {
+    margin: 16px 0;
+}
+
+.mfa-step-totp-setup h4 {
+    margin: 0 0 8px 0;
+    font-size: 1rem;
+}
+
+.mfa-step-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.mfa-step-actions .btn-primary {
+    flex: 1;
+}
+
 .qr-section {
     text-align: center;
 }

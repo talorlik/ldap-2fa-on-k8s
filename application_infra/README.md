@@ -1305,6 +1305,14 @@ configuration)
 - `local_cluster_secret_name`: Name of the Kubernetes secret for local cluster registration
 - `argocd_namespace`: Kubernetes namespace where ArgoCD resources are deployed
 - `argocd_project_name`: ArgoCD project name used for cluster registration
+- **LDAP connection (from OpenLDAP module)** for use by the 2FA application so
+LDAP settings are not hardcoded:
+  - `ldap_host`: OpenLDAP service DNS (e.g. `openldap-stack-ha.ldap.svc.cluster.local`)
+  - `ldap_base_dn`: Base DN derived from `openldap_ldap_domain`
+  - `ldap_admin_dn`: Admin bind DN
+  - `ldap_admin_group_dn`: Admin group DN (for 2FA app admin role)
+  - `ldap_user_search_base`: User search base (e.g. `ou=users`)
+  - `ldap_group_search_base`: Group search base (e.g. `ou=groups`)
 
 > [!NOTE]
 >

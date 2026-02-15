@@ -7,7 +7,11 @@ name: Application Destroying
 # - AWS_ASSUME_EXTERNAL_ID: ExternalId for cross-account role assumption security
 # - TF_VAR_POSTGRESQL_PASSWORD: PostgreSQL database password
 # - TF_VAR_REDIS_PASSWORD: Redis password for SMS OTP storage
-# - TF_VAR_OPENLDAP_ADMIN_PASSWORD: OpenLDAP admin password (for backend ldap-admin-secret)
+# - TF_VAR_OPENLDAP_ADMIN_PASSWORD: OpenLDAP admin password (for backend ldap-admin-secret and destroy)
+#
+# Optional (if first admin seed was used, set these so Terraform can destroy admin-seed resources):
+# - ADMIN_SEED_USERNAME, ADMIN_SEED_EMAIL, ADMIN_SEED_FIRST_NAME, ADMIN_SEED_LAST_NAME
+# - ADMIN_SEED_PHONE_COUNTRY_CODE, ADMIN_SEED_PHONE_NUMBER
 #
 # Note: GitHub workflows use repository secrets, while bash scripts use AWS Secrets Manager.
 # The secrets listed above must be configured in GitHub repository settings.
@@ -82,8 +86,15 @@ jobs:
       TF_VAR_postgresql_database_password: ${{ secrets.TF_VAR_POSTGRESQL_PASSWORD }}
       # Redis password for SMS OTP storage
       TF_VAR_redis_password: ${{ secrets.TF_VAR_REDIS_PASSWORD }}
-      # OpenLDAP admin password for backend LDAP bind (ldap-admin-secret)
+      # OpenLDAP admin password for backend LDAP bind (ldap-admin-secret) and for destroy
       TF_VAR_openldap_admin_password: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
+      # First admin seed (optional; pass so Terraform can destroy admin-seed secret and Job if present)
+      TF_VAR_admin_seed_username: ${{ secrets.ADMIN_SEED_USERNAME }}
+      TF_VAR_admin_seed_email: ${{ secrets.ADMIN_SEED_EMAIL }}
+      TF_VAR_admin_seed_first_name: ${{ secrets.ADMIN_SEED_FIRST_NAME }}
+      TF_VAR_admin_seed_last_name: ${{ secrets.ADMIN_SEED_LAST_NAME }}
+      TF_VAR_admin_seed_phone_country_code: ${{ secrets.ADMIN_SEED_PHONE_COUNTRY_CODE }}
+      TF_VAR_admin_seed_phone_number: ${{ secrets.ADMIN_SEED_PHONE_NUMBER }}
     defaults:
       run:
         working-directory: ./application

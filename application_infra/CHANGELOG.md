@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [2026-02-15] - LDAP Connection Outputs for 2FA Application
+
+### Added
+
+- **OpenLDAP module outputs** for use by the 2FA application (and other consumers)
+so LDAP settings are not hardcoded:
+  - `ldap_host` – OpenLDAP service DNS (e.g. `openldap-stack-ha.ldap.svc.cluster.local`)
+  - `ldap_base_dn` – Base DN derived from `openldap_ldap_domain`
+  - `ldap_admin_dn` – Admin bind DN
+  - `ldap_admin_group_dn` – Admin group DN for 2FA app admin role
+  - `ldap_user_search_base` – User search base (e.g. `ou=users`)
+  - `ldap_group_search_base` – Group search base (e.g. `ou=groups`)
+- **Root outputs** in `application_infra/outputs.tf` re-export the above from the
+OpenLDAP module. The application layer reads these from remote state for the
+admin-seed Job and can use them for manual Helm or other automation.
+
 ## [2026-02-15] - ALB Load Balancer Name Output for 2FA Application
 
 ### Added

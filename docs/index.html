@@ -252,6 +252,7 @@
                                 <li><code>GH_TOKEN</code></li>
                             </ul>
                         </li>
+                        <li><strong>Optional (first admin user seed):</strong> When all are set, a one-time Job seeds the first admin so they can log into the 2FA app with the same username/password as LDAP. Set in GitHub Secrets or AWS <code>tf-vars</code>: <code>ADMIN_SEED_USERNAME</code>, <code>ADMIN_SEED_EMAIL</code>, <code>ADMIN_SEED_FIRST_NAME</code>, <code>ADMIN_SEED_LAST_NAME</code>, <code>ADMIN_SEED_PHONE_COUNTRY_CODE</code>, <code>ADMIN_SEED_PHONE_NUMBER</code>. See <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>.</li>
                         <li><strong>Required Variables:</strong>
                             <ul>
                                 <li><code>AWS_REGION</code></li>
@@ -386,10 +387,12 @@
                     <li>Prompts for AWS region (us-east-1 or us-east-2) and environment (prod or dev)</li>
                     <li>Retrieves repository variables from GitHub (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_PREFIX</code>)</li>
                     <li>Retrieves role ARNs and ExternalId from AWS Secrets Manager</li>
-                    <li>Retrieves password secrets from AWS Secrets Manager and exports as environment variables:
+                    <li>Retrieves password secrets from AWS Secrets Manager (<code>tf-vars</code>) and exports as environment variables:
                         <ul>
                             <li><code>TF_VAR_postgresql_database_password</code></li>
                             <li><code>TF_VAR_redis_password</code></li>
+                            <li><code>TF_VAR_openldap_admin_password</code> (for backend ldap-admin-secret and optional admin-seed Job)</li>
+                            <li>Optional: <code>TF_VAR_admin_seed_*</code> (when <code>ADMIN_SEED_*</code> keys are present in <code>tf-vars</code>; enables first admin user seed)</li>
                         </ul>
                     </li>
                     <li>Assumes State Account role for backend operations</li>
@@ -398,9 +401,10 @@
                     <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code> (from application_infra)</li>
                     <li><strong>Validates ArgoCD capability status</strong> - Ensures ArgoCD capability is "ACTIVE" before proceeding (prevents deployment failures)</li>
                     <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
-                    <li>References infrastructure outputs from <code>application_infra</code> remote state</li>
+                    <li>References infrastructure outputs from <code>application_infra</code> remote state (including LDAP host, base DN, admin DN—used by the admin-seed Job and not hardcoded)</li>
                 </ul>
                 <p><strong>Note:</strong> Application components require infrastructure to be deployed first (Steps 1-3 completed). The script automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, deployment will fail with a clear error message.</p>
+                <p><strong>First admin seed (optional):</strong> If you set all <code>ADMIN_SEED_*</code> keys in <code>tf-vars</code> (or GitHub Secrets), Terraform creates a one-time Job that seeds the first admin user with the same username/password as the LDAP admin, email/phone pre-verified, and membership in the LDAP admins group. See <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a> and <a href="../application/README.md">Application README</a>.</p>
                 <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
                 <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled in <code>variables.tfvars</code>) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>.</p>
                 <p><strong>After Step 5:</strong> If ArgoCD Applications are enabled, ArgoCD will automatically detect the git changes (from the build workflows in Step 4) and sync the deployments. The container images are already in ECR, so ArgoCD can successfully pull and deploy them.</p>
@@ -544,7 +548,7 @@ serviceAccount:
   annotations:
     eks.amazonaws.com/role-arn: "${SES_ROLE_ARN}"  # Use SES role (includes SNS if enabled)
 
-# LDAP configuration (adjust based on your LDAP setup)
+# LDAP configuration (when deploying via Terraform/ArgoCD, LDAP host/base DN/admin DN come from application_infra outputs; adjust for manual deployment)
 ldap:
   host: "openldap-stack-ha.ldap.svc.cluster.local"
   port: 389
@@ -694,7 +698,7 @@ terraform apply</code></pre>
                     <li><strong>Destroy Application:</strong>
                         <pre><code>cd application
 ./destroy-application.sh</code></pre>
-                        <p>Script will prompt for region and environment, then require confirmation ('yes', then 'DESTROY')</p>
+                        <p>The script retrieves PostgreSQL, Redis, OpenLDAP admin, and optional admin-seed secrets from AWS Secrets Manager (<code>tf-vars</code>) so Terraform can destroy ldap-admin-secret and admin-seed resources. It will prompt for region and environment, then require confirmation ('yes', then 'DESTROY').</p>
                     </li>
                     <li><strong>Destroy Application Infrastructure:</strong>
                         <pre><code>cd application_infra
@@ -804,7 +808,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li>Monitor the workflow execution</li>
                 </ol>
                 <p><strong>What the workflow does:</strong></p>
-                <p>Deploys PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and Route53 record for 2FA app. The workflow validates that the ArgoCD capability status is "ACTIVE" before proceeding and uses AWS role-based authentication for secure cross-account operations.</p>
+                <p>Deploys PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and Route53 record for 2FA app. The workflow validates that the ArgoCD capability status is "ACTIVE" before proceeding and uses AWS role-based authentication for secure cross-account operations. When optional <code>ADMIN_SEED_*</code> secrets are set, a one-time Job seeds the first admin user. LDAP connection settings for the admin-seed Job are read from <code>application_infra</code> remote state (not hardcoded).</p>
                 <h5 id="github-destroy">Destroying Infrastructure (GitHub Actions)</h5>
                 <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order: Application → Application Infrastructure → Backend Infrastructure → State.</p>
                 <p><strong>Confirmation required:</strong> Each destroy workflow requires you to type <strong>yes</strong> in the "Type 'yes' to confirm destruction" input when you run the workflow; otherwise the workflow will not proceed.</p>
@@ -1273,11 +1277,13 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             <p>The full-stack 2FA application provides:</p>
             <ul>
                 <li>Self-service user registration with email/phone verification and profile state management (PENDING → COMPLETE → ACTIVE)</li>
-                <li>Two-factor authentication enrollment and login with dual MFA methods (TOTP and SMS)</li>
-                <li>TOTP setup with QR code generation for authenticator apps</li>
-                <li>SMS verification with 6-digit OTP codes sent via AWS SNS</li>
+                <li><strong>Two-step login:</strong> Step 1 – username and password only (with optional "Remember me" for longer-lived session and "Forgot your password?" link); Step 2 – MFA screen where the user chooses Authenticator app or SMS and enters the 6-digit code (from the app or sent via SMS). Dual MFA methods (TOTP and SMS) are supported.</li>
+                <li><strong>Forgot/Reset password:</strong> User requests a reset link by email; opening the link shows a set-new-password form; after submitting, they are redirected to login and sign in with the new password.</li>
+                <li>Authenticator app: one-time setup with QR code (or manual secret); on subsequent logins the user just enters the code. User can choose Authenticator or SMS on every login.</li>
+                <li>SMS: user requests a code on the MFA step; 6-digit OTP is sent via AWS SNS; user enters it in the same verification code field.</li>
                 <li>User profile management with edit restrictions for verified fields</li>
                 <li>Admin dashboard for user management, group CRUD operations, and approval workflows (visible to LDAP admin group members only)</li>
+                <li><strong>First admin (optional):</strong> You can seed the first admin so they use the same username/password as the LDAP admin; set <code>ADMIN_SEED_*</code> secrets (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>). The seeded admin does not have MFA pre-configured; they follow the same two-step login flow and set up Authenticator or use SMS like any other user.</li>
                 <li><strong>Interactive API Documentation</strong> (always enabled):
                     <ul>
                         <li><code>/api/docs</code> - Swagger UI for interactive API exploration and testing</li>

@@ -13,10 +13,10 @@ for user and group management.
 
 ### Key Features
 
-- **User Authentication**: Login with LDAP credentials and 6-digit verification
-code (TOTP or SMS)
+- **User Authentication**: Two-step login — (1) username and password with optional "Remember me" and "Forgot your password?", (2) MFA screen where the user chooses Authenticator app or SMS and enters the 6-digit code. Forgot password sends a reset link by email; opening the link shows a set-new-password form, then redirects to login.
 - **Self-Service Registration**: User signup with email and phone verification
-- **MFA Enrollment**: Support for TOTP (authenticator apps) and SMS-based verification
+- **MFA on login**: Authenticator app (one-time QR setup when not enrolled) or SMS;
+  user chooses method on each login and enters the code in a single field
 - **Profile Management**: User profile editing with verification-based restrictions
 - **Admin Dashboard**: Comprehensive user and group management interface
 - **Responsive Design**: Mobile-friendly UI that works on all screen sizes
@@ -593,11 +593,18 @@ The frontend communicates with the backend via REST API:
 
 ### Key API Methods
 
-#### Authentication
+#### Authentication (two-step login)
 
-- `API.login(username, password, verificationCode)` - User login
-- `API.enroll(username, password, mfaMethod, phoneNumber)` - MFA enrollment
-- `API.sendSmsCode(username, password)` - Request SMS code
+- `API.loginStart(username, password, rememberMe)` - Step 1: validate credentials; optional `rememberMe` for longer-lived session; returns `challenge_token`, `totp_enrolled`, `sms_available`
+- `API.loginTotpSetup(challengeToken)` - Get TOTP QR/secret for first-time Authenticator setup
+- `API.loginVerify(challengeToken, mfaMethod, verificationCode)` - Step 2: verify MFA code and get JWT
+- `API.sendSmsCodeWithChallenge(challengeToken)` - Send SMS code on MFA step (no password re-entry)
+- `API.sendSmsCode(username, password)` - Legacy: request SMS code with username/password
+
+#### Password reset
+
+- `API.forgotPassword(email)` - Request password reset link; backend sends email with link to `#reset-password?token=...&username=...`
+- `API.resetPassword(token, username, newPassword, confirmPassword)` - Set new password from reset link; then user is redirected to login
 
 #### User Registration
 

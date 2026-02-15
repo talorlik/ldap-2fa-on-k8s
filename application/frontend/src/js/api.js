@@ -235,7 +235,95 @@ const API = {
     // =========================================================================
 
     /**
-     * Send SMS verification code for login
+     * Step 1: Login with username and password. Returns challenge token and MFA options.
+     * @param {string} username - Username
+     * @param {string} password - Password
+     * @param {boolean} rememberMe - Optional; use longer-lived session
+     * @returns {Promise<Object>} { challenge_token, totp_enrolled, sms_available }
+     */
+    async loginStart(username, password, rememberMe = false) {
+        return this.request('/auth/login/start', {
+            method: 'POST',
+            body: JSON.stringify({ username, password, remember_me: rememberMe }),
+        });
+    },
+
+    /**
+     * Request a password reset link sent to the given email.
+     * @param {string} email - Account email address
+     * @returns {Promise<Object>} { success, message }
+     */
+    async forgotPassword(email) {
+        return this.request('/auth/forgot-password', {
+            method: 'POST',
+            body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        });
+    },
+
+    /**
+     * Set new password using token and username from reset link.
+     * @param {string} token - Reset token from email link
+     * @param {string} username - Username from email link
+     * @param {string} newPassword - New password
+     * @param {string} confirmPassword - Confirm new password
+     * @returns {Promise<Object>} { success, message }
+     */
+    async resetPassword(token, username, newPassword, confirmPassword) {
+        return this.request('/auth/reset-password', {
+            method: 'POST',
+            body: JSON.stringify({
+                token,
+                username,
+                new_password: newPassword,
+                confirm_password: confirmPassword,
+            }),
+        });
+    },
+
+    /**
+     * Set up TOTP for user (when totp_enrolled is false). Call after loginStart.
+     * @param {string} challengeToken - Token from loginStart
+     * @returns {Promise<Object>} { otpauth_uri, secret }
+     */
+    async loginTotpSetup(challengeToken) {
+        return this.request('/auth/login/totp-setup', {
+            method: 'POST',
+            body: JSON.stringify({ challenge_token: challengeToken }),
+        });
+    },
+
+    /**
+     * Step 2: Verify MFA and complete login.
+     * @param {string} challengeToken - Token from loginStart
+     * @param {string} mfaMethod - 'totp' or 'sms'
+     * @param {string} verificationCode - 6-digit code
+     * @returns {Promise<Object>} Login response with token
+     */
+    async loginVerify(challengeToken, mfaMethod, verificationCode) {
+        return this.request('/auth/login/verify', {
+            method: 'POST',
+            body: JSON.stringify({
+                challenge_token: challengeToken,
+                mfa_method: mfaMethod,
+                verification_code: verificationCode,
+            }),
+        });
+    },
+
+    /**
+     * Send SMS verification code (with challenge token from login/start; password was step 1).
+     * @param {string} challengeToken - Token from loginStart
+     * @returns {Promise<Object>} SMS send response
+     */
+    async sendSmsCodeWithChallenge(challengeToken) {
+        return this.request('/auth/sms/send-code', {
+            method: 'POST',
+            body: JSON.stringify({ challenge_token: challengeToken }),
+        });
+    },
+
+    /**
+     * Send SMS verification code for login (legacy: username + password).
      * @param {string} username - Username
      * @param {string} password - Password
      * @returns {Promise<Object>} SMS send response
@@ -244,24 +332,6 @@ const API = {
         return this.request('/auth/sms/send-code', {
             method: 'POST',
             body: JSON.stringify({ username, password }),
-        });
-    },
-
-    /**
-     * Login with credentials and verification code
-     * @param {string} username - Username
-     * @param {string} password - Password
-     * @param {string} verificationCode - 6-digit verification code
-     * @returns {Promise<Object>} Login response
-     */
-    async login(username, password, verificationCode) {
-        return this.request('/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({
-                username,
-                password,
-                verification_code: verificationCode,
-            }),
         });
     },
 

@@ -554,6 +554,12 @@ account role must trust each other in their respective Trust Relationships
 - `TF_VAR_REDIS_PASSWORD` - Redis password (minimum 8 characters)
 - `GH_TOKEN` - GitHub Personal Access Token with `repo` scope
 
+**Optional (first admin user seed):** When all are set, a one-time Job seeds the
+first admin so they can log into the 2FA app with the same username/password as
+LDAP. Set in GitHub Secrets or AWS `tf-vars`: `ADMIN_SEED_USERNAME`, `ADMIN_SEED_EMAIL`,
+`ADMIN_SEED_FIRST_NAME`, `ADMIN_SEED_LAST_NAME`, `ADMIN_SEED_PHONE_COUNTRY_CODE`,
+`ADMIN_SEED_PHONE_NUMBER`. See [Secrets Requirements](SECRETS_REQUIREMENTS.md).
+
 > [!IMPORTANT]
 >
 > Read the complete secrets configuration details here [Secrets Requirements](SECRETS_REQUIREMENTS.md).
@@ -904,7 +910,9 @@ The application destroy script will:
 - Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
 - Retrieve repository variables from GitHub
 - Retrieve role ARNs and ExternalId from AWS Secrets Manager
-- Retrieve password secrets (PostgreSQL, Redis) from AWS Secrets Manager
+- Retrieve password secrets (PostgreSQL, Redis, OpenLDAP admin, and optional admin-seed)
+from AWS Secrets Manager (`tf-vars`) so Terraform can destroy ldap-admin-secret
+and admin-seed resources
 - Generate `backend.hcl` from template (if it doesn't exist)
 - Update `variables.tfvars` with selected region, environment, deployment account
   role ARN, and ExternalId

@@ -400,12 +400,14 @@ CREATE TABLE verification_tokens (
 ### 8.1 Tab Structure
 
 ```ascii
-┌─────────┬───────────┬────────────┬─────────┐
-│  Login  │  Sign Up  │ Enroll MFA │  Admin  │
-└─────────┴───────────┴────────────┴─────────┘
-                                    (hidden until
-                                     admin login)
+┌─────────┬───────────┬─────────┐
+│  Login  │  Sign Up  │  Admin  │
+└─────────┴───────────┴─────────┘
+                      (hidden until
+                       logged in; admin
+                       menu if admin)
 ```
+MFA is completed on the second step after login (Authenticator app or SMS); there is no separate Enroll MFA tab.
 
 ### 8.2 Signup Flow
 

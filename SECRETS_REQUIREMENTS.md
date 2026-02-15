@@ -483,6 +483,29 @@ TTL-based expiration
 - **Security Note:** This is a sensitive value and should be stored securely
 - **Minimum Length:** 8 characters (Redis requirement)
 
+#### Admin seed (first admin user for 2FA app)
+
+Used to seed the first admin user so they can log into the 2FA application with
+the **same username and password** as the LDAP admin. Values are **never** hard-coded
+or logged; they are passed via secrets only.
+
+- **Secret Location:**
+  - AWS Secrets Manager: `tf-vars` secret, keys below (or a separate `admin-seed`
+  secret)
+  - GitHub: Repository secrets with the same key names
+- **Password:** Reuse `TF_VAR_OPENLDAP_ADMIN_PASSWORD` (no separate admin seed password).
+- **Keys (all optional; when all are set, seed is enabled):**
+  - `ADMIN_SEED_USERNAME` – Username (uid) for the first admin (e.g. `admin`)
+  - `ADMIN_SEED_EMAIL` – Email (used for profile; not sent to)
+  - `ADMIN_SEED_FIRST_NAME` – First name
+  - `ADMIN_SEED_LAST_NAME` – Last name
+  - `ADMIN_SEED_PHONE_COUNTRY_CODE` – E.g. `+1`
+  - `ADMIN_SEED_PHONE_NUMBER` – E.g. `5551234567`
+- **Used By:** Terraform (to create Kubernetes secret `admin-seed-secret`); one-time
+  seed Job reads from that secret and creates LDAP user + DB record.
+- **Security:** Do not put these in `variables.tfvars` or in code. Never log them.
+  Set via `TF_VAR_admin_seed_*` environment variables (from GitHub Secrets or AWS).
+
 ## Implementation Notes
 
 ### Case Sensitivity
@@ -523,8 +546,8 @@ for better security and organization.
 
 ### Local Script Behavior
 
-Local bash scripts (`setup-backend.sh`, `setup-application.sh`, `set-state.sh`,
-`get-state.sh`):
+Local bash scripts (`setup-backend.sh`, `setup-application.sh`, `destroy-application.sh`,
+`set-state.sh`, `get-state.sh`):
 
 - Retrieve role ARNs from AWS Secrets Manager secret `github-role`
 - Retrieve ExternalId from AWS Secrets Manager secret `external-id` (plain text)
@@ -562,10 +585,11 @@ env:
 | `github-role` | `AWS_PRODUCTION_ACCOUNT_ROLE_ARN` | IAM Role ARN | Scripts (prod) | Role for production deployments |
 | `github-role` | `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` | IAM Role ARN | Scripts (dev) | Role for development deployments |
 | `external-id` | (plain text) | ExternalId | `setup-backend.sh`, `setup-application.sh` | ExternalId for cross-account role assumption security |
-| `tf-vars` | `TF_VAR_OPENLDAP_ADMIN_PASSWORD` | Password | `setup-application.sh` | OpenLDAP admin password (exported as `TF_VAR_openldap_admin_password`) |
+| `tf-vars` | `TF_VAR_OPENLDAP_ADMIN_PASSWORD` | Password | `setup-application.sh`, `destroy-application.sh` | OpenLDAP admin password (exported as `TF_VAR_openldap_admin_password`) |
 | `tf-vars` | `TF_VAR_OPENLDAP_CONFIG_PASSWORD` | Password | `setup-application.sh` | OpenLDAP config password (exported as `TF_VAR_openldap_config_password`) |
-| `tf-vars` | `TF_VAR_POSTGRESQL_PASSWORD` | Password | `setup-application.sh` | PostgreSQL database password (exported as `TF_VAR_postgresql_database_password`) |
-| `tf-vars` | `TF_VAR_REDIS_PASSWORD` | Password | `setup-application.sh` | Redis password for SMS OTP storage (exported as `TF_VAR_redis_password`) |
+| `tf-vars` | `TF_VAR_POSTGRESQL_PASSWORD` | Password | `setup-application.sh`, `destroy-application.sh` | PostgreSQL database password (exported as `TF_VAR_postgresql_database_password`) |
+| `tf-vars` | `TF_VAR_REDIS_PASSWORD` | Password | `setup-application.sh`, `destroy-application.sh` | Redis password for SMS OTP storage (exported as `TF_VAR_redis_password`) |
+| `tf-vars` | `ADMIN_SEED_*` (optional) | String | `setup-application.sh`, `destroy-application.sh` | First admin seed keys; when all set, exported as `TF_VAR_admin_seed_*` (see Admin seed section) |
 
 ### GitHub Repository Secrets (for GitHub Actions Workflows)
 
@@ -579,6 +603,12 @@ env:
 | `TF_VAR_OPENLDAP_CONFIG_PASSWORD` | Password | OpenLDAP config password |
 | `TF_VAR_POSTGRESQL_PASSWORD` | Password | PostgreSQL database password |
 | `TF_VAR_REDIS_PASSWORD` | Password | Redis password for SMS OTP storage (minimum 8 characters) |
+| `ADMIN_SEED_USERNAME` | String | Optional. First admin username (when all ADMIN_SEED_* set, enables seed). |
+| `ADMIN_SEED_EMAIL` | String | Optional. First admin email. |
+| `ADMIN_SEED_FIRST_NAME` | String | Optional. First admin first name. |
+| `ADMIN_SEED_LAST_NAME` | String | Optional. First admin last name. |
+| `ADMIN_SEED_PHONE_COUNTRY_CODE` | String | Optional. E.g. +1. |
+| `ADMIN_SEED_PHONE_NUMBER` | String | Optional. First admin phone number. |
 | `GH_TOKEN` | GitHub PAT | GitHub Personal Access Token with `repo` scope |
 
 ### GitHub Repository Variables (for GitHub Actions Workflows)

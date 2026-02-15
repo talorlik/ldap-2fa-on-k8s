@@ -22,20 +22,25 @@ LDAP 2FA Backend API has been deployed!
   echo "Visit http://127.0.0.1:8000/api/healthz"
 {{- end }}
 
-2. API Endpoints:
-   - Health Check: GET /api/healthz
-   - Enroll MFA:   POST /api/auth/enroll
-   - Login:        POST /api/auth/login
+2. API Endpoints (two-step login):
+   - Health Check:     GET  /api/healthz
+   - Login step 1:     POST /api/auth/login/start   (username, password, optional remember_me)
+   - TOTP setup:       POST /api/auth/login/totp-setup (challenge_token, when not enrolled)
+   - Login step 2:     POST /api/auth/login/verify (challenge_token, mfa_method, verification_code)
+   - Send SMS code:    POST /api/auth/sms/send-code (challenge_token)
+   - Forgot password:  POST /api/auth/forgot-password (email)
+   - Reset password:   POST /api/auth/reset-password (token, username, new_password, confirm_password)
+   - Re-enroll MFA:    POST /api/auth/enroll
 
 3. Test the health endpoint:
    curl -s https://{{ (index .Values.ingress.hosts 0).host }}/api/healthz | jq
 
-4. Enroll a user for MFA:
-   curl -X POST https://{{ (index .Values.ingress.hosts 0).host }}/api/auth/enroll \
+4. Login (step 1):
+   curl -X POST https://{{ (index .Values.ingress.hosts 0).host }}/api/auth/login/start \
      -H "Content-Type: application/json" \
-     -d '{"username": "testuser", "password": "testpassword"}'
+     -d '{"username": "testuser", "password": "testpassword", "remember_me": false}'
 
-5. Login with MFA:
-   curl -X POST https://{{ (index .Values.ingress.hosts 0).host }}/api/auth/login \
+5. Complete login (step 2, after MFA code):
+   curl -X POST https://{{ (index .Values.ingress.hosts 0).host }}/api/auth/login/verify \
      -H "Content-Type: application/json" \
-     -d '{"username": "testuser", "password": "testpassword", "totp_code": "123456"}'
+     -d '{"challenge_token": "<from step 1>", "mfa_method": "totp", "verification_code": "123456"}'

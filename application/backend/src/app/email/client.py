@@ -352,3 +352,104 @@ This is an automated notification from {self.settings.totp_issuer}.
         except Exception as e:
             logger.error("Unexpected error sending admin notification email: %s", e)
             return False, f"Failed to send email: {str(e)}"
+
+    def send_password_reset_email(
+        self,
+        to_email: str,
+        reset_token: str,
+        username: str,
+        first_name: str,
+    ) -> tuple[bool, str]:
+        """
+        Send password reset link email.
+
+        Args:
+            to_email: Recipient email address
+            reset_token: Password reset token (UUID)
+            username: User's username
+            first_name: User's first name for personalization
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        reset_link = (
+            f"{self.settings.app_url}/#reset-password?token={reset_token}&username={username}"
+        )
+        expiry_hours = getattr(
+            self.settings,
+            "password_reset_expiry_hours",
+            self.settings.email_verification_expiry_hours,
+        )
+
+        subject = f"Reset your password - {self.settings.totp_issuer}"
+
+        html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 28px;">Password Reset</h1>
+    </div>
+    <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0; border-top: none;">
+        <p style="font-size: 16px;">Hello <strong>{first_name}</strong>,</p>
+        <p style="font-size: 16px;">We received a request to reset the password for your account (<strong>{username}</strong>). Click the button below to set a new password:</p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{reset_link}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">
+                Reset Password
+            </a>
+        </div>
+        <p style="font-size: 14px; color: #666;">Or copy and paste this link into your browser:</p>
+        <p style="font-size: 12px; color: #888; word-break: break-all; background: #fff; padding: 10px; border-radius: 5px; border: 1px solid #e0e0e0;">
+            {reset_link}
+        </p>
+        <p style="font-size: 14px; color: #666; margin-top: 30px;">
+            This link will expire in <strong>{expiry_hours} hour(s)</strong>.
+        </p>
+        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+        <p style="font-size: 12px; color: #999; text-align: center;">
+            If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+        </p>
+    </div>
+</body>
+</html>
+"""
+
+        text_body = f"""
+Hello {first_name},
+
+We received a request to reset the password for your account ({username}). Visit the link below to set a new password:
+
+{reset_link}
+
+This link will expire in {expiry_hours} hour(s).
+
+If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+"""
+
+        try:
+            response = self.client.send_email(
+                Source=self.settings.ses_sender_email,
+                Destination={"ToAddresses": [to_email]},
+                Message={
+                    "Subject": {"Data": subject, "Charset": "UTF-8"},
+                    "Body": {
+                        "Text": {"Data": text_body, "Charset": "UTF-8"},
+                        "Html": {"Data": html_body, "Charset": "UTF-8"},
+                    },
+                },
+            )
+            message_id = response.get("MessageId", "unknown")
+            logger.info("Password reset email sent to %s, MessageId: %s", to_email, message_id)
+            return True, "Password reset email sent successfully"
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+            logger.error("Failed to send password reset email to %s: %s - %s", to_email, error_code, error_message)
+            return False, f"Failed to send email: {error_message}"
+        except Exception as e:
+            logger.error("Unexpected error sending password reset email to %s: %s", to_email, e)
+            return False, f"Failed to send email: {str(e)}"

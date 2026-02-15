@@ -13,6 +13,37 @@ output "helm_release_name" {
   value       = helm_release.openldap.name
 }
 
+# LDAP connection config for 2FA app and other consumers (no hardcoding)
+output "ldap_host" {
+  description = "OpenLDAP service host (Kubernetes DNS)"
+  value       = "${helm_release.openldap.name}.${kubernetes_namespace.openldap.metadata[0].name}.svc.cluster.local"
+}
+
+output "ldap_base_dn" {
+  description = "LDAP base DN derived from openldap_ldap_domain"
+  value       = join(",", [for p in split(".", var.openldap_ldap_domain): "dc=${p}"])
+}
+
+output "ldap_admin_dn" {
+  description = "LDAP admin bind DN"
+  value       = "cn=admin,${join(",", [for p in split(".", var.openldap_ldap_domain): "dc=${p}"])}"
+}
+
+output "ldap_admin_group_dn" {
+  description = "LDAP admin group DN (for 2FA app admin role)"
+  value       = "cn=admins,ou=groups,${join(",", [for p in split(".", var.openldap_ldap_domain): "dc=${p}"])}"
+}
+
+output "ldap_user_search_base" {
+  description = "LDAP user search base (relative to base DN)"
+  value       = "ou=users"
+}
+
+output "ldap_group_search_base" {
+  description = "LDAP group search base (relative to base DN)"
+  value       = "ou=groups"
+}
+
 output "phpldapadmin_ingress_hostname" {
   description = "Hostname from phpLDAPadmin ingress (ALB DNS name)"
   value       = try(data.kubernetes_ingress_v1.phpldapadmin.status[0].load_balancer[0].ingress[0].hostname, null)

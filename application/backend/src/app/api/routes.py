@@ -13,7 +13,7 @@ from typing import Optional
 import bcrypt
 import jwt
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -24,7 +24,7 @@ from app.email import EmailClient
 from app.ldap import LDAPClient
 from app.mfa import TOTPManager
 from app.redis import get_otp_client, RedisOTPClient
-from app.redis.client import InMemoryOTPStorage
+from app.redis.client import InMemoryOTPStorage, InMemoryLoginChallengeStorage
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +129,37 @@ class ResendVerificationRequest(BaseModel):
     verification_type: str = Field(..., description="Type: 'email' or 'phone'")
 
 
+class ForgotPasswordRequest(BaseModel):
+    """Request to send password reset link."""
+    email: str = Field(..., description="Account email address")
+
+
+class ForgotPasswordResponse(BaseModel):
+    """Response after forgot-password request."""
+    success: bool = Field(..., description="Whether the request was processed")
+    message: str = Field(..., description="Response message (generic for security)")
+
+
+class ResetPasswordRequest(BaseModel):
+    """Request to set new password with reset token."""
+    token: str = Field(..., description="Password reset token from email link")
+    username: str = Field(..., description="Username from email link")
+    new_password: str = Field(..., min_length=8, description="New password")
+    confirm_password: str = Field(..., min_length=8, description="Confirm new password")
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self
+
+
+class ResetPasswordResponse(BaseModel):
+    """Response after reset-password."""
+    success: bool = Field(..., description="Whether password was reset")
+    message: str = Field(..., description="Response message")
+
+
 class ProfileStatusResponse(BaseModel):
     """User profile status response model."""
     username: str = Field(..., description="Username")
@@ -160,9 +191,36 @@ class EnrollResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    """Login request model."""
+    """Login request model (legacy one-step login, kept for reference)."""
     username: str = Field(..., min_length=1, description="Username")
     password: str = Field(..., min_length=1, description="Password")
+    verification_code: str = Field(..., min_length=6, max_length=6, description="6-digit code")
+
+
+class LoginStartRequest(BaseModel):
+    """Login step 1: username and password only."""
+    username: str = Field(..., min_length=1, description="Username")
+    password: str = Field(..., min_length=1, description="Password")
+    remember_me: bool = Field(False, description="Use longer-lived session (remember me)")
+
+
+class LoginStartResponse(BaseModel):
+    """Response after successful username/password; MFA required."""
+    challenge_token: str = Field(..., description="Token for MFA step")
+    totp_enrolled: bool = Field(..., description="Whether user has Authenticator app set up")
+    sms_available: bool = Field(..., description="Whether SMS option is available")
+
+
+class LoginTotpSetupResponse(BaseModel):
+    """Response with TOTP setup URI and secret (when not yet enrolled)."""
+    otpauth_uri: str = Field(..., description="otpauth:// URI for QR code")
+    secret: str = Field(..., description="TOTP secret for manual entry")
+
+
+class LoginVerifyRequest(BaseModel):
+    """Login step 2: MFA verification."""
+    challenge_token: str = Field(..., description="Token from login start")
+    mfa_method: MFAMethod = Field(..., description="totp or sms")
     verification_code: str = Field(..., min_length=6, max_length=6, description="6-digit code")
 
 
@@ -176,9 +234,10 @@ class LoginResponse(BaseModel):
 
 
 class SMSSendCodeRequest(BaseModel):
-    """Request to send SMS verification code."""
-    username: str = Field(..., min_length=1, description="Username")
-    password: str = Field(..., min_length=1, description="Password")
+    """Request to send SMS verification code. Use either challenge_token (after login start) or username+password."""
+    username: Optional[str] = Field(None, description="Username (when not using challenge_token)")
+    password: Optional[str] = Field(None, description="Password (when not using challenge_token)")
+    challenge_token: Optional[str] = Field(None, description="Token from login/start (preferred)")
 
 
 class SMSSendCodeResponse(BaseModel):
@@ -383,6 +442,12 @@ async def _get_user_by_email(session: AsyncSession, email: str) -> Optional[User
     return result.scalar_one_or_none()
 
 
+async def _get_user_by_id(session: AsyncSession, user_id: uuid.UUID) -> Optional[User]:
+    """Get user by id."""
+    result = await session.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()
+
+
 async def _create_verification_token(
     session: AsyncSession,
     user_id: uuid.UUID,
@@ -402,7 +467,7 @@ async def _create_verification_token(
         old_token.used = True
 
     # Create new token
-    if token_type == "email":
+    if token_type in ("email", "password_reset"):
         token = str(uuid.uuid4())
     else:
         token = _generate_verification_code(6)
@@ -811,6 +876,117 @@ async def verify_phone(
     )
 
 
+# ============================================================================
+# Forgot / Reset Password
+# ============================================================================
+
+@router.post(
+    "/auth/forgot-password",
+    response_model=ForgotPasswordResponse,
+    responses={200: {"description": "Always 200 with generic message (security)"}},
+)
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    session: AsyncSession = Depends(get_async_session),
+) -> ForgotPasswordResponse:
+    """
+    Request a password reset link by email. Always returns the same generic message
+    to avoid revealing whether the email exists.
+    """
+    settings = get_settings()
+    user = await _get_user_by_email(session, request.email.strip().lower())
+    generic_message = (
+        "If an account exists with this email address, you will receive a password reset link shortly."
+    )
+    if not user:
+        logger.debug("Forgot password: no user for email %s", request.email)
+        return ForgotPasswordResponse(success=True, message=generic_message)
+    if user.status != ProfileStatus.ACTIVE.value:
+        logger.debug("Forgot password: user %s not active", user.username)
+        return ForgotPasswordResponse(success=True, message=generic_message)
+    token = await _create_verification_token(
+        session,
+        user.id,
+        "password_reset",
+        settings.password_reset_expiry_hours,
+    )
+    await session.commit()
+    email_client = EmailClient()
+    success, _ = email_client.send_password_reset_email(
+        to_email=user.email,
+        reset_token=token,
+        username=user.username,
+        first_name=user.first_name,
+    )
+    if not success:
+        logger.warning("Failed to send password reset email to %s", user.email)
+    return ForgotPasswordResponse(success=True, message=generic_message)
+
+
+@router.post(
+    "/auth/reset-password",
+    response_model=ResetPasswordResponse,
+    responses={
+        400: {"description": "Invalid or expired token, or validation error"},
+        404: {"description": "User not found"},
+    },
+)
+async def reset_password(
+    request: ResetPasswordRequest,
+    session: AsyncSession = Depends(get_async_session),
+) -> ResetPasswordResponse:
+    """Set new password using the token from the reset link."""
+    result = await session.execute(
+        select(VerificationToken).where(
+            VerificationToken.token_type == "password_reset",
+            VerificationToken.token == request.token,
+            VerificationToken.used == False,
+        )
+    )
+    reset_token = result.scalar_one_or_none()
+    if not reset_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset link. Please request a new password reset.",
+        )
+    if reset_token.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reset link has expired. Please request a new password reset.",
+        )
+    user = await _get_user_by_id(session, reset_token.user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    if user.username != request.username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reset link.",
+        )
+    ldap_client = LDAPClient()
+    if not ldap_client.user_exists(user.username):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account is not active. Please contact support.",
+        )
+    success, msg = ldap_client.change_password(user.username, request.new_password)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update password. Please try again or request a new link.",
+        )
+    reset_token.used = True
+    user.password_hash = _hash_password(request.new_password)
+    await session.commit()
+    logger.info("Password reset completed for user %s", user.username)
+    return ResetPasswordResponse(
+        success=True,
+        message="Your password has been reset. You can now log in with your new password.",
+    )
+
+
 @router.post(
     "/auth/resend-verification",
     response_model=VerificationResponse,
@@ -1078,7 +1254,236 @@ async def enroll(
 
 
 # ============================================================================
-# Login
+# Login (two-step: start -> MFA -> verify)
+# ============================================================================
+
+@router.post(
+    "/auth/login/start",
+    response_model=LoginStartResponse,
+    responses={
+        401: {"description": "Invalid credentials"},
+        403: {"description": "Profile incomplete or not activated"},
+    },
+)
+async def login_start(
+    request: LoginStartRequest,
+    session: AsyncSession = Depends(get_async_session),
+) -> LoginStartResponse:
+    """
+    Step 1: Validate username and password. Returns a challenge token and MFA options.
+    """
+    user = await _get_user_by_username(session, request.username)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User not found. Please sign up first.",
+        )
+
+    if user.status == ProfileStatus.PENDING.value:
+        missing = []
+        if not user.email_verified:
+            missing.append("email")
+        if not user.phone_verified:
+            missing.append("phone")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Profile incomplete. Please verify your: {', '.join(missing)}",
+        )
+
+    if user.status == ProfileStatus.COMPLETE.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your profile is awaiting admin approval. Please wait for activation.",
+        )
+
+    ldap_client = LDAPClient()
+    auth_success, auth_message = ldap_client.authenticate(
+        request.username, request.password
+    )
+    if not auth_success:
+        logger.warning("Login failed for %s: %s", request.username, auth_message)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+
+    settings = get_settings()
+    totp_enrolled = user.totp_secret is not None
+    sms_available = bool(
+        settings.enable_sms_2fa
+        and user.phone_country_code
+        and user.phone_number
+    )
+
+    challenge_token = secrets.token_urlsafe(32)
+    InMemoryLoginChallengeStorage.store(
+        challenge_token,
+        str(user.id),
+        user.username,
+        remember_me=getattr(request, "remember_me", False),
+    )
+
+    return LoginStartResponse(
+        challenge_token=challenge_token,
+        totp_enrolled=totp_enrolled,
+        sms_available=sms_available,
+    )
+
+
+class LoginTotpSetupRequest(BaseModel):
+    """Request for TOTP setup (challenge only)."""
+    challenge_token: str = Field(..., description="Token from login/start")
+
+
+@router.post(
+    "/auth/login/totp-setup",
+    response_model=LoginTotpSetupResponse,
+    responses={400: {"description": "TOTP already enrolled"}, 401: {"description": "Invalid or expired challenge"}},
+)
+async def login_totp_setup(
+    request: LoginTotpSetupRequest,
+    session: AsyncSession = Depends(get_async_session),
+) -> LoginTotpSetupResponse:
+    """
+    Generate TOTP secret for a user who has not yet enrolled. Call after login/start when totp_enrolled is False.
+    """
+    challenge = InMemoryLoginChallengeStorage.get(request.challenge_token)
+    if not challenge:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired login session. Please log in again.",
+        )
+
+    user = await _get_user_by_id(session, uuid.UUID(challenge["user_id"]))
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
+
+    if user.totp_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authenticator app is already set up.",
+        )
+
+    totp_manager = TOTPManager()
+    secret = totp_manager.generate_secret()
+    otpauth_uri = totp_manager.generate_otpauth_uri(
+        secret=secret,
+        username=user.username,
+    )
+    user.mfa_method = "totp"
+    user.totp_secret = secret
+    await session.commit()
+
+    return LoginTotpSetupResponse(otpauth_uri=otpauth_uri, secret=secret)
+
+
+@router.post(
+    "/auth/login/verify",
+    response_model=LoginResponse,
+    responses={401: {"description": "Invalid or expired challenge or verification code"}},
+)
+async def login_verify(
+    request: LoginVerifyRequest,
+    session: AsyncSession = Depends(get_async_session),
+) -> LoginResponse:
+    """
+    Step 2: Verify MFA code and return JWT. Consumes the challenge token.
+    """
+    challenge = InMemoryLoginChallengeStorage.get(request.challenge_token)
+    if not challenge:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired login session. Please log in again.",
+        )
+
+    user = await _get_user_by_id(session, uuid.UUID(challenge["user_id"]))
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
+
+    username = user.username
+
+    if request.mfa_method == MFAMethod.TOTP:
+        if not user.totp_secret:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authenticator app not set up. Please complete setup first.",
+            )
+        totp_manager = TOTPManager()
+        if not totp_manager.verify_totp(user.totp_secret, request.verification_code):
+            logger.warning("Login verify failed for %s: Invalid TOTP", username)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid verification code",
+            )
+    elif request.mfa_method == MFAMethod.SMS:
+        otp_client = get_otp_client()
+        sms_code_data = None
+        if otp_client.is_enabled and otp_client.is_connected:
+            sms_code_data = otp_client.get_code(username)
+            if not sms_code_data:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="No verification code sent. Please request a code first.",
+                )
+            if not hmac.compare_digest(request.verification_code, sms_code_data["code"]):
+                logger.warning("Login verify failed for %s: Invalid SMS code", username)
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid verification code",
+                )
+            otp_client.delete_code(username)
+        else:
+            sms_code_data = InMemoryOTPStorage.get_code(username)
+            if not sms_code_data:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="No verification code sent. Please request a code first.",
+                )
+            if time.time() > sms_code_data["expires_at"]:
+                InMemoryOTPStorage.delete_code(username)
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Verification code expired. Please request a new one.",
+                )
+            if not hmac.compare_digest(request.verification_code, sms_code_data["code"]):
+                logger.warning("Login verify failed for %s: Invalid SMS code", username)
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid verification code",
+                )
+            InMemoryOTPStorage.delete_code(username)
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid mfa_method")
+
+    remember_me = challenge.get("remember_me", False)
+    InMemoryLoginChallengeStorage.delete(request.challenge_token)
+
+    ldap_client = LDAPClient()
+    is_admin = ldap_client.is_admin(username)
+
+    settings = get_settings()
+    expires_delta = None
+    if remember_me:
+        expires_delta = timedelta(days=settings.jwt_refresh_expiry_days)
+    token = _create_jwt_token(
+        user_id=str(user.id),
+        username=username,
+        is_admin=is_admin,
+        expires_delta=expires_delta,
+    )
+    logger.info("User %s logged in successfully", username)
+    return LoginResponse(
+        success=True,
+        message="Login successful",
+        is_admin=is_admin,
+        token=token,
+        username=username,
+    )
+
+
+# ============================================================================
+# Legacy one-step login (kept for backward compatibility; frontend uses two-step)
 # ============================================================================
 
 @router.post(
@@ -1094,7 +1499,7 @@ async def login(
     session: AsyncSession = Depends(get_async_session),
 ) -> LoginResponse:
     """
-    Authenticate user with username, password, and verification code.
+    Authenticate user with username, password, and verification code (legacy one-step).
     """
     user = await _get_user_by_username(session, request.username)
 
@@ -1237,14 +1642,15 @@ async def login(
     response_model=SMSSendCodeResponse,
     responses={
         401: {"description": "Invalid credentials"},
-        403: {"description": "User not enrolled for SMS"},
+        403: {"description": "User not enrolled for SMS or no phone"},
+        400: {"description": "Provide either challenge_token or username+password"},
     },
 )
 async def send_sms_code(
     request: SMSSendCodeRequest,
     session: AsyncSession = Depends(get_async_session),
 ) -> SMSSendCodeResponse:
-    """Send SMS verification code for login."""
+    """Send SMS verification code for login. Use challenge_token (after login/start) or username+password."""
     settings = get_settings()
 
     if not settings.enable_sms_2fa:
@@ -1253,34 +1659,52 @@ async def send_sms_code(
             detail="SMS 2FA is not enabled",
         )
 
-    user = await _get_user_by_username(session, request.username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-
-    # For active users, verify against LDAP
-    if user.status == ProfileStatus.ACTIVE.value:
-        ldap_client = LDAPClient()
-        auth_success, _ = ldap_client.authenticate(request.username, request.password)
-        if not auth_success:
+    if request.challenge_token:
+        challenge = InMemoryLoginChallengeStorage.get(request.challenge_token)
+        if not challenge:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid username or password",
+                detail="Invalid or expired login session. Please log in again.",
+            )
+        user = await _get_user_by_id(session, uuid.UUID(challenge["user_id"]))
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        if not (user.phone_country_code and user.phone_number):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No phone number on file for SMS.",
+            )
+        # User already passed step 1 (username + password); challenge is sufficient
+    elif request.username and request.password:
+        user = await _get_user_by_username(session, request.username)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        if user.status == ProfileStatus.ACTIVE.value:
+            ldap_client = LDAPClient()
+            auth_success, _ = ldap_client.authenticate(request.username, request.password)
+            if not auth_success:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid username or password",
+                )
+        else:
+            if not _verify_password(request.password, user.password_hash):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid username or password",
+                )
+        if user.mfa_method != "sms":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User not enrolled for SMS MFA",
             )
     else:
-        # For non-active users, verify against stored password
-        if not _verify_password(request.password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid username or password",
-            )
-
-    if user.mfa_method != "sms":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User not enrolled for SMS MFA",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide either challenge_token or username and password.",
         )
 
     # Generate and send code
@@ -1302,13 +1726,13 @@ async def send_sms_code(
     if otp_client.is_enabled and otp_client.is_connected:
         # Use Redis for OTP storage
         stored = otp_client.store_code(
-            username=request.username,
+            username=user.username,
             code=code,
             phone_number=user.full_phone_number,
             ttl_seconds=settings.sms_code_expiry_seconds,
         )
         if not stored:
-            logger.error("Failed to store OTP code in Redis for %s", request.username)
+            logger.error("Failed to store OTP code in Redis for %s", user.username)
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Failed to store verification code. Please try again.",
@@ -1316,13 +1740,13 @@ async def send_sms_code(
     else:
         # Fallback to in-memory storage
         InMemoryOTPStorage.store_code(
-            username=request.username,
+            username=user.username,
             code=code,
             phone_number=user.full_phone_number,
             expires_at=time.time() + settings.sms_code_expiry_seconds,
         )
 
-    logger.info("SMS code sent to user %s", request.username)
+    logger.info("SMS code sent to user %s", user.username)
 
     return SMSSendCodeResponse(
         success=True,

@@ -23,14 +23,19 @@ LDAP 2FA Frontend has been deployed!
 {{- end }}
 
 2. Features:
-   - User enrollment for MFA (generates QR code for authenticator apps)
-   - Login with LDAP credentials + TOTP code
+   - Two-step login: username/password then MFA screen (Authenticator app or SMS, single code field); optional Remember me and Forgot your password
+   - Forgot password: request reset link by email; reset-password view from email link (#reset-password?token=...&username=...)
+   - One-time TOTP setup with QR code when user chooses Authenticator and is not enrolled
    - Responsive design with dark mode support
 
 3. The frontend communicates with the backend via relative URLs:
    - /api/healthz - Health check
-   - /api/auth/enroll - MFA enrollment
-   - /api/auth/login - Login with 2FA
+   - /api/auth/login/start - Step 1 login (optional remember_me)
+   - /api/auth/login/totp-setup - TOTP setup when not enrolled
+   - /api/auth/login/verify - Step 2 MFA verification
+   - /api/auth/sms/send-code - Send SMS code (with challenge token)
+   - /api/auth/forgot-password - Request password reset link
+   - /api/auth/reset-password - Set new password from email link
 
 4. Ensure the backend is deployed and accessible at the same host:
    kubectl get ingress -n {{ .Release.Namespace }}

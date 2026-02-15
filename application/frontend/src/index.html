@@ -55,10 +55,9 @@
         <nav id="auth-tabs" class="tabs">
             <button class="tab-btn active" data-tab="login">Login</button>
             <button class="tab-btn" data-tab="signup">Sign Up</button>
-            <button class="tab-btn" data-tab="enroll">Enroll MFA</button>
         </nav>
 
-        <!-- Login Tab -->
+        <!-- Login Tab (username and password only; MFA step shown after) -->
         <section id="login-tab" class="tab-content active">
             <form id="login-form" class="auth-form">
                 <div class="form-group">
@@ -73,26 +72,137 @@
                            placeholder="Enter your password" autocomplete="current-password">
                 </div>
 
-                <div class="form-group">
-                    <label for="login-code">Verification Code</label>
-                    <div class="code-input-group">
-                        <input type="text" id="login-code" name="verification_code" required
-                               placeholder="Enter 6-digit code" maxlength="6" pattern="[0-9]{6}"
-                               autocomplete="one-time-code" inputmode="numeric">
-                        <button type="button" id="send-sms-btn" class="btn btn-secondary btn-small hidden">
-                            Send SMS
-                        </button>
-                    </div>
-                    <small id="sms-status" class="form-hint hidden"></small>
+                <div class="form-group form-row-remember">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="login-remember-me" name="remember_me" value="1"
+                               autocomplete="off">
+                        <span>Remember me</span>
+                    </label>
+                    <a href="#" id="login-forgot-password" class="forgot-password-link">Forgot your password?</a>
                 </div>
 
                 <button type="submit" class="btn btn-primary">
                     <span class="btn-text">Login</span>
-                    <span class="btn-loading hidden">Authenticating...</span>
+                    <span class="btn-loading hidden">Signing in...</span>
                 </button>
             </form>
 
+            <!-- MFA step (shown after successful username/password) -->
+            <div id="mfa-step-panel" class="mfa-step-panel hidden">
+                <h3>Two-Factor Authentication</h3>
+                <p class="mfa-step-subtitle">Choose how to verify your identity</p>
+
+                <div class="form-group">
+                    <label>Verification method</label>
+                    <div class="mfa-method-selector" id="mfa-step-method-selector">
+                        <label class="radio-option" id="mfa-step-totp-option">
+                            <input type="radio" name="mfa_step_method" value="totp" checked>
+                            <span class="radio-label">
+                                <span class="radio-icon">📱</span>
+                                <span class="radio-text">
+                                    <strong>Authenticator App</strong>
+                                    <small id="mfa-step-totp-hint">Enter code from your app</small>
+                                </span>
+                            </span>
+                        </label>
+                        <label class="radio-option" id="mfa-step-sms-option">
+                            <input type="radio" name="mfa_step_method" value="sms">
+                            <span class="radio-label">
+                                <span class="radio-icon">💬</span>
+                                <span class="radio-text">
+                                    <strong>SMS</strong>
+                                    <small>Receive a code via text message</small>
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- TOTP setup (QR + secret) when not yet enrolled -->
+                <div id="mfa-step-totp-setup" class="mfa-step-totp-setup hidden">
+                    <h4>Set up Authenticator App</h4>
+                    <p>Scan this QR code with Google Authenticator or another app, or enter the secret manually.</p>
+                    <div id="mfa-step-qr" class="qr-code"></div>
+                    <div class="manual-entry">
+                        <p>Or enter this secret manually:</p>
+                        <code id="mfa-step-secret"></code>
+                        <button type="button" id="mfa-step-copy-secret" class="btn btn-secondary btn-small">Copy Secret</button>
+                    </div>
+                </div>
+
+                <!-- SMS: send code button (user already entered password on first step) -->
+                <div id="mfa-step-sms-send" class="form-group hidden">
+                    <button type="button" id="mfa-step-send-sms-btn" class="btn btn-secondary">
+                        Send SMS code
+                    </button>
+                    <small id="mfa-step-sms-status" class="form-hint hidden"></small>
+                </div>
+
+                <!-- Verification code input (for both TOTP and SMS) -->
+                <div class="form-group">
+                    <label for="mfa-step-code">Verification code</label>
+                    <input type="text" id="mfa-step-code" name="verification_code"
+                           placeholder="Enter 6-digit code" maxlength="6" pattern="[0-9]{6}"
+                           autocomplete="one-time-code" inputmode="numeric">
+                </div>
+
+                <div class="mfa-step-actions">
+                    <button type="button" id="mfa-step-back-btn" class="btn btn-secondary">Back</button>
+                    <button type="button" id="mfa-step-verify-btn" class="btn btn-primary">
+                        <span class="btn-text">Verify</span>
+                        <span class="btn-loading hidden">Verifying...</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Forgot password panel (shown when user clicks "Forgot your password?") -->
+            <div id="forgot-password-panel" class="forgot-password-panel hidden">
+                <h3>Reset your password</h3>
+                <p class="forgot-password-subtitle">Enter your email address and we'll send you a link to reset your password.</p>
+                <form id="forgot-password-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="forgot-password-email">Email</label>
+                        <input type="email" id="forgot-password-email" name="email" required
+                               placeholder="Enter your email" autocomplete="email">
+                    </div>
+                    <div class="forgot-password-actions">
+                        <button type="button" id="forgot-password-back-btn" class="btn btn-secondary">Back</button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-text">Send reset link</span>
+                            <span class="btn-loading hidden">Sending...</span>
+                        </button>
+                    </div>
+                </form>
+                <div id="forgot-password-result" class="result-container hidden"></div>
+            </div>
+
             <div id="login-result" class="result-container hidden"></div>
+        </section>
+
+        <!-- Reset password view (shown when opened from email link #reset-password?token=...&username=...) -->
+        <section id="reset-password-section" class="tab-content reset-password-section hidden">
+            <h2>Set new password</h2>
+            <p class="reset-password-subtitle">Enter and confirm your new password below.</p>
+            <form id="reset-password-form" class="auth-form">
+                <input type="hidden" id="reset-password-token" name="token">
+                <input type="hidden" id="reset-password-username" name="username">
+                <div class="form-group">
+                    <label for="reset-new-password">New password</label>
+                    <input type="password" id="reset-new-password" name="new_password" required
+                           placeholder="Enter new password" autocomplete="new-password" minlength="8">
+                    <small class="form-hint">Minimum 8 characters</small>
+                </div>
+                <div class="form-group">
+                    <label for="reset-confirm-password">Confirm new password</label>
+                    <input type="password" id="reset-confirm-password" name="confirm_password" required
+                           placeholder="Confirm new password" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-text">Reset password</span>
+                    <span class="btn-loading hidden">Resetting...</span>
+                </button>
+            </form>
+            <div id="reset-password-result" class="result-container hidden"></div>
         </section>
 
         <!-- Signup Tab -->
@@ -269,87 +379,6 @@
             </div>
 
             <div id="signup-result" class="result-container hidden"></div>
-        </section>
-
-        <!-- Enroll Tab -->
-        <section id="enroll-tab" class="tab-content">
-            <form id="enroll-form" class="auth-form">
-                <div class="form-group">
-                    <label for="enroll-username">Username</label>
-                    <input type="text" id="enroll-username" name="username" required
-                           placeholder="Enter your username" autocomplete="username">
-                </div>
-
-                <div class="form-group">
-                    <label for="enroll-password">Password</label>
-                    <input type="password" id="enroll-password" name="password" required
-                           placeholder="Enter your password" autocomplete="current-password">
-                </div>
-
-                <!-- MFA Method Selection -->
-                <div class="form-group">
-                    <label>MFA Method</label>
-                    <div class="mfa-method-selector">
-                        <label class="radio-option">
-                            <input type="radio" name="mfa_method" value="totp" checked>
-                            <span class="radio-label">
-                                <span class="radio-icon">📱</span>
-                                <span class="radio-text">
-                                    <strong>Authenticator App</strong>
-                                    <small>Google Authenticator, Authy, etc.</small>
-                                </span>
-                            </span>
-                        </label>
-                        <label class="radio-option" id="sms-option">
-                            <input type="radio" name="mfa_method" value="sms">
-                            <span class="radio-label">
-                                <span class="radio-icon">💬</span>
-                                <span class="radio-text">
-                                    <strong>SMS</strong>
-                                    <small>Receive codes via text message</small>
-                                </span>
-                            </span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Phone Number (for SMS) -->
-                <div class="form-group hidden" id="phone-group">
-                    <label for="enroll-phone">Phone Number</label>
-                    <input type="tel" id="enroll-phone" name="phone_number"
-                           placeholder="+1234567890 (E.164 format)"
-                           pattern="\+[1-9]\d{1,14}">
-                    <small class="form-hint">
-                        Enter phone number with country code (e.g., +1 for US)
-                    </small>
-                </div>
-
-                <button type="submit" class="btn btn-primary">
-                    <span class="btn-text">Enroll for MFA</span>
-                    <span class="btn-loading hidden">Enrolling...</span>
-                </button>
-            </form>
-
-            <div id="enroll-result" class="result-container hidden">
-                <!-- TOTP QR Section -->
-                <div id="qr-section" class="qr-section hidden">
-                    <h3>Scan QR Code</h3>
-                    <p>Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
-                    <div id="qr-code" class="qr-code"></div>
-                    <div class="manual-entry">
-                        <p>Or manually enter this secret:</p>
-                        <code id="secret-code"></code>
-                        <button id="copy-secret" class="btn btn-secondary btn-small">Copy Secret</button>
-                    </div>
-                </div>
-
-                <!-- SMS Enrollment Success -->
-                <div id="sms-enroll-section" class="sms-section hidden">
-                    <h3>📱 SMS Verification Setup</h3>
-                    <p>A verification code has been sent to <strong id="enrolled-phone"></strong></p>
-                    <p class="hint">You can now use SMS codes to log in. Each code expires in 5 minutes.</p>
-                </div>
-            </div>
         </section>
 
         <!-- Profile Section (shown when logged in) -->

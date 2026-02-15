@@ -61,9 +61,10 @@
       - Use Redis for SMS OTP code storage
 
 3. **Backend Application will:**
-    - Enable SMS 2FA endpoints (`/auth/sms/send-code`, `/auth/login` with SMS)
+    - Enable SMS 2FA endpoints (`/auth/sms/send-code`, `/auth/login/verify` with
+    SMS)
     - Store SMS OTP codes in Redis with TTL expiration
-    - Retrieve SMS codes from Redis during login
+    - Retrieve SMS codes from Redis during login verify step
     - Use AWS SNS to send SMS messages
 
 ## Verification Steps
@@ -117,22 +118,25 @@ kubectl exec -n 2fa-app -l app.kubernetes.io/name=ldap-2fa-backend -- env | grep
 # SMS_TYPE=Transactional
 ```
 
-### 4. Test SMS 2FA Flow
+### 4. Test SMS 2FA Flow (two-step login)
 
-1. **Enroll user for SMS 2FA:**
+1. **Step 1 – Login start (username and password):**
 
     ```bash
-    curl -X POST https://app.talorlik.com/api/auth/enroll \
+    curl -X POST https://app.talorlik.com/api/auth/login/start \
       -H "Content-Type: application/json" \
-      -d '{"username": "testuser", "mfa_method": "sms", "phone_number": "+1234567890"}'
+      -d '{"username": "testuser", "password": "password", "remember_me": false}'
     ```
 
-2. **Request SMS code:**
+    Response includes `challenge_token`, `totp_enrolled`, `sms_available`.
+    Optional `remember_me: true` requests a longer-lived JWT after step 2.
+
+2. **Request SMS code (with challenge token from step 1):**
 
     ```bash
     curl -X POST https://app.talorlik.com/api/auth/sms/send-code \
       -H "Content-Type: application/json" \
-      -d '{"username": "testuser", "password": "password"}'
+      -d '{"challenge_token": "<challenge_token from step 1>"}'
     ```
 
 3. **Verify code stored in Redis:**
@@ -141,13 +145,15 @@ kubectl exec -n 2fa-app -l app.kubernetes.io/name=ldap-2fa-backend -- env | grep
     kubectl exec -it -n redis redis-master-0 -- redis-cli -a $REDIS_PASSWORD KEYS "sms_otp:*"
     ```
 
-4. **Login with SMS code:**
+4. **Step 2 – Login verify (complete login with SMS code):**
 
     ```bash
-    curl -X POST https://app.talorlik.com/api/auth/login \
+    curl -X POST https://app.talorlik.com/api/auth/login/verify \
       -H "Content-Type: application/json" \
-      -d '{"username": "testuser", "password": "password", "verification_code": "123456"}'
+      -d '{"challenge_token": "<challenge_token>", "mfa_method": "sms", "verification_code": "123456"}'
     ```
+
+    Response includes JWT `token`.
 
 ## Troubleshooting
 

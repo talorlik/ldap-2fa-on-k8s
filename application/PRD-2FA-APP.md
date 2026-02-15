@@ -64,14 +64,14 @@ All endpoints must be served under the `/api` prefix (no path rewriting).
 | `GET` | `/api/healthz` | Liveness/readiness probe (includes SMS status) |
 | `GET` | `/api/mfa/methods` | List available MFA methods (TOTP, SMS if enabled) |
 | `GET` | `/api/mfa/status/{username}` | Get user's MFA enrollment status |
-| `POST` | `/api/auth/enroll` | Enroll user for MFA (TOTP or SMS) |
-| `POST` | `/api/auth/login` | Validate LDAP credentials + verification code |
-
-#### SMS-Specific Endpoints
-
-| Method | Endpoint | Description |
-| -------- | ---------- | ------------- |
-| `POST` | `/api/auth/sms/send-code` | Send SMS verification code to enrolled user |
+| `POST` | `/api/auth/login/start` | Step 1: Validate username/password; optional `remember_me` for longer-lived JWT; returns challenge_token, totp_enrolled, sms_available |
+| `POST` | `/api/auth/login/totp-setup` | Generate TOTP secret for first-time Authenticator setup (body: challenge_token) |
+| `POST` | `/api/auth/login/verify` | Step 2: Verify MFA code (TOTP or SMS) and return JWT (expiry extended if remember_me was set) |
+| `POST` | `/api/auth/sms/send-code` | Send SMS code (body: challenge_token from login/start, or username+password) |
+| `POST` | `/api/auth/forgot-password` | Request password reset link by email (body: email); generic response for security |
+| `POST` | `/api/auth/reset-password` | Set new password with token from email link (body: token, username, new_password, confirm_password) |
+| `POST` | `/api/auth/enroll` | Re-enroll or change MFA method (active users only) |
+| `POST` | `/api/auth/login` | Legacy one-step login (username + password + verification_code) |
 
 #### API Documentation Endpoints
 
@@ -123,22 +123,75 @@ The documentation automatically updates when API endpoints change.
 }
 ```
 
-#### Login Request
+#### Login Start Request (Step 1)
+
+```json
+{
+  "username": "string",
+  "password": "string",
+  "remember_me": false
+}
+```
+
+When `remember_me` is true, the JWT returned after login/verify uses a longer expiry
+(e.g. 7 days) instead of the default session expiry.
+
+#### Login Start Response
+
+```json
+{
+  "challenge_token": "string",
+  "totp_enrolled": true,
+  "sms_available": true
+}
+```
+
+#### Login Verify Request (Step 2)
+
+```json
+{
+  "challenge_token": "string",
+  "mfa_method": "totp | sms",
+  "verification_code": "123456"
+}
+```
+
+#### Send SMS Code Request (with challenge token from login/start)
+
+```json
+{
+  "challenge_token": "string"
+}
+```
+
+#### Forgot Password Request
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+Response is always a generic success message (no email enumeration).
+
+#### Reset Password Request
+
+```json
+{
+  "token": "uuid-from-email-link",
+  "username": "string",
+  "new_password": "string",
+  "confirm_password": "string"
+}
+```
+
+#### Legacy Login Request (one-step)
 
 ```json
 {
   "username": "string",
   "password": "string",
   "verification_code": "123456"
-}
-```
-
-#### Send SMS Code Request
-
-```json
-{
-  "username": "string",
-  "password": "string"
 }
 ```
 
@@ -182,8 +235,8 @@ The documentation automatically updates when API endpoints change.
 
 | ID | Requirement |
 | ---- | ------------- |
-| FE-01 | Display enrollment flow: username/password → MFA method selection → setup |
-| FE-02 | Display login flow: username/password + verification code → success/failure |
+| FE-01 | Display two-step login: (1) username/password only; (2) MFA screen with Authenticator app or SMS choice and single verification code field; TOTP setup (QR) when user chooses Authenticator and is not yet enrolled |
+| FE-02 | Display login flow: step 1 username/password → step 2 MFA method + verification code → success/failure |
 | FE-03 | Render QR code from backend-provided `otpauth://` URI (TOTP) |
 | FE-04 | Handle and display error messages from backend |
 | FE-05 | Allow user to select MFA method (TOTP or SMS) during enrollment |
@@ -195,7 +248,7 @@ The documentation automatically updates when API endpoints change.
 | ---- | ------------- |
 | FE-SMS-01 | Display phone number input field for SMS enrollment |
 | FE-SMS-02 | Validate phone number format (E.164) on client side |
-| FE-SMS-03 | Show "Send SMS Code" button on login for SMS-enrolled users |
+| FE-SMS-03 | Show "Send SMS Code" button on MFA step when user selects SMS |
 | FE-SMS-04 | Display countdown timer after sending SMS code |
 | FE-SMS-05 | Auto-detect user's MFA method and show appropriate UI |
 | FE-SMS-06 | Display masked phone number for SMS-enrolled users |

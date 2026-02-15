@@ -308,6 +308,50 @@ class InMemoryOTPStorage:
         return username in _inmemory_sms_codes
 
 
+# Login challenge storage (in-memory, short-lived tokens for two-step login)
+_login_challenges: dict[str, dict] = {}
+_LOGIN_CHALLENGE_TTL_SECONDS = 300  # 5 minutes
+
+
+class InMemoryLoginChallengeStorage:
+    """In-memory storage for login challenge tokens (post username/password, pre-MFA)."""
+
+    @staticmethod
+    def store(
+        challenge_token: str,
+        user_id: str,
+        username: str,
+        remember_me: bool = False,
+    ) -> None:
+        """Store a login challenge with TTL."""
+        import time
+        _login_challenges[challenge_token] = {
+            "user_id": user_id,
+            "username": username,
+            "remember_me": remember_me,
+            "expires_at": time.time() + _LOGIN_CHALLENGE_TTL_SECONDS,
+        }
+
+    @staticmethod
+    def get(challenge_token: str) -> Optional[dict]:
+        """Get challenge data if valid and not expired."""
+        import time
+        data = _login_challenges.get(challenge_token)
+        if not data or time.time() > data["expires_at"]:
+            if challenge_token in _login_challenges:
+                del _login_challenges[challenge_token]
+            return None
+        return data
+
+    @staticmethod
+    def delete(challenge_token: str) -> bool:
+        """Remove a challenge token."""
+        if challenge_token in _login_challenges:
+            del _login_challenges[challenge_token]
+            return True
+        return False
+
+
 @lru_cache
 def get_otp_client() -> RedisOTPClient:
     """Get cached Redis OTP client instance."""

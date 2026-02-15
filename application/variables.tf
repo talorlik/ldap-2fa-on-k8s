@@ -76,6 +76,52 @@ variable "openldap_admin_password" {
   default     = ""
 }
 
+##################### First admin user seed (2FA app) ##########################
+# When all admin seed variables are set, a one-time Job seeds the first admin user
+# (same username/password as LDAP admin) with email/phone pre-verified. Do NOT set in tfvars; use TF_VAR_admin_seed_* or GitHub Secrets.
+
+variable "admin_seed_username" {
+  description = "Username (uid) for the first admin user. Set via TF_VAR_admin_seed_username. Leave empty to disable seed."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "admin_seed_email" {
+  description = "Email for the first admin user. Set via TF_VAR_admin_seed_email."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "admin_seed_first_name" {
+  description = "First name for the first admin user. Set via TF_VAR_admin_seed_first_name."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "admin_seed_last_name" {
+  description = "Last name for the first admin user. Set via TF_VAR_admin_seed_last_name."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "admin_seed_phone_country_code" {
+  description = "Phone country code for the first admin (e.g. +1). Set via TF_VAR_admin_seed_phone_country_code."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "admin_seed_phone_number" {
+  description = "Phone number for the first admin. Set via TF_VAR_admin_seed_phone_number."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 ##################### PostgreSQL User Storage ##########################
 
 variable "enable_postgresql" {
@@ -293,6 +339,12 @@ variable "argocd_app_backend_path" {
 variable "argocd_app_backend_namespace" {
   description = "Target Kubernetes namespace for the backend application"
   type        = string
+}
+
+variable "backend_image_tag" {
+  description = "Docker image tag for the backend (used by the admin-seed Job). Default 'latest'."
+  type        = string
+  default     = "latest"
 }
 
 # Frontend App Configuration

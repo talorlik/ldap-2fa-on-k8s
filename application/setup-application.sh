@@ -423,6 +423,15 @@ export TF_VAR_postgresql_database_password="$TF_VAR_POSTGRESQL_PASSWORD_VALUE"
 export TF_VAR_redis_password="$TF_VAR_REDIS_PASSWORD_VALUE"
 export TF_VAR_openldap_admin_password="$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE"
 
+# Optional: first admin seed (when all are set, Terraform creates admin-seed Job)
+for key in ADMIN_SEED_USERNAME ADMIN_SEED_EMAIL ADMIN_SEED_FIRST_NAME ADMIN_SEED_LAST_NAME ADMIN_SEED_PHONE_COUNTRY_CODE ADMIN_SEED_PHONE_NUMBER; do
+    val=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "$key" 2>/dev/null || true)
+    if [ -n "$val" ]; then
+        suffix=$(echo "$key" | tr '[:upper:]' '[:lower:]')
+        export "TF_VAR_${suffix}=$val"
+    fi
+done
+
 print_success "Retrieved and exported all secrets from AWS Secrets Manager"
 echo ""
 

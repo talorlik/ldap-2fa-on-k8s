@@ -437,11 +437,29 @@ if [ -z "$TF_VAR_REDIS_PASSWORD_VALUE" ]; then
 fi
 print_success "Retrieved TF_VAR_REDIS_PASSWORD"
 
+# Extract OpenLDAP admin password (needed so Terraform can destroy ldap-admin-secret and admin-seed resources)
+TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "TF_VAR_OPENLDAP_ADMIN_PASSWORD" || echo "")
+if [ -z "$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE" ]; then
+    print_error "Failed to retrieve TF_VAR_OPENLDAP_ADMIN_PASSWORD from secret"
+    exit 1
+fi
+print_success "Retrieved TF_VAR_OPENLDAP_ADMIN_PASSWORD"
+
 # Export as environment variables for Terraform
 # Note: TF_VAR environment variables are case-sensitive and must match variable names in variables.tf
 # Secrets in AWS/GitHub remain uppercase, but environment variables must be lowercase
 export TF_VAR_postgresql_database_password="$TF_VAR_POSTGRESQL_PASSWORD_VALUE"
 export TF_VAR_redis_password="$TF_VAR_REDIS_PASSWORD_VALUE"
+export TF_VAR_openldap_admin_password="$TF_VAR_OPENLDAP_ADMIN_PASSWORD_VALUE"
+
+# Optional: first admin seed (so Terraform can destroy admin-seed secret and Job if they were created)
+for key in ADMIN_SEED_USERNAME ADMIN_SEED_EMAIL ADMIN_SEED_FIRST_NAME ADMIN_SEED_LAST_NAME ADMIN_SEED_PHONE_COUNTRY_CODE ADMIN_SEED_PHONE_NUMBER; do
+    val=$(get_secret_key_value "$TF_VARS_SECRET_JSON" "$key" 2>/dev/null || true)
+    if [ -n "$val" ]; then
+        suffix=$(echo "$key" | tr '[:upper:]' '[:lower:]')
+        export "TF_VAR_${suffix}=$val"
+    fi
+done
 
 print_success "Retrieved and exported all secrets from AWS Secrets Manager"
 echo ""

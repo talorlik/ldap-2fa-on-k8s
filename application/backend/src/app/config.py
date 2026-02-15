@@ -112,6 +112,9 @@ class Settings(BaseSettings):
     email_verification_expiry_hours: int = int(
         os.getenv("EMAIL_VERIFICATION_EXPIRY_HOURS", "24")
     )
+    password_reset_expiry_hours: int = int(
+        os.getenv("PASSWORD_RESET_EXPIRY_HOURS", "1")
+    )
     app_url: str = os.getenv("APP_URL", "http://localhost:8080")
 
     # Application Configuration

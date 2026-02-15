@@ -13,6 +13,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG.md](../application_infra/CHANGELOG.md).
 
+## [Unreleased] - Remember me and Forgot/Reset password
+
+### Added
+
+- **Remember me**
+  Login step 1 accepts optional `remember_me`. When set, the JWT issued after
+  MFA verification uses `JWT_REFRESH_EXPIRY_DAYS` (e.g. 7 days) instead of `JWT_EXPIRY_MINUTES`.
+  Frontend login form includes a "Remember me" checkbox.
+
+- **Forgot your password**
+  - Backend: `POST /api/auth/forgot-password` (body: `email`) looks up user by email;
+  for active users, creates a password-reset token, sends email with link to
+  `APP_URL/#reset-password?token=...&username=...`, and returns a generic success
+  message (no email enumeration).
+  - Config: `PASSWORD_RESET_EXPIRY_HOURS` (default 1) for reset link expiry.
+  - Email: `EmailClient.send_password_reset_email()`; reset links use the same
+  SES sender as verification emails.
+  - LDAP: `LDAPClient.change_password(username, new_password)` for updating password
+  via admin connection.
+
+- **Reset password**
+  - Backend: `POST /api/auth/reset-password` (body: `token`, `username`, `new_password`,
+  `confirm_password`) validates the token (stored as verification token type `password_reset`),
+  updates LDAP password and DB `password_hash`, marks token used.
+  - Frontend: "Forgot your password?" on the login tab opens a panel to request
+  a reset link. When the app is opened with `#reset-password?token=...&username=...`,
+  a set-new-password form is shown; after success, the user is redirected to the
+  login page and can sign in with the new password.
+
+### Changed
+
+- Login challenge storage (in-memory) now stores `remember_me` and passes it to
+the verify step for JWT expiry selection.
+- Documentation: [application/README.md](README.md), [application/PRD-2FA-APP.md](PRD-2FA-APP.md),
+[application/backend/README.md](backend/README.md), [application/frontend/README.md](frontend/README.md)
+updated with new endpoints, request/response schemas, config, and frontend API methods.
+
+## [2026-02-15] - First Admin User Seed and LDAP Config from Application Infra
+
+### Added
+
+- **First admin user seed (optional)**
+  When all admin seed variables are set (via `TF_VAR_admin_seed_*` or GitHub Secrets
+  `ADMIN_SEED_*`), Terraform creates a Kubernetes secret and a one-time Job that
+  seeds the first admin user so they can log into the 2FA application with the
+  **same username and password** as the LDAP admin. The seed:
+  - Creates the LDAP user (if missing) with the OpenLDAP admin password
+  - Ensures the user is in the LDAP admins group
+  - Inserts or updates the PostgreSQL user with email/phone pre-verified and status
+  ACTIVE
+  - Generates a TOTP secret (stored in the DB; operator can retrieve from PostgreSQL
+  to add to an authenticator app)
+  - Values are never hardcoded or logged; they are read from AWS Secrets Manager
+  `tf-vars` or GitHub Secrets and passed via Kubernetes secrets to the Job.
+
+- **Backend seed module**
+  `app.seed_admin` runnable as `python -m app.seed_admin`; reads `ADMIN_SEED_*`
+  and `LDAP_ADMIN_PASSWORD` from environment and performs the LDAP + DB seed idempotently.
+
+- **Application destroy script and workflow**
+  `destroy-application.sh` and the Application Destroying workflow now retrieve
+  and export `TF_VAR_openldap_admin_password` and optional `TF_VAR_admin_seed_*`
+  so Terraform can destroy the ldap-admin-secret and admin-seed secret/Job when
+  present.
+
+### Changed
+
+- **LDAP configuration for admin-seed Job**
+  LDAP host, base DN, admin DN, admin group DN, and search bases for the admin-seed
+  Job are no longer hardcoded in `application/main.tf`. They are read from `application_infra`
+  remote state (outputs from the OpenLDAP module).
+
+- **Application infrastructure (application_infra)**
+  OpenLDAP module and root outputs now expose: `ldap_host`, `ldap_base_dn`, `ldap_admin_dn`,
+  `ldap_admin_group_dn`, `ldap_user_search_base`, `ldap_group_search_base` for
+  use by the 2FA application and other consumers.
+
+- **Documentation**
+  [SECRETS_REQUIREMENTS.md](../SECRETS_REQUIREMENTS.md), [application/README.md](README.md),
+  root [README.md](../README.md), and [docs/index.html](../docs/index.html) updated
+  to describe admin seed secrets, script/workflow behavior, and first admin login.
+
 ## [2026-02-15] - Shared ALB for 2FA Ingresses (Fix Conflicting Load Balancer Name)
 
 ### Fixed

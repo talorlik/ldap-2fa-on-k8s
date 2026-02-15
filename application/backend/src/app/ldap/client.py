@@ -124,6 +124,42 @@ class LDAPClient:
             logger.error("Unexpected error during authentication: %s", e)
             return False, f"Authentication error: {e!s}"
 
+    def change_password(self, username: str, new_password: str) -> tuple[bool, str]:
+        """
+        Change a user's password in LDAP (admin connection).
+
+        Args:
+            username: The username (uid)
+            new_password: The new password in plaintext
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        if not new_password:
+            return False, "Password cannot be empty"
+
+        user_dn = self._get_user_dn(username)
+        try:
+            conn = self._get_admin_connection()
+            success = conn.modify(
+                user_dn,
+                {"userPassword": [(MODIFY_REPLACE, [new_password])]},
+            )
+            if success:
+                logger.info("Password changed for LDAP user: %s", username)
+                conn.unbind()
+                return True, "Password changed successfully"
+            error_msg = conn.result.get("description", "Unknown error")
+            logger.error("Failed to change password for %s: %s", username, error_msg)
+            conn.unbind()
+            return False, f"Failed to change password: {error_msg}"
+        except LDAPException as e:
+            logger.error("LDAP error changing password for %s: %s", username, e)
+            return False, f"LDAP error: {e!s}"
+        except Exception as e:
+            logger.error("Unexpected error changing password for %s: %s", username, e)
+            return False, f"Error changing password: {e!s}"
+
     def user_exists(self, username: str) -> bool:
         """
         Check if a user exists in LDAP.

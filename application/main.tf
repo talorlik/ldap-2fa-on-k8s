@@ -18,6 +18,14 @@ locals {
   alb_load_balancer_name = try(data.terraform_remote_state.application_infra[0].outputs.alb_load_balancer_name, "")
   alb_ingress_class_name = try(data.terraform_remote_state.application_infra[0].outputs.alb_ingress_class_name, "")
 
+  # LDAP config from application_infra (OpenLDAP deployment) for admin-seed Job
+  ldap_host               = try(data.terraform_remote_state.application_infra[0].outputs.ldap_host, "")
+  ldap_base_dn            = try(data.terraform_remote_state.application_infra[0].outputs.ldap_base_dn, "")
+  ldap_admin_dn           = try(data.terraform_remote_state.application_infra[0].outputs.ldap_admin_dn, "")
+  ldap_admin_group_dn     = try(data.terraform_remote_state.application_infra[0].outputs.ldap_admin_group_dn, "")
+  ldap_user_search_base   = try(data.terraform_remote_state.application_infra[0].outputs.ldap_user_search_base, "ou=users")
+  ldap_group_search_base  = try(data.terraform_remote_state.application_infra[0].outputs.ldap_group_search_base, "ou=groups")
+
   # Helm parameters for 2FA app Ingress: use shared ALB name and IngressClass so Ingresses attach to existing ALB (no conflict).
   # Must set paths explicitly: setting only ingress.hosts[0].host can replace the host object and drop paths (Helm --set merge behavior).
   argocd_helm_alb_parameters_backend = local.alb_load_balancer_name != "" && local.alb_ingress_class_name != "" ? [
@@ -314,6 +322,144 @@ resource "kubernetes_secret" "redis_secret_backend_namespace" {
   depends_on = [
     kubernetes_namespace.backend_app,
     module.redis,
+  ]
+}
+
+##################### First admin user seed (optional)
+# When all admin_seed_* variables are set, create a secret and a one-time Job that
+# seeds the first admin user (same username/password as LDAP admin) with email/phone
+# pre-verified. Values must be set via TF_VAR_admin_seed_* (e.g. from GitHub Secrets);
+# never hard-code in tfvars.
+locals {
+  admin_seed_enabled = var.enable_argocd_apps && var.argocd_app_backend_path != null && var.enable_postgresql && var.openldap_admin_password != "" && var.admin_seed_username != "" && var.admin_seed_email != "" && var.admin_seed_first_name != "" && var.admin_seed_last_name != "" && var.admin_seed_phone_country_code != "" && var.admin_seed_phone_number != ""
+}
+
+resource "kubernetes_secret" "admin_seed" {
+  count = local.admin_seed_enabled ? 1 : 0
+
+  metadata {
+    name      = "admin-seed-secret"
+    namespace = kubernetes_namespace.backend_app[0].metadata[0].name
+    labels = {
+      "app.kubernetes.io/name"       = "ldap-2fa-backend"
+      "app.kubernetes.io/managed-by" = "terraform"
+    }
+  }
+
+  data = {
+    "ADMIN_SEED_USERNAME"           = var.admin_seed_username
+    "ADMIN_SEED_EMAIL"              = var.admin_seed_email
+    "ADMIN_SEED_FIRST_NAME"         = var.admin_seed_first_name
+    "ADMIN_SEED_LAST_NAME"          = var.admin_seed_last_name
+    "ADMIN_SEED_PHONE_COUNTRY_CODE" = var.admin_seed_phone_country_code
+    "ADMIN_SEED_PHONE_NUMBER"       = var.admin_seed_phone_number
+  }
+
+  type = "Opaque"
+
+  depends_on = [kubernetes_namespace.backend_app]
+}
+
+resource "kubernetes_job" "admin_seed" {
+  count = local.admin_seed_enabled ? 1 : 0
+
+  metadata {
+    name      = "admin-seed-job"
+    namespace = kubernetes_namespace.backend_app[0].metadata[0].name
+    labels = {
+      "app.kubernetes.io/name"       = "ldap-2fa-backend"
+      "app.kubernetes.io/managed-by" = "terraform"
+    }
+  }
+
+  spec {
+    ttl_seconds_after_finished = 86400 # Keep for 24h for debugging; then cleanup
+    backoff_limit             = 10    # Retry until DB/LDAP are ready
+
+    template {
+      metadata {
+        labels = {
+          "app.kubernetes.io/name" = "admin-seed"
+        }
+      }
+      spec {
+        restart_policy = "OnFailure"
+        container {
+          name  = "seed"
+          image = "${local.ecr_registry}/${local.ecr_repository}:${var.backend_image_tag}"
+          command = ["python", "-m", "app.seed_admin"]
+          env_from {
+            secret_ref {
+              name = kubernetes_secret.admin_seed[0].metadata[0].name
+            }
+          }
+          env_from {
+            secret_ref {
+              name = kubernetes_secret.ldap_admin[0].metadata[0].name
+            }
+          }
+          env {
+            name  = "DATABASE_HOST"
+            value = "postgresql.${var.postgresql_namespace}.svc.cluster.local"
+          }
+          env {
+            name  = "DATABASE_PORT"
+            value = "5432"
+          }
+          env {
+            name  = "DATABASE_USER"
+            value = var.postgresql_database_username
+          }
+          env {
+            name  = "DATABASE_NAME"
+            value = var.postgresql_database_name
+          }
+          env {
+            name = "DATABASE_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.postgresql_secret_backend_namespace[0].metadata[0].name
+                key  = "password"
+              }
+            }
+          }
+          env {
+            name  = "LDAP_HOST"
+            value = local.ldap_host
+          }
+          env {
+            name  = "LDAP_PORT"
+            value = "389"
+          }
+          env {
+            name  = "LDAP_BASE_DN"
+            value = local.ldap_base_dn
+          }
+          env {
+            name  = "LDAP_ADMIN_DN"
+            value = local.ldap_admin_dn
+          }
+          env {
+            name  = "LDAP_ADMIN_GROUP_DN"
+            value = local.ldap_admin_group_dn
+          }
+          env {
+            name  = "LDAP_USER_SEARCH_BASE"
+            value = local.ldap_user_search_base
+          }
+          env {
+            name  = "LDAP_GROUP_SEARCH_BASE"
+            value = local.ldap_group_search_base
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [
+    kubernetes_secret.admin_seed,
+    kubernetes_secret.ldap_admin,
+    kubernetes_secret.postgresql_secret_backend_namespace,
   ]
 }
 

@@ -235,9 +235,14 @@ infrastructure, featuring self-service user registration and admin management.
 | `GET` | `/api/healthz` | Liveness/readiness probe |
 | `GET` | `/api/mfa/methods` | List available MFA methods |
 | `GET` | `/api/mfa/status/{username}` | Get user's MFA enrollment status |
-| `POST` | `/api/auth/enroll` | Enroll user for MFA (TOTP or SMS) |
-| `POST` | `/api/auth/login` | Validate LDAP credentials + verification code |
-| `POST` | `/api/auth/sms/send-code` | Send SMS verification code |
+| `POST` | `/api/auth/login/start` | Step 1: Validate username/password (optional `remember_me`); returns challenge token and MFA options (totp_enrolled, sms_available) |
+| `POST` | `/api/auth/login/totp-setup` | Generate TOTP secret for first-time Authenticator setup (requires challenge token) |
+| `POST` | `/api/auth/login/verify` | Step 2: Verify MFA code (TOTP or SMS) and return JWT (longer-lived if remember_me was set) |
+| `POST` | `/api/auth/sms/send-code` | Send SMS code (use challenge_token from login/start, or username+password) |
+| `POST` | `/api/auth/forgot-password` | Request password reset link by email (body: `email`) |
+| `POST` | `/api/auth/reset-password` | Set new password with token from email link (body: `token`, `username`, `new_password`, `confirm_password`) |
+| `POST` | `/api/auth/enroll` | Re-enroll or change MFA method (active users only) |
+| `POST` | `/api/auth/login` | Legacy one-step login (username + password + verification code) |
 | `POST` | `/api/auth/signup` | Register new user |
 | `POST` | `/api/auth/verify-email` | Verify email with token |
 | `POST` | `/api/auth/verify-phone` | Verify phone with code |
@@ -280,10 +285,15 @@ port 8080)
   - Modern, responsive UI
   - Self-service signup form with validation
   - Email/phone verification status panel
-  - Enrollment flow with MFA method selection
-  - QR code rendering for TOTP setup
-  - Phone number input with E.164 validation
-  - SMS send button with countdown timer
+  - Two-step login: Login and Sign Up tabs only; after username/password, MFA step
+  with Authenticator app or SMS choice and single verification code field; optional
+  "Remember me" (longer-lived session) and "Forgot your password" (email reset link)
+  - Forgot password: request reset link by email; reset-password view when opened
+  from email link (#reset-password?token=...&username=...); after submitting new
+  password, redirect to login
+  - QR code rendering for one-time TOTP setup when user chooses Authenticator and
+  is not yet enrolled
+  - SMS send button (on MFA step) with countdown timer
   - User profile page with edit functionality
   - Admin dashboard for user/group management
   - Top navigation bar with user menu
@@ -348,6 +358,13 @@ application/
    Account)
 4. **Secrets Configuration**: All required secrets must be configured.
    See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete setup instructions.
+   **First admin seed (optional):** To have the same LDAP admin username/password
+   log into the 2FA app, set the admin seed secrets (e.g. `ADMIN_SEED_USERNAME`,
+   `ADMIN_SEED_EMAIL`, etc.) in AWS Secrets Manager `tf-vars` or GitHub Secrets.
+   When all are set, a one-time Job seeds the first admin with email/phone pre-verified
+   and adds them to the LDAP admins group. The first admin’s TOTP secret is stored
+   in the database; to add it to an authenticator app, query `totp_secret` for that
+   user from PostgreSQL once after seed.
 5. **GitHub Repository Variables**: The following repository variables must be configured:
    - `BACKEND_BUCKET_NAME`: S3 bucket name for Terraform state storage
    - `APPLICATION_PREFIX`: State file key prefix (value: `application_state/terraform.tfstate`)
@@ -632,9 +649,9 @@ cd application
   - Self-service user registration
   - Email verification (click link in email)
   - Phone verification (enter 6-digit SMS code)
-  - TOTP enrollment with QR code
-  - SMS enrollment with phone number verification
-  - Login with LDAP credentials + verification code
+  - Two-step login: enter username and password, then on the MFA screen choose
+  Authenticator app or SMS and enter the 6-digit code (TOTP setup with QR code
+  happens on first use when choosing Authenticator)
   - User profile management
   - Admin dashboard (visible to LDAP admin group members only):
     - User list with filtering and sorting

@@ -9,6 +9,11 @@ name: Application Provisioning
 # - TF_VAR_REDIS_PASSWORD: Redis password for SMS OTP storage
 # - TF_VAR_OPENLDAP_ADMIN_PASSWORD: OpenLDAP admin password (for backend ldap-admin-secret)
 #
+# Optional (first admin user seed - when all are set, a one-time Job seeds the first admin):
+# - ADMIN_SEED_USERNAME, ADMIN_SEED_EMAIL, ADMIN_SEED_FIRST_NAME, ADMIN_SEED_LAST_NAME
+# - ADMIN_SEED_PHONE_COUNTRY_CODE, ADMIN_SEED_PHONE_NUMBER
+# (Password for seed admin = same as TF_VAR_OPENLDAP_ADMIN_PASSWORD; do not log these values.)
+#
 # Note: GitHub workflows use repository secrets, while bash scripts use AWS Secrets Manager.
 # The secrets listed above must be configured in GitHub repository settings.
 
@@ -64,6 +69,13 @@ jobs:
       TF_VAR_redis_password: ${{ secrets.TF_VAR_REDIS_PASSWORD }}
       # OpenLDAP admin password for backend LDAP bind (ldap-admin-secret)
       TF_VAR_openldap_admin_password: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
+      # First admin seed (optional; when all set, one-time Job seeds first admin with same password as LDAP)
+      TF_VAR_admin_seed_username: ${{ secrets.ADMIN_SEED_USERNAME }}
+      TF_VAR_admin_seed_email: ${{ secrets.ADMIN_SEED_EMAIL }}
+      TF_VAR_admin_seed_first_name: ${{ secrets.ADMIN_SEED_FIRST_NAME }}
+      TF_VAR_admin_seed_last_name: ${{ secrets.ADMIN_SEED_LAST_NAME }}
+      TF_VAR_admin_seed_phone_country_code: ${{ secrets.ADMIN_SEED_PHONE_COUNTRY_CODE }}
+      TF_VAR_admin_seed_phone_number: ${{ secrets.ADMIN_SEED_PHONE_NUMBER }}
     defaults:
       run:
         working-directory: ./application

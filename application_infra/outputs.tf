@@ -108,6 +108,37 @@ output "local_cluster_secret_name" {
   value       = var.enable_argocd ? module.argocd[0].local_cluster_secret_name : null
 }
 
+##################### OpenLDAP (for 2FA app / admin-seed Job) ##########################
+output "ldap_host" {
+  description = "OpenLDAP service host (Kubernetes DNS)"
+  value       = module.openldap.ldap_host
+}
+
+output "ldap_base_dn" {
+  description = "LDAP base DN"
+  value       = module.openldap.ldap_base_dn
+}
+
+output "ldap_admin_dn" {
+  description = "LDAP admin bind DN"
+  value       = module.openldap.ldap_admin_dn
+}
+
+output "ldap_admin_group_dn" {
+  description = "LDAP admin group DN"
+  value       = module.openldap.ldap_admin_group_dn
+}
+
+output "ldap_user_search_base" {
+  description = "LDAP user search base"
+  value       = module.openldap.ldap_user_search_base
+}
+
+output "ldap_group_search_base" {
+  description = "LDAP group search base"
+  value       = module.openldap.ldap_group_search_base
+}
+
 output "argocd_namespace" {
   description = "Kubernetes namespace where ArgoCD resources are deployed"
   value       = var.enable_argocd ? var.argocd_namespace : null
