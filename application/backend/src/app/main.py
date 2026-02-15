@@ -1,5 +1,6 @@
 """Main entry point for the 2FA Backend API."""
 
+import asyncio
 import logging
 import sys
 
@@ -10,6 +11,10 @@ from app.api import router
 from app.config import get_settings
 from app.database import init_db, close_db
 from app.utils.security import redact_connection_strings
+
+# Startup retry: wait for PostgreSQL to be reachable (DNS and pod ready; Postgres can take 30–60s to accept connections)
+DB_STARTUP_RETRIES = 3
+DB_STARTUP_RETRY_DELAY_SEC = 5
 
 # Configure logging
 settings = get_settings()
@@ -51,18 +56,34 @@ async def startup_event():
     """Initialize application on startup."""
     logger.info("Starting %s", settings.app_name)
 
-    # Initialize database
-    try:
-        await init_db()
-        logger.info("Database connection established")
-    except Exception as e:
-        # Never log raw exception message; it may contain the connection URL or password
-        logger.error(
-            "Failed to initialize database: %s - %s",
-            type(e).__name__,
-            redact_connection_strings(str(e)),
-        )
-        raise
+    # Initialize database (retry with backoff so we tolerate PostgreSQL starting after backend)
+    last_error = None
+    for attempt in range(1, DB_STARTUP_RETRIES + 1):
+        try:
+            await init_db()
+            logger.info("Database connection established")
+            break
+        except Exception as e:
+            last_error = e
+            # Never log raw exception message; it may contain the connection URL or password
+            logger.warning(
+                "Database init attempt %s/%s failed: %s - %s",
+                attempt,
+                DB_STARTUP_RETRIES,
+                type(e).__name__,
+                redact_connection_strings(str(e)),
+            )
+            if attempt < DB_STARTUP_RETRIES:
+                logger.info("Retrying in %s seconds...", DB_STARTUP_RETRY_DELAY_SEC)
+                await asyncio.sleep(DB_STARTUP_RETRY_DELAY_SEC)
+            else:
+                logger.error(
+                    "Failed to initialize database after %s attempts: %s - %s",
+                    DB_STARTUP_RETRIES,
+                    type(last_error).__name__,
+                    redact_connection_strings(str(last_error)),
+                )
+                raise
 
     logger.info("LDAP Host: %s:%s", settings.ldap_host, settings.ldap_port)
     logger.info("TOTP Issuer: %s", settings.totp_issuer)

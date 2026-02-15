@@ -666,6 +666,37 @@ cd application
    - Test connection: `kubectl exec -it -n ldap-2fa postgresql-0 -- \
      psql -U ldap2fa -d ldap2fa`
 
+   **Backend fails with "Name or service not known" (gaierror) when connecting
+   to PostgreSQL**
+   - The backend expects a Kubernetes Service named `postgresql` in namespace
+   `ldap-2fa` (DNS: `postgresql.ldap-2fa.svc.cluster.local`). If that name does
+   not resolve, either PostgreSQL is not deployed or the Service has a different
+   name.
+   - Check that the `ldap-2fa` namespace and a Service named `postgresql` exist:
+     - `kubectl get ns ldap-2fa`
+     - `kubectl get svc -n ldap-2fa` — you should see a service named `postgresql`.
+     If the service has a longer name (e.g. `talo-tf-us-east-1-postgresql-prod`),
+     the application Terraform has not been applied with the PostgreSQL `fullnameOverride`
+     fix; re-apply the `application/` Terraform so the Helm values use
+     `fullnameOverride: "postgresql"` (see `application/helm/postgresql-values.tpl.yaml`).
+   - Ensure PostgreSQL is enabled and applied before or with the backend:
+   `enable_postgresql = true` in tfvars and `terraform apply` for the application
+   layer so the PostgreSQL Helm release is installed/updated first.
+
+   **Backend fails with "Connection refused" (Errno 111) when connecting to PostgreSQL**
+   - DNS is working (hostname resolves) but nothing is accepting TCP on port 5432.
+   Usually the PostgreSQL pod is still starting or not ready.
+   - Check that the PostgreSQL pod is Running and ready:
+   `kubectl get pods -n ldap-2fa -l app.kubernetes.io/name=postgresql`
+   (READY should be 1/1).
+   - If the pod is still starting, the backend will retry the DB connection on startup
+   (about 3 attempts, 5 seconds apart). Ensure you are running a backend image that
+   includes this retry logic, then restart the backend so it waits for PostgreSQL
+   to become ready.
+   - If the pod is Running but connection is still refused, check PostgreSQL logs:
+   `kubectl logs -n ldap-2fa -l app.kubernetes.io/name=postgresql` and confirm the
+   Service targets port 5432: `kubectl get svc -n ldap-2fa postgresql -o yaml`.
+
 4. **Redis Issues**
    - Check pods: `kubectl get pods -n redis -l app.kubernetes.io/name=redis`
    - Check logs: `kubectl logs -n redis -l app.kubernetes.io/name=redis`
