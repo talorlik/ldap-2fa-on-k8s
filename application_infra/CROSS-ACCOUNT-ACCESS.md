@@ -6,7 +6,7 @@ This document describes the cross-account access requirements between the
 ## Two-Account Split Summary
 
 | Resource | Account A (State Account) | Account B (Deployment Account) |
-|----------|--------------------------|-------------------------------|
+| ---------- | -------------------------- | ------------------------------- |
 | Terraform state (S3 bucket) | ✓ | |
 | AWS Secrets Manager (`github-role`, `tf-vars`, `external-id`) | ✓ | |
 | Route53 Hosted Zone | ✓ | |
