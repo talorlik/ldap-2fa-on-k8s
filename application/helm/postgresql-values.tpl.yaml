@@ -3,6 +3,10 @@
 # for user storage in the LDAP 2FA application signup system
 # Based on official Bitnami PostgreSQL Helm chart values structure
 
+# Fixed service name so backend can connect at postgresql.<namespace>.svc.cluster.local
+# (Backend values.yaml expects postgresql.ldap-2fa.svc.cluster.local)
+fullnameOverride: "postgresql"
+
 # Allow non-standard images (ECR) to bypass Bitnami image verification
 global:
   security:
