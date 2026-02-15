@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [2026-02-15] - ALB Load Balancer Name Output for 2FA Application
+
+### Added
+
+- **Output `alb_load_balancer_name`**
+  - Exposes the AWS ALB name used by OpenLDAP Ingresses (e.g.
+    `talo-tf-us-east-1-alb-prod`). The 2FA application (backend and frontend)
+    must use this same name on their Ingress annotations so they attach to the
+    existing ALB. The application layer reads this output from remote state and
+    passes it to ArgoCD Helm parameters to avoid "FailedBuildModel / conflicting
+    load balancer name" errors.
+
 ## [2026-02-03] - ArgoCD Access Entry Association and Cluster Admin Policy
 
 ### Changed

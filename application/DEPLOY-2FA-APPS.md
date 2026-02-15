@@ -105,24 +105,34 @@ docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAM
 
 ## Step 2: Gather Required Configuration Values
 
+When deploying via **ArgoCD** (Terraform with `enable_argocd_apps = true`), the
+ALB name, IngressClass name, and host are set automatically: Terraform reads
+`alb_load_balancer_name` and `alb_ingress_class_name` from `application_infra`
+remote state and passes them to the frontend and backend ArgoCD applications via
+Helm parameters. The 2FA Ingresses then attach to the existing ALB (no "FailedBuildModel
+/ conflicting load balancer name" error). For **manual Helm** deployment, gather
+the values below.
+
 Get the required values from Terraform outputs:
 
 ```bash
 cd application
 
-# Get IngressClass name
-INGRESS_CLASS=$(terraform output -raw alb_ingress_class_name)
+# Get IngressClass and ALB name (must match OpenLDAP so 2FA Ingresses share the same ALB)
+# From application/ Terraform (reads application_infra state):
+INGRESS_CLASS=$(terraform output -raw alb_ingress_class_name 2>/dev/null || echo "")
+ALB_NAME=$(terraform output -raw alb_load_balancer_name 2>/dev/null || echo "")
+# Or set manually to match application_infra (see application_infra/outputs.tf):
+if [ -z "$ALB_NAME" ]; then
+  PREFIX="talo-tf"
+  REGION="us-east-1"
+  ENV="prod"
+  ALB_LB_NAME="alb"
+  INGRESS_CLASS="${INGRESS_CLASS:-${PREFIX}-${REGION}-ic-alb-${ENV}}"
+  ALB_NAME="${PREFIX}-${REGION}-${ALB_LB_NAME}-${ENV}"
+  ALB_NAME=$(echo "${ALB_NAME}" | cut -c1-32)   # AWS limit 32 chars
+fi
 echo "IngressClass: ${INGRESS_CLASS}"
-
-# Get ALB load balancer name (from variables.tfvars or compute it)
-# Format: ${prefix}-${region}-${alb_load_balancer_name}-${env}
-PREFIX="talo-tf"
-REGION="us-east-1"
-ALB_LB_NAME="alb"
-ENV="prod"
-ALB_NAME="${PREFIX}-${REGION}-${ALB_LB_NAME}-${ENV}"
-# Truncate to 32 chars if needed
-ALB_NAME=$(echo "${ALB_NAME}" | cut -c1-32)
 echo "ALB Name: ${ALB_NAME}"
 
 # Get hostname
@@ -367,7 +377,20 @@ aws ecr get-login-password --region ${REGION} | docker login --username AWS --pa
 aws ecr describe-images --repository-name ${ECR_REPO_NAME} --region ${REGION} --image-ids imageTag=${BACKEND_TAG}
 ```
 
-### Ingress Not Creating ALB
+### Ingress Not Creating ALB / Conflicting Load Balancer Name
+
+If you see **"Failed build model due to conflicting load balancer name"**, the
+2FA frontend or backend Ingress has a different (or empty)
+`alb.ingress.kubernetes.io/load-balancer-name` than the OpenLDAP Ingresses. All
+Ingresses in the same IngressGroup must use the same ALB name so they attach to
+the existing ALB and add new paths; otherwise the driver rejects the conflict.
+
+- **ArgoCD**: Ensure `application_infra` is applied first so it outputs
+  `alb_load_balancer_name`. Then apply `application/` so the ArgoCD apps
+  receive Helm parameters with that name and the IngressClass. Sync the
+  frontend and backend applications in ArgoCD.
+- **Manual Helm**: Use the same `ALB_NAME` as OpenLDAP (see Step 2) in your
+  backend and frontend values under `ingress.annotations.alb.ingress.kubernetes.io/load-balancer-name`.
 
 ```bash
 # Check Ingress status
@@ -378,6 +401,9 @@ kubectl get ingressclass ${INGRESS_CLASS}
 
 # Check IngressClassParams
 kubectl get ingressclassparams
+
+# Verify all Ingresses use the same load-balancer-name annotation
+kubectl get ingress -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.annotations.alb\.ingress\.kubernetes\.io/load-balancer-name}{"\n"}{end}'
 ```
 
 ### Backend Cannot Connect to Services
@@ -461,7 +487,10 @@ If you prefer GitOps deployment via ArgoCD:
 ## Notes
 
 - The backend and frontend share the same ALB via path-based routing
-(`/api` for backend, `/` for frontend)
+  (`/api` for backend, `/` for frontend). They must use the **same**
+  `alb.ingress.kubernetes.io/load-balancer-name` as OpenLDAP so the EKS load
+  balancer driver attaches them to the existing ALB instead of reporting a
+  conflicting load balancer name.
 - Both applications use the same hostname (`app.talorlik.com`)
 - The ALB load balancer name is truncated to 32 characters per AWS constraints
 - IRSA (IAM Roles for Service Accounts) is used for AWS service access (SES, SNS)

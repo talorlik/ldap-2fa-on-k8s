@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG.md](../application_infra/CHANGELOG.md).
 
+## [2026-02-15] - Shared ALB for 2FA Ingresses (Fix Conflicting Load Balancer Name)
+
+### Fixed
+
+- **2FA frontend/backend Ingress: "FailedBuildModel / conflicting load balancer
+name"**
+  - The EKS load balancer driver rejected 2FA Ingresses when they had an empty or
+    different `alb.ingress.kubernetes.io/load-balancer-name` than OpenLDAP. All
+    Ingresses in the same IngressGroup must use the same ALB name so they attach
+    to the existing ALB and add new paths.
+  - Application Terraform now reads `alb_load_balancer_name` and
+    `alb_ingress_class_name` from `application_infra` remote state and passes
+    them to the backend and frontend ArgoCD applications via `helm_config`
+    parameters. The 2FA Ingresses therefore use the same ALB name and IngressClass
+    as OpenLDAP.
+  - Frontend and backend Helm charts: the Ingress template omits the
+    `load-balancer-name` annotation when its value is empty, so an explicit
+    empty string is never sent to the controller.
+
+### Added
+
+- **Outputs `alb_load_balancer_name` and `alb_ingress_class_name`** (from
+  application_infra state) for use with manual Helm deployment or scripting;
+  when using ArgoCD, these values are passed via Helm parameters automatically.
+
+### Changed
+
+- **ArgoCD Applications (backend and frontend)** now receive optional
+  `helm_config` with parameters for `ingress.annotations` (load-balancer-name),
+  `ingress.className`, and `ingress.hosts[0].host` when `application_infra`
+  provides an ALB. This is set automatically; no variable changes required.
+
 ## [2026-02-15] - Backend Database URL from Secret, Log Redaction, IDE Config
 
 ### Added

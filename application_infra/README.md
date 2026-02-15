@@ -1278,6 +1278,11 @@ The application provides outputs for:
 by Helm chart)
   - Empty string if ALB is still provisioning or not created
   - Retrieved from either phpldapadmin or ltb-passwd Ingress status
+- `alb_load_balancer_name`: AWS ALB name used by Ingress resources (e.g.
+  `talo-tf-us-east-1-alb-prod`). The 2FA application (backend/frontend) must use
+  this same name on their Ingress annotations so they attach to the existing ALB
+  instead of causing a "conflicting load balancer name" error. The application
+  layer reads this from remote state and passes it via ArgoCD Helm parameters.
 - `route53_acm_cert_arn`: ACM certificate ARN (from data source, not module)
 - `storage_class_name`: Name of the Kubernetes StorageClass created for PVCs
 - `route53_acm_cert_arn`: ACM certificate ARN (from data source)

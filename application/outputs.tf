@@ -99,6 +99,17 @@ output "argocd_frontend_app_name" {
   value       = var.enable_argocd_apps ? var.argocd_app_frontend_name : null
 }
 
+##################### ALB (from application_infra state; for manual Helm / scripting) ##########################
+output "alb_load_balancer_name" {
+  description = "AWS ALB name from application_infra (use same value on 2FA Ingress annotations to share ALB)"
+  value       = local.alb_load_balancer_name != "" ? local.alb_load_balancer_name : null
+}
+
+output "alb_ingress_class_name" {
+  description = "IngressClass name from application_infra (for 2FA Ingress className)"
+  value       = local.alb_ingress_class_name != "" ? local.alb_ingress_class_name : null
+}
+
 ##################### Route53 Record ##########################
 output "twofa_app_route53_record_name" {
   description = "Route53 record name for 2FA application"

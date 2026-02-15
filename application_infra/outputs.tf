@@ -30,6 +30,11 @@ output "route53_name_servers" {
 }
 
 ##################### ALB Module ##########################
+output "alb_load_balancer_name" {
+  description = "AWS ALB name used by Ingress resources (for shared ALB; use same value on 2FA app Ingresses to avoid conflicts)"
+  value       = var.use_alb ? local.alb_load_balancer_name : null
+}
+
 output "alb_ingress_class_name" {
   description = "Name of the IngressClass for shared ALB"
   value       = var.use_alb ? module.alb[0].ingress_class_name : null

@@ -164,6 +164,12 @@ backend and frontend via GitOps.
 - Automated sync policies
 - Self-healing capabilities
 - Namespace creation
+- **Shared ALB**: When `application_infra` provides an ALB, Terraform passes
+  `alb_load_balancer_name`, `alb_ingress_class_name`, and the 2FA app host via
+  `helm_config` parameters so both backend and frontend Ingresses use the same
+  ALB as OpenLDAP. This avoids "FailedBuildModel / conflicting load balancer
+  name" errors and ensures new paths are added to the existing ALB instead of
+  attempting to create a second one.
 
 > [!NOTE]
 >
@@ -556,6 +562,8 @@ The application reads from:
   - `argocd_namespace` (for argocd_app modules)
   - `argocd_project_name` (for argocd_app modules)
   - `alb_dns_name` (for Route53 record for twofa_app)
+  - `alb_load_balancer_name` (for 2FA Ingress—same ALB as OpenLDAP)
+  - `alb_ingress_class_name` (for 2FA Ingress class)
 
 > [!IMPORTANT]
 >
@@ -586,6 +594,8 @@ The application provides the following outputs:
 - SES: `ses_sender_email`, `ses_iam_role_arn`, `ses_verification_status`
 - SNS: `sns_topic_arn`, `sns_topic_name`, `sns_iam_role_arn`
 - ArgoCD Applications: `argocd_backend_app_name`, `argocd_frontend_app_name`
+- ALB (from application_infra state): `alb_load_balancer_name`, `alb_ingress_class_name`
+(for manual Helm or scripting; ArgoCD apps receive these via Helm parameters automatically)
 - 2FA URLs: `twofa_app_url`, `twofa_api_url`
 - Route53: `twofa_app_route53_record_name`, `twofa_app_route53_record_fqdn`
 
@@ -663,13 +673,24 @@ cd application
    - Test connection: `kubectl exec -it -n redis redis-master-0 -- \
      redis-cli -a $REDIS_PASSWORD ping`
 
-5. **SES Issues**
+5. **FailedBuildModel / Conflicting load balancer name**
+   - If the EKS load balancer driver reports "Failed build model due to
+     conflicting load balancer name", the 2FA frontend or backend Ingress has a
+     different `alb.ingress.kubernetes.io/load-balancer-name` than OpenLDAP (or
+     it is empty). All Ingresses in the same IngressGroup must use the same
+     ALB name. Ensure `application_infra` is applied first (so
+     `alb_load_balancer_name` output exists), then apply `application/` so
+     ArgoCD apps receive the correct Helm parameters. After applying, sync the
+     frontend and backend applications in ArgoCD so their Ingresses are
+     updated with the shared ALB name and IngressClass.
+
+6. **SES Issues**
    - Check email identity: `aws ses get-identity-verification-attributes \
      --identities your@email.com`
    - Check send quota: `aws ses get-send-quota`
    - Verify IRSA: Check service account annotation for SES IAM role
 
-6. **User Registration Issues**
+7. **User Registration Issues**
    - Check backend logs for registration errors
    - Verify PostgreSQL connectivity
    - Check SES sending limits (sandbox mode restricts recipients)

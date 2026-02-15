@@ -14,6 +14,29 @@ locals {
   # Retrieve ALB DNS name from application_infra state (for Route53 record)
   alb_dns_name = try(data.terraform_remote_state.application_infra[0].outputs.alb_dns_name, "")
 
+  # ALB name and IngressClass from application_infra (same values as OpenLDAP Ingresses; required so 2FA Ingresses share the ALB)
+  alb_load_balancer_name = try(data.terraform_remote_state.application_infra[0].outputs.alb_load_balancer_name, "")
+  alb_ingress_class_name = try(data.terraform_remote_state.application_infra[0].outputs.alb_ingress_class_name, "")
+
+  # Helm parameters for 2FA app Ingress: use shared ALB name and IngressClass so Ingresses attach to existing ALB (no conflict)
+  argocd_helm_alb_parameters = local.alb_load_balancer_name != "" && local.alb_ingress_class_name != "" ? [
+    {
+      name         = "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/load-balancer-name"
+      value        = local.alb_load_balancer_name
+      force_string = true
+    },
+    {
+      name         = "ingress.className"
+      value        = local.alb_ingress_class_name
+      force_string = true
+    },
+    {
+      name         = "ingress.hosts[0].host"
+      value        = local.twofa_app_host
+      force_string = true
+    }
+  ] : []
+
   tags = {
     Env       = "${var.env}"
     Terraform = "true"
@@ -279,6 +302,10 @@ module "argocd_app_backend" {
     sync_options = ["CreateNamespace=true"]
   } : null
 
+  helm_config = length(local.argocd_helm_alb_parameters) > 0 ? {
+    parameters = local.argocd_helm_alb_parameters
+  } : null
+
   depends_on = [
     data.terraform_remote_state.application_infra,
     kubernetes_secret.ldap_admin,
@@ -317,6 +344,10 @@ module "argocd_app_frontend" {
       allow_empty = false
     }
     sync_options = ["CreateNamespace=true"]
+  } : null
+
+  helm_config = length(local.argocd_helm_alb_parameters) > 0 ? {
+    parameters = local.argocd_helm_alb_parameters
   } : null
 
   depends_on = [

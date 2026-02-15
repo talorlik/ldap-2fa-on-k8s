@@ -79,6 +79,12 @@ spec:
   are configured in IngressClassParams by the ALB module
 - Per-Ingress settings (load-balancer-name, target-type, listen-ports,
   ssl-redirect) are specified in Ingress annotations
+- **Shared ALB**: All Ingresses in the same IngressGroup must use the same
+  `load-balancer-name` annotation. If one Ingress has a different (or empty)
+  name, the EKS load balancer driver reports "FailedBuildModel / conflicting
+  load balancer name". The 2FA application layer passes the shared ALB name
+  from `application_infra` state to backend and frontend ArgoCD apps via
+  `helm_config` parameters so they attach to the existing ALB.
 - The IngressClass created by the ALB module is set as the default, so
   `ingressClassName` can be omitted if desired
 - Multiple Ingresses can share a single ALB by using the same IngressClass
