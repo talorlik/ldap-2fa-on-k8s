@@ -48,7 +48,9 @@ data:
   APP_NAME: {{ .Values.app.name | quote }}
   DEBUG: {{ .Values.app.debug | quote }}
   LOG_LEVEL: {{ .Values.app.logLevel | quote }}
+  {{- if .Values.app.corsOrigins }}
   CORS_ORIGINS: {{ .Values.app.corsOrigins | quote }}
+  {{- end }}
 
   # Redis Configuration
   REDIS_ENABLED: {{ .Values.redis.enabled | quote }}
