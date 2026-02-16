@@ -491,9 +491,11 @@ The script automatically:
 - Provides colored output (INFO/SUCCESS/ERROR) for clear feedback
 - Supports case-insensitive arguments (state/State/STATE all work)
 
-**Important**: The script must be **sourced** (`source ./assume-github-role.sh`)
-for credentials to persist in your current shell. Direct execution (`./assume-github-role.sh`)
-will not set credentials unless used with `eval`.
+> [!IMPORTANT]
+>
+> The script must be **sourced** (`source ./assume-github-role.sh`)
+> for credentials to persist in your current shell. Direct execution (`./assume-github-role.sh`)
+> will not set credentials unless used with `eval`.
 
 ### ECR Operations
 
@@ -695,10 +697,13 @@ variables to Kubernetes secrets
 ### Application Infrastructure Outputs
 
 - **ALB**: `alb_dns_name`, `alb_ingress_class_name`,
-`alb_ingress_class_params_name`, `alb_scheme`, `alb_ip_address_type`
+`alb_ingress_class_params_name`, `alb_scheme`, `alb_ip_address_type`,
+`alb_load_balancer_name`
 - **OpenLDAP**: `openldap_namespace`, `openldap_secret_name`,
 `openldap_helm_release_name`, `openldap_alb_dns_name`,
 `phpldapadmin_route53_record`, `ltb_passwd_route53_record`
+- **LDAP Connection**: `ldap_host`, `ldap_base_dn`, `ldap_admin_dn`,
+`ldap_admin_group_dn`, `ldap_user_search_base`, `ldap_group_search_base`
 - **Route53**: `route53_acm_cert_arn`, `route53_domain_name`, `route53_zone_id`,
 `route53_name_servers`
 - **Network Policies**: `network_policy_name`, `network_policy_namespace`,
@@ -951,6 +956,12 @@ deployment)
 - `TF_VAR_POSTGRESQL_PASSWORD` - PostgreSQL database password
 - `TF_VAR_REDIS_PASSWORD` - Redis cache password
 
+**Admin Seed (Optional - for first admin user):**
+
+- `ADMIN_SEED_USERNAME` - Admin username for seed (optional)
+- `ADMIN_SEED_EMAIL` - Admin email for seed (optional)
+- `ADMIN_SEED_PHONE` - Admin phone for seed in E.164 format (optional)
+
 > [!NOTE]
 >
 > This project uses AWS SSO via GitHub OIDC instead of access keys.
@@ -971,6 +982,92 @@ deployment)
 workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - February 2026)
+
+### Signup Process Changes and Authentication Enhancements (February 2026)
+
+- **MFA Method Selection Removed from Signup**:
+  - MFA method selection (TOTP or SMS) has been removed from the user signup process
+  - Users now enroll in their preferred MFA method during the login process after
+  account activation
+  - Signup flow simplified to collect only: name, username, email, phone, and password
+  - Email and phone verification still occur during signup as before
+  - User model: `mfa_method` and `totp_secret` are set to `None` during signup
+  and populated during MFA enrollment at login
+  - Updated documentation: PRD-SIGNUP-MAN.md, PRD-ADMIN-FUNCS.md
+
+- **Remember Me Feature**:
+  - Login step 1 accepts optional `remember_me` parameter
+  - When set, JWT issued after MFA verification uses `JWT_REFRESH_EXPIRY_DAYS`
+  (e.g. 7 days) instead of `JWT_EXPIRY_MINUTES`
+  - Frontend login form includes a "Remember me" checkbox
+
+- **Forgot Password / Reset Password**:
+  - `POST /api/auth/forgot-password`: Looks up user by email, creates password-reset
+  token, sends email with reset link, returns generic success (no email enumeration)
+  - `POST /api/auth/reset-password`: Validates token, updates LDAP password and
+  DB `password_hash`, marks token used
+  - Config: `PASSWORD_RESET_EXPIRY_HOURS` (default 1) for reset link expiry
+  - LDAP: `LDAPClient.change_password(username, new_password)` for updating password
+  - Frontend: "Forgot your password?" link on login tab opens reset request panel;
+  reset form shown when app opened with `#reset-password?token=...&username=...`
+
+### First Admin User Seed and Shared ALB (February 15, 2026)
+
+- **First Admin User Seed (Optional)**:
+  - When all admin seed variables are set (via `TF_VAR_admin_seed_*` or GitHub Secrets
+  `ADMIN_SEED_*`), Terraform creates a Kubernetes secret and one-time Job that seeds
+  the first admin user
+  - Seed creates LDAP user (if missing) with OpenLDAP admin password, ensures user
+  is in LDAP admins group, inserts/updates PostgreSQL user with email/phone
+  pre-verified and status ACTIVE, generates TOTP secret
+  - Values read from AWS Secrets Manager `tf-vars` or GitHub Secrets; never hardcoded
+  or logged
+  - Backend seed module: `app.seed_admin` runnable as `python -m app.seed_admin`
+  - Destroy scripts now retrieve and export `TF_VAR_openldap_admin_password` and
+  optional `TF_VAR_admin_seed_*` for proper cleanup
+
+- **Shared ALB for 2FA Ingresses**:
+  - Fixed "FailedBuildModel / conflicting load balancer name" error when 2FA Ingresses
+  had different or empty `load-balancer-name` than OpenLDAP
+  - Application Terraform reads `alb_load_balancer_name` and `alb_ingress_class_name`
+  from `application_infra` remote state, passes to ArgoCD applications via `helm_config`
+  - All Ingresses now use same ALB name and IngressClass for host-based routing
+  - Fixed "spec.rules[0].http.paths: Required value" by passing explicit path parameters
+
+- **LDAP Connection Outputs**:
+  - OpenLDAP module now outputs: `ldap_host`, `ldap_base_dn`, `ldap_admin_dn`,
+  `ldap_admin_group_dn`, `ldap_user_search_base`, `ldap_group_search_base`
+  - Application layer reads these from remote state for admin-seed Job and automation
+  - Eliminates hardcoded LDAP settings in application layer
+
+- **ALB Load Balancer Name Output**:
+  - New output `alb_load_balancer_name` exposes AWS ALB name from application_infra
+  - Required so 2FA Ingresses attach to existing ALB instead of creating new ones
+
+### Backend Database URL and Security Enhancements (February 15, 2026)
+
+- **Database URL Built from Kubernetes Secret**:
+  - When Helm chart uses external secret with only password (not full URL), app
+  now builds PostgreSQL connection URL from `DATABASE_HOST`, `DATABASE_PORT`,
+  `DATABASE_USER`, `DATABASE_NAME`, and password from secret
+  - Fixes startup failure when chart incorrectly set `DATABASE_URL` to raw password
+  - Optional: `database.externalSecret.urlKey` for full URL in secret;
+  `database.externalSecret.passwordFile` to mount password as file
+  - App supports `DATABASE_PASSWORD_FILE` to read password from mounted file
+
+- **Log Redaction for Connection Strings**:
+  - Database startup errors redacted so connection URLs and passwords never appear
+  in logs (`app.utils.security.redact_connection_strings`)
+
+- **Pyright Config for IDE Import Resolution**:
+  - `application/backend/pyrightconfig.json` with `extraPaths: ["src"]` so
+  `from app.xxx` resolves correctly in IDE when using src layout
+
+- **Backend Helm Chart Fixes**:
+  - Replaced undefined `regexReplace` with Sprig's `regexReplaceAll` in deployment
+  template
+  - Fixes `ComparisonError: function "regexReplace" not defined` when ArgoCD/Helm
+  renders chart
 
 ### Destroy Confirmation, Backend Namespace Secrets, and Docs (February 2026)
 
