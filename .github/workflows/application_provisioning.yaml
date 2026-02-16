@@ -130,6 +130,22 @@ jobs:
             echo "../backend_infra/backend.hcl already exists. Skipping creation."
           fi
 
+      - name: Create application_infra backend.hcl from placeholder
+        run: |
+          # Create application_infra/backend.hcl if it doesn't exist
+          # This is needed for terraform init in the Check ArgoCD capability status step
+          if [ ! -f "application_infra/backend.hcl" ]; then
+            cp application_infra/tfstate-backend-values-template.hcl application_infra/backend.hcl
+            sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
+            -e "s|<APPLICATION_INFRA_PREFIX>|${{ vars.APPLICATION_INFRA_PREFIX }}|g" \
+            -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
+            application_infra/backend.hcl
+            echo "Created application_infra/backend.hcl:"
+            cat application_infra/backend.hcl
+          else
+            echo "application_infra/backend.hcl already exists. Skipping creation."
+          fi
+
       - name: Check ArgoCD capability status
         id: check_argocd
         working-directory: ./application_infra
@@ -142,16 +158,14 @@ jobs:
           # Initialize terraform if needed
           if [ ! -d ".terraform" ]; then
             echo "Initializing application_infra terraform for status check..."
-            terraform init -backend-config="backend.hcl" > /dev/null 2>&1
-            if [ $? -ne 0 ]; then
+            if ! terraform init -backend-config="backend.hcl"; then
               echo "::error::Failed to initialize application_infra terraform"
               exit 1
             fi
           fi
 
           # Select workspace
-          terraform workspace select "$WORKSPACE" > /dev/null 2>&1
-          if [ $? -ne 0 ]; then
+          if ! terraform workspace select "$WORKSPACE"; then
             echo "::error::Failed to select workspace $WORKSPACE in application_infra"
             exit 1
           fi

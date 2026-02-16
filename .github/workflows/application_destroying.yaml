@@ -145,6 +145,38 @@ jobs:
             echo "backend.hcl already exists. Skipping creation."
           fi
 
+      - name: Create backend_infra backend.hcl from placeholder
+        run: |
+          # Create backend_infra/backend.hcl if it doesn't exist
+          # This is needed for application/providers.tf to read backend_infra state configuration
+          if [ ! -f "../backend_infra/backend.hcl" ]; then
+            cp ../backend_infra/tfstate-backend-values-template.hcl ../backend_infra/backend.hcl
+            sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
+            -e "s|<BACKEND_PREFIX>|${{ vars.BACKEND_PREFIX }}|g" \
+            -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
+            ../backend_infra/backend.hcl
+            echo "Created ../backend_infra/backend.hcl:"
+            cat ../backend_infra/backend.hcl
+          else
+            echo "../backend_infra/backend.hcl already exists. Skipping creation."
+          fi
+
+      - name: Create application_infra backend.hcl from placeholder
+        run: |
+          # Create application_infra/backend.hcl if it doesn't exist
+          # This is needed for application/providers.tf to read application_infra state configuration
+          if [ ! -f "../application_infra/backend.hcl" ]; then
+            cp ../application_infra/tfstate-backend-values-template.hcl ../application_infra/backend.hcl
+            sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
+            -e "s|<APPLICATION_INFRA_PREFIX>|${{ vars.APPLICATION_INFRA_PREFIX }}|g" \
+            -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
+            ../application_infra/backend.hcl
+            echo "Created ../application_infra/backend.hcl:"
+            cat ../application_infra/backend.hcl
+          else
+            echo "../application_infra/backend.hcl already exists. Skipping creation."
+          fi
+
       - name: Terraform init
         run: terraform init -backend-config=backend.hcl
 
@@ -173,22 +205,6 @@ jobs:
           role-to-assume: ${{ secrets.AWS_STATE_ACCOUNT_ROLE_ARN }}
           role-session-name: GitHubActions-ApplicationDestroy-Terraform
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Create backend_infra backend.hcl from placeholder
-        run: |
-          # Create backend_infra/backend.hcl if it doesn't exist
-          # This is needed for application/providers.tf to read backend_infra state configuration
-          if [ ! -f "../backend_infra/backend.hcl" ]; then
-            cp ../backend_infra/tfstate-backend-values-template.hcl ../backend_infra/backend.hcl
-            sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
-            -e "s|<BACKEND_PREFIX>|${{ vars.BACKEND_PREFIX }}|g" \
-            -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
-            ../backend_infra/backend.hcl
-            echo "Created ../backend_infra/backend.hcl:"
-            cat ../backend_infra/backend.hcl
-          else
-            echo "../backend_infra/backend.hcl already exists. Skipping creation."
-          fi
 
       - name: Terraform plan destroy
         run: terraform plan -var-file="variables.tfvars" -destroy -out terraform.tfplan

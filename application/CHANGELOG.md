@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **GitHub Actions Workflows: Backend Configuration File Creation**
+  - Fixed `application_provisioning.yaml` to create `application_infra/backend.hcl` before checking ArgoCD capability status
+  - Fixed `application_destroying.yaml` to create both `backend_infra/backend.hcl` and `application_infra/backend.hcl` before terraform init
+  - Ensures backend configuration files exist before Terraform initialization, preventing initialization errors
+  - Improved error handling in terraform init and workspace select commands to show actual errors instead of hiding them
+  - Fixes issue where `application/providers.tf` requires `application_infra/backend.hcl` to read remote state configuration
+
 ### Changed
 
 - **Signup Process - MFA Method Selection Removed**

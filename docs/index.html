@@ -808,7 +808,20 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li>Monitor the workflow execution</li>
                 </ol>
                 <p><strong>What the workflow does:</strong></p>
-                <p>Deploys PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and Route53 record for 2FA app. The workflow validates that the ArgoCD capability status is "ACTIVE" before proceeding and uses AWS role-based authentication for secure cross-account operations. When optional <code>ADMIN_SEED_*</code> secrets are set, a one-time Job seeds the first admin user. LDAP connection settings for the admin-seed Job are read from <code>application_infra</code> remote state (not hardcoded).</p>
+                <ul>
+                    <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> for backend state operations</li>
+                    <li>Uses environment-specific deployment account role ARN</li>
+                    <li>Uses <code>AWS_ASSUME_EXTERNAL_ID</code> for cross-account role assumption</li>
+                    <li>Creates <code>backend_infra/backend.hcl</code> from template (needed for remote state access)</li>
+                    <li>Creates <code>application_infra/backend.hcl</code> from template (needed for ArgoCD status check and remote state access)</li>
+                    <li><strong>Validates ArgoCD capability status</strong> - Ensures ArgoCD capability is "ACTIVE" before proceeding (prevents deployment failures)</li>
+                    <li>Creates <code>backend.hcl</code> from template using <code>APPLICATION_PREFIX</code> for state file key</li>
+                    <li>Retrieves password secrets (PostgreSQL, Redis, OpenLDAP admin) from GitHub repository secrets</li>
+                    <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code> (from application_infra)</li>
+                    <li>Runs Terraform operations to deploy PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and Route53 record for 2FA app</li>
+                    <li>When optional <code>ADMIN_SEED_*</code> secrets are set, a one-time Job seeds the first admin user</li>
+                    <li>LDAP connection settings for the admin-seed Job are read from <code>application_infra</code> remote state (not hardcoded)</li>
+                </ul>
                 <h5 id="github-destroy">Destroying Infrastructure (GitHub Actions)</h5>
                 <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order: Application → Application Infrastructure → Backend Infrastructure → State.</p>
                 <p><strong>Confirmation required:</strong> Each destroy workflow requires you to type <strong>yes</strong> in the "Type 'yes' to confirm destruction" input when you run the workflow; otherwise the workflow will not proceed.</p>
@@ -821,6 +834,18 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                             <li>Type <strong>yes</strong> in the confirmation input</li>
                             <li>Select environment (prod or dev) and region</li>
                             <li>Click <strong>"Run workflow"</strong></li>
+                        </ul>
+                        <p><strong>What the workflow does:</strong></p>
+                        <ul>
+                            <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> for backend state operations</li>
+                            <li>Uses environment-specific deployment account role ARN</li>
+                            <li>Uses <code>AWS_ASSUME_EXTERNAL_ID</code> for cross-account role assumption</li>
+                            <li>Creates <code>backend.hcl</code> from template using <code>APPLICATION_PREFIX</code> for state file key</li>
+                            <li>Creates <code>backend_infra/backend.hcl</code> from template (needed for remote state access)</li>
+                            <li>Creates <code>application_infra/backend.hcl</code> from template (needed for remote state access)</li>
+                            <li>Retrieves password secrets (PostgreSQL, Redis, OpenLDAP admin, and optional admin-seed) from GitHub repository secrets</li>
+                            <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code> (from application_infra)</li>
+                            <li>Runs Terraform destroy operations to remove PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and Route53 record for 2FA app</li>
                         </ul>
                     </li>
                     <li><strong>Destroy Application Infrastructure:</strong>

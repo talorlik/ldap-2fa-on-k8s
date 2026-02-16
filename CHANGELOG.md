@@ -44,6 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **GitHub Actions Workflows: Backend Configuration File Creation**
+  - Fixed `application_provisioning.yaml` to create `application_infra/backend.hcl` before checking ArgoCD capability status
+  - Fixed `application_destroying.yaml` to create both `backend_infra/backend.hcl` and `application_infra/backend.hcl` before terraform init
+  - Ensures backend configuration files exist before Terraform initialization, preventing initialization errors
+  - Improved error handling in terraform init and workspace select commands to show actual errors instead of hiding them
+
 - **set-k8s-env.sh: Path Resolution When Sourced**
   - Fixed script directory detection when script is sourced (using `source ./set-k8s-env.sh`)
   - Changed from `$0` to `${BASH_SOURCE[0]}` for correct path resolution
