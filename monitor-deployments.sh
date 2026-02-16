@@ -81,13 +81,13 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
-# Retrieve role ARNs from AWS Secrets Manager
+# Retrieve role ARNs from AWS Secrets Manager (use selected region)
 print_color "$BLUE" "Retrieving AWS role ARNs from Secrets Manager..."
 
 # Get github-role secret containing all role ARNs
 GITHUB_ROLE_SECRET=$(aws secretsmanager get-secret-value \
     --secret-id github-role \
-    --region us-east-1 \
+    --region "$REGION" \
     --query 'SecretString' \
     --output text)
 
@@ -122,7 +122,7 @@ print_success "Retrieved Deployment Account role ARN ($DEPLOYMENT_TYPE)"
 # Get ExternalId
 EXTERNAL_ID=$(aws secretsmanager get-secret-value \
     --secret-id external-id \
-    --region us-east-1 \
+    --region "$REGION" \
     --query 'SecretString' \
     --output text)
 
@@ -162,36 +162,54 @@ STATE_ACCESS_KEY_ID=$(echo "$STATE_CREDENTIALS" | jq -r '.Credentials.AccessKeyI
 STATE_SECRET_ACCESS_KEY=$(echo "$STATE_CREDENTIALS" | jq -r '.Credentials.SecretAccessKey')
 STATE_SESSION_TOKEN=$(echo "$STATE_CREDENTIALS" | jq -r '.Credentials.SessionToken')
 
-# Get backend bucket name from GitHub repository variable
-# Note: We need to use GitHub CLI to get repository variables
+# Get backend bucket name and prefix from GitHub repository variables or environment
+# BACKEND_PREFIX is the backend_infra state key (e.g. backend_state/terraform.tfstate)
 if ! command -v gh &> /dev/null; then
-    print_error "GitHub CLI (gh) not found. Installing or using alternative method..."
     # Fallback: try to get from environment or prompt user
     if [ -z "${BACKEND_BUCKET_NAME:-}" ]; then
         read -p "Enter backend bucket name: " BACKEND_BUCKET
     else
         BACKEND_BUCKET="$BACKEND_BUCKET_NAME"
     fi
+    if [ -z "${BACKEND_PREFIX:-}" ]; then
+        read -p "Enter backend state prefix (e.g. backend_state/terraform.tfstate): " BACKEND_PREFIX
+    fi
 else
+    # Uses current repository when run from repo root or with gh auth
     BACKEND_BUCKET=$(gh variable list --json name,value --jq '.[] | select(.name == "BACKEND_BUCKET_NAME") | .value' 2>/dev/null || echo "")
+    BACKEND_PREFIX=$(gh variable list --json name,value --jq '.[] | select(.name == "BACKEND_PREFIX") | .value' 2>/dev/null || echo "")
     if [ -z "$BACKEND_BUCKET" ]; then
         print_error "BACKEND_BUCKET_NAME variable not found in GitHub repository"
         read -p "Enter backend bucket name: " BACKEND_BUCKET
     fi
+    if [ -z "$BACKEND_PREFIX" ]; then
+        print_error "BACKEND_PREFIX variable not found in GitHub repository"
+        read -p "Enter backend state prefix (e.g. backend_state/terraform.tfstate): " BACKEND_PREFIX
+    fi
 fi
+
+# Allow environment override
+BACKEND_BUCKET="${BACKEND_BUCKET_NAME:-$BACKEND_BUCKET}"
+BACKEND_PREFIX="${BACKEND_PREFIX:-backend_state/terraform.tfstate}"
 
 if [ -z "$BACKEND_BUCKET" ]; then
     print_error "Backend bucket name is required"
     exit 1
 fi
+if [ -z "$BACKEND_PREFIX" ]; then
+    print_error "Backend state prefix (BACKEND_PREFIX) is required"
+    exit 1
+fi
 print_success "Backend bucket: $BACKEND_BUCKET"
+print_success "Backend state prefix: $BACKEND_PREFIX"
 
-# Download state file to get cluster name
+# Download state file to get cluster name (correct TF state path for backend_infra workspace)
+STATE_S3_KEY="env:/${REGION}-${ENVIRONMENT}/${BACKEND_PREFIX}"
 TEMP_STATE_FILE=$(mktemp)
 AWS_ACCESS_KEY_ID="$STATE_ACCESS_KEY_ID" \
 AWS_SECRET_ACCESS_KEY="$STATE_SECRET_ACCESS_KEY" \
 AWS_SESSION_TOKEN="$STATE_SESSION_TOKEN" \
-aws s3 cp "s3://${BACKEND_BUCKET}/env:/${REGION}-${ENVIRONMENT}/backend_state/terraform.tfstate" "$TEMP_STATE_FILE"
+aws s3 cp "s3://${BACKEND_BUCKET}/${STATE_S3_KEY}" "$TEMP_STATE_FILE"
 
 CLUSTER_NAME=$(jq -r '.outputs.cluster_name.value' "$TEMP_STATE_FILE")
 rm -f "$TEMP_STATE_FILE"

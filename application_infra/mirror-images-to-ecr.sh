@@ -79,15 +79,38 @@ if [ ! -f "$BACKEND_FILE" ]; then
     exit 1
 fi
 
-# Parse backend configuration
+# Parse backend configuration (bucket from application_infra backend; backend_infra state key from BACKEND_PREFIX or backend_infra/backend.hcl)
 BACKEND_BUCKET=$(grep 'bucket' "$BACKEND_FILE" | sed 's/.*"\(.*\)".*/\1/')
-BACKEND_KEY="backend_state/terraform.tfstate"
+
+# Backend_infra state key: use BACKEND_PREFIX (set by setup-application-infra.sh or CI) or parse from backend_infra/backend.hcl
+if [ -n "${BACKEND_PREFIX:-}" ]; then
+    BACKEND_KEY="$BACKEND_PREFIX"
+    info "Backend_infra state key (from BACKEND_PREFIX): $BACKEND_KEY"
+elif [ -f "../backend_infra/backend.hcl" ]; then
+    BACKEND_KEY=$(grep 'key' "../backend_infra/backend.hcl" | sed 's/.*"\(.*\)".*/\1/')
+    if [ -z "$BACKEND_KEY" ]; then
+        print_error "Could not parse key from ../backend_infra/backend.hcl"
+        exit 1
+    fi
+    info "Backend_infra state key (from ../backend_infra/backend.hcl): $BACKEND_KEY"
+else
+    print_error "Backend_infra state key not found. Set BACKEND_PREFIX or ensure ../backend_infra/backend.hcl exists."
+    exit 1
+fi
 
 info "Backend S3 bucket: $BACKEND_BUCKET"
 
-# Get current workspace to fetch correct state
-WORKSPACE=$(terraform workspace show 2>/dev/null || echo "default")
-info "Terraform workspace: $WORKSPACE"
+# Workspace: prefer TERRAFORM_WORKSPACE or AWS_REGION+ENVIRONMENT (same as set-k8s-env.sh) for local and CI
+if [ -n "${TERRAFORM_WORKSPACE:-}" ]; then
+    WORKSPACE="$TERRAFORM_WORKSPACE"
+    info "Terraform workspace (from TERRAFORM_WORKSPACE): $WORKSPACE"
+elif [ -n "${AWS_REGION:-}" ] && [ -n "${ENVIRONMENT:-}" ]; then
+    WORKSPACE="${AWS_REGION}-${ENVIRONMENT}"
+    info "Terraform workspace (from AWS_REGION and ENVIRONMENT): $WORKSPACE"
+else
+    WORKSPACE=$(terraform workspace show 2>/dev/null || echo "default")
+    info "Terraform workspace (from terraform workspace show): $WORKSPACE"
+fi
 
 # Determine state key based on workspace
 if [ "$WORKSPACE" = "default" ]; then

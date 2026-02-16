@@ -8,6 +8,10 @@
 
 set -euo pipefail
 
+# Run from script directory so terraform and variables.tfvars are found (works when called from repo root or tf_backend_state)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # Clean up any existing AWS credentials from environment to prevent conflicts
 # This ensures the script starts with a clean slate and uses the correct credentials
 unset AWS_ACCESS_KEY_ID 2>/dev/null || true

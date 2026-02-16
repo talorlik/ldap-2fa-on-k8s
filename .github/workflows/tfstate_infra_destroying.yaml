@@ -31,11 +31,19 @@ jobs:
       actions: write
       id-token: write
     env:
+      # Default to us-east-1 when vars.AWS_REGION is not set (repository variable)
       AWS_REGION: ${{ vars.AWS_REGION }}
     defaults:
       run:
         working-directory: ./tf_backend_state
     steps:
+      - name: Set AWS_REGION default
+        run: |
+          if [ -z "${{ vars.AWS_REGION }}" ]; then
+            echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
+            echo "Using default AWS_REGION=us-east-1 (set vars.AWS_REGION to override)"
+          fi
+
       - name: Checkout the repo code
         uses: actions/checkout@v4
 

@@ -610,7 +610,7 @@ fi
 echo ""
 
 # Assume State Account role again for Terraform operations
-if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "destroy-application-infra"; then
+if ! assume_aws_role "$STATE_ROLE_ARN" "" "State Account role" "destroy-application"; then
     exit 1
 fi
 
