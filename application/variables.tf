@@ -353,6 +353,12 @@ variable "argocd_app_frontend_name" {
   type        = string
 }
 
+variable "frontend_image_tag" {
+  description = "Docker image tag for the frontend (used by ArgoCD Application). Default 'latest'."
+  type        = string
+  default     = "latest"
+}
+
 variable "argocd_app_frontend_path" {
   description = "Path within the repository to the frontend application manifests"
   type        = string

@@ -569,6 +569,63 @@ check_argocd_status() {
     return 0
 }
 
+# Pull latest changes from repo to get updated Helm values (from build workflows)
+print_info "Pulling latest changes from repository..."
+if git fetch origin main 2>/dev/null && git status | grep -q "Your branch is behind"; then
+    print_info "Repository has updates, pulling with rebase..."
+    if git pull --rebase origin main; then
+        print_success "Successfully pulled latest changes"
+    else
+        print_error "Failed to pull latest changes from repository"
+        print_error "This may indicate a rebase conflict. Please resolve manually or stash local changes."
+        exit 1
+    fi
+else
+    print_info "Repository is already up to date"
+fi
+echo ""
+
+# Extract backend image tag from Helm values file (updated by build workflow)
+print_info "Extracting backend image tag from Helm values..."
+BACKEND_VALUES_FILE="backend/helm/ldap-2fa-backend/values.yaml"
+if [ ! -f "$BACKEND_VALUES_FILE" ]; then
+    print_warning "Backend Helm values file not found at ${BACKEND_VALUES_FILE}"
+    print_warning "Using default image tag 'latest'. Run 'Backend Build and Push' workflow first."
+    export TF_VAR_backend_image_tag="latest"
+else
+    # Extract image tag from values.yaml (line format: "  tag: \"tag-value\"")
+    BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d 'r')
+    if [ -z "$BACKEND_IMAGE_TAG" ] || [ "$BACKEND_IMAGE_TAG" = "tag:" ]; then
+        print_warning "Could not extract backend image tag from ${BACKEND_VALUES_FILE}"
+        print_warning "Using default image tag 'latest'"
+        export TF_VAR_backend_image_tag="latest"
+    else
+        export TF_VAR_backend_image_tag="$BACKEND_IMAGE_TAG"
+        print_success "Using backend image tag: ${BACKEND_IMAGE_TAG}"
+    fi
+fi
+
+# Extract frontend image tag from Helm values file (updated by build workflow)
+print_info "Extracting frontend image tag from Helm values..."
+FRONTEND_VALUES_FILE="frontend/helm/ldap-2fa-frontend/values.yaml"
+if [ ! -f "$FRONTEND_VALUES_FILE" ]; then
+    print_warning "Frontend Helm values file not found at ${FRONTEND_VALUES_FILE}"
+    print_warning "Using default image tag 'latest'. Run 'Frontend Build and Push' workflow first."
+    export TF_VAR_frontend_image_tag="latest"
+else
+    # Extract image tag from values.yaml
+    FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d 'r')
+    if [ -z "$FRONTEND_IMAGE_TAG" ] || [ "$FRONTEND_IMAGE_TAG" = "tag:" ]; then
+        print_warning "Could not extract frontend image tag from ${FRONTEND_VALUES_FILE}"
+        print_warning "Using default image tag 'latest'"
+        export TF_VAR_frontend_image_tag="latest"
+    else
+        export TF_VAR_frontend_image_tag="$FRONTEND_IMAGE_TAG"
+        print_success "Using frontend image tag: ${FRONTEND_IMAGE_TAG}"
+    fi
+fi
+echo ""
+
 # Check ArgoCD status before proceeding with any Terraform operations
 print_info "Checking ArgoCD capability status from application_infra..."
 if ! check_argocd_status; then
@@ -603,9 +660,19 @@ fi
 # Make sure the script is executable
 chmod +x ../application_infra/set-k8s-env.sh
 
+# Export backend_infra workspace for set-k8s-env.sh (so it reads correct state when run from application/)
+export TERRAFORM_WORKSPACE="$WORKSPACE_NAME"
+
+# Save current directory before sourcing set-k8s-env.sh
+# IMPORTANT: set-k8s-env.sh changes directory to application_infra/, we must restore
+SAVED_PWD="$(pwd)"
+
 # Source the script to set environment variables
 # The script uses environment variables (Deployment Account credentials for EKS, State Account credentials for S3)
 source ../application_infra/set-k8s-env.sh
+
+# Restore directory - critical to ensure terraform runs against correct state
+cd "$SAVED_PWD"
 
 if [ -z "$KUBERNETES_MASTER" ]; then
     print_error "Failed to set KUBERNETES_MASTER environment variable."

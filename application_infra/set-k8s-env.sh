@@ -1,15 +1,31 @@
 #!/bin/bash
 # Script to set Kubernetes environment variables for Terraform Helm/Kubernetes providers
 # Fetches cluster name from backend_infra Terraform state
-# Works for both local development and CI/CD
+# Works for both local development and CI/CD (bash scripts and GitHub Actions workflows)
 #
 # Usage: source ./set-k8s-env.sh
 #   Uses AWS credentials from environment variables (set by setup-application-infra.sh or CI/CD workflow)
+#
+# Backend_infra state key: use BACKEND_PREFIX (repo variable in CI) or parse from backend_infra/backend.hcl.
+# Backend_infra workspace resolution (for S3 state path env:/<workspace>/<BACKEND_PREFIX>):
+#   Callers should set one of the following so the correct state is read in all contexts:
+#   1. TERRAFORM_WORKSPACE  - explicit workspace (e.g. us-east-1-prod)
+#   2. AWS_REGION + ENVIRONMENT - script derives workspace as ${AWS_REGION}-${ENVIRONMENT}
+#   3. If neither: uses "terraform workspace show" in script dir (application_infra); only correct
+#      when run from application_infra after "terraform workspace select" has been run.
+#   GitHub workflows and bash scripts (setup/destroy application and application_infra) should
+#   export TERRAFORM_WORKSPACE or both AWS_REGION and ENVIRONMENT before sourcing this script.
 
 set -e
 
 # Get script directory - works correctly when script is sourced
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Save original directory to restore at the end
+# IMPORTANT: This script may be sourced from other directories (e.g., application/)
+# We must restore the original directory before returning to avoid breaking calling scripts
+_SET_K8S_ENV_ORIGINAL_PWD="$(pwd)"
+
 cd "$SCRIPT_DIR"
 
 # Colors for output (if not already defined by sourcing script)
@@ -51,17 +67,43 @@ if [ ! -f "$BACKEND_FILE" ]; then
     exit 1
 fi
 
-# Parse backend configuration
+# Parse backend configuration (application_infra state: bucket/region from current backend file)
 BACKEND_BUCKET=$(grep 'bucket' "$BACKEND_FILE" | sed 's/.*"\(.*\)".*/\1/')
 BACKEND_REGION=$(grep 'region' "$BACKEND_FILE" | sed 's/.*"\(.*\)".*/\1/')
-BACKEND_KEY="backend_state/terraform.tfstate"
+
+# Backend_infra state key: from repo variable (BACKEND_PREFIX) or backend_infra/backend.hcl - never hardcoded
+if [ -n "${BACKEND_PREFIX:-}" ]; then
+    BACKEND_KEY="$BACKEND_PREFIX"
+    echo "Backend_infra state key (from BACKEND_PREFIX): $BACKEND_KEY"
+elif [ -f "../backend_infra/backend.hcl" ]; then
+    BACKEND_KEY=$(grep 'key' "../backend_infra/backend.hcl" | sed 's/.*"\(.*\)".*/\1/')
+    if [ -z "$BACKEND_KEY" ]; then
+        echo "ERROR: Could not parse key from ../backend_infra/backend.hcl"
+        exit 1
+    fi
+    echo "Backend_infra state key (from ../backend_infra/backend.hcl): $BACKEND_KEY"
+else
+    echo "ERROR: Backend_infra state key not found. Set BACKEND_PREFIX (e.g. from repo variables) or ensure backend_infra/backend.hcl exists."
+    exit 1
+fi
 
 echo "Backend S3 bucket: $BACKEND_BUCKET"
 echo "Backend region: $BACKEND_REGION"
 
-# Get current workspace to fetch correct state
-WORKSPACE=$(terraform workspace show 2>/dev/null || echo "default")
-echo "Terraform workspace: $WORKSPACE"
+# Determine backend_infra workspace for state key.
+# In CI (e.g. GitHub Actions destroy/provision) we may not have run terraform in application_infra,
+# so terraform workspace show would return "default" and we would read the wrong state file.
+# Prefer: TERRAFORM_WORKSPACE env, then region-env (CI), then terraform workspace show (local).
+if [ -n "${TERRAFORM_WORKSPACE:-}" ]; then
+    WORKSPACE="$TERRAFORM_WORKSPACE"
+    echo "Terraform workspace (from TERRAFORM_WORKSPACE): $WORKSPACE"
+elif [ -n "${AWS_REGION:-}" ] && [ -n "${ENVIRONMENT:-}" ]; then
+    WORKSPACE="${AWS_REGION}-${ENVIRONMENT}"
+    echo "Terraform workspace (from AWS_REGION and ENVIRONMENT): $WORKSPACE"
+else
+    WORKSPACE=$(terraform workspace show 2>/dev/null || echo "default")
+    echo "Terraform workspace (from terraform workspace show): $WORKSPACE"
+fi
 
 # Fetch cluster name from backend_infra state
 if [ "$WORKSPACE" = "default" ]; then
@@ -316,3 +358,8 @@ echo "KUBE_CONFIG_PATH=$KUBE_CONFIG_PATH"
 echo ""
 echo "To use these variables in your current shell, run:"
 echo "  source ./set-k8s-env.sh"
+
+# Restore original directory before returning
+# This ensures calling scripts continue in their original directory
+cd "$_SET_K8S_ENV_ORIGINAL_PWD"
+unset _SET_K8S_ENV_ORIGINAL_PWD

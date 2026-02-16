@@ -80,6 +80,8 @@ jobs:
           echo "BACKEND_FILE=backend.hcl" >> $GITHUB_ENV
           echo "VARIABLES_FILE=variables.tfvars" >> $GITHUB_ENV
           echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
+          echo "TERRAFORM_WORKSPACE=${{ env.AWS_REGION }}-${{ inputs.environment }}" >> $GITHUB_ENV
+          echo "BACKEND_PREFIX=${{ vars.BACKEND_PREFIX }}" >> $GITHUB_ENV
           # Determine deployment account role ARN based on environment
           if [ "${{ inputs.environment }}" = "prod" ]; then
             echo "DEPLOYMENT_ROLE_ARN=${{ secrets.AWS_PRODUCTION_ACCOUNT_ROLE_ARN }}" >> $GITHUB_ENV

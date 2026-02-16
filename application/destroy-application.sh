@@ -546,9 +546,19 @@ fi
 # Make sure the script is executable
 chmod +x ../application_infra/set-k8s-env.sh
 
+# Export backend_infra workspace for set-k8s-env.sh (so it reads correct state when run from application/)
+export TERRAFORM_WORKSPACE="$WORKSPACE_NAME"
+
+# Save current directory before sourcing set-k8s-env.sh
+# IMPORTANT: set-k8s-env.sh changes directory to application_infra/, we must restore
+SAVED_PWD="$(pwd)"
+
 # Source the script to set environment variables
 # The script uses environment variables (Deployment Account credentials for EKS, State Account credentials for S3)
 source ../application_infra/set-k8s-env.sh
+
+# Restore directory - critical to ensure terraform runs against correct state
+cd "$SAVED_PWD"
 
 if [ -z "$KUBERNETES_MASTER" ]; then
     print_error "Failed to set KUBERNETES_MASTER environment variable."
@@ -564,6 +574,39 @@ export TF_VAR_kubernetes_master="$KUBERNETES_MASTER"
 export TF_VAR_kube_config_path="$KUBE_CONFIG_PATH"
 print_info "  - TF_VAR_kubernetes_master: ${TF_VAR_kubernetes_master}"
 print_info "  - TF_VAR_kube_config_path: ${TF_VAR_kube_config_path}"
+echo ""
+
+# Extract backend and frontend image tags from Helm values (needed for destroy plan)
+print_info "Extracting image tags from Helm values..."
+BACKEND_VALUES_FILE="backend/helm/ldap-2fa-backend/values.yaml"
+if [ -f "$BACKEND_VALUES_FILE" ]; then
+    BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d 'r')
+    if [ -n "$BACKEND_IMAGE_TAG" ] && [ "$BACKEND_IMAGE_TAG" != "tag:" ]; then
+        export TF_VAR_backend_image_tag="$BACKEND_IMAGE_TAG"
+        print_success "Using backend image tag: ${BACKEND_IMAGE_TAG}"
+    else
+        export TF_VAR_backend_image_tag="latest"
+        print_info "Using default backend image tag: latest"
+    fi
+else
+    export TF_VAR_backend_image_tag="latest"
+    print_info "Backend values file not found. Using default tag: latest"
+fi
+
+FRONTEND_VALUES_FILE="frontend/helm/ldap-2fa-frontend/values.yaml"
+if [ -f "$FRONTEND_VALUES_FILE" ]; then
+    FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d 'r')
+    if [ -n "$FRONTEND_IMAGE_TAG" ] && [ "$FRONTEND_IMAGE_TAG" != "tag:" ]; then
+        export TF_VAR_frontend_image_tag="$FRONTEND_IMAGE_TAG"
+        print_success "Using frontend image tag: ${FRONTEND_IMAGE_TAG}"
+    else
+        export TF_VAR_frontend_image_tag="latest"
+        print_info "Using default frontend image tag: latest"
+    fi
+else
+    export TF_VAR_frontend_image_tag="latest"
+    print_info "Frontend values file not found. Using default tag: latest"
+fi
 echo ""
 
 # Assume State Account role again for Terraform operations

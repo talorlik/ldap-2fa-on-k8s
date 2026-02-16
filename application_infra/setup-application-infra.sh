@@ -513,6 +513,9 @@ fi
 # Make sure the script is executable
 chmod +x ./set-k8s-env.sh
 
+# Export backend_infra workspace for set-k8s-env.sh (consistent behavior when sourced from scripts or CI)
+export TERRAFORM_WORKSPACE="$WORKSPACE_NAME"
+
 # Source the script to set environment variables
 # The script uses environment variables (Deployment Account credentials for EKS, State Account credentials for S3)
 source ./set-k8s-env.sh
