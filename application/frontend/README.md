@@ -13,7 +13,11 @@ for user and group management.
 
 ### Key Features
 
-- **User Authentication**: Two-step login — (1) username and password with optional "Remember me" and "Forgot your password?", (2) MFA screen where the user chooses Authenticator app or SMS and enters the 6-digit code. Forgot password sends a reset link by email; opening the link shows a set-new-password form, then redirects to login.
+- **User Authentication**: Two-step login — (1) username and password with optional
+"Remember me" and "Forgot your password?", (2) MFA screen where the user chooses
+Authenticator app or SMS and enters the 6-digit code. Forgot password sends a reset
+link by email; opening the link shows a set-new-password form, then redirects
+to login.
 - **Self-Service Registration**: User signup with email and phone verification
 - **MFA on login**: Authenticator app (one-time QR setup when not enrolled) or SMS;
   user chooses method on each login and enters the code in a single field
@@ -545,40 +549,40 @@ with a separate backend:
 ### Client-Side Security
 
 1. **XSS Protection**:
-   - HTML escaping via `escapeHtml()` function
-   - No `innerHTML` usage with user input
-   - Content Security Policy headers (via nginx)
+    - HTML escaping via `escapeHtml()` function
+    - No `innerHTML` usage with user input
+    - Content Security Policy headers (via nginx)
 
 2. **JWT Token Storage**:
-   - Stored in `localStorage` (not cookies to avoid CSRF)
-   - Automatic expiration checking
-   - Token cleared on logout
+    - Stored in `localStorage` (not cookies to avoid CSRF)
+    - Automatic expiration checking
+    - Token cleared on logout
 
 3. **Input Validation**:
-   - HTML5 form validation
-   - Custom pattern validation (username, phone, verification codes)
-   - Server-side validation (backend validates all inputs)
+    - HTML5 form validation
+    - Custom pattern validation (username, phone, verification codes)
+    - Server-side validation (backend validates all inputs)
 
 4. **Password Handling**:
-   - Passwords never stored client-side
-   - Password fields use `type="password"`
-   - Password confirmation validation
+    - Passwords never stored client-side
+    - Password fields use `type="password"`
+    - Password confirmation validation
 
 ### Server-Side Security (nginx)
 
 1. **Security Headers**:
-   - `X-Frame-Options: SAMEORIGIN` (prevents clickjacking)
-   - `X-Content-Type-Options: nosniff` (prevents MIME sniffing)
-   - `X-XSS-Protection: 1; mode=block` (XSS protection)
-   - `Referrer-Policy: strict-origin-when-cross-origin`
+    - `X-Frame-Options: SAMEORIGIN` (prevents clickjacking)
+    - `X-Content-Type-Options: nosniff` (prevents MIME sniffing)
+    - `X-XSS-Protection: 1; mode=block` (XSS protection)
+    - `Referrer-Policy: strict-origin-when-cross-origin`
 
 2. **File Access**:
-   - Hidden files denied (`.htaccess`, `.git`, etc.)
-   - No directory listing
+    - Hidden files denied (`.htaccess`, `.git`, etc.)
+    - No directory listing
 
 3. **HTTPS Enforcement**:
-   - TLS termination at ALB (not nginx)
-   - HTTP to HTTPS redirect configured at ALB level
+    - TLS termination at ALB (not nginx)
+    - HTTP to HTTPS redirect configured at ALB level
 
 ## API Integration
 
@@ -595,16 +599,23 @@ The frontend communicates with the backend via REST API:
 
 #### Authentication (two-step login)
 
-- `API.loginStart(username, password, rememberMe)` - Step 1: validate credentials; optional `rememberMe` for longer-lived session; returns `challenge_token`, `totp_enrolled`, `sms_available`
-- `API.loginTotpSetup(challengeToken)` - Get TOTP QR/secret for first-time Authenticator setup
-- `API.loginVerify(challengeToken, mfaMethod, verificationCode)` - Step 2: verify MFA code and get JWT
-- `API.sendSmsCodeWithChallenge(challengeToken)` - Send SMS code on MFA step (no password re-entry)
+- `API.loginStart(username, password, rememberMe)` - Step 1: validate credentials;
+optional `rememberMe` for longer-lived session; returns `challenge_token`,
+`totp_enrolled`, `sms_available`
+- `API.loginTotpSetup(challengeToken)` - Get TOTP QR/secret for first-time
+Authenticator setup
+- `API.loginVerify(challengeToken, mfaMethod, verificationCode)` - Step 2: verify
+MFA code and get JWT
+- `API.sendSmsCodeWithChallenge(challengeToken)` - Send SMS code on MFA step
+(no password re-entry)
 - `API.sendSmsCode(username, password)` - Legacy: request SMS code with username/password
 
 #### Password reset
 
-- `API.forgotPassword(email)` - Request password reset link; backend sends email with link to `#reset-password?token=...&username=...`
-- `API.resetPassword(token, username, newPassword, confirmPassword)` - Set new password from reset link; then user is redirected to login
+- `API.forgotPassword(email)` - Request password reset link; backend sends email
+with link to `#reset-password?token=...&username=...`
+- `API.resetPassword(token, username, newPassword, confirmPassword)` - Set new
+password from reset link; then user is redirected to login
 
 #### User Registration
 
@@ -677,22 +688,22 @@ try {
 ### Optimization Strategies
 
 1. **Static Assets**:
-   - Gzip compression enabled
-   - Long-term caching (1 year) for CSS, JS, images
-   - Cache-Control headers set
+    - Gzip compression enabled
+    - Long-term caching (1 year) for CSS, JS, images
+    - Cache-Control headers set
 
 2. **Code Size**:
-   - No framework overhead (vanilla JavaScript)
-   - Minimal external dependencies (only QRCode.js)
-   - Minified production builds (via CI/CD)
+    - No framework overhead (vanilla JavaScript)
+    - Minimal external dependencies (only QRCode.js)
+    - Minified production builds (via CI/CD)
 
 3. **Loading**:
-   - Scripts loaded at end of HTML (non-blocking)
-   - QRCode library loaded from CDN (cached across sites)
+    - Scripts loaded at end of HTML (non-blocking)
+    - QRCode library loaded from CDN (cached across sites)
 
 4. **Network**:
-   - Same-origin API calls (no CORS overhead)
-   - Relative URLs (no DNS lookups for API)
+    - Same-origin API calls (no CORS overhead)
+    - Relative URLs (no DNS lookups for API)
 
 ## Troubleshooting
 
@@ -793,8 +804,8 @@ console.log('Token:', API.getToken());
 // Decode JWT payload (without verification)
 const token = API.getToken();
 if (token) {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    console.log('JWT Payload:', payload);
+  const payload = JSON.parse(atob(token.split('.')[1]));
+  console.log('JWT Payload:', payload);
 }
 ```
 

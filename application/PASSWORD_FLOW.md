@@ -277,11 +277,11 @@ secrets.
 | AWS Secrets Manager | `TF_VAR_REDIS_PASSWORD` | `TF_VAR_redis_password` | `var.redis_password` |
 | GitHub Secrets | `TF_VAR_REDIS_PASSWORD` | `TF_VAR_redis_password` | `var.redis_password` |
 
-**Important Notes:**
-
-- Secret keys in AWS/GitHub: **UPPERCASE**
-- Environment variables: **lowercase** (matches Terraform variable names)
-- Terraform variable names: **lowercase** (defined in `variables.tf`)
+> [!IMPORTANT]
+>
+> - Secret keys in AWS/GitHub: **UPPERCASE**
+> - Environment variables: **lowercase** (matches Terraform variable names)
+> - Terraform variable names: **lowercase** (defined in `variables.tf`)
 
 ## Security Considerations
 

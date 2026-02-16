@@ -117,7 +117,9 @@ aws --profile prod acm describe-certificate \
 +------------------+--------------------------------------------+-------+----------+
 ```
 
-**Note:** Both domains will use the same CNAME record.
+> [!NOTE]
+>
+> Both domains will use the same CNAME record.
 
 ### Step 3: Extract Validation Record Details
 
@@ -493,7 +495,9 @@ OIDC provider):
 }
 ```
 
-**Note:** ExternalId is **not required** for State Account role assumption (by design).
+> [!NOTE]
+>
+> ExternalId is **not required** for State Account role assumption (by design).
 
 > [!IMPORTANT]
 >

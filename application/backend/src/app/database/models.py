@@ -92,10 +92,11 @@ class User(Base):
         index=True,
     )
 
-    # MFA settings
-    mfa_method: Mapped[str] = mapped_column(
+    # MFA settings (set during enrollment at login, not during signup)
+    mfa_method: Mapped[Optional[str]] = mapped_column(
         String(10),
-        default=MFAMethodType.TOTP.value,
+        nullable=True,
+        default=None,
     )
     totp_secret: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 

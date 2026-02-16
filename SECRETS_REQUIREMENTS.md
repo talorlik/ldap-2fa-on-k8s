@@ -100,17 +100,19 @@ Contains ExternalId for cross-account role assumption (plain text, not JSON):
 <generated-external-id>
 ```
 
-**Important:** This is a plain text secret, not JSON. Generate using:
-
-```bash
-openssl rand -hex 32
-```
-
-The same value must be:
-
-- Stored in AWS Secrets Manager as `external-id` (plain text)
-- Stored in GitHub repository secret `AWS_ASSUME_EXTERNAL_ID`
-- Added to deployment account role Trust Relationships as a condition
+> [!IMPORTANT]
+>
+> This is a plain text secret, not JSON. Generate using:
+>
+> ```bash
+> openssl rand -hex 32
+> ```
+>
+> The same value must be:
+>
+> - Stored in AWS Secrets Manager as `external-id` (plain text)
+> - Stored in GitHub repository secret `AWS_ASSUME_EXTERNAL_ID`
+> - Added to deployment account role Trust Relationships as a condition
 
 ### Creating AWS Secrets Manager Secrets
 

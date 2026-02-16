@@ -396,15 +396,15 @@ Now create an IAM Role that uses this Identity Provider for authentication.
    `arn:aws:iam::STATE_ACCOUNT_ID:role/github-actions-state-role`)
    - Set this as the `AWS_STATE_ACCOUNT_ROLE_ARN` secret in GitHub
 
-**Important Notes:**
-
-- The Identity Provider must be created **before** the IAM Role
-- The IAM Role's trust policy automatically references the Identity Provider you
-selected
-- The condition on `token.actions.githubusercontent.com:sub` restricts access to
-your specific repository
-- You can update the trust policy later to add more repositories or adjust
-conditions
+> [!IMPORTANT]
+>
+> - The Identity Provider must be created **before** the IAM Role
+> - The IAM Role's trust policy automatically references the Identity Provider you
+> selected
+> - The condition on `token.actions.githubusercontent.com:sub` restricts access
+> to your specific repository
+> - You can update the trust policy later to add more repositories or adjust
+> conditions
 
 **Account B (Production/Development Accounts):**
 
@@ -457,7 +457,7 @@ role:
 > deployment account roles. This bidirectional trust is required for proper
 > cross-account role assumption.
 >
-> **Note:** The ExternalId security mechanism is still required when the state
+> The ExternalId security mechanism is still required when the state
 > account role assumes deployment account roles. The ExternalId condition must be
 > present in the deployment account roles' Trust Relationships (as documented
 > above), and the state account role must provide the ExternalId when assuming

@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG.md](../application_infra/CHANGELOG.md).
 
+## [Unreleased]
+
+### Changed
+
+- **Signup Process - MFA Method Selection Removed**
+  - MFA method selection has been removed from the signup process
+  - Users no longer choose TOTP or SMS during account registration
+  - MFA method selection and enrollment now occurs exclusively during the login
+  process after account activation
+  - Signup form fields: first name, last name, username, email, phone
+  (country code + number), password, confirm password
+  - User model: `mfa_method` and `totp_secret` are set to `None` during signup
+  and populated during MFA enrollment at login
+  - Updated documentation: [PRD-SIGNUP-MAN.md](PRD-SIGNUP-MAN.md), [PRD-ADMIN-FUNCS.md](PRD-ADMIN-FUNCS.md)
+
 ## [Unreleased] - Remember me and Forgot/Reset password
 
 ### Added

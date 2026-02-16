@@ -49,8 +49,12 @@ system administration
 
 - ✅ User signup with profile creation
 - ✅ Email and phone verification workflow
-- ✅ Profile status management (PENDING → COMPLETE → ACTIVE)
-- ✅ Admin approval workflow
+- ✅ Profile status management with automatic transitions:
+  - **PENDING**: User registered, verification incomplete
+  - **COMPLETE**: Both email and phone verified (automatic transition from PENDING)
+  - **ACTIVE**: Admin activated with group assignment (required)
+- ✅ Login restrictions: PENDING and COMPLETE users cannot log in
+- ✅ Admin approval workflow with required group assignment
 - ✅ User profile updates
 - ✅ User revocation/deletion
 
@@ -136,48 +140,48 @@ system administration
 
 1. **Clone the repository** (if not already done):
 
-   ```bash
-   git clone <repository-url>
-   cd ldap-2fa-on-k8s/application/backend
-   ```
+    ```bash
+    git clone <repository-url>
+    cd ldap-2fa-on-k8s/application/backend
+    ```
 
 2. **Create a virtual environment**:
 
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
 
 3. **Install dependencies**:
 
-   ```bash
-   pip install -r src/requirements.txt
-   ```
+    ```bash
+    pip install -r src/requirements.txt
+    ```
 
 4. **Set up environment variables** (create a `.env` file or export variables):
 
-   ```bash
-   # See Configuration section for all available variables
-   export DATABASE_URL="postgresql+asyncpg://user:password@localhost:5432/ldap2fa"
-   export LDAP_HOST="localhost"
-   export LDAP_ADMIN_PASSWORD="your-ldap-admin-password"
-   export JWT_SECRET_KEY="your-secret-key-here"
-   ```
+    ```bash
+    # See Configuration section for all available variables
+    export DATABASE_URL="postgresql+asyncpg://user:password@localhost:5432/ldap2fa"
+    export LDAP_HOST="localhost"
+    export LDAP_ADMIN_PASSWORD="your-ldap-admin-password"
+    export JWT_SECRET_KEY="your-secret-key-here"
+    ```
 
 5. **Run database migrations** (if using Alembic):
 
-   ```bash
-   alembic upgrade head
-   ```
+    ```bash
+    alembic upgrade head
+    ```
 
 6. **Start the development server**:
 
-   ```bash
-   cd src
-   python -m app.main
-   # Or use uvicorn directly:
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
+    ```bash
+    cd src
+    python -m app.main
+    # Or use uvicorn directly:
+    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    ```
 
 The API will be available at `http://localhost:8000` with interactive docs at `http://localhost:8000/api/docs`.
 
@@ -265,7 +269,8 @@ Pydantic Settings for type-safe configuration management.
 
 ### Database Configuration
 
-The app accepts either a full connection URL or separate connection components (e.g. when the password is provided via Kubernetes Secret):
+The app accepts either a full connection URL or separate connection components
+(e.g. when the password is provided via Kubernetes Secret):
 
 | Variable | Description |
 | ---------- | ------------- |
@@ -277,7 +282,10 @@ The app accepts either a full connection URL or separate connection components (
 | `DATABASE_PASSWORD` | Database password (from Secret or env). |
 | `DATABASE_PASSWORD_FILE` | Path to a file containing the password (e.g. Kubernetes Secret mounted as file). If set, the app reads the password from this file instead of `DATABASE_PASSWORD` so the password is not in the process environment. |
 
-When `DATABASE_HOST`, `DATABASE_USER`, `DATABASE_NAME`, and either `DATABASE_PASSWORD` or `DATABASE_PASSWORD_FILE` are set, the app builds `DATABASE_URL` from these. This is the pattern used by the Helm chart when `database.externalSecret` is enabled with only a password (no full URL in the secret).
+When `DATABASE_HOST`, `DATABASE_USER`, `DATABASE_NAME`, and either `DATABASE_PASSWORD`
+or `DATABASE_PASSWORD_FILE` are set, the app builds `DATABASE_URL` from these.
+This is the pattern used by the Helm chart when `database.externalSecret` is enabled
+with only a password (no full URL in the secret).
 
 ### LDAP Configuration
 
@@ -349,18 +357,27 @@ The API is organized into several endpoint groups:
 
 ### Authentication Endpoints (two-step login)
 
-- `POST /api/auth/login/start` - Step 1: validate username/password; optional body field `remember_me` for longer-lived JWT; returns challenge token and MFA options (`totp_enrolled`, `sms_available`)
-- `POST /api/auth/login/totp-setup` - Generate TOTP secret for first-time Authenticator setup (body: `challenge_token`)
-- `POST /api/auth/login/verify` - Step 2: verify MFA code (body: `challenge_token`, `mfa_method`, `verification_code`); returns JWT (expiry uses `JWT_REFRESH_EXPIRY_DAYS` if remember_me was set)
-- `POST /api/auth/sms/send-code` - Send SMS code (body: `challenge_token` from login/start, or `username`+`password`)
-- `POST /api/auth/forgot-password` - Request password reset link by email (body: `email`); generic response for security
-- `POST /api/auth/reset-password` - Set new password with token from email link (body: `token`, `username`, `new_password`, `confirm_password`)
+- `POST /api/auth/login/start` - Step 1: validate username/password; optional body
+field `remember_me` for longer-lived JWT; returns challenge token and MFA options
+(`totp_enrolled`, `sms_available`)
+- `POST /api/auth/login/totp-setup` - Generate TOTP secret for first-time Authenticator
+setup (body: `challenge_token`)
+- `POST /api/auth/login/verify` - Step 2: verify MFA code (body: `challenge_token`,
+`mfa_method`, `verification_code`); returns JWT (expiry uses `JWT_REFRESH_EXPIRY_DAYS`
+if remember_me was set)
+- `POST /api/auth/sms/send-code` - Send SMS code (body: `challenge_token` from
+login/start, or `username`+`password`)
+- `POST /api/auth/forgot-password` - Request password reset link by email
+(body: `email`); generic response for security
+- `POST /api/auth/reset-password` - Set new password with token from email link
+(body: `token`, `username`, `new_password`, `confirm_password`)
 - `POST /api/auth/login` - Legacy one-step login (username + password + verification_code)
 - `POST /api/auth/signup` - Register a new user
 
 ### MFA / Re-enrollment
 
-- `POST /api/auth/enroll` - Re-enroll or change MFA method (active users only; TOTP or SMS)
+- `POST /api/auth/enroll` - Re-enroll or change MFA method (active users only;
+TOTP or SMS)
 - `GET /api/mfa/methods` - List available MFA methods
 - `GET /api/mfa/status/{username}` - Get user MFA enrollment status
 
@@ -370,7 +387,9 @@ The API is organized into several endpoint groups:
 - `POST /api/auth/verify-phone` - Verify phone number with code
 - `POST /api/auth/resend-verification` - Resend verification email or SMS
 
-Password reset: `forgot-password` sends an email with link to `APP_URL/#reset-password?token=...&username=...`; `reset-password` accepts that token and new password, updates LDAP and DB.
+Password reset: `forgot-password` sends an email with link to
+`APP_URL/#reset-password?token=...&username=...`; `reset-password` accepts that
+token and new password, updates LDAP and DB.
 
 ### Profile Endpoints
 
@@ -440,7 +459,11 @@ backend/
 
 ### IDE / Editor
 
-The package lives under `src/app/`. For correct import resolution (`from app.xxx`), run or open the project from the `backend` directory and ensure `src` is on the Python path. A `pyrightconfig.json` in the backend root sets `extraPaths: ["src"]` so Pylance/Pyright resolve `app` correctly. If imports still show as unresolved, reload the editor window.
+The package lives under `src/app/`. For correct import resolution (`from app.xxx`),
+run or open the project from the `backend` directory and ensure `src` is on the
+Python path. A `pyrightconfig.json` in the backend root sets `extraPaths: ["src"]`
+so Pylance/Pyright resolve `app` correctly. If imports still show as unresolved,
+reload the editor window.
 
 ### Running Tests
 
@@ -511,8 +534,8 @@ All database operations and I/O-bound tasks use async/await for better concurren
 
 ```python
 async def get_user(session: AsyncSession, username: str):
-    result = await session.execute(select(User).where(User.username == username))
-    return result.scalar_one_or_none()
+  result = await session.execute(select(User).where(User.username == username))
+  return result.scalar_one_or_none()
 ```
 
 ### 3. Type Hints
@@ -531,10 +554,10 @@ Request/response validation using Pydantic models:
 
 ```python
 class SignupRequest(BaseModel):
-    username: str = Field(..., min_length=3, max_length=50)
-    email: EmailStr
-    password: str = Field(..., min_length=8)
-    ...
+  username: str = Field(..., min_length=3, max_length=50)
+  email: EmailStr
+  password: str = Field(..., min_length=8)
+  ...
 ```
 
 ### 5. Error Handling
@@ -543,10 +566,10 @@ Consistent error handling with appropriate HTTP status codes:
 
 ```python
 if not user:
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="User not found"
-    )
+  raise HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="User not found"
+  )
 ```
 
 ### 6. Security Best Practices
@@ -564,8 +587,8 @@ Centralized configuration using Pydantic Settings with environment variable supp
 
 ```python
 class Settings(BaseSettings):
-    ldap_host: str = os.getenv("LDAP_HOST", "localhost")
-    ...
+  ldap_host: str = os.getenv("LDAP_HOST", "localhost")
+  ...
 ```
 
 ### 8. Database Session Management
@@ -574,13 +597,13 @@ Proper async session management with dependency injection:
 
 ```python
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+  async with AsyncSessionLocal() as session:
+    try:
+      yield session
+      await session.commit()
+    except Exception:
+      await session.rollback()
+      raise
 ```
 
 ## Deployment
@@ -597,10 +620,20 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 The project includes Helm charts for Kubernetes deployment.
 
-**Database credentials from Kubernetes Secret (recommended):** Use `database.externalSecret` so the password is never in ConfigMap or values. Either store the full URL in the secret and set `database.externalSecret.urlKey` (e.g. `DATABASE_URL`), or store only the password and set `database.host`, `database.port`, `database.user`, `database.name` in values; the chart injects the password from the secret and the app builds the URL.
+**Database credentials from Kubernetes Secret (recommended):** Use `database.externalSecret`
+so the password is never in ConfigMap or values. Either store the full URL in the
+secret and set `database.externalSecret.urlKey` (e.g. `DATABASE_URL`), or store
+only the password and set `database.host`, `database.port`, `database.user`,
+`database.name` in values; the chart injects the password from the secret and the
+app builds the URL.
 
-- **Full URL in secret:** Set `database.externalSecret.urlKey: "DATABASE_URL"` and put the full `postgresql+asyncpg://...` string in that secret key.
-- **Password only in secret:** Leave `urlKey` unset; set `database.externalSecret.passwordKey` (e.g. `"password"`) and set `database.host`, `database.port`, `database.user`, `database.name` in values. Optional: `database.externalSecret.passwordFile.enabled: true` mounts the password as a file and sets `DATABASE_PASSWORD_FILE` so the password is not in the process environment.
+- **Full URL in secret:** Set `database.externalSecret.urlKey: "DATABASE_URL"`
+and put the full `postgresql+asyncpg://...` string in that secret key.
+- **Password only in secret:** Leave `urlKey` unset; set `database.externalSecret.passwordKey`
+(e.g. `"password"`) and set `database.host`, `database.port`, `database.user`,
+`database.name` in values. Optional:
+`database.externalSecret.passwordFile.enabled: true` mounts the password as a
+file and sets `DATABASE_PASSWORD_FILE` so the password is not in the process environment.
 
 ```bash
 # Install using Helm (with external secret for DB password)
@@ -615,7 +648,9 @@ helm install ldap-2fa-backend ./helm/ldap-2fa-backend \
 
 ### Environment Variables
 
-Set all required environment variables in your deployment configuration (ConfigMap/Secrets). Database password should come from a Kubernetes Secret (see above), not from ConfigMap or plain values.
+Set all required environment variables in your deployment configuration
+(ConfigMap/Secrets). Database password should come from a Kubernetes Secret
+(see above), not from ConfigMap or plain values.
 
 ### Health Checks
 
@@ -635,12 +670,15 @@ in front of multiple instances.
 Secrets or a secrets management service.
 2. **JWT Secret Key**: Use a strong, randomly generated secret key for JWT signing:
 
-   ```bash
-   python -c "import secrets; print(secrets.token_urlsafe(32))"
-   ```
+    ```bash
+    python -c "import secrets; print(secrets.token_urlsafe(32))"
+    ```
 
 3. **LDAP Credentials**: Store LDAP admin credentials securely (Kubernetes Secrets).
-4. **Database Credentials**: Use strong passwords and restrict database access. Provide the password only via Kubernetes Secret (env or file mount); the app redacts connection strings and passwords from startup error logs so they never appear in log output.
+4. **Database Credentials**: Use strong passwords and restrict database access.
+Provide the password only via Kubernetes Secret (env or file mount); the app redacts
+connection strings and passwords from startup error logs so they never appear in
+log output.
 5. **HTTPS**: Always use HTTPS in production. Configure TLS termination at the
 ingress level.
 6. **CORS**: Restrict CORS origins to only trusted domains in production.

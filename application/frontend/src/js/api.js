@@ -151,7 +151,6 @@ const API = {
                 phone_country_code: userData.phoneCountryCode,
                 phone_number: userData.phoneNumber,
                 password: userData.password,
-                mfa_method: userData.mfaMethod || 'totp',
             }),
         });
     },

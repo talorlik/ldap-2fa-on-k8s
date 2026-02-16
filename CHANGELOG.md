@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Signup Process Changes
+
+### Changed
+
+- **Application: MFA Method Selection Removed from Signup**
+  - MFA method selection (TOTP or SMS) has been removed from the user signup process
+  - Users now enroll in their preferred MFA method during the login process after
+  account activation
+  - Signup flow simplified to collect only: name, username, email, phone, and password
+  - Email and phone verification still occur during signup as before
+  - Updated documentation: [application/PRD-SIGNUP-MAN.md](application/PRD-SIGNUP-MAN.md),
+  [application/PRD-ADMIN-FUNCS.md](application/PRD-ADMIN-FUNCS.md)
+
 ## [2026-02-15] - Backend Database URL from Secret, Log Redaction, IDE Config
 
 ### Added

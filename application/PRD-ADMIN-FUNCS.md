@@ -63,7 +63,8 @@ Users can only use SMS OTP as their MFA method if their phone number has been ve
 
 **Behavior:**
 
-- If a user selects SMS as MFA method during signup, phone verification is mandatory
+- MFA method selection occurs during login enrollment, not during signup
+- Phone verification is completed during signup (before MFA enrollment)
 - SMS OTP option is disabled/hidden for users with unverified phone numbers
 - Login attempts with SMS MFA and unverified phone display error:
 "Phone verification required for SMS authentication"
@@ -195,18 +196,31 @@ UserGroup:
 When an admin approves a user:
 
 1. Admin selects user from "Awaiting Approval" list (status = 'complete')
+    - Only users with status **COMPLETE** can be activated
+    - Users in **PENDING** status cannot be activated (must complete verifications
+    first)
 2. Admin clicks "Approve" button
 3. Modal appears with group selection (multi-select)
-4. Admin selects one or more groups to assign
+4. Admin selects one or more groups to assign (**required** - at least one group
+must be selected)
 5. On confirmation:
-   - User is created in LDAP
-   - User is added to selected LDAP groups
-   - User status changes to 'active'
-   - Welcome email is sent to user
-   - Activation timestamp and admin recorded
+    - User is created in LDAP
+    - User is added to selected LDAP group(s)
+    - User status changes to 'active'
+    - Welcome email is sent to user
+    - Activation timestamp and admin recorded
 
-**Note:** Group assignment is required for approval - at least one group must
-be selected.
+> [!IMPORTANT]
+>
+> - **Group Assignment Requirement**: Group assignment is mandatory for activation.
+> The backend validates that at least one group is provided and successfully assigned.
+> Activation will fail if no groups are assigned.
+> - **Status Requirements**: Only users with status **COMPLETE** (both email and
+> phone verified) can be activated. Users in **PENDING** status must complete both
+> verifications first, which automatically transitions them to **COMPLETE**.
+> - **Post-Activation**: Once activated, users can log in and will be presented
+> with MFA selection during their first login. Their access permissions are determined
+> by their assigned group(s).
 
 ### 6.2 User Revocation
 
@@ -216,10 +230,10 @@ When an admin revokes an active user:
 2. Admin clicks "Revoke" button
 3. Confirmation dialog appears
 4. On confirmation:
-   - User is removed from all LDAP groups
-   - User is deleted from LDAP
-   - User status changes to 'revoked' OR user is deleted from database
-   - Revocation is logged for audit
+    - User is removed from all LDAP groups
+    - User is deleted from LDAP
+    - User status changes to 'revoked' OR user is deleted from database
+    - Revocation is logged for audit
 
 ## 7. List Features
 

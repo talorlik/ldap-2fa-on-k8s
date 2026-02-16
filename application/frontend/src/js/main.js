@@ -255,7 +255,8 @@ const App = {
      * Update SMS options based on availability
      */
     updateSmsOptions() {
-        const smsOptions = document.querySelectorAll('#signup-sms-option, #mfa-step-sms-option');
+        // Only update MFA step SMS option (used during login MFA enrollment)
+        const smsOptions = document.querySelectorAll('#mfa-step-sms-option');
         smsOptions.forEach(option => {
             if (!this.smsEnabled) {
                 option.classList.add('disabled');
@@ -706,7 +707,6 @@ const App = {
                 phoneCountryCode: form.querySelector('#signup-country-code').value,
                 phoneNumber: form.querySelector('#signup-phone').value.trim(),
                 password: password,
-                mfaMethod: form.querySelector('input[name="signup_mfa_method"]:checked').value,
             };
 
             submitBtn.classList.add('loading');

@@ -199,11 +199,18 @@ infrastructure, featuring self-service user registration and admin management.
 
 #### Profile State Management
 
-| State | Description |
-| ------- | ------------- |
-| **PENDING** | User registered, verification incomplete |
-| **COMPLETE** | All verifications complete, awaiting admin approval |
-| **ACTIVE** | Admin approved, user exists in LDAP |
+| State | Description | Login Status |
+| ------- | ------------- | ------------ |
+| **PENDING** | User registered, verification incomplete (email or phone not verified) | ❌ Cannot log in - shows error listing missing verifications |
+| **COMPLETE** | All verifications complete (both email and phone verified), awaiting admin approval | ❌ Cannot log in - shows "awaiting admin approval" message |
+| **ACTIVE** | Admin approved, user exists in LDAP, assigned to group(s) | ✅ Can log in |
+
+**State Transitions:**
+
+- **PENDING → COMPLETE**: Automatic transition when both email and phone are verified
+- **COMPLETE → ACTIVE**: Admin activation with required group assignment
+- **ACTIVE → LOGGED IN**: User completes login flow (username/password → MFA
+selection → MFA verification)
 
 #### MFA Methods Supported
 

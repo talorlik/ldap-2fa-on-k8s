@@ -295,33 +295,6 @@
                            placeholder="Confirm your password" autocomplete="new-password">
                 </div>
 
-                <!-- MFA Method Selection -->
-                <div class="form-group">
-                    <label>MFA Method</label>
-                    <div class="mfa-method-selector">
-                        <label class="radio-option">
-                            <input type="radio" name="signup_mfa_method" value="totp" checked>
-                            <span class="radio-label">
-                                <span class="radio-icon">📱</span>
-                                <span class="radio-text">
-                                    <strong>Authenticator App</strong>
-                                    <small>Google Authenticator, Authy, etc.</small>
-                                </span>
-                            </span>
-                        </label>
-                        <label class="radio-option" id="signup-sms-option">
-                            <input type="radio" name="signup_mfa_method" value="sms">
-                            <span class="radio-label">
-                                <span class="radio-icon">💬</span>
-                                <span class="radio-text">
-                                    <strong>SMS</strong>
-                                    <small>Receive codes via text message</small>
-                                </span>
-                            </span>
-                        </label>
-                    </div>
-                </div>
-
                 <button type="submit" class="btn btn-primary">
                     <span class="btn-text">Create Account</span>
                     <span class="btn-loading hidden">Creating Account...</span>

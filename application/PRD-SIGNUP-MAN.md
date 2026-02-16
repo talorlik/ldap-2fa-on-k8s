@@ -32,9 +32,44 @@ This PRD covers:
 - User self-registration with profile fields
 - Email verification via AWS SES
 - Phone verification via AWS SNS
-- Profile state management (PENDING → COMPLETE → ACTIVE)
-- Administrator user management interface
+- Profile state management with automatic transitions:
+  - **PENDING**: User registered, verification incomplete
+  - **COMPLETE**: Both email and phone verified (automatic transition)
+  - **ACTIVE**: Admin activated with required group assignment
+- Administrator user activation with mandatory group assignment
 - PostgreSQL storage for user data before LDAP activation
+- Login restrictions based on profile status
+
+> [!NOTE]
+>
+> MFA method selection and enrollment occurs during the login process,
+> not during signup. Users enroll in their preferred MFA method (TOTP or SMS)
+> when they log in after account activation.
+
+### 1.4 Complete User Flow Summary
+
+**Sign Up Flow:**
+
+1. User signs up → Status: **PENDING** (email and phone verification sent)
+2. User verifies email → `email_verified = true`
+3. User verifies phone → `phone_verified = true`
+4. When both verified → Status automatically changes to **COMPLETE**
+5. Admin activates user and assigns group(s) (required) → Status: **ACTIVE**
+
+**Login Flow (ACTIVE users only):**
+
+1. User enters username and password
+2. System presents MFA selection screen (Authenticator app or SMS)
+3. User selects MFA method and completes verification
+4. User is logged in → Actions available based on assigned group(s):
+   - Admin group members → Admin dashboard access
+   - User group members → Standard user access
+
+**Login Restrictions:**
+
+- **PENDING** users: Cannot log in, see error listing missing verifications
+- **COMPLETE** users: Cannot log in, see "awaiting admin approval" message
+- **ACTIVE** users: Can complete login flow
 
 ## 2. User Stories
 
@@ -49,12 +84,12 @@ This PRD covers:
 - User can access a signup form from the main application
 - Form collects: first name, last name, username, email, phone (with country code),
 password
-- User selects preferred MFA method (TOTP or SMS)
 - Password must be at least 8 characters
 - Username must be unique and follow format rules (letters, numbers, underscores,
 hyphens)
 - Email must be unique and valid format
 - Phone number validated with country code
+- MFA method selection and enrollment occurs during login, not during signup
 
 ### 2.2 Email Verification
 
@@ -68,8 +103,9 @@ hyphens)
 - Email contains a clickable verification link
 - Link expires after 24 hours
 - User can request resend of verification email
-- Clicking link marks email as verified
-- User sees confirmation of successful verification
+- Clicking link marks email as verified (`email_verified = true`)
+- If phone is already verified, status automatically changes from PENDING to COMPLETE
+- User sees confirmation of successful verification with current profile status
 
 ### 2.3 Phone Verification
 
@@ -83,12 +119,13 @@ hyphens)
 - Code expires after 1 hour
 - User enters code in the application
 - User can request resend of verification code
-- Correct code marks phone as verified
-- User sees confirmation of successful verification
+- Correct code marks phone as verified (`phone_verified = true`)
+- If email is already verified, status automatically changes from PENDING to COMPLETE
+- User sees confirmation of successful verification with current profile status
 
 ### 2.4 Login Restrictions
 
-> **As a** user with incomplete verification,
+> **As a** user with incomplete verification or pending activation,
 > **I want to** receive a clear message when I try to log in,
 > **So that** I understand what steps I need to complete.
 
@@ -98,6 +135,11 @@ hyphens)
 - Error message specifies which verifications are missing (email, phone, or both)
 - Users with COMPLETE status see message about awaiting admin approval
 - Only ACTIVE users can complete the login flow
+- Status automatically transitions from PENDING to COMPLETE when both email and
+phone are verified
+- After successful login, users can execute actions based on their assigned group(s)
+(e.g., Admin group members see admin dashboard, User group members have
+standard access)
 
 ### 2.5 Admin User Management
 
@@ -118,11 +160,11 @@ hyphens)
 
 ### 3.1 Profile States
 
-| State | Description | Allowed Actions |
-| ------- | ------------- | ----------------- |
-| PENDING | User registered but verification incomplete | Verify email, verify phone, resend verification |
-| COMPLETE | All verifications complete, awaiting admin | Wait for admin activation |
-| ACTIVE | Admin activated, exists in LDAP | Login, use application |
+| State | Description | Allowed Actions | Login Status |
+| ------- | ------------- | ----------------- | ------------ |
+| **PENDING** | User registered but verification incomplete (email or phone not verified) | Verify email, verify phone, resend verification | ❌ Cannot log in - shows error listing missing verifications |
+| **COMPLETE** | All verifications complete (both email and phone verified), awaiting admin activation | Wait for admin activation | ❌ Cannot log in - shows "awaiting admin approval" message |
+| **ACTIVE** | Admin activated, exists in LDAP, assigned to group(s) | Login, use application, execute actions based on group permissions | ✅ Can log in |
 
 **State Transitions:**
 
@@ -132,19 +174,61 @@ hyphens)
 └──────┬──────┘
        │
        ▼
-┌─────────────┐     Email AND Phone
-│   PENDING   │ ─────────────────────┐
-└─────────────┘                      │
-                                     ▼
-                              ┌─────────────┐
-                              │  COMPLETE   │
-                              └──────┬──────┘
-                                     │ Admin Activation
-                                     ▼
-                              ┌─────────────┐
-                              │   ACTIVE    │
-                              └─────────────┘
+┌─────────────┐
+│   PENDING   │ (email_verified = false OR phone_verified = false)
+└──────┬──────┘
+       │
+       │ User verifies email → email_verified = true
+       │ User verifies phone → phone_verified = true
+       │
+       │ When BOTH verified → Automatic transition
+       │
+       ▼
+┌─────────────┐
+│  COMPLETE   │ (email_verified = true AND phone_verified = true)
+└──────┬──────┘
+       │
+       │ Admin activates user
+       │ Admin assigns group(s) (REQUIRED)
+       │ Creates user in LDAP
+       │
+       ▼
+┌─────────────┐
+│   ACTIVE    │ (user exists in LDAP, assigned to group(s))
+└──────┬──────┘
+       │
+       │ User logs in (username + password)
+       │ → MFA selection screen (Authenticator app or SMS)
+       │ → MFA verification
+       │
+       ▼
+┌─────────────┐
+│  LOGGED IN  │
+│             │
+│ Actions based on group:
+│ - Admin group → Admin dashboard access
+│ - User group → Standard user access
+└─────────────┘
 ```
+
+> [!IMPORTANT]
+>
+> - **Automatic Status Transition**: When a user verifies their email or phone,
+> the system automatically checks if both verifications are complete. If both
+> `email_verified` and `phone_verified` are `true`, the status automatically
+> changes from `PENDING` to `COMPLETE` (via `update_status_if_complete()` method).
+> - **Group Assignment Requirement**: During admin activation, at least one group
+> must be assigned. Group assignment is required and cannot be skipped.
+> - **Login Restrictions**:
+>
+>   - `PENDING` users cannot log in and receive an error message listing which
+>   verifications are missing (email, phone, or both).
+>   - `COMPLETE` users cannot log in and receive a message that their profile is
+>   awaiting admin approval.
+>   - Only `ACTIVE` users can complete the login flow.
+>   - **MFA Enrollment**: MFA method selection and enrollment occurs during the
+>   login process, not during signup. Users choose between Authenticator app
+>   (TOTP) or SMS when they log in after account activation.
 
 ### 3.2 Signup Form Fields
 
@@ -158,7 +242,12 @@ hyphens)
 | Phone Number | Tel | Yes | 5-15 digits |
 | Password | Password | Yes | Minimum 8 characters |
 | Confirm Password | Password | Yes | Must match password |
-| MFA Method | Radio | Yes | TOTP (default) or SMS |
+
+> [!NOTE]
+>
+> MFA method selection and enrollment occurs during the login process,
+> not during signup. Users will enroll in their preferred MFA method (TOTP or SMS)
+> after their account is activated by an administrator.
 
 ### 3.3 Email Verification
 
@@ -169,6 +258,7 @@ hyphens)
 | Token Expiry | 24 hours (configurable) |
 | Verification URL | `{APP_URL}/verify-email?token={token}&username={username}` |
 | Resend Cooldown | 60 seconds |
+| Status Update | Sets `email_verified = true`. If phone is already verified, status automatically changes from PENDING to COMPLETE |
 
 ### 3.4 Phone Verification
 
@@ -179,28 +269,44 @@ hyphens)
 | Code Expiry | 1 hour |
 | Entry Method | Manual input in application |
 | Resend Cooldown | 60 seconds |
+| Status Update | Sets `phone_verified = true`. If email is already verified, status automatically changes from PENDING to COMPLETE |
 
 ### 3.5 Admin Activation
 
 When an administrator activates a user:
 
-1. Create user in LDAP with attributes:
-   - `uid`: username
-   - `cn`: full name
-   - `sn`: last name
-   - `givenName`: first name
-   - `mail`: email
-   - `userPassword`: temporary password
-   - `uidNumber`: auto-incremented
-   - `gidNumber`: default users group
-   - `homeDirectory`: `/home/{username}`
-   - `objectClass`: inetOrgPerson, posixAccount, shadowAccount
+1. Admin selects user from "Awaiting Approval" list (status = COMPLETE)
+2. Admin selects one or more groups to assign to the user (**required** - at
+least one group must be selected)
+3. On confirmation:
+    - Create user in LDAP with attributes:
+      - `uid`: username
+      - `cn`: full name
+      - `sn`: last name
+      - `givenName`: first name
+      - `mail`: email
+      - `userPassword`: temporary password
+      - `uidNumber`: auto-incremented
+      - `gidNumber`: default users group
+      - `homeDirectory`: `/home/{username}`
+      - `objectClass`: inetOrgPerson, posixAccount, shadowAccount
+    - Add user to selected LDAP group(s) (required - activation fails if no groups
+    are successfully assigned)
+    - Update user status to ACTIVE in PostgreSQL
+    - Record activation timestamp and admin username
+    - Send welcome email to user
 
-2. Update user status to ACTIVE in PostgreSQL
-
-3. Record activation timestamp and admin username
-
-4. Send welcome email to user
+> [!IMPORTANT]
+>
+> - **Group Assignment Requirement**: Group assignment is mandatory for activation.
+> The backend validates that at least one group is provided and successfully assigned.
+> Activation will fail if no groups are assigned.
+> - **User Actions After Login**: After logging in, users can execute actions based
+> on their assigned group(s):
+>   - **Admin group members**: Can access admin dashboard, manage users, manage
+>   groups, activate users
+>   - **User group members**: Standard user access (profile management, etc.)
+>   - Group membership determines which features and endpoints are accessible
 
 ### 3.6 Admin Authorization
 
@@ -243,10 +349,14 @@ When an administrator activates a user:
   "last_name": "Smith",
   "phone_country_code": "+1",
   "phone_number": "5551234567",
-  "password": "securepassword123",
-  "mfa_method": "totp"
+  "password": "securepassword123"
 }
 ```
+
+> [!NOTE]
+>
+> The `mfa_method` field is not included in signup. MFA method selection and
+> enrollment occurs during the login process after account activation.
 
 #### Signup Response
 
@@ -407,7 +517,9 @@ CREATE TABLE verification_tokens (
                        logged in; admin
                        menu if admin)
 ```
-MFA is completed on the second step after login (Authenticator app or SMS); there is no separate Enroll MFA tab.
+
+MFA is completed on the second step after login (Authenticator app or SMS);
+there is no separate Enroll MFA tab.
 
 ### 8.2 Signup Flow
 
@@ -432,10 +544,6 @@ MFA is completed on the second step after login (Authenticator app or SMS); ther
 │  └─────────────────────────────────────────┘  │
 │  ┌─────────────────────────────────────────┐  │
 │  │ Confirm Password                        │  │
-│  └─────────────────────────────────────────┘  │
-│  ┌─────────────────────────────────────────┐  │
-│  │ ○ 📱 Authenticator App                  │  │
-│  │ ○ 💬 SMS                                │  │
 │  └─────────────────────────────────────────┘  │
 │           ┌─────────────────────┐             │
 │           │   Create Account    │             │

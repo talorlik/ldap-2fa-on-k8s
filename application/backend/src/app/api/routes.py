@@ -66,7 +66,6 @@ class SignupRequest(BaseModel):
     phone_country_code: str = Field(..., description="Phone country code (e.g., +1)")
     phone_number: str = Field(..., min_length=5, max_length=20, description="Phone number")
     password: str = Field(..., min_length=8, description="Password")
-    mfa_method: MFAMethod = Field(default=MFAMethod.TOTP, description="MFA method")
 
     @field_validator("username")
     @classmethod
@@ -272,7 +271,7 @@ class AdminActivateRequest(BaseModel):
     """Admin user activation request (supports both JWT and legacy auth)."""
     admin_username: Optional[str] = Field(None, description="Admin username (legacy auth, optional if JWT provided)")
     admin_password: Optional[str] = Field(None, description="Admin password (legacy auth, optional if JWT provided)")
-    group_ids: list[str] = Field(default_factory=list, description="List of group IDs to assign during activation")
+    group_ids: list[str] = Field(..., min_length=1, description="List of group IDs to assign during activation (at least one required)")
 
 
 class AdminActivateResponse(BaseModel):
@@ -655,20 +654,7 @@ async def signup(
             detail="Email already registered",
         )
 
-    # Validate SMS method is enabled if selected
-    if request.mfa_method == MFAMethod.SMS and not settings.enable_sms_2fa:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="SMS 2FA is not enabled",
-        )
-
-    # Generate TOTP secret if needed
-    totp_secret = None
-    if request.mfa_method == MFAMethod.TOTP:
-        totp_manager = TOTPManager()
-        totp_secret = totp_manager.generate_secret()
-
-    # Create user
+    # Create user (MFA method will be set during enrollment at login)
     user = User(
         username=request.username.lower(),
         email=request.email.lower(),
@@ -677,8 +663,8 @@ async def signup(
         phone_country_code=request.phone_country_code,
         phone_number=request.phone_number,
         password_hash=_hash_password(request.password),
-        mfa_method=request.mfa_method.value,
-        totp_secret=totp_secret,
+        mfa_method=None,  # Will be set during MFA enrollment at login
+        totp_secret=None,  # Will be set during MFA enrollment at login
         status=ProfileStatus.PENDING.value,
     )
     session.add(user)
@@ -1926,6 +1912,13 @@ async def admin_activate_user(
             detail=f"User cannot be activated. Current status: {user.status}",
         )
 
+    # Group assignment is required for activation
+    if not request.group_ids or len(request.group_ids) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one group must be assigned during activation",
+        )
+
     # Create user in LDAP
     # We need to get the plain password, but we only have the hash
     # The admin will need to set a temporary password or we use a token-based approach
@@ -1947,35 +1940,42 @@ async def admin_activate_user(
             detail=f"Failed to create LDAP user: {message}",
         )
 
-    # Assign user to groups if provided
-    if request.group_ids:
-        for group_id in request.group_ids:
-            try:
-                group_uuid = uuid.UUID(group_id)
-            except ValueError:
-                logger.warning("Invalid group ID format: %s", group_id)
-                continue
+    # Assign user to groups (required - at least one group must be assigned)
+    assigned_groups = []
+    for group_id in request.group_ids:
+        try:
+            group_uuid = uuid.UUID(group_id)
+        except ValueError:
+            logger.warning("Invalid group ID format: %s", group_id)
+            continue
 
-            # Get group
-            result = await session.execute(select(Group).where(Group.id == group_uuid))
-            group = result.scalar_one_or_none()
-            if not group:
-                logger.warning("Group not found: %s", group_id)
-                continue
+        # Get group
+        result = await session.execute(select(Group).where(Group.id == group_uuid))
+        group = result.scalar_one_or_none()
+        if not group:
+            logger.warning("Group not found: %s", group_id)
+            continue
 
-            # Add to LDAP group
-            success, msg = ldap_client.add_user_to_group(user.username, group.ldap_dn)
-            if not success:
-                logger.warning("Failed to add %s to LDAP group %s: %s", user.username, group.name, msg)
-            else:
-                # Create database assignment
-                user_group = UserGroup(
-                    user_id=user.id,
-                    group_id=group_uuid,
-                    assigned_by=admin_username,
-                )
-                session.add(user_group)
-                logger.info("User %s assigned to group %s during activation", user.username, group.name)
+        # Add to LDAP group
+        success, msg = ldap_client.add_user_to_group(user.username, group.ldap_dn)
+        if not success:
+            logger.warning("Failed to add %s to LDAP group %s: %s", user.username, group.name, msg)
+        else:
+            # Create database assignment
+            user_group = UserGroup(
+                user_id=user.id,
+                group_id=group_uuid,
+                assigned_by=admin_username,
+            )
+            session.add(user_group)
+            assigned_groups.append(group.name)
+            logger.info("User %s assigned to group %s during activation", user.username, group.name)
+
+    if not assigned_groups:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to assign user to any groups. Please verify group IDs are valid.",
+        )
 
     # Update user status
     user.status = ProfileStatus.ACTIVE.value

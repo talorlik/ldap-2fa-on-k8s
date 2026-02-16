@@ -1276,8 +1276,25 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             <p><strong>URL:</strong> <code>https://app.&lt;your-domain&gt;</code> (e.g., <code>https://app.example.com</code>)</p>
             <p>The full-stack 2FA application provides:</p>
             <ul>
-                <li>Self-service user registration with email/phone verification and profile state management (PENDING → COMPLETE → ACTIVE)</li>
-                <li><strong>Two-step login:</strong> Step 1 – username and password only (with optional "Remember me" for longer-lived session and "Forgot your password?" link); Step 2 – MFA screen where the user chooses Authenticator app or SMS and enters the 6-digit code (from the app or sent via SMS). Dual MFA methods (TOTP and SMS) are supported.</li>
+                <li><strong>Sign Up Flow:</strong> 
+                    <ul>
+                        <li>User signs up → status set to <strong>PENDING</strong> (email and phone verification sent)</li>
+                        <li>User verifies email → <code>email_verified = true</code></li>
+                        <li>User verifies phone → <code>phone_verified = true</code></li>
+                        <li>When both verified → status automatically changes to <strong>COMPLETE</strong></li>
+                        <li>Admin activates user and assigns group(s) (required) → status changes to <strong>ACTIVE</strong></li>
+                    </ul>
+                    <strong>Note:</strong> MFA method selection does not occur during signup. Users cannot log in while in PENDING or COMPLETE states.
+                </li>
+                <li><strong>Login Flow (ACTIVE users only):</strong> 
+                    <ul>
+                        <li>Step 1 – username and password only (with optional "Remember me" for longer-lived session and "Forgot your password?" link)</li>
+                        <li>Step 2 – MFA screen where the user chooses Authenticator app or SMS and enters the 6-digit code (from the app or sent via SMS)</li>
+                        <li>Dual MFA methods (TOTP and SMS) are supported</li>
+                        <li>Users enroll in their preferred MFA method during login</li>
+                        <li>Once logged in, users can execute actions based on their assigned group(s) (e.g., Admin group members see admin dashboard, User group members have standard access)</li>
+                    </ul>
+                </li>
                 <li><strong>Forgot/Reset password:</strong> User requests a reset link by email; opening the link shows a set-new-password form; after submitting, they are redirected to login and sign in with the new password.</li>
                 <li>Authenticator app: one-time setup with QR code (or manual secret); on subsequent logins the user just enters the code. User can choose Authenticator or SMS on every login.</li>
                 <li>SMS: user requests a code on the MFA step; 6-digit OTP is sent via AWS SNS; user enters it in the same verification code field.</li>

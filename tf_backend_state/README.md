@@ -615,19 +615,19 @@ against the Identity Provider, then allows assuming the role
 roles and the state account role must trust each other in their respective Trust
 Relationships
 
-**Important Notes:**
-
-- The Identity Provider must be created **before** the IAM Role
-- The IAM Role's trust policy automatically references the Identity Provider you
-selected during role creation
-- The condition on `token.actions.githubusercontent.com:sub` restricts access to
-your specific repository for security
-- You can update the trust policy later to add more repositories or adjust
-conditions
-- The role ARN is what you'll use in GitHub Secrets, not the Identity Provider
-ARN
-- **For multi-account setups**: The state account role's Trust Relationship must
-also include the deployment account role ARNs to enable bidirectional trust
+> [!IMPORTANT]
+>
+> - The Identity Provider must be created **before** the IAM Role
+> - The IAM Role's trust policy automatically references the Identity Provider you
+> selected during role creation
+> - The condition on `token.actions.githubusercontent.com:sub` restricts access
+> to your specific repository for security
+> - You can update the trust policy later to add more repositories or adjust
+> conditions
+> - The role ARN is what you'll use in GitHub Secrets, not the Identity Provider
+> ARN
+> - **For multi-account setups**: The state account role's Trust Relationship must
+> also include the deployment account role ARNs to enable bidirectional trust
 
 #### Step 3: S3 Bucket Policy (Automatic)
 
