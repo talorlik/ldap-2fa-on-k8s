@@ -983,6 +983,56 @@ workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - February 2026)
 
+### GitHub Actions Support for ArgoCD Module and Improvements (Feb 16, 2026)
+
+- **GitHub Actions Support for ArgoCD Module External Data Source**:
+  - ArgoCD module's external data source now automatically detects GitHub Actions
+  environment and uses `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` environment variables
+  directly instead of calling `assume-github-role.sh`
+  - Eliminates dependency on AWS Secrets Manager for role ARNs in GitHub Actions
+  - Falls back to `assume-github-role.sh` for local environments (maintains backward
+  compatibility)
+  - Uses `eval` to safely read environment variables and avoid Terraform
+  interpolation issues
+
+- **GitHub Actions Workflow Improvements**:
+  - Added `jq` installation step to all workflows that use ArgoCD module:
+    - `application_infra_provisioning.yaml`
+    - `application_infra_destroying.yaml`
+    - `application_provisioning.yaml`
+  - Added step to make `assume-github-role.sh` executable in workflows
+  (for local fallback)
+  - All workflows now export `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` as environment
+  variables for ArgoCD module external data source
+
+- **Fixed set-k8s-env.sh Path Resolution**:
+  - Fixed script directory detection when script is sourced (using `source ./set-k8s-env.sh`)
+  - Changed from `$0` to `${BASH_SOURCE[0]}` for correct path resolution
+  - Ensures script works correctly both locally and in GitHub Actions workflows
+  - Fixes error: "backend.hcl not found" when running workflows
+
+- **Fixed GitHub Actions Automatic backend_infra/backend.hcl Creation**:
+  - Added automatic creation of `backend_infra/backend.hcl` in all relevant workflows:
+    - `application_infra_provisioning.yaml`
+    - `application_infra_destroying.yaml`
+    - `application_provisioning.yaml`
+    - `application_destroying.yaml`
+  - Workflows now create `backend_infra/backend.hcl` from template before Terraform
+  operations
+  - Required because `application_infra/providers.tf` and `application/providers.tf`
+  read this file to access backend_infra remote state
+  - Works seamlessly both locally (skips if file exists) and in GitHub Actions
+  (creates if needed)
+  - Fixes error: "open ./../backend_infra/backend.hcl: no such file or directory"
+
+- **Fixed ArgoCD Module External Data Source GitHub Actions Compatibility**:
+  - Fixed external data source to work in GitHub Actions by detecting `GITHUB_ACTIONS`
+  environment variable
+  - Uses `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` from environment instead of requiring
+  AWS Secrets Manager access
+  - Fixes error: "External Program Execution Failed" when running Terraform in GitHub
+  Actions workflows
+
 ### Signup Process Changes and Authentication Enhancements (February 2026)
 
 - **MFA Method Selection Removed from Signup**:
