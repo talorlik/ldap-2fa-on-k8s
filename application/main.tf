@@ -363,6 +363,11 @@ resource "kubernetes_secret" "admin_seed" {
 resource "kubernetes_job" "admin_seed" {
   count = local.admin_seed_enabled ? 1 : 0
 
+  # Do not block Terraform apply on job completion. The job runs asynchronously and
+  # retries (backoff_limit = 10) until DB/LDAP are ready; in CI the apply would
+  # otherwise time out or fail if the seed takes longer than the provider timeout.
+  wait_for_completion = false
+
   metadata {
     name      = "admin-seed-job"
     namespace = kubernetes_namespace.backend_app[0].metadata[0].name
