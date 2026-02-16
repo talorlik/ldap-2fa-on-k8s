@@ -836,10 +836,14 @@ The script will:
 
 The provisioning workflow will:
 
+- Install `jq` command-line tool (required for ArgoCD module external data source)
+- Make `assume-github-role.sh` executable (for local fallback)
 - Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
 Route53/ACM access
 - Use environment-specific deployment account role ARN
 - Use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
+- Export `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` as environment variables for
+ArgoCD module external data source (GitHub Actions mode)
 - Export `STATE_ACCOUNT_ROLE_ARN` for automatic injection into `variables.tfvars`
 - Retrieve OpenLDAP password secrets from GitHub repository secrets
 - **Automatically create `backend_infra/backend.hcl`** from template before
@@ -858,10 +862,14 @@ Terraform operations (required for accessing backend_infra remote state)
 
 The destroying workflow will:
 
+- Install `jq` command-line tool (required for ArgoCD module external data source)
+- Make `assume-github-role.sh` executable (for local fallback)
 - Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
   Route53/ACM access
 - Use environment-specific deployment account role ARN
 - Use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
+- Export `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` as environment variables for
+ArgoCD module external data source (GitHub Actions mode)
 - Export `STATE_ACCOUNT_ROLE_ARN` for automatic injection into `variables.tfvars`
 - Retrieve OpenLDAP password secrets from GitHub repository secrets
 - **Automatically create `backend_infra/backend.hcl`** from template before
@@ -1017,6 +1025,11 @@ source ./assume-github-role.sh clean
 
 - **ArgoCD Module**: Used by the ArgoCD module's external data resource to assume
 the correct deployment account role when querying capability status
+  - The script automatically detects the execution environment:
+    - **GitHub Actions**: Uses `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` environment
+    variables (no AWS Secrets Manager access required)
+    - **Local Environments**: Falls back to AWS Secrets Manager to retrieve role
+    ARNs (secret: `github-role`) and ExternalId (secret: `external-id`)
 - **Manual Use**: Can be used manually for role switching when working with
 AWS CLI or Terraform commands
 
@@ -1025,6 +1038,12 @@ AWS CLI or Terraform commands
 > The script must be **sourced** (not executed) for credentials to persist in your
 > current shell. Use `source ./assume-github-role.sh [option]` or
 > `eval $(./assume-github-role.sh [option])`.
+>
+> **GitHub Actions Compatibility**: The script automatically detects GitHub Actions
+> environment and uses `DEPLOYMENT_ROLE_ARN`/`EXTERNAL_ID` or
+> `STATE_ACCOUNT_ROLE_ARN` environment variables when available, eliminating the
+> need for AWS Secrets Manager access in workflows. This makes the same script work
+> seamlessly in both local and CI/CD environments.
 
 ### Step 4: Deploy Application Infrastructure
 

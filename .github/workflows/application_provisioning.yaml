@@ -88,6 +88,9 @@ jobs:
         with:
           terraform_version: 1.14.0
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Export environment variables for set-k8s-env.sh
         run: |
           # Export required variables for set-k8s-env.sh (matching setup-application.sh)
@@ -132,6 +135,9 @@ jobs:
         working-directory: ./application_infra
         run: |
           WORKSPACE="${{ env.AWS_REGION }}-${{ inputs.environment }}"
+
+          # Ensure assume-github-role.sh is executable (needed for ArgoCD module external data source)
+          chmod +x ./assume-github-role.sh
 
           # Initialize terraform if needed
           if [ ! -d ".terraform" ]; then

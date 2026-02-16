@@ -222,7 +222,7 @@ resource "aws_eks_capability" "argocd" {
 # Wait for ArgoCD capability to be fully deployed and ACTIVE
 # This ensures proper deployment ordering when ArgoCD is enabled
 resource "time_sleep" "wait_for_argocd" {
-  create_duration = "5m" # Wait 5 minutes for ArgoCD capability to be ready
+  create_duration = "3m" # Wait 3 minutes for ArgoCD capability to be ready
 
   depends_on = [aws_eks_capability.argocd]
 }
@@ -230,6 +230,7 @@ resource "time_sleep" "wait_for_argocd" {
 # External data source to query ArgoCD capability details via AWS CLI
 # This automatically retrieves server_url and status without manual CLI commands
 # Uses assume-github-role.sh to assume the correct deployment account role based on var.env
+# In GitHub Actions, uses already-configured deployment account credentials
 data "external" "argocd_capability" {
   program = ["bash", "-c", <<-EOT
     set -u -o pipefail
@@ -248,29 +249,31 @@ data "external" "argocd_capability" {
       ACCOUNT_TYPE="dev"
     fi
 
-    # Locate the assume script (prefer root module dir)
-    SCRIPT_PATH="${path.root}/assume-github-role.sh"
-    if [ ! -x "$SCRIPT_PATH" ]; then
-      SCRIPT_PATH="./assume-github-role.sh"
-    fi
-
-    if [ ! -x "$SCRIPT_PATH" ]; then
-      ERR="assume_script_not_found"
-    fi
-
-    # Ensure jq exists (your assume script requires it anyway)
-    if [ -z "$ERR" ] && ! command -v jq >/dev/null 2>&1; then
+    # Ensure jq exists
+    if ! command -v jq >/dev/null 2>&1; then
       ERR="jq_not_found"
     fi
 
-    # Assume role (silence all output so nothing breaks JSON)
+    # Assume role using assume-github-role.sh script
+    # The script automatically detects GitHub Actions environment and uses
+    # DEPLOYMENT_ROLE_ARN/EXTERNAL_ID from environment variables, or falls back
+    # to AWS Secrets Manager for local environments
     if [ -z "$ERR" ]; then
-      TMP="$(mktemp 2>/dev/null || echo "/tmp/argocd_assume_$$")"
-      if ! source "$SCRIPT_PATH" "$ACCOUNT_TYPE" >"$TMP" 2>&1; then
-        MSG="$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)"
-        ERR="failed_to_assume_role:$${MSG}"
+      SCRIPT_PATH="${path.root}/assume-github-role.sh"
+      if [ ! -x "$SCRIPT_PATH" ]; then
+        SCRIPT_PATH="./assume-github-role.sh"
       fi
-      rm -f "$TMP" 2>/dev/null || true
+
+      if [ ! -x "$SCRIPT_PATH" ]; then
+        ERR="assume_script_not_found"
+      else
+        TMP="$(mktemp 2>/dev/null || echo "/tmp/argocd_assume_$$")"
+        if ! source "$SCRIPT_PATH" "$ACCOUNT_TYPE" >"$TMP" 2>&1; then
+          MSG="$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)"
+          ERR="failed_to_assume_role:$${MSG}"
+        fi
+        rm -f "$TMP" 2>/dev/null || true
+      fi
     fi
 
     # Query capability (default null/missing to empty string)

@@ -91,6 +91,9 @@ jobs:
         with:
           terraform_version: 1.14.0
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Export environment variables for set-k8s-env.sh
         run: |
           # Export required variables for set-k8s-env.sh (matching setup-application-infra.sh)
@@ -172,6 +175,9 @@ jobs:
           else
             echo "../backend_infra/backend.hcl already exists. Skipping creation."
           fi
+
+      - name: Ensure assume-github-role.sh is executable
+        run: chmod +x ./assume-github-role.sh
 
       - name: Terraform plan destroy
         run: terraform plan -var-file="variables.tfvars" -destroy -out terraform.tfplan

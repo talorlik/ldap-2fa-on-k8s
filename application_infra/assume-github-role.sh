@@ -413,43 +413,67 @@ if [ -z "${AWS_REGION:-}" ]; then
     print_info "Using default region: ${AWS_REGION}"
 fi
 
-# Retrieve role ARNs from AWS Secrets Manager
-print_info "Retrieving role ARN from AWS Secrets Manager..."
-ROLE_SECRET_JSON=$(get_aws_secret "github-role" || echo "")
-if [ -z "$ROLE_SECRET_JSON" ]; then
-    print_error "Failed to retrieve 'github-role' secret from AWS Secrets Manager"
-    exit 1
+# Try to get role ARN from environment variable first (for GitHub Actions)
+# Fall back to AWS Secrets Manager if not found (for local environments)
+ROLE_ARN=""
+if [ "$ACCOUNT_TYPE" != "State" ] && [ -n "${DEPLOYMENT_ROLE_ARN:-}" ]; then
+    # GitHub Actions: Use DEPLOYMENT_ROLE_ARN directly for dev/prod accounts
+    ROLE_ARN="${DEPLOYMENT_ROLE_ARN}"
+    print_info "Using role ARN from DEPLOYMENT_ROLE_ARN environment variable"
+elif [ "$ACCOUNT_TYPE" = "State" ] && [ -n "${STATE_ACCOUNT_ROLE_ARN:-}" ]; then
+    # GitHub Actions: Use STATE_ACCOUNT_ROLE_ARN for state account
+    ROLE_ARN="${STATE_ACCOUNT_ROLE_ARN}"
+    print_info "Using role ARN from STATE_ACCOUNT_ROLE_ARN environment variable"
 fi
 
-# Extract the selected account role ARN
-ROLE_ARN=$(get_secret_key_value "$ROLE_SECRET_JSON" "$ROLE_ARN_KEY" || echo "")
+# If not found in environment, retrieve from AWS Secrets Manager
 if [ -z "$ROLE_ARN" ]; then
-    print_error "Failed to retrieve ${ROLE_ARN_KEY} from secret"
-    exit 1
-fi
-print_success "Retrieved ${ROLE_ARN_KEY}"
+    print_info "Retrieving role ARN from AWS Secrets Manager..."
+    ROLE_SECRET_JSON=$(get_aws_secret "github-role" || echo "")
+    if [ -z "$ROLE_SECRET_JSON" ]; then
+        print_error "Failed to retrieve 'github-role' secret from AWS Secrets Manager"
+        exit 1
+    fi
 
-# Retrieve ExternalId from AWS Secrets Manager (only needed for Dev and Prod accounts)
+    # Extract the selected account role ARN
+    ROLE_ARN=$(get_secret_key_value "$ROLE_SECRET_JSON" "$ROLE_ARN_KEY" || echo "")
+    if [ -z "$ROLE_ARN" ]; then
+        print_error "Failed to retrieve ${ROLE_ARN_KEY} from secret"
+        exit 1
+    fi
+    print_success "Retrieved ${ROLE_ARN_KEY} from AWS Secrets Manager"
+else
+    print_success "Using ${ROLE_ARN_KEY} from environment"
+fi
+
+# Try to get ExternalId from environment variable first (for GitHub Actions)
+# Fall back to AWS Secrets Manager if not found (only needed for Dev and Prod accounts)
 EXTERNAL_ID=""
 if [ "$ACCOUNT_TYPE" != "State" ]; then
-    print_info "Retrieving ExternalId from AWS Secrets Manager..."
-    EXTERNAL_ID=$(aws secretsmanager get-secret-value \
-        --secret-id "external-id" \
-        --region "${AWS_REGION}" \
-        --query SecretString \
-        --output text 2>&1)
+    if [ -n "${EXTERNAL_ID:-}" ]; then
+        # GitHub Actions: Use EXTERNAL_ID directly
+        print_info "Using ExternalId from EXTERNAL_ID environment variable"
+    else
+        # Retrieve ExternalId from AWS Secrets Manager
+        print_info "Retrieving ExternalId from AWS Secrets Manager..."
+        EXTERNAL_ID=$(aws secretsmanager get-secret-value \
+            --secret-id "external-id" \
+            --region "${AWS_REGION}" \
+            --query SecretString \
+            --output text 2>&1)
 
-    if [ $? -ne 0 ]; then
-        print_error "Failed to retrieve 'external-id' secret from AWS Secrets Manager"
-        print_error "Error: $EXTERNAL_ID"
-        exit 1
-    fi
+        if [ $? -ne 0 ]; then
+            print_error "Failed to retrieve 'external-id' secret from AWS Secrets Manager"
+            print_error "Error: $EXTERNAL_ID"
+            exit 1
+        fi
 
-    if [ -z "$EXTERNAL_ID" ]; then
-        print_error "ExternalId secret is empty"
-        exit 1
+        if [ -z "$EXTERNAL_ID" ]; then
+            print_error "ExternalId secret is empty"
+            exit 1
+        fi
+        print_success "Retrieved ExternalId from AWS Secrets Manager"
     fi
-    print_success "Retrieved ExternalId"
 fi
 
 echo ""

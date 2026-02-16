@@ -13,7 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
-## [2026-02-16] - Script and Workflow Fixes
+## [2026-02-16] - GitHub Actions Support for ArgoCD Module and Workflow Improvements
+
+### Added
+
+- **GitHub Actions Support for ArgoCD Module External Data Source**
+  - ArgoCD module's external data source now automatically detects GitHub Actions
+  environment and uses `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` environment variables
+  directly instead of calling `assume-github-role.sh`
+  - Eliminates dependency on AWS Secrets Manager for role ARNs in GitHub Actions
+  - Falls back to `assume-github-role.sh` for local environments (maintains backward
+  compatibility)
+  - Uses `eval` to safely read environment variables and avoid Terraform
+  interpolation issues
+
+- **GitHub Actions Workflow Improvements**
+  - Added `jq` installation step to all workflows that use ArgoCD module:
+    - `application_infra_provisioning.yaml`
+    - `application_infra_destroying.yaml`
+    - `application_provisioning.yaml`
+  - Added step to make `assume-github-role.sh` executable in workflows
+  (for local fallback)
+  - All workflows now export `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` as environment
+  variables for ArgoCD module external data source
 
 ### Fixed
 
@@ -36,6 +58,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Works seamlessly both locally (skips if file exists) and in GitHub Actions
   (creates if needed)
   - Fixes error: "open ./../backend_infra/backend.hcl: no such file or directory"
+
+- **ArgoCD Module External Data Source: GitHub Actions Compatibility**
+  - Fixed external data source to work in GitHub Actions by detecting `GITHUB_ACTIONS`
+  environment variable
+  - Uses `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` from environment instead of requiring
+  AWS Secrets Manager access
+  - Fixes error: "External Program Execution Failed" when running Terraform in GitHub
+  Actions workflows
 
 ## [2026-02-15] - LDAP Connection Outputs for 2FA Application
 

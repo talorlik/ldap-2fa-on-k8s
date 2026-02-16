@@ -120,9 +120,17 @@ module "argocd" {
 >
 > The `argocd_server_url` and `argocd_capability_status` outputs are automatically
 > retrieved via an external data source that queries the AWS EKS capability using
-> AWS CLI. The external data source uses `assume-github-role.sh` to assume the
-> correct deployment account role based on the environment variable. If the capability
-> query fails, the `argocd_capability_error` output will contain the error message.
+> AWS CLI. The external data source uses `assume-github-role.sh` script, which
+> automatically detects the execution environment:
+>
+> - **GitHub Actions**: The script uses `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID`
+>   environment variables (no AWS Secrets Manager access required)
+> - **Local Environments**: The script falls back to AWS Secrets Manager to retrieve
+>   role ARNs (secret: `github-role`) and ExternalId (secret: `external-id`)
+>
+> This unified approach ensures the same script works seamlessly in both environments.
+> If the capability query fails, the `argocd_capability_error` output will contain
+> the error message.
 
 ## RBAC Role Mappings
 
@@ -207,8 +215,11 @@ echo $TF_OUTPUT_argocd_server_url
 - Use the `local_cluster_secret_name` output when creating ArgoCD Applications
 - IAM policies use wildcards by default; tighten for production use
 - Delete propagation policy defaults to `RETAIN` to prevent accidental deletion
-- The external data source requires `assume-github-role.sh` script to be present
-in the root module directory
 - The external data source requires `jq` command-line tool for JSON parsing
+- The external data source requires `assume-github-role.sh` script to be present
+  in the root module directory
+- The script automatically works in both environments:
+  - **GitHub Actions**: Uses `DEPLOYMENT_ROLE_ARN`/`EXTERNAL_ID` environment variables
+  - **Local**: Falls back to AWS Secrets Manager (secrets: `github-role`, `external-id`)
 - Capability status must be "ACTIVE" before deploying ArgoCD Applications
 (validation is performed by application deployment scripts)
