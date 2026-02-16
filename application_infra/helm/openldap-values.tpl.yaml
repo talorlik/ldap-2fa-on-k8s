@@ -28,10 +28,16 @@ global:
   ldapPort: 389
   sslLdapPort: 636
 
+# Source all environment variables from the secret (including passwords)
+# This ensures passwords are never exposed in Helm values, logs, or pod specs
+envFrom:
+  - secretRef:
+      name: "${openldap_secret_name}"
+
 # Enable TLS with auto-generated certificates for osixia/openldap image
 # osixia/openldap uses different environment variable names than Bitnami
-# Note: LDAP_ADMIN_PASSWORD and LDAP_CONFIG_PASSWORD are now sourced from the Kubernetes secret
-# specified in global.existingSecret
+# CRITICAL: jp-gouin/helm-openldap chart requires envFrom to properly pass passwords
+# Passwords (LDAP_ADMIN_PASSWORD, LDAP_CONFIG_PASSWORD) sourced from secret via envFrom
 env:
   LDAP_DOMAIN: "${openldap_ldap_domain}"
   # Enable TLS (osixia/openldap will auto-generate certificates if they don't exist)

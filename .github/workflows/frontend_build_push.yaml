@@ -79,13 +79,19 @@ jobs:
           # Build the Docker image
           docker build -t ${{ steps.ecr-info.outputs.ecr_repo_url }}:${IMAGE_TAG} .
 
-          # Push to ECR
+          # Also tag as :latest for consistency with backend
+          docker tag ${{ steps.ecr-info.outputs.ecr_repo_url }}:${IMAGE_TAG} ${{ steps.ecr-info.outputs.ecr_repo_url }}:latest
+
+          # Push both tags to ECR
           docker push ${{ steps.ecr-info.outputs.ecr_repo_url }}:${IMAGE_TAG}
+          docker push ${{ steps.ecr-info.outputs.ecr_repo_url }}:latest
 
           echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
           echo "full_image=${{ steps.ecr-info.outputs.ecr_repo_url }}:${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
-          echo "✅ Pushed image: ${{ steps.ecr-info.outputs.ecr_repo_url }}:${IMAGE_TAG}"
+          echo "✅ Pushed image with tags:"
+          echo "   - ${IMAGE_TAG}"
+          echo "   - latest"
 
       - name: Update Helm values with new image
         run: |
