@@ -10,20 +10,15 @@ resource "helm_release" "cert_manager" {
   namespace        = "cert-manager"
   create_namespace = true
 
-  set {
-    name  = "installCRDs"
-    value = "true"
-  }
-
-  set {
-    name  = "webhook.timeoutSeconds"
-    value = "30"
-  }
-
-  set {
-    name  = "prometheus.enabled"
-    value = "false"
-  }
+  values = [yamlencode({
+    installCRDs = true
+    webhook = {
+      timeoutSeconds = 30
+    }
+    prometheus = {
+      enabled = false
+    }
+  })]
 
   atomic          = true
   cleanup_on_fail = true
