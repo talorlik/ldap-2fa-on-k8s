@@ -11,8 +11,6 @@
 #   in your current shell. Use: source ./assume-github-role.sh [option]
 #   OR use: eval $(./assume-github-role.sh [option])
 
-set -euo pipefail
-
 # Detect if script is being sourced or executed
 # If ${BASH_SOURCE[0]} == ${0}, script is being executed
 # If ${BASH_SOURCE[0]} != ${0}, script is being sourced
@@ -21,12 +19,41 @@ if [[ "${BASH_SOURCE[0]:-}" != "${0}" ]]; then
     IS_SOURCED=true
 fi
 
+# Detect if running in non-interactive mode (e.g., Terraform external data source)
+# Suppress all output in this mode to avoid breaking JSON output
+# Detection methods (any of these will enable silent mode):
+# 1. GITHUB_ACTIONS - GitHub Actions CI/CD environment
+# 2. TERRAFORM_CLI_PATH - Set by Terraform setup actions
+# 3. TF_DATA_DIR - Terraform data directory (set during terraform operations)
+# 4. TERM=dumb - Non-interactive terminal
+# 5. ! -t 0 - No TTY (non-interactive)
+SILENT_MODE=false
+if [ -n "${GITHUB_ACTIONS:-}" ] || \
+   [ -n "${TERRAFORM_CLI_PATH:-}" ] || \
+   [ -n "${TF_DATA_DIR:-}" ] || \
+   [ "${TERM:-}" = "dumb" ] || \
+   [ ! -t 0 ]; then
+    SILENT_MODE=true
+fi
+
+# Only use strict error handling in interactive mode
+# In silent mode, we need to handle errors manually to avoid breaking JSON output
+if [ "$SILENT_MODE" = false ]; then
+    set -euo pipefail
+else
+    set +euo pipefail
+fi
+
 # Clean up any existing AWS credentials from environment to prevent conflicts
 # This ensures the script starts with a clean slate and uses the correct credentials
-unset AWS_ACCESS_KEY_ID 2>/dev/null || true
-unset AWS_SECRET_ACCESS_KEY 2>/dev/null || true
-unset AWS_SESSION_TOKEN 2>/dev/null || true
-unset AWS_PROFILE 2>/dev/null || true
+# However, in silent mode (Terraform), we may need existing credentials to assume roles
+# so we only clean if not in silent mode
+if [ "$SILENT_MODE" = false ]; then
+    unset AWS_ACCESS_KEY_ID 2>/dev/null || true
+    unset AWS_SECRET_ACCESS_KEY 2>/dev/null || true
+    unset AWS_SESSION_TOKEN 2>/dev/null || true
+    unset AWS_PROFILE 2>/dev/null || true
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -36,22 +63,28 @@ NC='\033[0m' # No Color
 
 # Function to print colored messages
 print_error() {
-    echo -e "${RED}ERROR:${NC} $1" >&2
+    if [ "$SILENT_MODE" = false ]; then
+        echo -e "${RED}ERROR:${NC} $1" >&2
+    fi
 }
 
 print_success() {
-    if [ "$IS_SOURCED" = true ]; then
-        echo -e "${GREEN}SUCCESS:${NC} $1"
-    else
-        echo -e "${GREEN}SUCCESS:${NC} $1" >&2
+    if [ "$SILENT_MODE" = false ]; then
+        if [ "$IS_SOURCED" = true ]; then
+            echo -e "${GREEN}SUCCESS:${NC} $1"
+        else
+            echo -e "${GREEN}SUCCESS:${NC} $1" >&2
+        fi
     fi
 }
 
 print_info() {
-    if [ "$IS_SOURCED" = true ]; then
-        echo -e "${YELLOW}INFO:${NC} $1"
-    else
-        echo -e "${YELLOW}INFO:${NC} $1" >&2
+    if [ "$SILENT_MODE" = false ]; then
+        if [ "$IS_SOURCED" = true ]; then
+            echo -e "${YELLOW}INFO:${NC} $1"
+        else
+            echo -e "${YELLOW}INFO:${NC} $1" >&2
+        fi
     fi
 }
 
@@ -303,13 +336,36 @@ assume_aws_role() {
     return 0
 }
 
+# Error flag for silent mode (when sourced, we can't use exit/return)
+SCRIPT_ERROR=false
+SCRIPT_ERROR_MSG=""
+
+# Function to handle script exit/return based on mode
+script_exit() {
+    local exit_code=${1:-0}
+    local error_msg=${2:-""}
+    
+    if [ "$SILENT_MODE" = true ] && [ "$IS_SOURCED" = true ]; then
+        # In silent mode when sourced, set error flag instead of exiting
+        if [ $exit_code -ne 0 ]; then
+            SCRIPT_ERROR=true
+            SCRIPT_ERROR_MSG="$error_msg"
+        fi
+        # Don't exit - let the script continue so credentials can be checked
+        return $exit_code
+    else
+        # Normal mode - exit normally
+        exit $exit_code
+    fi
+}
+
 # Check for --help flag first
 if [ $# -gt 0 ]; then
     ARG=$(echo "$1" | tr '[:upper:]' '[:lower:]')
     case "$ARG" in
         --help|-h|help)
             show_help
-            exit 0
+            script_exit 0
             ;;
     esac
 fi
@@ -339,9 +395,11 @@ if [ $# -gt 0 ]; then
             ;;
         *)
             print_error "Invalid argument: $1"
-            echo ""
-            show_help
-            exit 1
+            if [ "$SILENT_MODE" = false ]; then
+                echo ""
+                show_help
+            fi
+            script_exit 1
             ;;
     esac
 
@@ -385,7 +443,7 @@ else
                 ;;
             5)
                 print_info "Operation cancelled."
-                exit 0
+                script_exit 0
                 ;;
             "")
                 print_error "No selection made. Please enter a valid choice [1-5]."
@@ -400,11 +458,13 @@ fi
 # Handle clean action
 if [ "$ACTION" = "clean" ]; then
     clean_aws_credentials
-    exit 0
+    script_exit 0
 fi
 
 print_success "Selected account: ${ACCOUNT_TYPE}"
-echo ""
+if [ "$SILENT_MODE" = false ]; then
+    echo ""
+fi
 
 # Set default region if not already set
 if [ -z "${AWS_REGION:-}" ]; then
@@ -432,14 +492,14 @@ if [ -z "$ROLE_ARN" ]; then
     ROLE_SECRET_JSON=$(get_aws_secret "github-role" || echo "")
     if [ -z "$ROLE_SECRET_JSON" ]; then
         print_error "Failed to retrieve 'github-role' secret from AWS Secrets Manager"
-        exit 1
+        script_exit 1 "Failed to retrieve 'github-role' secret from AWS Secrets Manager"
     fi
 
     # Extract the selected account role ARN
     ROLE_ARN=$(get_secret_key_value "$ROLE_SECRET_JSON" "$ROLE_ARN_KEY" || echo "")
     if [ -z "$ROLE_ARN" ]; then
         print_error "Failed to retrieve ${ROLE_ARN_KEY} from secret"
-        exit 1
+        script_exit 1 "Failed to retrieve ${ROLE_ARN_KEY} from secret"
     fi
     print_success "Retrieved ${ROLE_ARN_KEY} from AWS Secrets Manager"
 else
@@ -465,31 +525,42 @@ if [ "$ACCOUNT_TYPE" != "State" ]; then
         if [ $? -ne 0 ]; then
             print_error "Failed to retrieve 'external-id' secret from AWS Secrets Manager"
             print_error "Error: $EXTERNAL_ID"
-            exit 1
+            script_exit 1 "Failed to retrieve 'external-id' secret: $EXTERNAL_ID"
         fi
 
         if [ -z "$EXTERNAL_ID" ]; then
             print_error "ExternalId secret is empty"
-            exit 1
+            script_exit 1 "ExternalId secret is empty"
         fi
         print_success "Retrieved ExternalId from AWS Secrets Manager"
     fi
 fi
 
-echo ""
+if [ "$SILENT_MODE" = false ]; then
+    echo ""
+fi
 
 # Assume the selected role
 if [ -n "$EXTERNAL_ID" ]; then
     if ! assume_aws_role "$ROLE_ARN" "$EXTERNAL_ID" "${ACCOUNT_TYPE} Account role" "assume-github-role"; then
-        exit 1
+        script_exit 1 "Failed to assume ${ACCOUNT_TYPE} Account role"
     fi
 else
     if ! assume_aws_role "$ROLE_ARN" "" "${ACCOUNT_TYPE} Account role" "assume-github-role"; then
-        exit 1
+        script_exit 1 "Failed to assume ${ACCOUNT_TYPE} Account role"
     fi
 fi
 
-echo ""
+# Check if error occurred in silent mode
+if [ "$SILENT_MODE" = true ] && [ "$IS_SOURCED" = true ] && [ "$SCRIPT_ERROR" = true ]; then
+    # In silent mode, we've already set the error flag
+    # Don't exit - let the caller check credentials
+    :
+fi
+
+if [ "$SILENT_MODE" = false ]; then
+    echo ""
+fi
 
 # Handle output based on whether script is sourced or executed
 if [ "$IS_SOURCED" = true ]; then
@@ -497,7 +568,9 @@ if [ "$IS_SOURCED" = true ]; then
     print_success "Script completed successfully!"
     print_info "AWS credentials are now exported in your current shell session."
     print_info "You can now run AWS CLI commands with the assumed role."
-    echo ""
+    if [ "$SILENT_MODE" = false ]; then
+        echo ""
+    fi
 else
     # Script is executed - output export commands to stdout (for eval), messages to stderr
     print_success "Script completed successfully!" >&2

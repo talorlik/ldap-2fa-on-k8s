@@ -268,9 +268,38 @@ data "external" "argocd_capability" {
         ERR="assume_script_not_found"
       else
         TMP="$(mktemp 2>/dev/null || echo "/tmp/argocd_assume_$$")"
-        if ! source "$SCRIPT_PATH" "$ACCOUNT_TYPE" >"$TMP" 2>&1; then
-          MSG="$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)"
+        # Temporarily disable exit on error to capture script output
+        set +e
+        # Source the script and capture all output
+        # The script will set SCRIPT_ERROR and SCRIPT_ERROR_MSG if it fails in silent mode
+        source "$SCRIPT_PATH" "$ACCOUNT_TYPE" >"$TMP" 2>&1
+        SCRIPT_RC=$?
+        set -e
+        
+        # Check for script error flag (set in silent mode)
+        # Use env command to check variables without Terraform interpolation issues
+        SCRIPT_ERROR_CHECK=$(env | grep '^SCRIPT_ERROR=' || echo "")
+        if [ -n "$SCRIPT_ERROR_CHECK" ] && echo "$SCRIPT_ERROR_CHECK" | grep -q 'SCRIPT_ERROR=true'; then
+          # Get error message from environment
+          SCRIPT_ERROR_MSG_CHECK=$(env | grep '^SCRIPT_ERROR_MSG=' || echo "")
+          MSG=$(echo "$SCRIPT_ERROR_MSG_CHECK" | sed 's/^SCRIPT_ERROR_MSG=//' || echo "")
+          if [ -z "$MSG" ]; then
+            MSG="$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)"
+          fi
           ERR="failed_to_assume_role:$${MSG}"
+        # Check if credentials were set (script succeeded)
+        # Use env to check credentials without Terraform interpolation issues
+        AWS_AKID_CHECK=$(env | grep '^AWS_ACCESS_KEY_ID=' || echo "")
+        AWS_SAK_CHECK=$(env | grep '^AWS_SECRET_ACCESS_KEY=' || echo "")
+        AWS_ST_CHECK=$(env | grep '^AWS_SESSION_TOKEN=' || echo "")
+        if [ -z "$AWS_AKID_CHECK" ] || [ -z "$AWS_SAK_CHECK" ] || [ -z "$AWS_ST_CHECK" ]; then
+          # Script didn't set credentials - check for error message
+          MSG="$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)"
+          if [ -n "$MSG" ]; then
+            ERR="failed_to_assume_role_exit_$${SCRIPT_RC}:$${MSG}"
+          else
+            ERR="failed_to_assume_role_exit_$${SCRIPT_RC}_no_output"
+          fi
         fi
         rm -f "$TMP" 2>/dev/null || true
       fi
