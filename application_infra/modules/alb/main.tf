@@ -128,7 +128,7 @@ locals {
 resource "time_sleep" "wait_for_eks_auto_mode" {
   # Always create the resource, but use 0s duration when wait_for_crd is false
   # This allows us to always reference it in depends_on (which requires a static list)
-  create_duration = var.wait_for_crd ? "30s" : "0s"
+  create_duration = var.wait_for_crd ? "2m" : "0s"
 
   # Trigger recreation if cluster changes (helps with new cluster deployments)
   triggers = {

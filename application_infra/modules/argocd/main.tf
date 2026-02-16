@@ -222,7 +222,7 @@ resource "aws_eks_capability" "argocd" {
 # Wait for ArgoCD capability to be fully deployed and ACTIVE
 # This ensures proper deployment ordering when ArgoCD is enabled
 resource "time_sleep" "wait_for_argocd" {
-  create_duration = "5m" # Wait 5 minutes for ArgoCD capability to be ready
+  create_duration = "3m" # Wait 3 minutes for ArgoCD capability to be ready
 
   depends_on = [aws_eks_capability.argocd]
 }
