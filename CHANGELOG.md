@@ -78,6 +78,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixes error: "External Program Execution Failed" when running Terraform in GitHub
   Actions workflows
 
+- **Path, context, and state consistency (scripts and workflows)**
+  - **tf_backend_state**: `get-state.sh` and `set-state.sh` now change to the script
+  directory before running so Terraform and variables are found whether invoked
+  from repo root or `tf_backend_state/`. TF state workflows (`tfstate_infra_provisioning`,
+  `tfstate_infra_destroying`) set default `AWS_REGION=us-east-1` when repository
+  variable `vars.AWS_REGION` is not set.
+  - **application_infra**: `set-k8s-env.sh` uses `BACKEND_PREFIX` (from repository
+  variable or `backend_infra/backend.hcl`) and workspace from `TERRAFORM_WORKSPACE`
+  or `AWS_REGION`+`ENVIRONMENT`, and restores the original working directory after
+  sourcing so callers are not left in `application_infra/`. Setup and destroy scripts
+  export `TERRAFORM_WORKSPACE` before sourcing `set-k8s-env.sh`.
+  - **mirror-images-to-ecr.sh**: Backend_infra state key comes from `BACKEND_PREFIX`
+  or `backend_infra/backend.hcl` (no hardcoded key). Workspace from `TERRAFORM_WORKSPACE`
+  or `AWS_REGION`+`ENVIRONMENT`.
+  - **monitor-deployments.sh**: Uses selected `REGION` for AWS Secrets Manager;
+  reads `BACKEND_PREFIX` from GitHub variables (or environment); state path uses
+  `env:/${REGION}-${ENVIRONMENT}/${BACKEND_PREFIX}`.
+  - **Application workflows**: Export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX`;
+  application provisioning and destroying workflows extract backend and frontend
+  image tags from Helm values files and set `TF_VAR_backend_image_tag` and
+  `TF_VAR_frontend_image_tag` (replacing reliance on `:latest`).
+  - **Backend/Frontend build workflows**: No longer push a `:latest` tag; only the
+  computed image tag is pushed. Application layer uses tags from Helm values (updated
+  by build workflows).
+  - **application/destroy-application.sh**: Assume-role context label corrected
+  from `destroy-application-infra` to `destroy-application` for State Account role.
+  - **application/setup-application.sh**: Exports `TERRAFORM_WORKSPACE`, sources
+  `set-k8s-env.sh`, then restores current directory so Terraform runs in
+  `application/`; extracts backend and frontend image tags from Helm values for
+  `TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag`.
+
 ## [2026-02-15] - Backend Database URL from Secret, Log Redaction, IDE Config
 
 ### Added

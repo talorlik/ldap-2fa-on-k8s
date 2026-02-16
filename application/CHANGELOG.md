@@ -18,11 +18,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **GitHub Actions Workflows: Backend Configuration File Creation**
-  - Fixed `application_provisioning.yaml` to create `application_infra/backend.hcl` before checking ArgoCD capability status
-  - Fixed `application_destroying.yaml` to create both `backend_infra/backend.hcl` and `application_infra/backend.hcl` before terraform init
-  - Ensures backend configuration files exist before Terraform initialization, preventing initialization errors
-  - Improved error handling in terraform init and workspace select commands to show actual errors instead of hiding them
-  - Fixes issue where `application/providers.tf` requires `application_infra/backend.hcl` to read remote state configuration
+  - Fixed `application_provisioning.yaml` to create `application_infra/backend.hcl`
+  before checking ArgoCD capability status
+  - Fixed `application_destroying.yaml` to create both `backend_infra/backend.hcl`
+  and `application_infra/backend.hcl` before terraform init
+  - Ensures backend configuration files exist before Terraform initialization,
+  preventing initialization errors
+  - Improved error handling in terraform init and workspace select commands to
+  show actual errors instead of hiding them
+  - Fixes issue where `application/providers.tf` requires `application_infra/backend.hcl`
+  to read remote state configuration
+
+- **destroy-application.sh: State Account assume-role context**
+  - Corrected the assume-role context label from `destroy-application-infra` to
+  `destroy-application` when assuming the State Account role for Terraform
+  operations.
+
+### Added
+
+- **setup-application.sh: Image tags from Helm values and set-k8s-env directory
+handling**
+  - Backend and frontend image tags are read from
+  `backend/helm/ldap-2fa-backend/values.yaml` and
+  `frontend/helm/ldap-2fa-frontend/values.yaml` and exported as
+  `TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag` (replacing reliance
+  on `:latest`). Defaults to `latest` if files are missing or tag cannot be parsed.
+  - Script exports `TERRAFORM_WORKSPACE` before sourcing `set-k8s-env.sh` and
+  restores the current directory after sourcing so Terraform runs in `application/`.
+- **Application Terraform variable `frontend_image_tag`**
+  - New variable (default `latest`) for the frontend Docker image tag used by the
+  ArgoCD Application; application layer uses tags from Helm values updated by
+  build workflows.
+- **Application provisioning and destroying workflows**
+  - Workflows export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX` for state path
+  consistency. They extract backend and frontend image tags from Helm values and
+  set `TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag` so the correct
+  image tags are deployed (no `:latest` dependency).
 
 ### Changed
 

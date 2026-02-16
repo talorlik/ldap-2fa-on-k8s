@@ -208,7 +208,7 @@
                 <li><strong>Automated Configuration Management</strong>: ECR repository name automatically saved to GitHub variables during backend infrastructure provisioning (eliminates manual configuration steps)</li>
                 <li><strong>ArgoCD Status Validation</strong>: Automatic validation that ArgoCD capability is "ACTIVE" before deploying applications (prevents deployment failures due to incomplete ArgoCD setup)</li>
                 <li><strong>Role Assumption Script</strong>: Convenient <code>assume-github-role.sh</code> script for switching between AWS account roles (State, Development, Production) when working in the terminal</li>
-                <li><strong>Unique Build Image Tags</strong>: Backend and frontend build workflows use commit SHA plus run ID for image tags (<code>&lt;name&gt;-&lt;sha&gt;-&lt;run_id&gt;</code>), preventing ECR tag conflicts when re-running workflows</li>
+                <li><strong>Unique Build Image Tags</strong>: Backend and frontend build workflows use commit SHA plus run ID for image tags (<code>&lt;name&gt;-&lt;sha&gt;-&lt;run_id&gt;</code>), push only that tag to ECR (no <code>:latest</code>), and update Helm values; application provisioning reads tags from Helm values</li>
                 <li><strong>ArgoCD Access Entry</strong>: ArgoCD Capability uses EKS Access Policy association for cluster admin permissions, ensuring reliable GitOps sync across namespaces and cluster-scoped resources</li>
             </ul>
         </div>
@@ -271,7 +271,7 @@
                     <p><strong>Note on State File Isolation:</strong> The <code>APPLICATION_INFRA_PREFIX</code> and <code>APPLICATION_PREFIX</code> variables ensure that infrastructure and application state files are stored separately in the same S3 bucket, preventing state conflicts. Both directories use the same <code>BACKEND_BUCKET_NAME</code> but different keys for complete isolation.</p>
                 </li>
                 <li><strong>For Local Deployment:</strong> GitHub CLI (<code>gh</code>), AWS CLI, Terraform, kubectl, and <code>jq</code> installed and configured</li>
-                <li><strong>For Local Deployment:</strong> <strong>Docker</strong> must be installed and running for ECR image mirroring. The <code>mirror-images-to-ecr.sh</code> script requires Docker to pull images from Docker Hub and push them to ECR. This step is automatically executed by <code>setup-application.sh</code> before Terraform operations.</li>
+                <li><strong>For Local Deployment:</strong> <strong>Docker</strong> must be installed and running for ECR image mirroring. The <code>mirror-images-to-ecr.sh</code> script requires Docker to pull images from Docker Hub and push them to ECR. This step is automatically executed by <code>setup-application-infra.sh</code> before Terraform operations.</li>
                 <li><strong>For Local Deployment:</strong> AWS Secrets Manager configured with <code>github-role</code>, <code>tf-vars</code>, and <code>external-id</code> secrets (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>)</li>
             </ul>
             <p><strong>For detailed prerequisites and setup:</strong> <a href="../README.md#prerequisites">Prerequisites</a> | <a href="../README.md#secrets-configuration">Secrets Configuration</a> | <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
@@ -285,6 +285,7 @@
                 <p>Deploy the S3 bucket for Terraform state storage:</p>
                 <pre><code>cd tf_backend_state
 ./set-state.sh</code></pre>
+                <p>You can also run from the repo root: <code>./tf_backend_state/set-state.sh</code>. Both <code>set-state.sh</code> and <code>get-state.sh</code> change to their script directory before running, so Terraform and variables are found either way.</p>
                 <p><strong>What the script does:</strong></p>
                 <ul>
                     <li>Retrieves <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> from AWS Secrets Manager</li>
@@ -296,7 +297,7 @@
                     <li>Saves/updates <code>BACKEND_BUCKET_NAME</code> to GitHub repository variables</li>
                     <li>Uploads state file to S3</li>
                 </ul>
-                <p><strong>Alternative:</strong> Use <code>./get-state.sh</code> to download existing state file without provisioning</p>
+                <p><strong>Alternative:</strong> Use <code>./get-state.sh</code> (or <code>./tf_backend_state/get-state.sh</code> from repo root) to download existing state file without provisioning</p>
                 <h5 id="local-step-2">Step 2: Deploy Backend Infrastructure</h5>
                 <p>Deploy VPC, EKS cluster, VPC endpoints, IRSA, and ECR:</p>
                 <pre><code>cd backend_infra
@@ -326,6 +327,7 @@
                             <li>Checks if images exist in ECR before mirroring (skips if already present)</li>
                             <li>Pulls images from Docker Hub: <code>bitnami/redis:latest</code>, <code>bitnami/postgresql:latest</code>, <code>osixia/openldap:1.5.0</code></li>
                             <li>Pushes images to ECR with tags: <code>redis-latest</code>, <code>postgresql-latest</code>, <code>openldap-1.5.0</code> (prevents Docker Hub rate limiting by using ECR images)</li>
+                            <li>Uses <code>BACKEND_PREFIX</code> (or <code>backend_infra/backend.hcl</code>) and <code>TERRAFORM_WORKSPACE</code> (or <code>AWS_REGION</code>+<code>ENVIRONMENT</code>) for correct backend_infra state path</li>
                             <li>Uses State Account credentials to fetch ECR URL from backend_infra state</li>
                             <li>Assumes Deployment Account role for ECR operations (with ExternalId)</li>
                             <li>Authenticates Docker to ECR automatically</li>
@@ -342,9 +344,10 @@
                         </ul>
                     </li>
                     <li>Assumes State Account role for backend operations</li>
+                    <li>Exports <code>TERRAFORM_WORKSPACE</code> before sourcing <code>set-k8s-env.sh</code> so the correct backend_infra state is read</li>
                     <li>Generates <code>backend.hcl</code> from template using <code>APPLICATION_INFRA_PREFIX</code> for state file key (if it doesn't exist)</li>
                     <li>Updates <code>variables.tfvars</code> with selected values</li>
-                    <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code></li>
+                    <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code> (uses <code>BACKEND_PREFIX</code> and <code>TERRAFORM_WORKSPACE</code>; restores original directory after sourcing)</li>
                     <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
                 </ul>
                 <h5 id="local-step-4">Step 4: Build Container Images (Required Before Application Deployment)</h5>
@@ -398,12 +401,13 @@
                     <li>Assumes State Account role for backend operations</li>
                     <li>Generates <code>backend.hcl</code> from template using <code>APPLICATION_PREFIX</code> for state file key (if it doesn't exist)</li>
                     <li>Updates <code>variables.tfvars</code> with selected values</li>
-                    <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code> (from application_infra)</li>
+                    <li>Extracts backend and frontend image tags from Helm values (<code>backend/helm/ldap-2fa-backend/values.yaml</code>, <code>frontend/helm/ldap-2fa-frontend/values.yaml</code>) and sets <code>TF_VAR_backend_image_tag</code> and <code>TF_VAR_frontend_image_tag</code> (defaults to <code>latest</code> if missing)</li>
+                    <li>Exports <code>TERRAFORM_WORKSPACE</code>, sources <code>set-k8s-env.sh</code> (from application_infra), then restores current directory so Terraform runs in <code>application/</code></li>
                     <li><strong>Validates ArgoCD capability status</strong> - Ensures ArgoCD capability is "ACTIVE" before proceeding (prevents deployment failures)</li>
                     <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
                     <li>References infrastructure outputs from <code>application_infra</code> remote state (including LDAP host, base DN, admin DN—used by the admin-seed Job and not hardcoded)</li>
                 </ul>
-                <p><strong>Note:</strong> Application components require infrastructure to be deployed first (Steps 1-3 completed). The script automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, deployment will fail with a clear error message.</p>
+                <p><strong>Note:</strong> Application components require infrastructure to be deployed first (Steps 1-3 completed). The script automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, deployment will fail with a clear error message. Backend and frontend image tags are read from Helm values (updated by the build workflows); the build workflows push only the computed tag (no <code>:latest</code>).</p>
                 <p><strong>First admin seed (optional):</strong> If you set all <code>ADMIN_SEED_*</code> keys in <code>tf-vars</code> (or GitHub Secrets), Terraform creates a one-time Job that seeds the first admin user with the same username/password as the LDAP admin, email/phone pre-verified, and membership in the LDAP admins group. See <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a> and <a href="../application/README.md">Application README</a>.</p>
                 <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
                 <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled in <code>variables.tfvars</code>) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY-2FA-APPS.md">Deploying the 2FA Application</a>.</p>
@@ -712,7 +716,7 @@ terraform apply</code></pre>
                     </li>
                     <li><strong>Destroy State Backend (if needed):</strong>
                         <pre><code>cd tf_backend_state
-./get-state.sh  # Download state file first
+./get-state.sh  # Download state file first (or ./tf_backend_state/get-state.sh from repo root)
 terraform plan -var-file="variables.tfvars" -destroy -out terraform.tfplan
 terraform apply -auto-approve terraform.tfplan</code></pre>
                     </li>
@@ -732,6 +736,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <p><strong>What the workflow does:</strong></p>
                 <ul>
                     <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> secret for OIDC authentication</li>
+                    <li>Defaults <code>AWS_REGION</code> to <code>us-east-1</code> when the repository variable is not set</li>
                     <li>Validates Terraform configuration</li>
                     <li>Creates S3 bucket with versioning and encryption</li>
                     <li>Saves bucket name as <code>BACKEND_BUCKET_NAME</code> repository variable</li>
@@ -770,6 +775,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> for backend state operations</li>
                     <li>Uses environment-specific deployment account role ARN</li>
                     <li>Uses <code>AWS_ASSUME_EXTERNAL_ID</code> for cross-account role assumption</li>
+                    <li>Exports <code>TERRAFORM_WORKSPACE</code> and <code>BACKEND_PREFIX</code> for <code>set-k8s-env.sh</code> and state path consistency</li>
                     <li>Retrieves repository variables (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_INFRA_PREFIX</code>) for backend state configuration</li>
                     <li>Creates <code>backend.hcl</code> from template using <code>APPLICATION_INFRA_PREFIX</code> for state file key</li>
                     <li>Retrieves OpenLDAP password secrets from GitHub repository secrets</li>
@@ -796,7 +802,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     </li>
                 </ol>
                 <p><strong>What the workflows do:</strong></p>
-                <p>Both workflows build Docker images, push them to ECR, update Helm values.yaml files with new image tags, and commit changes to the repository. These workflows can be run in parallel since they modify different files.</p>
+                <p>Both workflows build Docker images, push them to ECR (only the computed image tag is pushed; no <code>:latest</code> tag), update Helm values.yaml files with new image tags, and commit changes to the repository. Application provisioning then reads these tags from Helm values. These workflows can be run in parallel since they modify different files.</p>
                 <h5 id="github-step-5">Step 5: Deploy Application</h5>
                 <ol>
                     <li>Go to GitHub → <strong>Actions</strong> tab</li>
@@ -812,6 +818,8 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> for backend state operations</li>
                     <li>Uses environment-specific deployment account role ARN</li>
                     <li>Uses <code>AWS_ASSUME_EXTERNAL_ID</code> for cross-account role assumption</li>
+                    <li>Exports <code>TERRAFORM_WORKSPACE</code> and <code>BACKEND_PREFIX</code> for state path consistency</li>
+                    <li>Extracts backend and frontend image tags from Helm values and sets <code>TF_VAR_backend_image_tag</code> and <code>TF_VAR_frontend_image_tag</code> (so the correct images are deployed; no <code>:latest</code> dependency)</li>
                     <li>Creates <code>backend_infra/backend.hcl</code> from template (needed for remote state access)</li>
                     <li>Creates <code>application_infra/backend.hcl</code> from template (needed for ArgoCD status check and remote state access)</li>
                     <li><strong>Validates ArgoCD capability status</strong> - Ensures ArgoCD capability is "ACTIVE" before proceeding (prevents deployment failures)</li>
@@ -840,6 +848,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                             <li>Uses <code>AWS_STATE_ACCOUNT_ROLE_ARN</code> for backend state operations</li>
                             <li>Uses environment-specific deployment account role ARN</li>
                             <li>Uses <code>AWS_ASSUME_EXTERNAL_ID</code> for cross-account role assumption</li>
+                            <li>Exports <code>TERRAFORM_WORKSPACE</code> and <code>BACKEND_PREFIX</code> for state path consistency</li>
                             <li>Creates <code>backend.hcl</code> from template using <code>APPLICATION_PREFIX</code> for state file key</li>
                             <li>Creates <code>backend_infra/backend.hcl</code> from template (needed for remote state access)</li>
                             <li>Creates <code>application_infra/backend.hcl</code> from template (needed for remote state access)</li>
@@ -927,8 +936,8 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li><strong>Purpose:</strong> Creates S3 bucket for storing Terraform state files</li>
                         <li><strong>Components:</strong> S3 bucket with versioning, encryption, and file-based locking</li>
                         <li><strong>Account:</strong> State Account (Account A)</li>
-                        <li><strong>Local:</strong> <code>cd tf_backend_state && ./set-state.sh</code></li>
-                        <li><strong>GitHub Actions:</strong> "TF Backend State Provisioning" workflow</li>
+                        <li><strong>Local:</strong> <code>cd tf_backend_state && ./set-state.sh</code> (or <code>./tf_backend_state/set-state.sh</code> from repo root; scripts change to their directory automatically)</li>
+                        <li><strong>GitHub Actions:</strong> "TF Backend State Provisioning" workflow (defaults <code>AWS_REGION</code> to <code>us-east-1</code> when not set)</li>
                         <li><strong>See:</strong> <a href="../tf_backend_state/README.md">Terraform Backend State README</a></li>
                     </ul>
                 </li>

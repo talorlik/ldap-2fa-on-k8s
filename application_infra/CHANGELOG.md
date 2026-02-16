@@ -37,6 +37,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All workflows now export `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` as environment
   variables for ArgoCD module external data source
 
+- **set-k8s-env.sh: BACKEND_PREFIX, workspace, and directory behavior**
+  - Backend_infra state key is no longer hardcoded: uses `BACKEND_PREFIX`
+  (e.g. from repository variables in CI) or parses `backend_infra/backend.hcl`
+  when available.
+  - Workspace for S3 state path is resolved from `TERRAFORM_WORKSPACE`, or
+  `AWS_REGION`+`ENVIRONMENT`, or `terraform workspace show` (when run from
+  application_infra after workspace select). Callers (setup/destroy scripts
+  and CI) should export `TERRAFORM_WORKSPACE` or both `AWS_REGION` and
+  `ENVIRONMENT` before sourcing the script.
+  - Script restores the original working directory after running so that callers
+  (e.g. application/setup-application.sh) are not left in `application_infra/`.
+- **setup-application-infra.sh and destroy-application-infra.sh**
+  - Both export `TERRAFORM_WORKSPACE="$WORKSPACE_NAME"` before sourcing
+  `set-k8s-env.sh` so the correct backend_infra state is read in all contexts.
+- **mirror-images-to-ecr.sh**
+  - Backend_infra state key from `BACKEND_PREFIX` or `backend_infra/backend.hcl`;
+  workspace from `TERRAFORM_WORKSPACE` or `AWS_REGION`+`ENVIRONMENT` for correct
+  state path when mirroring images.
+
 ### Fixed
 
 - **set-k8s-env.sh: Path Resolution When Sourced**

@@ -8,6 +8,18 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-02-16] - Script directory and workflow defaults
+
+### Changed
+
+- **get-state.sh and set-state.sh**: Both scripts now change to their own script
+  directory at startup (using `BASH_SOURCE` and `cd`), so Terraform and
+  `variables.tfvars` are found whether the scripts are run from the repository
+  root or from inside `tf_backend_state/`.
+- **TF Backend State GitHub Actions workflows**: When the repository variable
+  `AWS_REGION` is not set, the Provisioning and Destroying workflows set
+  `AWS_REGION=us-east-1` in the environment so steps use a defined region.
+
 ## [2026-01-15] - Automation Improvements and Configuration Simplification
 
 ### Added

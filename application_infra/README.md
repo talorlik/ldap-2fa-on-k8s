@@ -717,7 +717,7 @@ env                         = "prod"
 region                      = "us-east-1"
 prefix                      = "talo-tf"
 
-# Cluster name from remote state
+# Cluster name from remote state (backend_key should match BACKEND_PREFIX repo variable)
 backend_bucket = "talo-tf-395323424870-s3-tfstate"
 backend_key    = "backend_state/terraform.tfstate"
 
@@ -794,6 +794,11 @@ Terraform operations (required for accessing backend_infra remote state via `pro
 >
 > The `set-k8s-env.sh` script correctly resolves its directory path when sourced
 > (using `${BASH_SOURCE[0]}`), ensuring it works both locally and in GitHub Actions.
+> It uses `BACKEND_PREFIX` (from repository variables or `backend_infra/backend.hcl`)
+> for the backend_infra state key, and `TERRAFORM_WORKSPACE` or `AWS_REGION`+`ENVIRONMENT`
+> for the workspace. Callers (setup/destroy scripts and CI) should export
+> `TERRAFORM_WORKSPACE` before sourcing so the correct state is read. The script
+> restores the original working directory after running.
 
 ### Destroying Infrastructure
 
@@ -838,6 +843,8 @@ The provisioning workflow will:
 
 - Install `jq` command-line tool (required for ArgoCD module external data source)
 - Make `assume-github-role.sh` executable (for local fallback)
+- Export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX` for `set-k8s-env.sh` and
+  state path consistency
 - Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
 Route53/ACM access
 - Use environment-specific deployment account role ARN
@@ -864,6 +871,8 @@ The destroying workflow will:
 
 - Install `jq` command-line tool (required for ArgoCD module external data source)
 - Make `assume-github-role.sh` executable (for local fallback)
+- Export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX` for `set-k8s-env.sh` and state
+path consistency
 - Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
   Route53/ACM access
 - Use environment-specific deployment account role ARN
@@ -956,6 +965,10 @@ cd application_infra
 chmod +x ./mirror-images-to-ecr.sh
 ./mirror-images-to-ecr.sh
 ```
+
+The script uses `BACKEND_PREFIX` (or parses `backend_infra/backend.hcl`) for the
+backend_infra state key and `TERRAFORM_WORKSPACE` or `AWS_REGION`+`ENVIRONMENT`
+for the workspace so the correct state path is used when run locally or from CI.
 
 **Integration:**
 

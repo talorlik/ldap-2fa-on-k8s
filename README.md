@@ -731,7 +731,9 @@ These scripts automatically handle:
 - Repository variable updates
 
 The scripts retrieve `AWS_STATE_ACCOUNT_ROLE_ARN` from AWS Secrets Manager and
-assume the role automatically.
+assume the role automatically. They change to the script directory before running,
+so you can invoke them from the repo root (e.g. `./tf_backend_state/set-state.sh`)
+or from inside `tf_backend_state/` (e.g. `./set-state.sh`).
 
 > [!NOTE]
 >

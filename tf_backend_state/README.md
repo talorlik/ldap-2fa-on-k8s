@@ -153,6 +153,8 @@ This is the recommended approach as it handles state file upload automatically.
 > GitHub Actions workflows retrieve the role ARN directly from
 > **GitHub repository secrets** (`AWS_STATE_ACCOUNT_ROLE_ARN`).
 > This differs from local script execution, which uses AWS Secrets Manager.
+> If the repository variable `AWS_REGION` is not set, both TF Backend State
+> workflows (Provisioning and Destroying) default `AWS_REGION` to `us-east-1`.
 
 #### Provisioning 1 (Create Infrastructure)
 
@@ -252,6 +254,12 @@ cd tf_backend_state
 ```
 
 > [!NOTE]
+>
+> Both `set-state.sh` and `get-state.sh` change to their script directory before
+> running, so Terraform and `variables.tfvars` are found whether you run them from
+> the repository root (e.g. `./tf_backend_state/set-state.sh`) or from inside
+> `tf_backend_state/` (e.g. `./set-state.sh`).
+>
 >
 > The script intelligently detects whether infrastructure needs to be provisioned
 > by checking for the `BACKEND_BUCKET_NAME` repository variable. If the variable
