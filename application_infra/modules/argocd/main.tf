@@ -287,18 +287,20 @@ data "external" "argocd_capability" {
             MSG="$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)"
           fi
           ERR="failed_to_assume_role:$${MSG}"
-        # Check if credentials were set (script succeeded)
-        # Use env to check credentials without Terraform interpolation issues
-        AWS_AKID_CHECK=$(env | grep '^AWS_ACCESS_KEY_ID=' || echo "")
-        AWS_SAK_CHECK=$(env | grep '^AWS_SECRET_ACCESS_KEY=' || echo "")
-        AWS_ST_CHECK=$(env | grep '^AWS_SESSION_TOKEN=' || echo "")
-        if [ -z "$AWS_AKID_CHECK" ] || [ -z "$AWS_SAK_CHECK" ] || [ -z "$AWS_ST_CHECK" ]; then
-          # Script didn't set credentials - check for error message
-          MSG="$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)"
-          if [ -n "$MSG" ]; then
-            ERR="failed_to_assume_role_exit_$${SCRIPT_RC}:$${MSG}"
-          else
-            ERR="failed_to_assume_role_exit_$${SCRIPT_RC}_no_output"
+        else
+          # Check if credentials were set (script succeeded)
+          # Use env to check credentials without Terraform interpolation issues
+          AWS_AKID_CHECK=$(env | grep '^AWS_ACCESS_KEY_ID=' || echo "")
+          AWS_SAK_CHECK=$(env | grep '^AWS_SECRET_ACCESS_KEY=' || echo "")
+          AWS_ST_CHECK=$(env | grep '^AWS_SESSION_TOKEN=' || echo "")
+          if [ -z "$AWS_AKID_CHECK" ] || [ -z "$AWS_SAK_CHECK" ] || [ -z "$AWS_ST_CHECK" ]; then
+            # Script didn't set credentials - check for error message
+            MSG="$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)"
+            if [ -n "$MSG" ]; then
+              ERR="failed_to_assume_role_exit_$${SCRIPT_RC}:$${MSG}"
+            else
+              ERR="failed_to_assume_role_exit_$${SCRIPT_RC}_no_output"
+            fi
           fi
         fi
         rm -f "$TMP" 2>/dev/null || true
