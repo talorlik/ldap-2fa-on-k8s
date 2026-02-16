@@ -536,15 +536,23 @@ The cluster name is automatically retrieved using a fallback chain:
 3. **Third**: Calculates cluster name using pattern:
 `${prefix}-${region}-${cluster_name_component}-${env}`
 
-The backend configuration (bucket, key, region) is read from `backend.hcl`
-(created by `setup-application.sh`).
+The backend configuration (bucket, key, region) is read from `backend_infra/backend.hcl`
+(created automatically by setup scripts or GitHub Actions workflows).
 
-If `backend.hcl` doesn't exist or remote state is not available, you can provide
-the cluster name directly in `variables.tfvars`:
-
-```hcl
-cluster_name = "talo-tf-us-east-1-kc-prod"
-```
+> [!IMPORTANT]
+>
+> The `application_infra/providers.tf` file reads `backend_infra/backend.hcl`
+>to access backend_infra remote state. This file is automatically created:
+>
+> - **Locally**: By `setup-backend.sh` script in the `backend_infra` directory
+> - **GitHub Actions**: Automatically created by workflows before Terraform operations
+>
+> If `backend_infra/backend.hcl` doesn't exist or remote state is not available,
+> you can provide the cluster name directly in `variables.tfvars`:
+>
+> ```hcl
+> cluster_name = "talo-tf-us-east-1-kc-prod"
+> ```
 
 #### Kubernetes Kubeconfig Auto-Update
 
@@ -564,6 +572,8 @@ role credentials (already assumed by the script)
 - **Creates Directory if Needed**: Automatically creates the kubeconfig directory
 if it doesn't exist
 - **Error Handling**: Script exits with error if kubeconfig update fails
+- **Works When Sourced**: Script correctly resolves its directory path when sourced
+  (using `${BASH_SOURCE[0]}`), ensuring it works both locally and in GitHub Actions
 
 **Kubeconfig Path**:
 
@@ -735,6 +745,56 @@ idc_region                  = "us-east-1"
 
 ## Deployment
 
+### Provisioning Infrastructure
+
+#### Option 1: Using Setup Script (Local)
+
+```bash
+cd application_infra
+./setup-application-infra.sh
+```
+
+The script will:
+
+- Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
+- Retrieve repository variables from GitHub
+- Retrieve role ARNs and OpenLDAP password secrets from AWS Secrets Manager
+- Export OpenLDAP password secrets as environment variables
+- Generate `backend.hcl` from template (if it doesn't exist)
+- Update `variables.tfvars` with selected region, environment, and deployment
+account role ARN
+- Mirror Docker images to ECR (OpenLDAP)
+- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Run Terraform commands (init, workspace, validate, plan, apply) automatically
+
+#### Option 2: Using GitHub Actions Workflow
+
+1. Go to GitHub → Actions tab
+2. Select "Application Infrastructure Provisioning" workflow
+3. Click "Run workflow"
+4. Select environment (prod or dev) and region
+5. Click "Run workflow"
+
+The workflow will:
+
+- Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
+Route53/ACM access
+- Use environment-specific deployment account role ARN
+- Use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
+- Export `STATE_ACCOUNT_ROLE_ARN` for automatic injection into `variables.tfvars`
+- Retrieve OpenLDAP password secrets from GitHub repository secrets
+- **Automatically create `backend_infra/backend.hcl`** from template before
+Terraform operations (required for accessing backend_infra remote state via `providers.tf`)
+- Create `backend.hcl` from template for application_infra state
+- Mirror Docker images to ECR (OpenLDAP)
+- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Run Terraform operations automatically
+
+> [!NOTE]
+>
+> The `set-k8s-env.sh` script correctly resolves its directory path when sourced
+> (using `${BASH_SOURCE[0]}`), ensuring it works both locally and in GitHub Actions.
+
 ### Destroying Infrastructure
 
 > [!WARNING]
@@ -766,13 +826,37 @@ The script will:
 
 #### Option 2: Using GitHub Actions Workflow
 
+**Provisioning:**
+
 1. Go to GitHub → Actions tab
-2. Select "Application Infrastructure Destroying" workflow
+2. Select "Application Infrastructure Provisioning" workflow
 3. Click "Run workflow"
 4. Select environment (prod or dev) and region
 5. Click "Run workflow"
 
-The workflow will:
+The provisioning workflow will:
+
+- Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
+Route53/ACM access
+- Use environment-specific deployment account role ARN
+- Use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
+- Export `STATE_ACCOUNT_ROLE_ARN` for automatic injection into `variables.tfvars`
+- Retrieve OpenLDAP password secrets from GitHub repository secrets
+- **Automatically create `backend_infra/backend.hcl`** from template before
+Terraform operations (required for accessing backend_infra remote state)
+- Create `backend.hcl` from template for application_infra state
+- Run Terraform operations automatically
+
+**Destroying:**
+
+1. Go to GitHub → Actions tab
+2. Select "Application Infrastructure Destroying" workflow
+3. Click "Run workflow"
+4. Type **yes** in the confirmation input
+5. Select environment (prod or dev) and region
+6. Click "Run workflow"
+
+The destroying workflow will:
 
 - Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
   Route53/ACM access
@@ -780,6 +864,8 @@ The workflow will:
 - Use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption
 - Export `STATE_ACCOUNT_ROLE_ARN` for automatic injection into `variables.tfvars`
 - Retrieve OpenLDAP password secrets from GitHub repository secrets
+- **Automatically create `backend_infra/backend.hcl`** from template before
+Terraform operations (required for accessing backend_infra remote state)
 - Run Terraform destroy operations automatically
 
 > [!IMPORTANT]

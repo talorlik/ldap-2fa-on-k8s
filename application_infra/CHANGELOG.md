@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [2026-02-16] - Script and Workflow Fixes
+
+### Fixed
+
+- **set-k8s-env.sh: Path Resolution When Sourced**
+  - Fixed script directory detection when script is sourced (using `source ./set-k8s-env.sh`)
+  - Changed from `$0` to `${BASH_SOURCE[0]}` for correct path resolution
+  - Ensures script works correctly both locally and in GitHub Actions workflows
+  - Fixes error: "backend.hcl not found" when running workflows
+
+- **GitHub Actions: Automatic backend_infra/backend.hcl Creation**
+  - Added automatic creation of `backend_infra/backend.hcl` in all relevant workflows:
+    - `application_infra_provisioning.yaml`
+    - `application_infra_destroying.yaml`
+    - `application_provisioning.yaml`
+    - `application_destroying.yaml`
+  - Workflows now create `backend_infra/backend.hcl` from template before Terraform
+  operations
+  - Required because `application_infra/providers.tf` reads this file to access
+  backend_infra remote state
+  - Works seamlessly both locally (skips if file exists) and in GitHub Actions
+  (creates if needed)
+  - Fixes error: "open ./../backend_infra/backend.hcl: no such file or directory"
+
 ## [2026-02-15] - LDAP Connection Outputs for 2FA Application
 
 ### Added

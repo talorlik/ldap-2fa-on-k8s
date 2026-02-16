@@ -111,6 +111,22 @@ jobs:
           role-session-name: GitHubActions-ApplicationProvision-State
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Create backend_infra backend.hcl from placeholder
+        run: |
+          # Create backend_infra/backend.hcl if it doesn't exist
+          # This is needed for application/providers.tf and application_infra/providers.tf to read backend_infra state configuration
+          if [ ! -f "../backend_infra/backend.hcl" ]; then
+            cp ../backend_infra/tfstate-backend-values-template.hcl ../backend_infra/backend.hcl
+            sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
+            -e "s|<BACKEND_PREFIX>|${{ vars.BACKEND_PREFIX }}|g" \
+            -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
+            ../backend_infra/backend.hcl
+            echo "Created ../backend_infra/backend.hcl:"
+            cat ../backend_infra/backend.hcl
+          else
+            echo "../backend_infra/backend.hcl already exists. Skipping creation."
+          fi
+
       - name: Check ArgoCD capability status
         id: check_argocd
         working-directory: ./application_infra
