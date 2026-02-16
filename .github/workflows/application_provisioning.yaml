@@ -134,16 +134,16 @@ jobs:
         run: |
           # Create application_infra/backend.hcl if it doesn't exist
           # This is needed for terraform init in the Check ArgoCD capability status step
-          if [ ! -f "application_infra/backend.hcl" ]; then
-            cp application_infra/tfstate-backend-values-template.hcl application_infra/backend.hcl
+          if [ ! -f "../application_infra/backend.hcl" ]; then
+            cp ../application_infra/tfstate-backend-values-template.hcl ../application_infra/backend.hcl
             sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
             -e "s|<APPLICATION_INFRA_PREFIX>|${{ vars.APPLICATION_INFRA_PREFIX }}|g" \
             -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
-            application_infra/backend.hcl
-            echo "Created application_infra/backend.hcl:"
-            cat application_infra/backend.hcl
+            ../application_infra/backend.hcl
+            echo "Created ../application_infra/backend.hcl:"
+            cat ../application_infra/backend.hcl
           else
-            echo "application_infra/backend.hcl already exists. Skipping creation."
+            echo "../application_infra/backend.hcl already exists. Skipping creation."
           fi
 
       - name: Check ArgoCD capability status
