@@ -8,7 +8,9 @@
 
 set -e
 
-cd "$(dirname "$0")"
+# Get script directory - works correctly when script is sourced
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # Colors for output (if not already defined by sourcing script)
 if [ -z "${RED:-}" ]; then
