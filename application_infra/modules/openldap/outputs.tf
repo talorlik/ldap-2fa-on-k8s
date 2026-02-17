@@ -21,17 +21,17 @@ output "ldap_host" {
 
 output "ldap_base_dn" {
   description = "LDAP base DN derived from openldap_ldap_domain"
-  value       = join(",", [for p in split(".", var.openldap_ldap_domain): "dc=${p}"])
+  value       = join(",", [for p in split(".", var.openldap_ldap_domain) : "dc=${p}"])
 }
 
 output "ldap_admin_dn" {
   description = "LDAP admin bind DN"
-  value       = "cn=admin,${join(",", [for p in split(".", var.openldap_ldap_domain): "dc=${p}"])}"
+  value       = "cn=admin,${join(",", [for p in split(".", var.openldap_ldap_domain) : "dc=${p}"])}"
 }
 
 output "ldap_admin_group_dn" {
   description = "LDAP admin group DN (for 2FA app admin role)"
-  value       = "cn=admins,ou=groups,${join(",", [for p in split(".", var.openldap_ldap_domain): "dc=${p}"])}"
+  value       = "cn=admins,ou=groups,${join(",", [for p in split(".", var.openldap_ldap_domain) : "dc=${p}"])}"
 }
 
 output "ldap_user_search_base" {

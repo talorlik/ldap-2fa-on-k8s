@@ -1,5 +1,5 @@
-env                    = "prod"
-region                 = "us-east-1"
+env    = "prod"
+region = "us-east-1"
 prefix = "talo-tf"
 
 ##################### OpenLDAP ##########################
@@ -108,7 +108,7 @@ argocd_rbac_role_mappings = [
 # Delete propagation policy (RETAIN or DELETE)
 argocd_delete_propagation_policy = "RETAIN"
 
-deployment_account_role_arn = "arn:aws:iam::944880695150:role/github-role"
+deployment_account_role_arn    = "arn:aws:iam::944880695150:role/github-role"
 deployment_account_external_id = "5f8697f36412ae83d62efc0a2ebd898fbb4a1721f0da986d9fa1ea7769223f47"
 
 # State account configuration (where Route53 hosted zone and ACM certificate reside)

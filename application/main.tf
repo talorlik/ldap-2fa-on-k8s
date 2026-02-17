@@ -19,12 +19,12 @@ locals {
   alb_ingress_class_name = try(data.terraform_remote_state.application_infra[0].outputs.alb_ingress_class_name, "")
 
   # LDAP config from application_infra (OpenLDAP deployment) for admin-seed Job
-  ldap_host               = try(data.terraform_remote_state.application_infra[0].outputs.ldap_host, "")
-  ldap_base_dn            = try(data.terraform_remote_state.application_infra[0].outputs.ldap_base_dn, "")
-  ldap_admin_dn           = try(data.terraform_remote_state.application_infra[0].outputs.ldap_admin_dn, "")
-  ldap_admin_group_dn     = try(data.terraform_remote_state.application_infra[0].outputs.ldap_admin_group_dn, "")
-  ldap_user_search_base   = try(data.terraform_remote_state.application_infra[0].outputs.ldap_user_search_base, "ou=users")
-  ldap_group_search_base  = try(data.terraform_remote_state.application_infra[0].outputs.ldap_group_search_base, "ou=groups")
+  ldap_host              = try(data.terraform_remote_state.application_infra[0].outputs.ldap_host, "")
+  ldap_base_dn           = try(data.terraform_remote_state.application_infra[0].outputs.ldap_base_dn, "")
+  ldap_admin_dn          = try(data.terraform_remote_state.application_infra[0].outputs.ldap_admin_dn, "")
+  ldap_admin_group_dn    = try(data.terraform_remote_state.application_infra[0].outputs.ldap_admin_group_dn, "")
+  ldap_user_search_base  = try(data.terraform_remote_state.application_infra[0].outputs.ldap_user_search_base, "ou=users")
+  ldap_group_search_base = try(data.terraform_remote_state.application_infra[0].outputs.ldap_group_search_base, "ou=groups")
 
   # Helm parameters for 2FA app Ingress: use shared ALB name and IngressClass so Ingresses attach to existing ALB (no conflict).
   # Must set paths explicitly: setting only ingress.hosts[0].host can replace the host object and drop paths (Helm --set merge behavior).
@@ -379,7 +379,7 @@ resource "kubernetes_job" "admin_seed" {
 
   spec {
     ttl_seconds_after_finished = 86400 # Keep for 24h for debugging; then cleanup
-    backoff_limit             = 10    # Retry until DB/LDAP are ready
+    backoff_limit              = 10    # Retry until DB/LDAP are ready
 
     template {
       metadata {
@@ -390,8 +390,8 @@ resource "kubernetes_job" "admin_seed" {
       spec {
         restart_policy = "OnFailure"
         container {
-          name  = "seed"
-          image = "${local.ecr_registry}/${local.ecr_repository}:${var.backend_image_tag}"
+          name    = "seed"
+          image   = "${local.ecr_registry}/${local.ecr_repository}:${var.backend_image_tag}"
           command = ["python", "-m", "app.seed_admin"]
           env_from {
             secret_ref {
