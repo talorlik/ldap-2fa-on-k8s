@@ -411,6 +411,8 @@ This script will:
 variables
 - Create backend.hcl from template if it doesn't exist
 - Update variables.tfvars with selected values
+- **Extract image tags** from backend and frontend Helm values files and export as
+`TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag`
 - **Check ArgoCD capability status** from application_infra remote state and fail
 fast if not ACTIVE
 - Reference application_infra remote state for dependencies (StorageClass, ArgoCD,
@@ -573,9 +575,10 @@ confirmations
 
 ### Application Infrastructure Layer
 
-- `application_infra/variables.tfvars` - Configure:
+- `application/variables.tfvars` - Configure:
   - Domain name, ALB settings, storage class
   - ArgoCD Capability configuration (enable_argocd, Identity Center settings)
+  - OpenLDAP secret configuration (openldap_secret_name, openldap_namespace)
   - OpenLDAP passwords retrieved automatically by setup-application-infra.sh from
   AWS Secrets Manager
 - `application_infra/setup-application-infra.sh` - Setup script for infrastructure
@@ -623,9 +626,12 @@ practices
   - SNS/SMS 2FA configuration (enable_sms_2fa)
   - PostgreSQL and Redis configuration
   - ArgoCD Applications configuration (if enabled)
+  - OpenLDAP secret configuration (openldap_secret_name, openldap_namespace)
+  - Image tags (backend_image_tag, frontend_image_tag) - automatically extracted
+  from Helm values files by setup script
   - Passwords retrieved automatically by setup-application.sh from AWS Secrets Manager
 - `application/setup-application.sh` - Setup script for application deployment
-(retrieves secrets from AWS Secrets Manager)
+(retrieves secrets from AWS Secrets Manager, extracts image tags from Helm values)
 - `application/destroy-application.sh` - Automated destroy script with safety confirmations
 - `application/helm/postgresql-values.tpl.yaml` - PostgreSQL Helm chart values template
 (image configuration in module, pulls from ECR)
@@ -983,6 +989,58 @@ workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - February 2026)
 
+### LDAP Secret Consistency and Workflow Improvements (Feb 17, 2026)
+
+- **LDAP Admin Password Consistency: Cross-Namespace Secret Reading**:
+  - Fixed password mismatch issue that caused `admin-seed-job` to fail with
+  `LDAPInvalidCredentialsResult - 49 - invalidCredentials`
+  - `ldap-admin-secret` in backend namespace (`2fa-app`) now reads password from
+  OpenLDAP secret (`openldap-secret`) in `ldap` namespace instead of using a
+  separate variable
+  - Ensures backend application always uses the same password as OpenLDAP was
+  initialized with
+  - Added `openldap_secret_name` and `openldap_namespace` variables
+  (defaults: `openldap-secret` and `ldap`) for configuration
+  - Falls back to `TF_VAR_OPENLDAP_ADMIN_PASSWORD` variable if OpenLDAP secret
+  doesn't exist (useful during initial deployment)
+  - Prevents future password mismatches between `application_infra` and
+  `application` deployments
+  - Cross-namespace secret reading works via Kubernetes API (not affected by
+  network policies which only control pod-to-pod traffic)
+
+- **Script and Workflow Path/Context Improvements**:
+  - **tf_backend_state**: `get-state.sh` and `set-state.sh` now change to script
+  directory before running so Terraform and variables are found whether invoked
+  from repo root or `tf_backend_state/`
+  - TF state workflows set default `AWS_REGION=us-east-1` when repository
+  variable is not set
+  - **application_infra**: `set-k8s-env.sh` uses `BACKEND_PREFIX` and workspace
+  from environment or backend.hcl, restores original working directory after
+  sourcing
+  - **mirror-images-to-ecr.sh**: Backend_infra state key comes from
+  `BACKEND_PREFIX` or `backend_infra/backend.hcl` (no hardcoded key)
+  - **monitor-deployments.sh**: Uses selected region for AWS Secrets Manager,
+  reads `BACKEND_PREFIX` from GitHub variables
+  - **Application workflows**: Export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX`,
+  extract backend and frontend image tags from Helm values files
+  - **Backend/Frontend build workflows**: No longer push `:latest` tag; only
+  computed image tag is pushed
+  - **setup-application.sh**: Exports `TERRAFORM_WORKSPACE`, sources
+  `set-k8s-env.sh`, then restores directory; extracts image tags from Helm values
+  - **destroy-application.sh**: Corrected assume-role context label from
+  `destroy-application-infra` to `destroy-application`
+
+- **Image Tagging for Application Deployment**:
+  - Backend and frontend image tags are now read from Helm values files
+  (`backend/helm/ldap-2fa-backend/values.yaml` and
+  `frontend/helm/ldap-2fa-frontend/values.yaml`)
+  - Tags exported as `TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag`
+  - Replaces reliance on `:latest` tag with specific commit-based tags
+  - New variable `frontend_image_tag` added to application Terraform
+  - Build workflows now tag images with both short tag (for backward
+  compatibility) and full tag with run ID
+  - Dual tagging prevents ECR tag conflicts when re-running workflows
+
 ### GitHub Actions Support for ArgoCD Module and Improvements (Feb 16, 2026)
 
 - **GitHub Actions Support for ArgoCD Module External Data Source**:
@@ -1131,12 +1189,19 @@ workflow or `setup-backend.sh` script (required for build workflows)
   TF Backend State
 
 - **Backend Namespace Secrets**:
-  - Terraform now creates `ldap-admin-secret` in the backend application namespace
+  - Terraform creates `ldap-admin-secret` in the backend application namespace
   (`2fa-app`) so the backend can authenticate with LDAP
+  - **Password source**: `ldap-admin-secret` reads password from OpenLDAP secret
+  (`openldap-secret`) in `ldap` namespace via Kubernetes API
+  - Ensures password consistency between OpenLDAP and backend application
+  - Falls back to `TF_VAR_OPENLDAP_ADMIN_PASSWORD` if OpenLDAP secret doesn't
+  exist (initial deployment)
   - `postgresql-secret` is copied to backend namespace for database access
   - `redis-secret` is copied to backend namespace for Redis access (if enabled)
   - ArgoCD Application backend module depends on all secrets being created first
   - Eliminates pod startup failures due to missing secrets
+  - Cross-namespace secret reading works via Kubernetes API (not affected by
+  network policies)
   - Secrets are populated from:
     - GitHub Secrets (`TF_VAR_OPENLDAP_ADMIN_PASSWORD`, `TF_VAR_POSTGRESQL_PASSWORD`,
     `TF_VAR_REDIS_PASSWORD`) for GitHub Actions workflows
@@ -2042,19 +2107,23 @@ with different selections
    - Commit and push changes to `application/backend/**`
    - GitHub Actions workflow `backend_build_push.yaml` automatically:
      - Builds Docker image
-     - Tags with commit SHA
-     - Pushes to ECR
+     - Tags with both commit SHA and full tag (SHA + run ID)
+     - Pushes to ECR (no `:latest` tag)
+     - Updates Helm values with new image tag and commits
      - If using ArgoCD: ArgoCD detects change and syncs
-     - If using direct Helm: Update image tag in Helm values and re-apply
+     - If using direct Helm: Terraform reads tag from Helm values
 2. **Frontend Changes** (`application/frontend/`):
    - Make changes to HTML/JS/CSS in `src/`
    - Test locally with a simple HTTP server
    - Frontend container runs on port 8080 as non-root user (`appuser`, UID 1000)
    - Kubernetes service exposes port 80 externally (forwards to container port 8080)
    - Commit and push changes to `application/frontend/**`
-   - GitHub Actions workflow `frontend_build_push.yaml` automatically handles
-   build and push
-   - Deployment follows same pattern as backend
+   - GitHub Actions workflow `frontend_build_push.yaml` automatically:
+     - Builds Docker image
+     - Tags with both commit SHA and full tag (SHA + run ID)
+     - Pushes to ECR (no `:latest` tag)
+     - Updates Helm values with new image tag and commits
+     - Deployment follows same pattern as backend
 3. **Terraform Module Changes** (`application/modules/`):
    - Update module code and test
    - Run `./setup-application.sh` to apply changes

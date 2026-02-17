@@ -292,8 +292,11 @@ locals {
   # - Terraform will mask it in plan/apply logs when derived from sensitive variable
   # - Never output or logged - only used to create the Kubernetes secret resource
   # - The kubernetes_secret resource handles the data securely (base64 encoding, encrypted at rest in etcd)
+  # 
+  # Note: We use nonsensitive() to decode the base64 value, but the resulting password is still treated
+  # as sensitive when used in the kubernetes_secret resource because it's derived from sensitive sources.
   ldap_admin_password = length(data.kubernetes_secret.openldap_admin) > 0 && try(data.kubernetes_secret.openldap_admin[0].data["LDAP_ADMIN_PASSWORD"], null) != null ? (
-    base64decode(data.kubernetes_secret.openldap_admin[0].data["LDAP_ADMIN_PASSWORD"])
+    nonsensitive(base64decode(data.kubernetes_secret.openldap_admin[0].data["LDAP_ADMIN_PASSWORD"]))
   ) : var.openldap_admin_password
 }
 

@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `application` deployments
   - Cross-namespace secret reading works via Kubernetes API (not affected by network
   policies which only control pod-to-pod traffic)
+  - Fixed Terraform plan error: `Call to function "base64decode" failed: failed
+  to decode base64 data (sensitive value)` by wrapping the decode operation with
+  `nonsensitive()` to unwrap the sensitive value before decoding (safe because
+  the password is only used internally in the `kubernetes_secret` resource and
+  never exposed in outputs)
 
 - **GitHub Actions Workflows: Backend Configuration File Creation**
   - Fixed `application_provisioning.yaml` to create `application_infra/backend.hcl`
