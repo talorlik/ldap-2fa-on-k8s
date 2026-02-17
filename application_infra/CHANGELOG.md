@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [Unreleased]
+
+### Fixed
+
+- **OpenLDAP Secret Key Name Correction**
+  - Corrected Kubernetes secret key name from `LDAP_CONFIG_PASSWORD` to
+  `LDAP_CONFIG_ADMIN_PASSWORD` in OpenLDAP module (`modules/openldap/main.tf`)
+  - Aligns with the expected secret key name used by the osixia/openldap container
+  and jp-gouin/helm-openldap chart's `customEnv` configuration
+  - The Helm values template (`helm/openldap-values.tpl.yaml`) already referenced
+  the correct key name; only the Terraform secret resource needed correction
+  - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) remains unchanged
+
 ## [2026-02-16] - GitHub Actions Support for ArgoCD Module and Workflow Improvements
 
 ### Added

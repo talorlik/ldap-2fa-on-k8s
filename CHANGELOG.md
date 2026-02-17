@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - Signup Process Changes
 
+### Fixed
+
+- **Application Infrastructure: OpenLDAP Secret Key Name Correction**
+  - Corrected Kubernetes secret key name from `LDAP_CONFIG_PASSWORD` to
+  `LDAP_CONFIG_ADMIN_PASSWORD` in OpenLDAP module
+  - Aligns with the expected secret key name used by the osixia/openldap container
+  and jp-gouin/helm-openldap chart
+  - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) remains unchanged
+
 ### Changed
 
 - **Application: MFA Method Selection Removed from Signup**
@@ -45,10 +54,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **GitHub Actions Workflows: Backend Configuration File Creation**
-  - Fixed `application_provisioning.yaml` to create `application_infra/backend.hcl` before checking ArgoCD capability status
-  - Fixed `application_destroying.yaml` to create both `backend_infra/backend.hcl` and `application_infra/backend.hcl` before terraform init
-  - Ensures backend configuration files exist before Terraform initialization, preventing initialization errors
-  - Improved error handling in terraform init and workspace select commands to show actual errors instead of hiding them
+  - Fixed `application_provisioning.yaml` to create `application_infra/backend.hcl`
+  before checking ArgoCD capability status
+  - Fixed `application_destroying.yaml` to create both `backend_infra/backend.hcl`
+  and `application_infra/backend.hcl` before terraform init
+  - Ensures backend configuration files exist before Terraform initialization,
+  preventing initialization errors
+  - Improved error handling in terraform init and workspace select commands to
+  show actual errors instead of hiding them
 
 - **set-k8s-env.sh: Path Resolution When Sourced**
   - Fixed script directory detection when script is sourced (using `source ./set-k8s-env.sh`)

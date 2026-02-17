@@ -411,8 +411,8 @@ This script will:
 variables
 - Create backend.hcl from template if it doesn't exist
 - Update variables.tfvars with selected values
-- **Extract image tags** from backend and frontend Helm values files and export as
-`TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag`
+- **Extract image tags** from backend and frontend Helm values files and
+  export as `TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag`
 - **Check ArgoCD capability status** from application_infra remote state and fail
 fast if not ACTIVE
 - Reference application_infra remote state for dependencies (StorageClass, ArgoCD,
@@ -859,7 +859,7 @@ the osixia/openldap container
 - Must explicitly set these in the `env:` section of Helm values:
   - `LDAP_DOMAIN`: The LDAP domain (e.g., "ldap.talorlik.internal")
   - `LDAP_ADMIN_PASSWORD`: Admin password
-  - `LDAP_CONFIG_PASSWORD`: Config password
+  - `LDAP_CONFIG_ADMIN_PASSWORD`: Config password
 - Without `LDAP_DOMAIN`, OpenLDAP initializes with empty/default config and
 authentication fails
 - If authentication fails after deployment, delete PVCs and restart pods to
@@ -990,6 +990,13 @@ workflow or `setup-backend.sh` script (required for build workflows)
 ## Recent Changes (December 2025 - February 2026)
 
 ### LDAP Secret Consistency and Workflow Improvements (Feb 17, 2026)
+
+- **OpenLDAP Secret Key Name Correction**:
+  - Corrected Kubernetes secret key name from `LDAP_CONFIG_PASSWORD` to
+  `LDAP_CONFIG_ADMIN_PASSWORD` in OpenLDAP module
+  - Aligns with the expected secret key name used by the osixia/openldap container
+  and jp-gouin/helm-openldap chart
+  - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) remains unchanged
 
 - **LDAP Admin Password Consistency: Cross-Namespace Secret Reading**:
   - Fixed password mismatch issue that caused `admin-seed-job` to fail with
@@ -2178,7 +2185,7 @@ environment variable
    - The jp-gouin chart's `global.ldapDomain` doesn't pass through to
    osixia/openldap container
    - Must explicitly set `LDAP_DOMAIN`, `LDAP_ADMIN_PASSWORD`, and
-   `LDAP_CONFIG_PASSWORD` in `env:` section
+   `LDAP_CONFIG_ADMIN_PASSWORD` in `env:` section
 
 2. **Fix**: Delete PVCs to force re-initialization with correct environment
 variables:
