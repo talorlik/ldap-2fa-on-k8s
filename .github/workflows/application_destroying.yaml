@@ -209,7 +209,7 @@ jobs:
             echo "::warning::Backend Helm values file not found. Using 'latest' tag."
             echo "TF_VAR_backend_image_tag=latest" >> $GITHUB_ENV
           else
-            BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*["'\''']?([^"'\'']+)["'\''']?.*/\1/' | tr -d '\r')
+            BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | sed 's/^"//' | sed "s/^'//" | sed 's/"$//' | sed "s/'$//" | tr -d '\r')
             if [ -z "$BACKEND_IMAGE_TAG" ]; then
               echo "::warning::Could not extract backend image tag. Using 'latest'."
               echo "TF_VAR_backend_image_tag=latest" >> $GITHUB_ENV
@@ -225,7 +225,7 @@ jobs:
             echo "::warning::Frontend Helm values file not found. Using 'latest' tag."
             echo "TF_VAR_frontend_image_tag=latest" >> $GITHUB_ENV
           else
-            FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*["'\''']?([^"'\'']+)["'\''']?.*/\1/' | tr -d '\r')
+            FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | sed 's/^"//' | sed "s/^'//" | sed 's/"$//' | sed "s/'$//" | tr -d '\r')
             if [ -z "$FRONTEND_IMAGE_TAG" ]; then
               echo "::warning::Could not extract frontend image tag. Using 'latest'."
               echo "TF_VAR_frontend_image_tag=latest" >> $GITHUB_ENV
