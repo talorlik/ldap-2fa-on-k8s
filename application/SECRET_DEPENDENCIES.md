@@ -90,6 +90,11 @@ in the `ldap` namespace to ensure consistency
 `TF_VAR_OPENLDAP_ADMIN_PASSWORD` variable (useful during initial deployment)
 - **Configuration:** Secret name and namespace can be customized via `openldap_secret_name`
 and `openldap_namespace` variables (defaults: `openldap-secret` and `ldap`)
+- **Technical note:** The `kubernetes_secret` data source's `data` attribute returns
+decoded (plain text) values, not base64-encoded. Terraform uses `nonsensitive()`
+to unwrap the sensitive value wrapper so it can be used in the `kubernetes_secret`
+resource. The password remains secure as it's only used internally and never exposed
+in outputs.
 
 > [!IMPORTANT]
 >

@@ -258,8 +258,9 @@ data "kubernetes_secret" "openldap_admin" {
 
 locals {
   # Use password from OpenLDAP secret if available, otherwise fall back to variable
+  # Note: kubernetes_secret data source's `data` attribute returns decoded (plain text) values
   ldap_admin_password = length(data.kubernetes_secret.openldap_admin) > 0 ? (
-    base64decode(data.kubernetes_secret.openldap_admin[0].data["LDAP_ADMIN_PASSWORD"])
+    nonsensitive(data.kubernetes_secret.openldap_admin[0].data["LDAP_ADMIN_PASSWORD"])
   ) : var.openldap_admin_password
 }
 
