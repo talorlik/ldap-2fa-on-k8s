@@ -81,6 +81,22 @@ is enabled.
         key: LDAP_ADMIN_PASSWORD
   ```
 
+**Creation:**
+
+- Created by Terraform in the `2fa-app` namespace
+- **Password source:** Terraform reads the password from the OpenLDAP secret (`openldap-secret`)
+in the `ldap` namespace to ensure consistency
+- **Fallback:** If the OpenLDAP secret doesn't exist, Terraform falls back to
+`TF_VAR_OPENLDAP_ADMIN_PASSWORD` variable (useful during initial deployment)
+- **Configuration:** Secret name and namespace can be customized via `openldap_secret_name`
+and `openldap_namespace` variables (defaults: `openldap-secret` and `ldap`)
+
+> [!IMPORTANT]
+>
+> **Password Consistency:** This approach ensures the backend always uses the same
+> password as OpenLDAP was initialized with, preventing password mismatches that
+> would cause LDAP authentication failures (e.g., `admin-seed-job` failures).
+
 **Critical:** Without this secret, the backend cannot authenticate with LDAP and
 will fail to:
 
@@ -177,6 +193,7 @@ To ensure all components operate correctly, secrets must be deployed in this ord
     - `postgresql-secret` → copied to `2fa-app` namespace
     - `redis-secret` → copied to `2fa-app` namespace (if Redis enabled)
     - `ldap-admin-secret` → created in `2fa-app` namespace
+    (password read from OpenLDAP secret in `ldap` namespace)
     - `admin-seed-secret` → created in `2fa-app` namespace (optional; when admin
     seed vars are set)
 5. **ArgoCD Backend Application** is registered (depends on all secrets existing)

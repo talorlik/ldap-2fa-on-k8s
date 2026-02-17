@@ -241,6 +241,68 @@ resource "kubernetes_secret" "redis_secret_backend_namespace" {
 - Creates Kubernetes Secret resources
 - Stores passwords securely in Kubernetes
 
+### Step 6: LDAP Admin Secret (Special Case - Cross-Namespace Reading)
+
+**File:** `application/main.tf` (lines 256-315)
+
+The `ldap-admin-secret` uses a special approach to ensure password consistency:
+
+```hcl
+# Read password from OpenLDAP secret in ldap namespace
+data "kubernetes_secret" "openldap_admin" {
+  metadata {
+    name      = "openldap-secret"  # Default, configurable via openldap_secret_name
+    namespace = "ldap"              # Default, configurable via openldap_namespace
+  }
+}
+
+locals {
+  # Use password from OpenLDAP secret if available, otherwise fall back to variable
+  ldap_admin_password = length(data.kubernetes_secret.openldap_admin) > 0 ? (
+    base64decode(data.kubernetes_secret.openldap_admin[0].data["LDAP_ADMIN_PASSWORD"])
+  ) : var.openldap_admin_password
+}
+
+resource "kubernetes_secret" "ldap_admin" {
+  data = {
+    "LDAP_ADMIN_PASSWORD" = local.ldap_admin_password
+  }
+}
+```
+
+**Why This Approach:**
+
+1. **Password Consistency:** Ensures backend always uses the same password as OpenLDAP
+2. **Prevents Mismatches:** Avoids `LDAPInvalidCredentialsResult - 49` errors when
+passwords differ
+3. **Cross-Namespace Reading:** Terraform uses Kubernetes API (not pod-to-pod),
+so network policies don't affect it
+4. **Fallback Support:** Uses `TF_VAR_OPENLDAP_ADMIN_PASSWORD` if OpenLDAP secret
+doesn't exist yet
+
+**Flow:**
+
+```text
+OpenLDAP Deployment (application_infra)
+  ↓
+Creates: openldap-secret in ldap namespace
+  ↓
+Backend Deployment (application)
+  ↓
+Reads: openldap-secret from ldap namespace (via Kubernetes API)
+  ↓
+Creates: ldap-admin-secret in 2fa-app namespace
+  ↓
+Backend pods use: ldap-admin-secret
+```
+
+> [!IMPORTANT]
+>
+> **Deployment Order:** OpenLDAP (`application_infra`) must be deployed before the
+> backend application (`application`) to ensure the OpenLDAP secret exists.
+> If the secret doesn't exist, Terraform will error (enforcing correct
+> deployment order).
+
 ## Detailed Flow: GitHub Actions
 
 ### Step 1: Read from GitHub Secrets

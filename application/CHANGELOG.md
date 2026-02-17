@@ -17,6 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **LDAP Admin Password Consistency: Cross-Namespace Secret Reading**
+  - Fixed password mismatch issue that caused `admin-seed-job` to fail with
+  `LDAPInvalidCredentialsResult - 49 - invalidCredentials`
+  - `ldap-admin-secret` now reads password from OpenLDAP secret (`openldap-secret`)
+  in `ldap` namespace instead of using a separate variable
+  - Ensures backend application always uses the same password as OpenLDAP was
+  initialized with
+  - Added `openldap_secret_name` and `openldap_namespace` variables
+  (defaults: `openldap-secret` and `ldap`) for configuration
+  - Falls back to `TF_VAR_OPENLDAP_ADMIN_PASSWORD` variable if OpenLDAP secret
+  doesn't exist (useful during initial deployment)
+  - Prevents future password mismatches between `application_infra` and
+  `application` deployments
+  - Cross-namespace secret reading works via Kubernetes API (not affected by network
+  policies which only control pod-to-pod traffic)
+
 - **GitHub Actions Workflows: Backend Configuration File Creation**
   - Fixed `application_provisioning.yaml` to create `application_infra/backend.hcl`
   before checking ArgoCD capability status

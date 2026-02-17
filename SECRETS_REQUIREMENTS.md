@@ -428,13 +428,28 @@ securely. The same value must be configured in:
   - AWS Secrets Manager: `tf-vars` secret, key `TF_VAR_OPENLDAP_ADMIN_PASSWORD`
   - GitHub: Repository secret `TF_VAR_OPENLDAP_ADMIN_PASSWORD`
 - **Type:** String (Password)
-- **Description:** The admin password for OpenLDAP
+- **Description:** The admin password for OpenLDAP. Used for:
+  1. **OpenLDAP deployment** (via `application_infra`) - Creates the OpenLDAP
+  secret in `ldap` namespace
+  2. **Backend application** (via `application`) - Used as fallback if OpenLDAP
+  secret cannot be read
 - **Exported As:** `TF_VAR_openldap_admin_password` (lowercase) - Terraform automatically
 recognizes `TF_VAR_` prefix
 - **Format:** Plain text password string
 - **Example:** `MySecureAdminPassword123!`
-- **Used By:** `setup-application.sh` only
+- **Used By:**
+  - `setup-application-infra.sh` - Creates OpenLDAP secret
+  - `setup-application.sh` - Creates `ldap-admin-secret` (reads from OpenLDAP
+  secret if available, falls back to this variable)
 - **Security Note:** This is a sensitive value and should be stored securely
+
+> [!IMPORTANT]
+>
+> **Password Consistency:** The `application` module now reads the LDAP admin password
+> from the OpenLDAP secret (`openldap-secret`) in the `ldap` namespace to ensure
+> consistency. This prevents password mismatches between OpenLDAP deployment and
+> backend application. The `TF_VAR_OPENLDAP_ADMIN_PASSWORD` variable is used as
+> a fallback during initial deployment when the OpenLDAP secret may not exist yet.
 
 > [!IMPORTANT]
 >

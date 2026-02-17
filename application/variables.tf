@@ -70,10 +70,30 @@ variable "twofa_app_host" {
 ##################### LDAP credentials for 2FA Backend ##########################
 
 variable "openldap_admin_password" {
-  description = "OpenLDAP admin password for backend LDAP bind. MUST be set via TF_VAR_OPENLDAP_ADMIN_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
+  description = "OpenLDAP admin password for backend LDAP bind. Used as fallback if OpenLDAP secret cannot be read. MUST be set via TF_VAR_OPENLDAP_ADMIN_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
   type        = string
   sensitive   = true
   default     = ""
+}
+
+variable "openldap_secret_name" {
+  description = <<-EOT
+    Name of the Kubernetes secret containing OpenLDAP admin password in the ldap namespace. 
+    The backend will read the password from this secret to ensure consistency with OpenLDAP deployment. 
+    If this secret exists, its password will be used instead of openldap_admin_password variable. 
+    If empty, falls back to openldap_admin_password variable.
+    
+    Note: Cross-namespace secret reading works because Terraform uses the Kubernetes API (not pod-to-pod 
+    communication), and the provider authenticates with cluster-admin permissions via EKS cluster auth.
+  EOT
+  type        = string
+  default     = "openldap-secret"
+}
+
+variable "openldap_namespace" {
+  description = "Kubernetes namespace where OpenLDAP secret is located. Must match the namespace where OpenLDAP was deployed by application_infra. Defaults to 'ldap'."
+  type        = string
+  default     = "ldap"
 }
 
 ##################### First admin user seed (2FA app) ##########################

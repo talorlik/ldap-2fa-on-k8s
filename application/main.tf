@@ -240,6 +240,8 @@ module "sns" {
 ##################### Backend namespace and LDAP admin secret
 # Backend pod expects secret "ldap-admin-secret" with key LDAP_ADMIN_PASSWORD in its namespace.
 # We create the namespace so Terraform owns it; we create the secret when openldap_admin_password is set.
+# IMPORTANT: The password is read from the OpenLDAP secret in the ldap namespace to ensure consistency.
+# This prevents password mismatches between OpenLDAP deployment and backend application.
 resource "kubernetes_namespace" "backend_app" {
   count = var.enable_argocd_apps && var.argocd_app_backend_path != null ? 1 : 0
 
@@ -251,8 +253,52 @@ resource "kubernetes_namespace" "backend_app" {
   }
 }
 
+# Read OpenLDAP admin password from the OpenLDAP secret in ldap namespace
+# This ensures the backend uses the same password as OpenLDAP was initialized with
+# 
+# IMPORTANT: Cross-namespace secret reading works because:
+# 1. Terraform Kubernetes provider uses the Kubernetes API (not pod-to-pod communication)
+# 2. Network policies only affect pod-to-pod traffic, not API calls
+# 3. The provider authenticates via EKS cluster auth (data.aws_eks_cluster_auth.cluster.token)
+#    which typically grants cluster-admin permissions, allowing secret reads from any namespace
+# 
+# If the secret doesn't exist or cannot be read, we fall back to var.openldap_admin_password
+# This fallback is useful during initial deployment when OpenLDAP may not be deployed yet
+data "kubernetes_secret" "openldap_admin" {
+  count = var.enable_argocd_apps && var.argocd_app_backend_path != null && var.openldap_secret_name != "" && var.openldap_namespace != "" ? 1 : 0
+
+  metadata {
+    name      = var.openldap_secret_name
+    namespace = var.openldap_namespace
+  }
+}
+
+locals {
+  # Use password from OpenLDAP secret if available, otherwise fall back to variable
+  # This ensures consistency: if OpenLDAP secret exists and was successfully read, use it; otherwise use provided variable
+  # 
+  # Behavior:
+  # - If openldap_secret_name is empty: Uses var.openldap_admin_password (data source not created)
+  # - If data source is created but secret doesn't exist: Terraform will error (enforces deployment order)
+  # - If data source succeeds: Uses password from secret (ensures consistency)
+  # - If data source count is 0: Falls back to var.openldap_admin_password
+  #
+  # This approach ensures that once OpenLDAP is deployed, the backend always uses the same password,
+  # preventing password mismatches like the one that caused the admin-seed-job to fail.
+  #
+  # SECURITY NOTE: This local value contains a sensitive password. It is:
+  # - Derived from var.openldap_admin_password (marked sensitive = true) OR from a Kubernetes secret
+  # - Only used internally in kubernetes_secret resource (never exposed in outputs)
+  # - Terraform will mask it in plan/apply logs when derived from sensitive variable
+  # - Never output or logged - only used to create the Kubernetes secret resource
+  # - The kubernetes_secret resource handles the data securely (base64 encoding, encrypted at rest in etcd)
+  ldap_admin_password = length(data.kubernetes_secret.openldap_admin) > 0 && try(data.kubernetes_secret.openldap_admin[0].data["LDAP_ADMIN_PASSWORD"], null) != null ? (
+    base64decode(data.kubernetes_secret.openldap_admin[0].data["LDAP_ADMIN_PASSWORD"])
+  ) : var.openldap_admin_password
+}
+
 resource "kubernetes_secret" "ldap_admin" {
-  count = var.enable_argocd_apps && var.argocd_app_backend_path != null && var.openldap_admin_password != "" ? 1 : 0
+  count = var.enable_argocd_apps && var.argocd_app_backend_path != null && local.ldap_admin_password != "" ? 1 : 0
 
   metadata {
     name      = "ldap-admin-secret"
@@ -264,12 +310,15 @@ resource "kubernetes_secret" "ldap_admin" {
   }
 
   data = {
-    "LDAP_ADMIN_PASSWORD" = var.openldap_admin_password
+    "LDAP_ADMIN_PASSWORD" = local.ldap_admin_password
   }
 
   type = "Opaque"
 
-  depends_on = [kubernetes_namespace.backend_app]
+  depends_on = [
+    kubernetes_namespace.backend_app,
+    data.kubernetes_secret.openldap_admin,
+  ]
 }
 
 # Copy PostgreSQL secret to backend namespace
