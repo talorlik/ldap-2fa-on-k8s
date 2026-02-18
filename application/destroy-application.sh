@@ -577,35 +577,37 @@ print_info "  - TF_VAR_kube_config_path: ${TF_VAR_kube_config_path}"
 echo ""
 
 # Extract backend and frontend image tags from Helm values (needed for destroy plan)
+# Note: For destroy operations, we use empty string as fallback (passes validation)
+# since the resources being destroyed may not need valid tags
 print_info "Extracting image tags from Helm values..."
 BACKEND_VALUES_FILE="backend/helm/ldap-2fa-backend/values.yaml"
 if [ -f "$BACKEND_VALUES_FILE" ]; then
-    BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d 'r')
-    if [ -n "$BACKEND_IMAGE_TAG" ] && [ "$BACKEND_IMAGE_TAG" != "tag:" ]; then
+    BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d '\r')
+    if [ -n "$BACKEND_IMAGE_TAG" ] && [ "$BACKEND_IMAGE_TAG" != "tag:" ] && [ "$BACKEND_IMAGE_TAG" != "latest" ]; then
         export TF_VAR_backend_image_tag="$BACKEND_IMAGE_TAG"
         print_success "Using backend image tag: ${BACKEND_IMAGE_TAG}"
     else
-        export TF_VAR_backend_image_tag="latest"
-        print_info "Using default backend image tag: latest"
+        export TF_VAR_backend_image_tag=""
+        print_warning "Could not extract valid backend image tag (got: '${BACKEND_IMAGE_TAG:-empty}'). Using empty string for destroy."
     fi
 else
-    export TF_VAR_backend_image_tag="latest"
-    print_info "Backend values file not found. Using default tag: latest"
+    export TF_VAR_backend_image_tag=""
+    print_warning "Backend values file not found. Using empty string for destroy."
 fi
 
 FRONTEND_VALUES_FILE="frontend/helm/ldap-2fa-frontend/values.yaml"
 if [ -f "$FRONTEND_VALUES_FILE" ]; then
-    FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d 'r')
-    if [ -n "$FRONTEND_IMAGE_TAG" ] && [ "$FRONTEND_IMAGE_TAG" != "tag:" ]; then
+    FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d '\r')
+    if [ -n "$FRONTEND_IMAGE_TAG" ] && [ "$FRONTEND_IMAGE_TAG" != "tag:" ] && [ "$FRONTEND_IMAGE_TAG" != "latest" ]; then
         export TF_VAR_frontend_image_tag="$FRONTEND_IMAGE_TAG"
         print_success "Using frontend image tag: ${FRONTEND_IMAGE_TAG}"
     else
-        export TF_VAR_frontend_image_tag="latest"
-        print_info "Using default frontend image tag: latest"
+        export TF_VAR_frontend_image_tag=""
+        print_warning "Could not extract valid frontend image tag (got: '${FRONTEND_IMAGE_TAG:-empty}'). Using empty string for destroy."
     fi
 else
-    export TF_VAR_frontend_image_tag="latest"
-    print_info "Frontend values file not found. Using default tag: latest"
+    export TF_VAR_frontend_image_tag=""
+    print_warning "Frontend values file not found. Using empty string for destroy."
 fi
 echo ""
 
