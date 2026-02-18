@@ -6,6 +6,16 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Kubernetes Version Upgrade
+
+### Changed
+
+- **Kubernetes version upgrade**
+  - Upgraded Kubernetes version from 1.34 to 1.35
+  - Updated `variables.tfvars` with new Kubernetes version (`k8s_version = "1.35"`)
+  - Updated documentation references in `WARP.md` to reflect new version
+  - Improved cluster stability and features with latest Kubernetes release
+
 ## [2026-01-19] - Automatic ECR Repository Name Variable Management
 
 ### Added

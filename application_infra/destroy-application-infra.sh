@@ -565,5 +565,27 @@ print_warning "Applying destroy plan. This will DESTROY all application infrastr
 terraform apply -auto-approve terraform.tfplan
 
 echo ""
+print_success "Terraform destroy operation completed successfully!"
+
+# Clean up PVCs (Helm does not delete PVCs by default to prevent data loss)
+print_info "Checking for remaining PVCs in ldap namespace..."
+PVC_COUNT=$(kubectl get pvc -n ldap --no-headers 2>/dev/null | wc -l | tr -d ' ' || echo "0")
+
+if [ "$PVC_COUNT" -gt 0 ]; then
+    print_warning "Found ${PVC_COUNT} PVC(s) remaining in ldap namespace."
+    print_info "Helm does not delete PVCs by default. Deleting PVCs now..."
+    print_warning "This will also delete the underlying EBS volumes (reclaim_policy=Delete)."
+    
+    if kubectl delete pvc --all -n ldap 2>/dev/null; then
+        print_success "PVCs deleted successfully!"
+    else
+        print_error "Failed to delete PVCs. You may need to delete them manually:"
+        print_info "  kubectl delete pvc --all -n ldap"
+    fi
+else
+    print_info "No PVCs found in ldap namespace (already cleaned up or namespace doesn't exist)."
+fi
+
+echo ""
 print_success "Destroy operation completed successfully!"
 print_info "All application infrastructure in ${AWS_REGION} (${ENVIRONMENT}) has been destroyed."

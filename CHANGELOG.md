@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - LDAP Admin-Seed Fixes and Image Tag Validation
 
+### Changed
+
+- **Kubernetes Version Upgrade**
+  - Upgraded Kubernetes version from 1.34 to 1.35
+  - Updated `backend_infra/variables.tfvars` with new Kubernetes version
+  - Updated documentation references in `WARP.md`
+  - See [backend_infra/CHANGELOG.md](backend_infra/CHANGELOG.md) for details
+
+- **Application: MFA Method Selection Removed from Signup**
+  - MFA method selection (TOTP or SMS) has been removed from the user signup process
+  - Users now enroll in their preferred MFA method during the login process after
+  account activation
+  - Signup flow simplified to collect only: name, username, email, phone, and password
+  - Email and phone verification still occur during signup as before
+  - Updated documentation: [application/PRD_SIGNUP_MAN.md](application/PRD_SIGNUP_MAN.md),
+  [application/PRD_ADMIN_FUNCS.md](application/PRD_ADMIN_FUNCS.md)
+
 ### Added
 
 - **LDAP and Admin-Seed-Job Troubleshooting Guide**
@@ -43,17 +60,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligns with the expected secret key name used by the osixia/openldap container
   and jp-gouin/helm-openldap chart
   - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) remains unchanged
-
-### Changed
-
-- **Application: MFA Method Selection Removed from Signup**
-  - MFA method selection (TOTP or SMS) has been removed from the user signup process
-  - Users now enroll in their preferred MFA method during the login process after
-  account activation
-  - Signup flow simplified to collect only: name, username, email, phone, and password
-  - Email and phone verification still occur during signup as before
-  - Updated documentation: [application/PRD_SIGNUP_MAN.md](application/PRD_SIGNUP_MAN.md),
-  [application/PRD_ADMIN_FUNCS.md](application/PRD_ADMIN_FUNCS.md)
 
 ## [2026-02-16] - GitHub Actions Support for ArgoCD Module and Workflow Improvements
 

@@ -8,7 +8,7 @@ igw_name         = "igw"
 ngw_name         = "ngw"
 route_table_name = "rtb"
 ### Kubernetes Cluster ###
-k8s_version  = "1.34"
+k8s_version  = "1.35"
 cluster_name = "kc"
 ### Endpoints ###
 endpoint_sg_name = "ep-sg"

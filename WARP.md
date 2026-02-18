@@ -67,7 +67,7 @@ Phase 3
 
 - **VPC**: Custom VPC with public/private subnets across 2 availability zones
 - **EKS Auto Mode**: Simplified cluster management with automatic node
-provisioning and built-in EBS CSI driver (Kubernetes 1.34)
+provisioning and built-in EBS CSI driver (Kubernetes 1.35)
 - **IRSA (IAM Roles for Service Accounts)**: Enabled via OIDC provider for
 secure pod-to-AWS-service authentication
 - **Networking**: Single NAT gateway (cost optimization), IGW, VPC endpoints for
@@ -556,7 +556,7 @@ script with intelligent infrastructure detection
 
 ### Backend Infrastructure Layer
 
-- `backend_infra/variables.tfvars` - Configure VPC CIDR, K8s version (1.34),
+- `backend_infra/variables.tfvars` - Configure VPC CIDR, K8s version (1.35),
 resource names, ECR lifecycle policies, VPC endpoints (enable_sts_endpoint,
 enable_sns_endpoint)
 - `backend_infra/backend.hcl` - Generated file (do not commit) with S3 backend

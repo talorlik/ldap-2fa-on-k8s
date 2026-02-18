@@ -186,3 +186,67 @@ jobs:
 
       - name: Destroy application infrastructure
         run: terraform apply -auto-approve terraform.tfplan
+
+      - name: Configure AWS credentials (Deployment Account for kubectl)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.environment == 'prod' && secrets.AWS_PRODUCTION_ACCOUNT_ROLE_ARN || secrets.AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN }}
+          role-session-name: GitHubActions-ApplicationInfraDestroy-PVC-Cleanup
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Clean up PVCs
+        continue-on-error: true
+        run: |
+          # Helm does not delete PVCs by default to prevent data loss
+          # We need to manually delete them to trigger the reclaim policy (Delete)
+          # which will also delete the underlying EBS volumes
+          echo "Checking for remaining PVCs in ldap namespace..."
+          
+          # Use the kubeconfig from set-k8s-env.sh
+          export KUBECONFIG="${TF_VAR_kube_config_path:-$HOME/.kube/config}"
+          
+          # Check if kubeconfig file exists
+          if [ ! -f "$KUBECONFIG" ]; then
+            echo "::warning::Kubeconfig file not found at $KUBECONFIG. Skipping PVC cleanup."
+            echo "This is normal if the cluster was already destroyed or kubeconfig was not created."
+            exit 0
+          fi
+          
+          # Check if kubectl is available
+          if ! command -v kubectl &> /dev/null; then
+            echo "Installing kubectl..."
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x kubectl
+            sudo mv kubectl /usr/local/bin/
+          fi
+          
+          # Test cluster connectivity
+          if ! kubectl cluster-info &>/dev/null; then
+            echo "::warning::Cannot connect to cluster. Skipping PVC cleanup."
+            echo "This is normal if the cluster was already destroyed."
+            exit 0
+          fi
+          
+          # Check if namespace exists and count PVCs
+          if kubectl get namespace ldap &>/dev/null; then
+            PVC_COUNT=$(kubectl get pvc -n ldap --no-headers 2>/dev/null | wc -l | tr -d ' ' || echo "0")
+            
+            if [ "$PVC_COUNT" -gt 0 ]; then
+              echo "Found ${PVC_COUNT} PVC(s) remaining in ldap namespace."
+              echo "Helm does not delete PVCs by default. Deleting PVCs now..."
+              echo "This will also delete the underlying EBS volumes (reclaim_policy=Delete)."
+              
+              if kubectl delete pvc --all -n ldap; then
+                echo "✅ PVCs deleted successfully!"
+              else
+                echo "::warning::Failed to delete PVCs. You may need to delete them manually:"
+                echo "  kubectl delete pvc --all -n ldap"
+              fi
+            else
+              echo "No PVCs found in ldap namespace (already cleaned up)."
+            fi
+          else
+            echo "ldap namespace does not exist (already cleaned up or never created)."
+          fi
+        env:
+          KUBECONFIG: ${{ env.TF_VAR_kube_config_path }}
