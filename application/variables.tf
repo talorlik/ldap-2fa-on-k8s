@@ -362,9 +362,14 @@ variable "argocd_app_backend_namespace" {
 }
 
 variable "backend_image_tag" {
-  description = "Docker image tag for the backend (used by the admin-seed Job). Default 'latest'."
+  description = "Docker image tag for the backend (used by the admin-seed Job). Must be set via TF_VAR_backend_image_tag. Build workflows update Helm values with the correct tag; setup scripts extract it from backend/helm/ldap-2fa-backend/values.yaml."
   type        = string
-  default     = "latest"
+  default     = ""
+
+  validation {
+    condition     = var.backend_image_tag != "latest"
+    error_message = "backend_image_tag cannot be 'latest'. ECR uses commit-based tags. Run 'Backend Build and Push' workflow first, or set TF_VAR_backend_image_tag."
+  }
 }
 
 # Frontend App Configuration
@@ -374,9 +379,14 @@ variable "argocd_app_frontend_name" {
 }
 
 variable "frontend_image_tag" {
-  description = "Docker image tag for the frontend (used by ArgoCD Application). Default 'latest'."
+  description = "Docker image tag for the frontend (used by ArgoCD Application). Must be set via TF_VAR_frontend_image_tag. Build workflows update Helm values with the correct tag; setup scripts extract it from frontend/helm/ldap-2fa-frontend/values.yaml."
   type        = string
-  default     = "latest"
+  default     = ""
+
+  validation {
+    condition     = var.frontend_image_tag != "latest"
+    error_message = "frontend_image_tag cannot be 'latest'. ECR uses commit-based tags. Run 'Frontend Build and Push' workflow first, or set TF_VAR_frontend_image_tag."
+  }
 }
 
 variable "argocd_app_frontend_path" {

@@ -422,6 +422,14 @@ resource "kubernetes_job" "admin_seed" {
   # otherwise time out or fail if the seed takes longer than the provider timeout.
   wait_for_completion = false
 
+  # Ensure backend_image_tag is set before creating the job
+  lifecycle {
+    precondition {
+      condition     = var.backend_image_tag != ""
+      error_message = "backend_image_tag must be set for admin-seed-job. Run 'Backend Build and Push' workflow first, or set TF_VAR_backend_image_tag to the tag from backend/helm/ldap-2fa-backend/values.yaml (e.g., 'ldap-2fa-backend-<sha>-<run_id>')."
+    }
+  }
+
   metadata {
     name      = "admin-seed-job"
     namespace = kubernetes_namespace.backend_app[0].metadata[0].name

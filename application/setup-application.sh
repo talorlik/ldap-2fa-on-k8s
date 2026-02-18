@@ -589,16 +589,17 @@ echo ""
 print_info "Extracting backend image tag from Helm values..."
 BACKEND_VALUES_FILE="backend/helm/ldap-2fa-backend/values.yaml"
 if [ ! -f "$BACKEND_VALUES_FILE" ]; then
-    print_warning "Backend Helm values file not found at ${BACKEND_VALUES_FILE}"
-    print_warning "Using default image tag 'latest'. Run 'Backend Build and Push' workflow first."
-    export TF_VAR_backend_image_tag="latest"
+    print_error "Backend Helm values file not found at ${BACKEND_VALUES_FILE}"
+    print_error "Run the 'Backend Build and Push' workflow first to build and push the backend image."
+    exit 1
 else
     # Extract image tag from values.yaml (line format: "  tag: \"tag-value\"")
-    BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d 'r')
-    if [ -z "$BACKEND_IMAGE_TAG" ] || [ "$BACKEND_IMAGE_TAG" = "tag:" ]; then
-        print_warning "Could not extract backend image tag from ${BACKEND_VALUES_FILE}"
-        print_warning "Using default image tag 'latest'"
-        export TF_VAR_backend_image_tag="latest"
+    BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d '\r')
+    if [ -z "$BACKEND_IMAGE_TAG" ] || [ "$BACKEND_IMAGE_TAG" = "tag:" ] || [ "$BACKEND_IMAGE_TAG" = "latest" ]; then
+        print_error "Could not extract valid backend image tag from ${BACKEND_VALUES_FILE}"
+        print_error "Found tag: '${BACKEND_IMAGE_TAG:-<empty>}'"
+        print_error "Run the 'Backend Build and Push' workflow first. It will update the values.yaml with the correct tag."
+        exit 1
     else
         export TF_VAR_backend_image_tag="$BACKEND_IMAGE_TAG"
         print_success "Using backend image tag: ${BACKEND_IMAGE_TAG}"
@@ -609,16 +610,17 @@ fi
 print_info "Extracting frontend image tag from Helm values..."
 FRONTEND_VALUES_FILE="frontend/helm/ldap-2fa-frontend/values.yaml"
 if [ ! -f "$FRONTEND_VALUES_FILE" ]; then
-    print_warning "Frontend Helm values file not found at ${FRONTEND_VALUES_FILE}"
-    print_warning "Using default image tag 'latest'. Run 'Frontend Build and Push' workflow first."
-    export TF_VAR_frontend_image_tag="latest"
+    print_error "Frontend Helm values file not found at ${FRONTEND_VALUES_FILE}"
+    print_error "Run the 'Frontend Build and Push' workflow first to build and push the frontend image."
+    exit 1
 else
     # Extract image tag from values.yaml
-    FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d 'r')
-    if [ -z "$FRONTEND_IMAGE_TAG" ] || [ "$FRONTEND_IMAGE_TAG" = "tag:" ]; then
-        print_warning "Could not extract frontend image tag from ${FRONTEND_VALUES_FILE}"
-        print_warning "Using default image tag 'latest'"
-        export TF_VAR_frontend_image_tag="latest"
+    FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d '\r')
+    if [ -z "$FRONTEND_IMAGE_TAG" ] || [ "$FRONTEND_IMAGE_TAG" = "tag:" ] || [ "$FRONTEND_IMAGE_TAG" = "latest" ]; then
+        print_error "Could not extract valid frontend image tag from ${FRONTEND_VALUES_FILE}"
+        print_error "Found tag: '${FRONTEND_IMAGE_TAG:-<empty>}'"
+        print_error "Run the 'Frontend Build and Push' workflow first. It will update the values.yaml with the correct tag."
+        exit 1
     else
         export TF_VAR_frontend_image_tag="$FRONTEND_IMAGE_TAG"
         print_success "Using frontend image tag: ${FRONTEND_IMAGE_TAG}"
