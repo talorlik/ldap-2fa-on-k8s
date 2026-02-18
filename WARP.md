@@ -2154,6 +2154,10 @@ controller
 
 ### Troubleshooting
 
+> **Comprehensive Guide**: For detailed LDAP and admin-seed-job troubleshooting,
+> see [application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md](application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+> which documents investigation steps, root causes, and fixes.
+
 - **PVC stuck in Pending**: Normal until a pod uses it (EBS Auto Mode behavior
 with WaitForFirstConsumer)
 - **Terraform workspace issues**: Ensure workspace exists before selecting
@@ -2295,6 +2299,41 @@ when Ingresses don't exist
    # Apply Terraform to recreate records
    terraform apply -auto-approve -var-file="variables.tfvars"
    ```
+
+### Admin-Seed-Job Issues (Image Pull, LDAP Errors)**
+
+1. **Root Cause: Image tag `latest` doesn't exist in ECR**
+   - Symptoms: `ImagePullBackOff`, `ErrImagePull` for admin-seed-job pod
+   - ECR uses commit-based tags (e.g., `ldap-2fa-backend-<sha>-<run_id>`)
+   - Variable validation now rejects `latest` tag
+
+2. **Root Cause: LDAP directory structure missing on some pods**
+   - Symptoms: `LDAPNoSuchObjectResult - 32 - noSuchObject` for `ou=users`
+   - Multi-master replication doesn't sync initial data; each pod initializes
+   independently
+   - Fixed by adding `customLdifFiles` to create `ou=users`, `ou=groups`, and
+   `cn=admins` on all pods
+
+3. **Root Cause: Wrong group membership attribute**
+   - Symptoms: `attribute 'member' not allowed` when adding user to group
+   - `groupOfUniqueNames` requires `uniqueMember`, not `member`
+   - LDAPClient now detects group objectClass and uses correct attribute
+
+4. **Verification Commands**:
+
+   ```bash
+   # Check directory structure on all pods
+   for pod in openldap-stack-ha-0 openldap-stack-ha-1 openldap-stack-ha-2; do
+     echo "=== $pod ==="
+     kubectl exec -n ldap $pod -- ldapsearch -x -LLL -H ldap://localhost:389 \
+       -D "cn=admin,dc=ldap,dc=talorlik,dc=internal" \
+       -w "$LDAP_ADMIN_PASSWORD" \
+       -b "dc=ldap,dc=talorlik,dc=internal" "(objectClass=*)" dn
+   done
+   ```
+
+See [LDAP-ADMIN-SEED-TROUBLESHOOTING.md](application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+for complete investigation details, ad-hoc corrections, and permanent code fixes.
 
 ## Important Notes
 

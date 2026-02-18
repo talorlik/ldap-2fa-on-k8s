@@ -5,7 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - Signup Process Changes
+## [Unreleased] - LDAP Admin-Seed Fixes and Image Tag Validation
+
+### Added
+
+- **LDAP and Admin-Seed-Job Troubleshooting Guide**
+  - Created comprehensive troubleshooting document
+  [application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md](application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+  documenting persistent OpenLDAP issues, investigation timeline, root causes,
+  ad-hoc manual corrections, and permanent code fixes
+  - Includes verification commands, lessons learned, and references
+
+- **OpenLDAP Directory Structure Initialization**
+  - Added `customLdifFiles` to OpenLDAP Helm values to automatically create
+  `ou=users`, `ou=groups`, and `cn=admins` on all OpenLDAP pods at startup
+  - Fixes issue where multi-master replication didn't sync initial directory
+  structure (each pod initialized independently with empty directory)
+  - See [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md) for details
+
+- **LDAPClient Group Membership Handling**
+  - Added methods to detect group objectClass and use correct membership attribute
+  (`uniqueMember` for `groupOfUniqueNames`, `member` for `groupOfNames`)
+  - Added `update_user()` and `create_or_update_user()` for idempotent operations
+  - See [application/CHANGELOG.md](application/CHANGELOG.md) for details
+
+- **Image Tag Validation for Admin-Seed Job**
+  - Added validation to reject `"latest"` tag (which doesn't exist in ECR)
+  - Scripts and workflows fail early with helpful error if tag extraction fails
+  - Destroy scripts use empty string as fallback (acceptable for destroy operations)
+  - ECR uses commit-based tags; Backend Build workflow updates Helm values
 
 ### Fixed
 

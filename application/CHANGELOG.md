@@ -15,6 +15,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **LDAP and Admin-Seed-Job Troubleshooting Guide**
+  - Created comprehensive troubleshooting document
+  [LDAP-ADMIN-SEED-TROUBLESHOOTING.md](LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+  documenting persistent LDAP issues, investigation timeline, root causes,
+  ad-hoc manual corrections, and permanent code fixes
+  - Includes verification commands and lessons learned
+
+- **LDAPClient Group Membership Handling**
+  - Added `_get_group_object_class()` method to detect group objectClass and
+  use correct membership attribute (`uniqueMember` for `groupOfUniqueNames`,
+  `member` for `groupOfNames`, `memberUid` for `posixGroup`)
+  - Added `update_user()` method to update existing LDAP user attributes
+  - Added `create_or_update_user()` method for idempotent user creation/update
+  - Fixed `add_user_to_group()` and `remove_user_from_group()` to detect group
+  objectClass before modifying membership
+
+- **Idempotent Admin Seeding**
+  - Updated `seed_admin.py` to use `create_or_update_user()` instead of
+  `create_user()` so the seed job doesn't fail if the user already exists
+  - Fixed AsyncSessionLocal import for proper database session handling
+
+- **Image Tag Validation**
+  - Added validation to `backend_image_tag` and `frontend_image_tag` variables
+  to reject `"latest"` (which doesn't exist in ECR)
+  - Added lifecycle precondition to admin-seed job requiring non-empty
+  `backend_image_tag`
+  - Updated `setup-application.sh` to fail early with error if image tag
+  extraction fails or returns `"latest"`
+  - Updated `application_provisioning.yaml` workflow with same fail-early behavior
+  - Changed variable defaults from `"latest"` to `""` (empty) to force explicit
+  setting from Helm values
+  - ECR uses commit-based tags (e.g., `ldap-2fa-backend-<sha>-<run_id>`); the
+  Backend Build workflow updates Helm values with correct tags
+
+- **Destroy Script/Workflow Image Tag Handling**
+  - Updated `destroy-application.sh` and `application_destroying.yaml` to use
+  empty string as fallback when image tag extraction fails (instead of `"latest"`)
+  - Empty string passes validation and is acceptable for destroy operations
+  since Terraform doesn't need valid tags to destroy resources
+  - Added check to reject `"latest"` even if extracted from Helm values
+
 ### Fixed
 
 - **LDAP Admin Password Consistency: Cross-Namespace Secret Reading**

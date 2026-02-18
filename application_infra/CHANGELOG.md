@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **OpenLDAP Directory Structure Initialization via customLdifFiles**
+  - Added `customLdifFiles` section to `helm/openldap-values.tpl.yaml` to
+  automatically create the LDAP directory structure on all OpenLDAP pods
+  - Creates `ou=users` and `ou=groups` organizational units on pod startup
+  - Creates `cn=admins` group (objectClass `groupOfUniqueNames`) with placeholder
+  member for 2FA application admin authorization
+  - Fixes issue where multi-master replication didn't sync initial directory
+  structure across pods (each pod initialized independently with empty directory)
+  - Added `openldap_base_dn` variable and computed local in OpenLDAP module for
+  LDIF template interpolation
+  - See [LDAP-ADMIN-SEED-TROUBLESHOOTING.md](../application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+  for detailed investigation and root cause analysis
+
 ### Fixed
 
 - **OpenLDAP Secret Key Name Correction**
