@@ -2,11 +2,18 @@ locals {
   # Determine values template path
   values_template_path = var.values_template_path != null ? var.values_template_path : "${path.module}/../../helm/openldap-values.tpl.yaml"
 
+  # Compute base DN from domain if not provided
+  # e.g., "ldap.talorlik.internal" -> "dc=ldap,dc=talorlik,dc=internal"
+  computed_base_dn = var.openldap_base_dn != null ? var.openldap_base_dn : join(",", [
+    for part in split(".", var.openldap_ldap_domain) : "dc=${part}"
+  ])
+
   openldap_values = templatefile(
     local.values_template_path,
     {
       storage_class_name   = var.storage_class_name
       openldap_ldap_domain = var.openldap_ldap_domain
+      openldap_base_dn     = local.computed_base_dn
       app_name             = var.app_name
       # ECR image configuration
       ecr_registry       = var.ecr_registry

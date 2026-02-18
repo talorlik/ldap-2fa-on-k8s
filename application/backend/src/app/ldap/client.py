@@ -298,6 +298,117 @@ class LDAPClient:
             logger.error("Unexpected error creating user %s: %s", username, e)
             return False, f"Error creating user: {e!s}"
 
+    def update_user(
+        self,
+        username: str,
+        password: Optional[str] = None,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
+        email: Optional[str] = None,
+    ) -> tuple[bool, str]:
+        """
+        Update an existing user in LDAP.
+
+        Args:
+            username: The username (uid)
+            password: New password (optional)
+            first_name: New first name (optional)
+            last_name: New last name (optional)
+            email: New email address (optional)
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        user_dn = self._get_user_dn(username)
+
+        try:
+            conn = self._get_admin_connection()
+
+            # Check if user exists
+            if not self.user_exists(username):
+                conn.unbind()
+                return False, f"User {username} does not exist in LDAP"
+
+            # Build modifications
+            modifications = {}
+
+            if password is not None:
+                modifications["userPassword"] = [(MODIFY_REPLACE, [password])]
+
+            if first_name is not None and last_name is not None:
+                modifications["cn"] = [(MODIFY_REPLACE, [f"{first_name} {last_name}"])]
+                modifications["givenName"] = [(MODIFY_REPLACE, [first_name])]
+                modifications["sn"] = [(MODIFY_REPLACE, [last_name])]
+            elif first_name is not None:
+                modifications["givenName"] = [(MODIFY_REPLACE, [first_name])]
+            elif last_name is not None:
+                modifications["sn"] = [(MODIFY_REPLACE, [last_name])]
+
+            if email is not None:
+                modifications["mail"] = [(MODIFY_REPLACE, [email])]
+
+            if not modifications:
+                conn.unbind()
+                return True, "No changes to apply"
+
+            # Apply modifications
+            success = conn.modify(user_dn, modifications)
+
+            if success:
+                logger.info("Updated LDAP user: %s", username)
+                conn.unbind()
+                return True, f"User {username} updated successfully"
+            else:
+                error_msg = conn.result.get("description", "Unknown error")
+                logger.error("Failed to update LDAP user %s: %s", username, error_msg)
+                conn.unbind()
+                return False, f"Failed to update user: {error_msg}"
+
+        except LDAPException as e:
+            logger.error("LDAP error updating user %s: %s", username, e)
+            return False, f"LDAP error: {e!s}"
+        except Exception as e:
+            logger.error("Unexpected error updating user %s: %s", username, e)
+            return False, f"Error updating user: {e!s}"
+
+    def create_or_update_user(
+        self,
+        username: str,
+        password: str,
+        first_name: str,
+        last_name: str,
+        email: str,
+    ) -> tuple[bool, str]:
+        """
+        Create a new user in LDAP or update if exists.
+
+        Args:
+            username: The username (uid)
+            password: The user's password
+            first_name: User's first name
+            last_name: User's last name
+            email: User's email address
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        if self.user_exists(username):
+            return self.update_user(
+                username=username,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+            )
+        else:
+            return self.create_user(
+                username=username,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+            )
+
     def delete_user(self, username: str) -> tuple[bool, str]:
         """
         Delete a user from LDAP.
@@ -391,6 +502,30 @@ class LDAPClient:
             logger.error("Unexpected error checking admin status for %s: %s", username, e)
             return False
 
+    def _get_group_object_class(self, conn: Connection, group_dn: str) -> Optional[str]:
+        """
+        Determine the objectClass of a group to use the correct membership attribute.
+
+        Returns: 'groupOfUniqueNames', 'groupOfNames', 'posixGroup', or None
+        """
+        try:
+            conn.search(
+                search_base=group_dn,
+                search_filter="(objectClass=*)",
+                attributes=["objectClass"],
+            )
+            if conn.entries:
+                object_classes = [oc.lower() for oc in conn.entries[0].objectClass.values]
+                if "groupofuniquenames" in object_classes:
+                    return "groupOfUniqueNames"
+                elif "groupofnames" in object_classes:
+                    return "groupOfNames"
+                elif "posixgroup" in object_classes:
+                    return "posixGroup"
+        except Exception as e:
+            logger.debug("Could not determine group objectClass: %s", e)
+        return None
+
     def add_user_to_group(self, username: str, group_dn: str) -> tuple[bool, str]:
         """
         Add a user to an LDAP group.
@@ -407,25 +542,56 @@ class LDAPClient:
         try:
             conn = self._get_admin_connection()
 
-            # Try to add as member (for groupOfNames/groupOfUniqueNames)
-            success = conn.modify(
-                group_dn,
-                {"member": [(MODIFY_ADD, [user_dn])]}
-            )
+            # Determine group type to use correct membership attribute
+            group_type = self._get_group_object_class(conn, group_dn)
+            success = False
 
-            if not success:
-                # Try memberUid instead (for posixGroup)
+            if group_type == "groupOfUniqueNames":
+                # groupOfUniqueNames uses uniqueMember attribute
+                success = conn.modify(
+                    group_dn,
+                    {"uniqueMember": [(MODIFY_ADD, [user_dn])]}
+                )
+            elif group_type == "groupOfNames":
+                # groupOfNames uses member attribute
+                success = conn.modify(
+                    group_dn,
+                    {"member": [(MODIFY_ADD, [user_dn])]}
+                )
+            elif group_type == "posixGroup":
+                # posixGroup uses memberUid attribute (just username)
                 success = conn.modify(
                     group_dn,
                     {"memberUid": [(MODIFY_ADD, [username])]}
                 )
+            else:
+                # Unknown group type, try uniqueMember first, then member, then memberUid
+                success = conn.modify(
+                    group_dn,
+                    {"uniqueMember": [(MODIFY_ADD, [user_dn])]}
+                )
+                if not success:
+                    success = conn.modify(
+                        group_dn,
+                        {"member": [(MODIFY_ADD, [user_dn])]}
+                    )
+                if not success:
+                    success = conn.modify(
+                        group_dn,
+                        {"memberUid": [(MODIFY_ADD, [username])]}
+                    )
 
             if success:
                 logger.info("Added user %s to group %s", username, group_dn)
                 conn.unbind()
-                return True, f"User added to group successfully"
+                return True, "User added to group successfully"
             else:
                 error_msg = conn.result.get("description", "Unknown error")
+                # Check if user is already a member (attribute or value exists)
+                if "already exists" in error_msg.lower() or "attribute or value exists" in error_msg.lower():
+                    logger.info("User %s is already a member of group %s", username, group_dn)
+                    conn.unbind()
+                    return True, "User is already a member of the group"
                 logger.error("Failed to add %s to group: %s", username, error_msg)
                 conn.unbind()
                 return False, f"Failed to add to group: {error_msg}"
@@ -453,18 +619,41 @@ class LDAPClient:
         try:
             conn = self._get_admin_connection()
 
-            # Try to remove as member (for groupOfNames/groupOfUniqueNames)
-            success = conn.modify(
-                group_dn,
-                {"member": [(MODIFY_DELETE, [user_dn])]}
-            )
+            # Determine group type to use correct membership attribute
+            group_type = self._get_group_object_class(conn, group_dn)
+            success = False
 
-            if not success:
-                # Try memberUid instead (for posixGroup)
+            if group_type == "groupOfUniqueNames":
+                success = conn.modify(
+                    group_dn,
+                    {"uniqueMember": [(MODIFY_DELETE, [user_dn])]}
+                )
+            elif group_type == "groupOfNames":
+                success = conn.modify(
+                    group_dn,
+                    {"member": [(MODIFY_DELETE, [user_dn])]}
+                )
+            elif group_type == "posixGroup":
                 success = conn.modify(
                     group_dn,
                     {"memberUid": [(MODIFY_DELETE, [username])]}
                 )
+            else:
+                # Unknown group type, try all
+                success = conn.modify(
+                    group_dn,
+                    {"uniqueMember": [(MODIFY_DELETE, [user_dn])]}
+                )
+                if not success:
+                    success = conn.modify(
+                        group_dn,
+                        {"member": [(MODIFY_DELETE, [user_dn])]}
+                    )
+                if not success:
+                    success = conn.modify(
+                        group_dn,
+                        {"memberUid": [(MODIFY_DELETE, [username])]}
+                    )
 
             if success:
                 logger.info("Removed user %s from group %s", username, group_dn)

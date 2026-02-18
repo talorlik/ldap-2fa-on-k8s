@@ -72,26 +72,23 @@ async def _ensure_ldap_admin_user(
     last_name: str,
     email: str,
 ) -> bool:
-    """Create LDAP user if not exists and ensure they are in the admins group. Returns True on success."""
+    """Create or update LDAP user and ensure they are in the admins group. Returns True on success."""
     ldap = LDAPClient()
     settings = get_settings()
     admin_group_dn = settings.ldap_admin_group_dn
 
-    # Create user in LDAP (same password as LDAP admin for unified login)
-    if ldap.user_exists(username):
-        logger.info("LDAP user already exists: %s", username)
-    else:
-        success, msg = ldap.create_user(
-            username=username,
-            password=password,
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-        )
-        if not success:
-            logger.error("Failed to create LDAP user: %s", msg)
-            return False
-        logger.info("Created LDAP user: %s", username)
+    # Create or update user in LDAP (idempotent - will update if exists)
+    success, msg = ldap.create_or_update_user(
+        username=username,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        email=email,
+    )
+    if not success:
+        logger.error("Failed to create/update LDAP user: %s", msg)
+        return False
+    logger.info("LDAP user ensured: %s (%s)", username, msg)
 
     # Ensure admins group exists and add user to it
     try:
@@ -104,6 +101,7 @@ async def _ensure_ldap_admin_user(
         if add_ok:
             logger.info("User %s is in admin group", username)
         else:
+            # Log as warning but don't fail - user might already be in group
             logger.warning("Could not add user to admin group: %s", add_msg)
     except Exception as e:
         logger.warning("Admin group check/add failed (non-fatal): %s", type(e).__name__)

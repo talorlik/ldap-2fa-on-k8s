@@ -23,6 +23,12 @@ variable "openldap_ldap_domain" {
   type        = string
 }
 
+variable "openldap_base_dn" {
+  description = "OpenLDAP base DN (e.g., dc=ldap,dc=talorlik,dc=internal). Computed from openldap_ldap_domain if not provided."
+  type        = string
+  default     = null
+}
+
 variable "openldap_admin_password" {
   description = "OpenLDAP admin password. MUST be set via TF_VAR_OPENLDAP_ADMIN_PASSWORD environment variable, .env file, or GitHub Secret. Do NOT set in variables.tfvars."
   type        = string

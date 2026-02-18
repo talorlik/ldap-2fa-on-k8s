@@ -32,6 +32,33 @@ global:
   ldapPort: 389
   sslLdapPort: 636
 
+# Custom LDIF files to initialize directory structure on all pods
+# This ensures ou=users, ou=groups, and cn=admins group exist on every replica
+# IMPORTANT: This is applied during first initialization of each pod's PVC
+customLdifFiles:
+  01-init-ous.ldif: |-
+    # Create users organizational unit
+    dn: ou=users,${openldap_base_dn}
+    objectClass: organizationalUnit
+    ou: users
+    description: User accounts
+
+    # Create groups organizational unit
+    dn: ou=groups,${openldap_base_dn}
+    objectClass: organizationalUnit
+    ou: groups
+    description: Group definitions
+
+  02-init-groups.ldif: |-
+    # Create admins group (groupOfUniqueNames)
+    # Initial member is the LDAP admin DN (required by groupOfUniqueNames)
+    dn: cn=admins,ou=groups,${openldap_base_dn}
+    objectClass: groupOfUniqueNames
+    objectClass: top
+    cn: admins
+    description: Administrator group
+    uniqueMember: cn=admin,${openldap_base_dn}
+
 env:
   LDAP_DOMAIN: "${openldap_ldap_domain}"
   # Enable TLS (osixia/openldap will auto-generate certificates if they don't exist)
