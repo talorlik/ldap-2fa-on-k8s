@@ -668,6 +668,13 @@ cd application
 
 ## Troubleshooting
 
+> [!TIP]
+>
+> **For LDAP and Admin-Seed-Job issues**, see the comprehensive
+> [LDAP-ADMIN-SEED-TROUBLESHOOTING.md](LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+> guide which documents multi-master replication problems, directory structure
+> initialization, group membership attributes, and admin user seeding fixes.
+
 ### Common Issues
 
 1. **2FA Application Issues**
@@ -739,13 +746,30 @@ cd application
      frontend and backend applications in ArgoCD so their Ingresses are
      updated with the shared ALB name and IngressClass.
 
-6. **SES Issues**
+6. **Admin-Seed-Job Failures**
+   - **ImagePullBackOff**: ECR uses commit-based tags (e.g.,
+     `ldap-2fa-backend-<sha>-<run_id>`), not `:latest`. Ensure the Backend Build
+     workflow has run and the Helm values contain the correct tag.
+   - **LDAP noSuchObject (32)**: Directory structure (`ou=users`, `ou=groups`,
+     `cn=admins`) may be missing on some pods due to multi-master replication
+     not syncing initial data. The `customLdifFiles` in OpenLDAP Helm values
+     now auto-creates these on all pods.
+   - **LDAP invalidCredentials (49)**: Password mismatch between
+     `application_infra` and `application`. The `ldap-admin-secret` now reads
+     password from OpenLDAP secret in `ldap` namespace.
+   - **Group membership attribute error**: `groupOfUniqueNames` uses
+     `uniqueMember`, not `member`. The LDAPClient now auto-detects the group
+     objectClass.
+   - See [LDAP-ADMIN-SEED-TROUBLESHOOTING.md](LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+     for detailed investigation and fixes.
+
+7. **SES Issues**
    - Check email identity: `aws ses get-identity-verification-attributes \
      --identities your@email.com`
    - Check send quota: `aws ses get-send-quota`
    - Verify IRSA: Check service account annotation for SES IAM role
 
-7. **User Registration Issues**
+8. **User Registration Issues**
    - Check backend logs for registration errors
    - Verify PostgreSQL connectivity
    - Check SES sending limits (sandbox mode restricts recipients)

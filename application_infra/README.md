@@ -198,6 +198,9 @@ Deploys the complete OpenLDAP stack using the
 - Storage: Creates a new PVC using a StorageClass created by this Terraform
 configuration (see Storage Configuration section below)
 - LDAP Ports: Standard ports (389 for LDAP, 636 for LDAPS)
+- **Directory Initialization**: Uses `customLdifFiles` in Helm values to
+  automatically create `ou=users`, `ou=groups`, and `cn=admins` group on all
+  pods at startup (fixes multi-master replication data sync issues)
 - **ECR Images**: Uses ECR images instead of Docker Hub (images mirrored via
   `mirror-images-to-ecr.sh`)
   - Image tags: `redis-latest`, `postgresql-latest`, `openldap-1.5.0`
