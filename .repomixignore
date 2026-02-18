@@ -26,7 +26,7 @@
 
 # Tooling/Caches
 .repomixignore
-repomix-output.md
+repomix_output.md
 node_modules/
 
 # Non-essential Documentation

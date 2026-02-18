@@ -89,7 +89,7 @@ certificate management)
 > the State Account (different from deployment account). When
 > `state_account_role_arn` is configured, Terraform automatically queries these
 > resources from the State Account. See [Cross-Account Access
-> Documentation](./CROSS-ACCOUNT-ACCESS.md) for details.
+> Documentation](./CROSS_ACCOUNT_ACCESS.md) for details.
 
 **Current Implementation (Data Sources):**
 
@@ -105,7 +105,7 @@ The code references existing resources using data sources:
   - Certificate must be validated and in `ISSUED` status
   - DNS validation records must be created in Route53 hosted zone in the State
     Account
-  - See [Public ACM Certificate Setup and DNS Validation](./CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  - See [Public ACM Certificate Setup and DNS Validation](./CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
     for setup instructions
 - The certificate must be in the same region as the EKS cluster
 
@@ -115,7 +115,7 @@ The code references existing resources using data sources:
 Terraform configuration)
 - **Public ACM Certificate Setup**: Public ACM certificates must be requested in
   each deployment account and validated using DNS records in the State Account's
-  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](./CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](./CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for detailed setup instructions with step-by-step AWS CLI commands.
 - ACM certificate must be requested in each deployment account (development,
   production) as a public ACM certificate (Amazon-issued)
@@ -358,13 +358,13 @@ application_infra/
 │       ├── outputs.tf
 │       ├── providers.tf
 │       └── README.md
-├── PRD-ALB.md                  # ALB configuration PRD
-├── PRD-ArgoCD.md               # ArgoCD Capability configuration PRD
-├── PRD-DOMAIN.md               # Domain configuration PRD
-├── OPENLDAP-README.md          # OpenLDAP deployment documentation
-├── OSIXIA-OPENLDAP-REQUIREMENTS.md  # OpenLDAP requirements documentation
-├── SECURITY-IMPROVEMENTS.md   # Security improvements documentation
-├── CROSS-ACCOUNT-ACCESS.md    # Cross-account Route53/ACM access documentation
+├── PRD_ALB.md                  # ALB configuration PRD
+├── PRD_ArgoCD.md               # ArgoCD Capability configuration PRD
+├── PRD_DOMAIN.md               # Domain configuration PRD
+├── OPENLDAP_README.md          # OpenLDAP deployment documentation
+├── OSIXIA_OPENLDAP_REQUIREMENTS.md  # OpenLDAP requirements documentation
+├── SECURITY_IMPROVEMENTS.md   # Security improvements documentation
+├── CROSS_ACCOUNT_ACCESS.md    # Cross-account Route53/ACM access documentation
 └── README.md                   # This file
 ```
 
@@ -393,7 +393,7 @@ application_infra/
    - GitHub Actions uses Account A role for backend access and Route53/ACM
      access
    - Terraform provider assumes Account B role for resource deployment
-   - See [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) for
+   - See [Cross-Account Access Documentation](./CROSS_ACCOUNT_ACCESS.md) for
      details
 3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main
 [README.md](../README.md))
@@ -403,7 +403,7 @@ out, code uses data sources)
 6. **Public ACM Certificate Setup**: Public ACM certificates must be requested in
    each deployment account and validated using DNS records in the State Account's
    Route53 hosted zone
-   - See [Public ACM Certificate Setup and DNS Validation](./CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+   - See [Public ACM Certificate Setup and DNS Validation](./CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
      for detailed setup instructions with step-by-step AWS CLI commands
    - Each deployment account (development, production) has its own public ACM
      certificate
@@ -416,7 +416,7 @@ out, code uses data sources)
    - Certificate must be validated and in `ISSUED` status
    - DNS validation records must be created in Route53 hosted zone in the State
      Account
-   - See [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) for
+   - See [Cross-Account Access Documentation](./CROSS_ACCOUNT_ACCESS.md) for
      details
 8. **Domain Registration**: The domain name must be registered (can be with any
 registrar)
@@ -527,7 +527,7 @@ cross-account role assumption
   - Automatically injected by GitHub workflows
   - Required when Route53 hosted zone and ACM certificate are in a different account
   - Format: `arn:aws:iam::STATE_ACCOUNT_ID:role/terraform-state-role`
-  - See [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) for details
+  - See [Cross-Account Access Documentation](./CROSS_ACCOUNT_ACCESS.md) for details
 
 #### Cluster Name Injection
 

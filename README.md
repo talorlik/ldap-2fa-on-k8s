@@ -78,7 +78,7 @@ Configuration](#github-repository-configuration))
 - **ACM certificates (Account B)**: Request a public ACM certificate in each
   Deployment Account. Validation uses CNAME records in Account A's Route53.
   Certificate must be in `ISSUED` status and in the same region as the EKS
-  cluster. See [Public ACM Certificate Setup and DNS Validation](application_infra/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  cluster. See [Public ACM Certificate Setup and DNS Validation](application_infra/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for step-by-step AWS CLI commands.
 - **Docker (for Local Deployment)**: Docker must be installed and running for
   ECR image mirroring. The `mirror-images-to-ecr.sh` script requires Docker to
@@ -128,19 +128,19 @@ ldap-2fa-on-k8s/
 │   │   ├── route53/                 # Route53 hosted zone
 │   │   └── route53_record/          # Route53 DNS records
 │   ├── CHANGELOG.md
-│   ├── CROSS-ACCOUNT-ACCESS.md
+│   ├── CROSS_ACCOUNT_ACCESS.md
 │   ├── destroy-application-infra.sh
 │   ├── main.tf
 │   ├── mirror-images-to-ecr.sh
-│   ├── OPENLDAP-README.md
-│   ├── OSIXIA-OPENLDAP-REQUIREMENTS.md
+│   ├── OPENLDAP_README.md
+│   ├── OSIXIA_OPENLDAP_REQUIREMENTS.md
 │   ├── outputs.tf
-│   ├── PRD-ALB.md
-│   ├── PRD-ArgoCD.md
-│   ├── PRD-DOMAIN.md
+│   ├── PRD_ALB.md
+│   ├── PRD_ArgoCD.md
+│   ├── PRD_DOMAIN.md
 │   ├── providers.tf
 │   ├── README.md
-│   ├── SECURITY-IMPROVEMENTS.md
+│   ├── SECURITY_IMPROVEMENTS.md
 │   ├── set-k8s-env.sh
 │   ├── setup-application-infra.sh
 │   ├── tfstate-backend-values-template.hcl
@@ -187,17 +187,17 @@ ldap-2fa-on-k8s/
 │   │   ├── ses/                     # AWS SES for email
 │   │   └── sns/                     # AWS SNS for SMS
 │   ├── CHANGELOG.md
-│   ├── DEPLOY-2FA-APPS.md
+│   ├── DEPLOY_2FA_APPS.md
 │   ├── PASSWORD_FLOW.md
 │   ├── REDIS_ENABLEMENT_SUMMARY.md
 │   ├── SECRET_DEPENDENCIES.md
 │   ├── destroy-application.sh
 │   ├── main.tf
 │   ├── outputs.tf
-│   ├── PRD-2FA-APP.md
-│   ├── PRD-ADMIN-FUNCS.md
-│   ├── PRD-SIGNUP-MAN.md
-│   ├── PRD-SMS-MAN.md
+│   ├── PRD_2FA_APP.md
+│   ├── PRD_ADMIN_FUNCS.md
+│   ├── PRD_SIGNUP_MAN.md
+│   ├── PRD_SMS_MAN.md
 │   ├── providers.tf
 │   ├── README.md
 │   ├── setup-application.sh
@@ -239,8 +239,8 @@ ldap-2fa-on-k8s/
 ├── LICENSE
 ├── monitor-deployments.sh          # Deployment monitoring script
 ├── README.md                       # This file
-├── repomix-instructions.md
-├── repomix-output.md
+├── repomix_instructions.md
+├── repomix_output.md
 ├── repomix.config.json
 ├── SECRETS_REQUIREMENTS.md         # Secrets management documentation (AWS Secrets Manager & GitHub Secrets)
 └── WARP.md
@@ -1117,9 +1117,9 @@ The 2FA application supports two multi-factor authentication methods:
 For detailed API specifications, frontend architecture, and implementation details,
 see:
 
-- [2FA Application PRD](application/PRD-2FA-APP.md) - Complete API and frontend
+- [2FA Application PRD](application/PRD_2FA_APP.md) - Complete API and frontend
 specifications
-- [SMS OTP Management PRD](application/PRD-SMS-MAN.md) - Redis-based SMS OTP
+- [SMS OTP Management PRD](application/PRD_SMS_MAN.md) - Redis-based SMS OTP
 storage implementation
 - [SNS Module Documentation](application/modules/sns/README.md) - SMS 2FA
 infrastructure setup
@@ -1166,17 +1166,17 @@ endpoints, and ECR documentation
 
 ### Application Documentation
 
-- [2FA Application PRD](application/PRD-2FA-APP.md) - Product requirements for
+- [2FA Application PRD](application/PRD_2FA_APP.md) - Product requirements for
 the 2FA application (API specs, frontend architecture)
-- [User Signup Management PRD](application/PRD-SIGNUP-MAN.md) - Self-service
+- [User Signup Management PRD](application/PRD_SIGNUP_MAN.md) - Self-service
 user registration with email/phone verification
-- [Admin Functions PRD](application/PRD-ADMIN-FUNCS.md) - Admin dashboard, group
+- [Admin Functions PRD](application/PRD_ADMIN_FUNCS.md) - Admin dashboard, group
 management, and approval workflows
-- [SMS OTP Management PRD](application/PRD-SMS-MAN.md) - Redis-based SMS OTP
+- [SMS OTP Management PRD](application/PRD_SMS_MAN.md) - Redis-based SMS OTP
 storage with TTL
-- [OpenLDAP Deployment PRD](application_infra/PRD-OPENLDAP.md) - OpenLDAP deployment
+- [OpenLDAP Deployment PRD](application_infra/PRD_OPENLDAP.md) - OpenLDAP deployment
 requirements and configuration
-- [Security Improvements](application_infra/SECURITY-IMPROVEMENTS.md) - Security
+- [Security Improvements](application_infra/SECURITY_IMPROVEMENTS.md) - Security
 enhancements and best practices
 - [Secret Dependencies](application/SECRET_DEPENDENCIES.md) - Which components
 require which secrets (PostgreSQL, Redis, LDAP admin)
@@ -1245,7 +1245,7 @@ rate limiting
 endpoints
 - **Public ACM Certificates**: Browser-trusted certificates with automatic renewal
 
-See [Security Improvements](application_infra/SECURITY-IMPROVEMENTS.md) for detailed
+See [Security Improvements](application_infra/SECURITY_IMPROVEMENTS.md) for detailed
 security documentation.
 
 ## Operations & Monitoring

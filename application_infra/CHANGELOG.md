@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   structure across pods (each pod initialized independently with empty directory)
   - Added `openldap_base_dn` variable and computed local in OpenLDAP module for
   LDIF template interpolation
-  - See [LDAP-ADMIN-SEED-TROUBLESHOOTING.md](../application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+  - See [LDAP_ADMIN_SEED_TROUBLESHOOTING.md](../application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
   for detailed investigation and root cause analysis
 
 ### Fixed
@@ -340,7 +340,7 @@ admin-seed Job and can use them for manual Helm or other automation.
   - Eliminates browser security warnings and simplifies certificate management
   - Updated all documentation to reflect Public ACM certificate architecture
   - Comprehensive Public ACM certificate setup documentation in
-    `CROSS-ACCOUNT-ACCESS.md` with step-by-step AWS CLI commands
+    `CROSS_ACCOUNT_ACCESS.md` with step-by-step AWS CLI commands
   - Private CA setup moved to "Legacy" section (deprecated for public-facing
     applications)
 
@@ -426,7 +426,7 @@ admin-seed Job and can use them for manual Helm or other automation.
   - Compatible with EKS Auto Mode ALB controller requirements (certificate must
     be in same account as ALB)
   - Comprehensive Public ACM certificate setup documentation in
-    `CROSS-ACCOUNT-ACCESS.md` with step-by-step AWS CLI commands
+    `CROSS_ACCOUNT_ACCESS.md` with step-by-step AWS CLI commands
   - Certificate validation workflow documented for both production and development
     accounts
   - Certificates automatically renewed by ACM (no manual intervention required)
@@ -456,7 +456,7 @@ admin-seed Job and can use them for manual Helm or other automation.
     injection
   - No ExternalId required for state account role assumption (by design)
   - Comprehensive cross-account access documentation in
-    `CROSS-ACCOUNT-ACCESS.md`
+    `CROSS_ACCOUNT_ACCESS.md`
   - Updated ALB module to handle null certificate ARN gracefully
   - Added certificate ARN to ALB module triggers for proper
     IngressClassParams updates
@@ -687,9 +687,9 @@ admin-seed Job and can use them for manual Helm or other automation.
 - **Updated documentation across all files for Markdown lint compliance**
   - Corrected row length issues to comply with markdownlint rules
   - Improved formatting consistency across all documentation files
-  - Updated CHANGELOG.md, OPENLDAP-README.md, OSIXIA-OPENLDAP-REQUIREMENTS.md
-  - Updated PRD-ALB.md, PRD-DOMAIN.md, PRD.md, README.md
-  - Updated SECURITY-IMPROVEMENTS.md and module README files
+  - Updated CHANGELOG.md, OPENLDAP_README.md, OSIXIA_OPENLDAP_REQUIREMENTS.md
+  - Updated PRD_ALB.md, PRD_DOMAIN.md, PRD.md, README.md
+  - Updated SECURITY_IMPROVEMENTS.md and module README files
 
 - **Added Markdown lint configuration**
   - Added `.markdownlint.json` for consistent documentation formatting
@@ -803,7 +803,7 @@ configuration)**
   from Ingress annotations
   - All Ingresses now use the same annotations (no leader/secondary distinction
   needed for group/certificate config)
-  - Updated documentation in `PRD-ALB.md` and `README.md` to reflect new
+  - Updated documentation in `PRD_ALB.md` and `README.md` to reflect new
   annotation strategy
 
 ### Verified
@@ -872,7 +872,7 @@ osixia/openldap image requirements
   - Supports AWS naming constraints (max 32 characters)
   - Defaults to `alb_group_name` (truncated to 32 chars if needed)
 
-- **Comprehensive documentation updates in `PRD-ALB.md`**
+- **Comprehensive documentation updates in `PRD_ALB.md`**
   - Added detailed explanation of EKS Auto Mode vs AWS Load Balancer Controller
   differences
   - Added comparison table highlighting key differences between the two

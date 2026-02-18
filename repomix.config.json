@@ -2,10 +2,10 @@
   "$schema": "https://repomix.com/schemas/latest/schema.json",
   "input": {
     "maxFileSize": 52428800,
-    "instructionFilePath": "repomix-instruction.md"
+    "instructionFilePath": "repomix_instructions.md"
   },
   "output": {
-    "filePath": "repomix-output.md",
+    "filePath": "repomix_output.md",
     "style": "markdown",
     "parsableStyle": false,
     "fileSummary": true,

@@ -87,7 +87,7 @@ terraform apply -var-file=variables.tfvars \
 
 **Observation**: Job ran but failed with LDAP errors:
 
-```
+```text
 LDAPNoSuchObjectResult - 32 - noSuchObject
 Search for "ou=users,dc=ldap,dc=talorlik,dc=internal" failed
 ```
@@ -106,10 +106,11 @@ for pod in openldap-stack-ha-0 openldap-stack-ha-1 openldap-stack-ha-2; do
 done
 ```
 
-**Finding**: Pod-0 had full directory structure; pods 1 and 2 only had the base DN.
+**Finding**: Pod-0 had full directory structure; pods 1 and 2 only had the
+base DN.
 
 | Pod | Directory Entries |
-|-----|-------------------|
+| --- | ----------------- |
 | openldap-stack-ha-0 | `dc=ldap,dc=talorlik,dc=internal`, `ou=users`, `ou=groups`, `cn=admins`, `uid=admin` |
 | openldap-stack-ha-1 | `dc=ldap,dc=talorlik,dc=internal` only |
 | openldap-stack-ha-2 | `dc=ldap,dc=talorlik,dc=internal` only |
@@ -119,7 +120,7 @@ done
 **Observation**: After manually adding directory structure, adding user to
 group failed:
 
-```
+```text
 LDAPAttributeOrValueExistsResult - 20 - attributeOrValueExists
 type violatesProvisions: attribute 'member' not allowed
 ```
@@ -148,6 +149,7 @@ replicate data across pods. Each pod initializes independently with an empty
 directory (except for the base DN).
 
 **Why this happens**:
+
 - The osixia/openldap image auto-generates a base DN on first startup
 - Replication configuration exists but doesn't sync initial data
 - No LDIF files were configured to create the organizational structure
@@ -155,6 +157,7 @@ directory (except for the base DN).
 ### 2. Missing Directory Structure Initialization
 
 The OpenLDAP Helm chart doesn't automatically create:
+
 - `ou=users` - organizational unit for user entries
 - `ou=groups` - organizational unit for group entries
 - `cn=admins,ou=groups` - admin group for 2FA application authorization
@@ -351,7 +354,8 @@ done
 ```
 
 Expected output for each pod:
-```
+
+```text
 dn: dc=ldap,dc=talorlik,dc=internal
 dn: ou=users,dc=ldap,dc=talorlik,dc=internal
 dn: ou=groups,dc=ldap,dc=talorlik,dc=internal
@@ -400,7 +404,8 @@ kubectl exec -n ldap openldap-stack-ha-0 -- ldapsearch -x -LLL \
 ```
 
 Expected to include:
-```
+
+```text
 uniqueMember: uid=admin,ou=users,dc=ldap,dc=talorlik,dc=internal
 ```
 
@@ -429,9 +434,11 @@ uniqueMember: uid=admin,ou=users,dc=ldap,dc=talorlik,dc=internal
 
 ## Related Files
 
-- `application/backend/src/app/ldap/client.py` - LDAPClient with group handling
+- `application/backend/src/app/ldap/client.py` - LDAPClient with group
+  handling
 - `application/backend/src/app/seed_admin.py` - Admin user seeding script
-- `application_infra/helm/openldap-values.tpl.yaml` - OpenLDAP Helm values with customLdifFiles
+- `application_infra/helm/openldap-values.tpl.yaml` - OpenLDAP Helm values
+  with customLdifFiles
 - `application_infra/modules/openldap/main.tf` - OpenLDAP module
 - `application/variables.tf` - Image tag validation
 - `application/main.tf` - Admin-seed job definition

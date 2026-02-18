@@ -315,7 +315,7 @@ Ensure you have:
 - An existing Route53 hosted zone for your domain
 - **Public ACM certificates** requested in each deployment account and validated
 via DNS records in State Account's Route53 hosted zone
-  - See [Public ACM Certificate Setup and DNS Validation](application_infra/CROSS-ACCOUNT-ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  - See [Public ACM Certificate Setup and DNS Validation](application_infra/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for detailed setup instructions
   - Certificates are browser-trusted (no security warnings) and automatically
   renewed by ACM
@@ -610,15 +610,15 @@ state (with fallback options)
   - `route53/` - Route53 hosted zone creation (commented out, uses data sources)
   - `route53_record/` - Route53 A (alias) record creation
 - `application_infra/CHANGELOG.md` - Infrastructure-specific changelog
-- `application_infra/PRD-ALB.md` - Comprehensive ALB implementation guide
-- `application_infra/PRD-DOMAIN.md` - Domain and DNS configuration
-- `application_infra/PRD-OPENLDAP.md` - OpenLDAP deployment requirements
-- `application_infra/PRD-ArgoCD.md` - ArgoCD Capability documentation
-- `application_infra/OPENLDAP-README.md` - OpenLDAP configuration and TLS setup
-- `application_infra/OSIXIA-OPENLDAP-REQUIREMENTS.md` - OpenLDAP image requirements
-- `application_infra/SECURITY-IMPROVEMENTS.md` - Security enhancements and best
+- `application_infra/PRD_ALB.md` - Comprehensive ALB implementation guide
+- `application_infra/PRD_DOMAIN.md` - Domain and DNS configuration
+- `application_infra/PRD_OPENLDAP.md` - OpenLDAP deployment requirements
+- `application_infra/PRD_ArgoCD.md` - ArgoCD Capability documentation
+- `application_infra/OPENLDAP_README.md` - OpenLDAP configuration and TLS setup
+- `application_infra/OSIXIA_OPENLDAP_REQUIREMENTS.md` - OpenLDAP image requirements
+- `application_infra/SECURITY_IMPROVEMENTS.md` - Security enhancements and best
 practices
-- `application_infra/CROSS-ACCOUNT-ACCESS.md` - Cross-account access documentation
+- `application_infra/CROSS_ACCOUNT_ACCESS.md` - Cross-account access documentation
 
 ### Application Layer
 
@@ -669,11 +669,11 @@ practices
   - `nginx.conf` - nginx configuration (listens on port 8080)
   - `README.md` - Comprehensive frontend application documentation
 - `application/CHANGELOG.md` - Application-specific changelog
-- `application/PRD-2FA-APP.md` - Product requirements document for 2FA application
-- `application/PRD-SIGNUP-MAN.md` - Product requirements document for signup management
+- `application/PRD_2FA_APP.md` - Product requirements document for 2FA application
+- `application/PRD_SIGNUP_MAN.md` - Product requirements document for signup management
 system
-- `application/PRD-ADMIN-FUNCS.md` - Product requirements for admin functions
-- `application/PRD-SMS-MAN.md` - Product requirements for SMS management
+- `application/PRD_ADMIN_FUNCS.md` - Product requirements for admin functions
+- `application/PRD_SMS_MAN.md` - Product requirements for SMS management
 - `application/PASSWORD_FLOW.md` - How passwords flow from secrets to Terraform
 variables to Kubernetes secrets
 - `application/REDIS_ENABLEMENT_SUMMARY.md` - Guide for enabling Redis and SMS 2FA
@@ -1108,7 +1108,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Email and phone verification still occur during signup as before
   - User model: `mfa_method` and `totp_secret` are set to `None` during signup
   and populated during MFA enrollment at login
-  - Updated documentation: PRD-SIGNUP-MAN.md, PRD-ADMIN-FUNCS.md
+  - Updated documentation: PRD_SIGNUP_MAN.md, PRD_ADMIN_FUNCS.md
 
 - **Remember Me Feature**:
   - Login step 1 accepts optional `remember_me` parameter
@@ -1367,7 +1367,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Removed committed `application_infra/backend.hcl` from repository
 
 - **Documentation Updates**:
-  - Updated `application_infra/PRD-ArgoCD.md` with new provider versions and module
+  - Updated `application_infra/PRD_ArgoCD.md` with new provider versions and module
   improvements
   - Updated `application_infra/modules/argocd/README.md` with corrected secret
   data format
@@ -1464,7 +1464,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
     and deployment guide
   - Updated `application/README.md` with frontend security details and port
     configuration
-  - Enhanced security documentation in `application/SECURITY-IMPROVEMENTS.md`
+  - Enhanced security documentation in `application/SECURITY_IMPROVEMENTS.md`
   - All documentation reflects latest backend and frontend implementation
 
 ### ECR Repository Name Automation and Build Workflow Improvements (Jan 19, 2026)
@@ -1507,14 +1507,14 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Eliminates cross-account certificate access complexity
   - Compatible with **EKS Auto Mode ALB controller** requirements
   (certificate must be in same account as ALB)
-  - Comprehensive Public ACM certificate setup documentation in `application/CROSS-ACCOUNT-ACCESS.md`
+  - Comprehensive Public ACM certificate setup documentation in `application/CROSS_ACCOUNT_ACCESS.md`
   with step-by-step AWS CLI commands
   - Certificate validation workflow documented for both production and
   development accounts
   - Certificates automatically renewed by ACM (no manual intervention required)
   - Browser-trusted certificates (no security warnings)
   - Updated all documentation to reflect Public ACM certificate architecture
-  (PRD-ALB.md, README.md, docs/index.html)
+  (PRD_ALB.md, README.md, docs/index.html)
   - Private CA setup moved to "Legacy" section (deprecated for public-facing applications)
 
 ### Helm Release Deployment Improvements (January 14, 2026)
@@ -1581,7 +1581,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Public ACM certificates are requested in Deployment Account (not State Account)
   - Scripts automatically inject `state_account_role_arn` into `variables.tfvars`
   - No ExternalId required for state account role assumption (by design)
-  - Comprehensive cross-account access documentation in `application_infra/CROSS-ACCOUNT-ACCESS.md`
+  - Comprehensive cross-account access documentation in `application_infra/CROSS_ACCOUNT_ACCESS.md`
   - Self-assumption support: State Account role can assume itself when needed
 
 ### Route53 Record Module Separation (January 5, 2026)
@@ -1722,7 +1722,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   and bidirectional trust relationship requirements
   - Updated all README files with ExternalId configuration steps and destroy script
   usage
-  - Updated `SECURITY-IMPROVEMENTS.md` with ExternalId security benefits
+  - Updated `SECURITY_IMPROVEMENTS.md` with ExternalId security benefits
   - Updated GitHub Pages documentation (`docs/index.html`)
   - Updated CHANGELOG.md files across all layers with destroy script additions
 
@@ -1939,7 +1939,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - `GET /api/profile/{username}` - Get user profile
   - `PUT /api/profile/{username}` - Update user profile
   - Admin endpoints for user and group management
-- **Product Requirements Document**: Comprehensive PRD-SIGNUP-MAN.md documenting
+- **Product Requirements Document**: Comprehensive PRD_SIGNUP_MAN.md documenting
 signup system, user stories, and API specifications
 
 ### 2FA Application and SMS Integration (December 18, 2025 - Initial Release)
@@ -1966,7 +1966,7 @@ signup system, user stories, and API specifications
   - `frontend_build_push.yaml` - Builds and pushes frontend Docker image to ECR
   - Triggered on changes to `application/backend/**` and
   `application/frontend/**` paths
-- **Product Requirements Document**: Comprehensive PRD-2FA-APP.md documenting
+- **Product Requirements Document**: Comprehensive PRD_2FA_APP.md documenting
 architecture, API specs, and frontend components
 
 ### ArgoCD GitOps Integration (December 16, 2025)
@@ -2057,7 +2057,7 @@ defined once in IngressClassParams, inherited by all Ingresses
 - **Simplified Helm values**: Removed `group.name` and `certificate-arn` from
 Ingress annotations
 - **Updated documentation**: Comprehensive ALB implementation guide in
-`PRD-ALB.md` with EKS Auto Mode comparison
+`PRD_ALB.md` with EKS Auto Mode comparison
 
 ### New Outputs and Modules
 
@@ -2068,7 +2068,7 @@ endpoints, ECR) and application outputs (ALB, Route53, network policies)
 (exists but not actively used)
 - **CHANGELOG.md**: Detailed changelog tracking ALB configuration changes, TLS
 environment variable updates, and multi-account architecture changes
-- **OSIXIA-OPENLDAP-REQUIREMENTS.md**: Documentation for osixia/openldap image
+- **OSIXIA_OPENLDAP_REQUIREMENTS.md**: Documentation for osixia/openldap image
 requirements
 
 ## Development Workflow
@@ -2155,7 +2155,7 @@ controller
 ### Troubleshooting
 
 > **Comprehensive Guide**: For detailed LDAP and admin-seed-job troubleshooting,
-> see [application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md](application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+> see [application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md](application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
 > which documents investigation steps, root causes, and fixes.
 
 - **PVC stuck in Pending**: Normal until a pod uses it (EBS Auto Mode behavior
@@ -2332,7 +2332,7 @@ when Ingresses don't exist
    done
    ```
 
-See [LDAP-ADMIN-SEED-TROUBLESHOOTING.md](application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+See [LDAP_ADMIN_SEED_TROUBLESHOOTING.md](application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
 for complete investigation details, ad-hoc corrections, and permanent code fixes.
 
 ## Important Notes

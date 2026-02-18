@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **LDAP and Admin-Seed-Job Troubleshooting Guide**
   - Created comprehensive troubleshooting document
-  [LDAP-ADMIN-SEED-TROUBLESHOOTING.md](LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+  [LDAP_ADMIN_SEED_TROUBLESHOOTING.md](LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
   documenting persistent LDAP issues, investigation timeline, root causes,
   ad-hoc manual corrections, and permanent code fixes
   - Includes verification commands and lessons learned
@@ -57,6 +57,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Empty string passes validation and is acceptable for destroy operations
   since Terraform doesn't need valid tags to destroy resources
   - Added check to reject `"latest"` even if extracted from Helm values
+
+- **setup-application.sh: Image tags from Helm values and set-k8s-env directory
+handling**
+  - Backend and frontend image tags are read from
+  `backend/helm/ldap-2fa-backend/values.yaml` and
+  `frontend/helm/ldap-2fa-frontend/values.yaml` and exported as
+  `TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag` (replacing reliance
+  on `:latest`). Defaults to `latest` if files are missing or tag cannot be parsed.
+  - Script exports `TERRAFORM_WORKSPACE` before sourcing `set-k8s-env.sh` and
+  restores the current directory after sourcing so Terraform runs in `application/`.
+- **Application Terraform variable `frontend_image_tag`**
+  - New variable (default `latest`) for the frontend Docker image tag used by the
+  ArgoCD Application; application layer uses tags from Helm values updated by
+  build workflows.
+- **Application provisioning and destroying workflows**
+  - Workflows export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX` for state path
+  consistency. They extract backend and frontend image tags from Helm values and
+  set `TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag` so the correct
+  image tags are deployed (no `:latest` dependency).
 
 ### Fixed
 
@@ -99,27 +118,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `destroy-application` when assuming the State Account role for Terraform
   operations.
 
-### Added
-
-- **setup-application.sh: Image tags from Helm values and set-k8s-env directory
-handling**
-  - Backend and frontend image tags are read from
-  `backend/helm/ldap-2fa-backend/values.yaml` and
-  `frontend/helm/ldap-2fa-frontend/values.yaml` and exported as
-  `TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag` (replacing reliance
-  on `:latest`). Defaults to `latest` if files are missing or tag cannot be parsed.
-  - Script exports `TERRAFORM_WORKSPACE` before sourcing `set-k8s-env.sh` and
-  restores the current directory after sourcing so Terraform runs in `application/`.
-- **Application Terraform variable `frontend_image_tag`**
-  - New variable (default `latest`) for the frontend Docker image tag used by the
-  ArgoCD Application; application layer uses tags from Helm values updated by
-  build workflows.
-- **Application provisioning and destroying workflows**
-  - Workflows export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX` for state path
-  consistency. They extract backend and frontend image tags from Helm values and
-  set `TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag` so the correct
-  image tags are deployed (no `:latest` dependency).
-
 ### Changed
 
 - **Signup Process - MFA Method Selection Removed**
@@ -131,7 +129,7 @@ handling**
   (country code + number), password, confirm password
   - User model: `mfa_method` and `totp_secret` are set to `None` during signup
   and populated during MFA enrollment at login
-  - Updated documentation: [PRD-SIGNUP-MAN.md](PRD-SIGNUP-MAN.md), [PRD-ADMIN-FUNCS.md](PRD-ADMIN-FUNCS.md)
+  - Updated documentation: [PRD_SIGNUP_MAN.md](PRD_SIGNUP_MAN.md), [PRD_ADMIN_FUNCS.md](PRD_ADMIN_FUNCS.md)
 
 ## [Unreleased] - Remember me and Forgot/Reset password
 
@@ -166,7 +164,7 @@ handling**
 
 - Login challenge storage (in-memory) now stores `remember_me` and passes it to
 the verify step for JWT expiry selection.
-- Documentation: [application/README.md](README.md), [application/PRD-2FA-APP.md](PRD-2FA-APP.md),
+- Documentation: [application/README.md](README.md), [application/PRD_2FA_APP.md](PRD_2FA_APP.md),
 [application/backend/README.md](backend/README.md), [application/frontend/README.md](frontend/README.md)
 updated with new endpoints, request/response schemas, config, and frontend API methods.
 
@@ -532,7 +530,7 @@ name"**
   - ReDoc UI always available at `/api/redoc`
   - OpenAPI schema accessible at `/api/openapi.json`
   - Interactive API documentation automatically updates when endpoints change
-  - Documentation updated in README.md and PRD-2FA-APP.md to reflect availability
+  - Documentation updated in README.md and PRD_2FA_APP.md to reflect availability
 
 ## [2025-12-18] - Admin Functions and User Profile Management
 
@@ -660,7 +658,7 @@ name"**
   - `POST /api/auth/resend-verification` - Resend verification
   - `GET /api/profile/status/{username}` - Get profile status
 
-- **Product Requirements Document (PRD-SIGNUP-MAN.md)**
+- **Product Requirements Document (PRD_SIGNUP_MAN.md)**
   - Comprehensive documentation of signup system
   - User stories and acceptance criteria
   - Data models and API specifications
@@ -770,7 +768,7 @@ name"**
   - Transactional SMS type for higher delivery priority
   - Cost control via monthly spend limits
 
-- **Product Requirements Document (PRD-2FA-APP.md)**
+- **Product Requirements Document (PRD_2FA_APP.md)**
   - Comprehensive documentation of 2FA application architecture
   - API endpoint specifications for all authentication flows
   - Frontend component and state machine documentation

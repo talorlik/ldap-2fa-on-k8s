@@ -346,11 +346,11 @@ application/
 │   ├── redis/                 # Redis module
 │   ├── ses/                   # SES module
 │   └── sns/                   # SNS module
-├── PRD-2FA-APP.md            # 2FA Application Product Requirements Document
-├── PRD-ADMIN-FUNCS.md        # Admin Functions and Profile Management PRD
-├── PRD-SIGNUP-MAN.md         # User Signup Management PRD
-├── PRD-SMS-MAN.md            # SMS OTP Management with Redis PRD
-├── DEPLOY-2FA-APPS.md        # Application deployment documentation
+├── PRD_2FA_APP.md            # 2FA Application Product Requirements Document
+├── PRD_ADMIN_FUNCS.md        # Admin Functions and Profile Management PRD
+├── PRD_SIGNUP_MAN.md         # User Signup Management PRD
+├── PRD_SMS_MAN.md            # SMS OTP Management with Redis PRD
+├── DEPLOY_2FA_APPS.md        # Application deployment documentation
 └── README.md                  # This file
 ```
 
@@ -671,7 +671,7 @@ cd application
 > [!TIP]
 >
 > **For LDAP and Admin-Seed-Job issues**, see the comprehensive
-> [LDAP-ADMIN-SEED-TROUBLESHOOTING.md](LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+> [LDAP_ADMIN_SEED_TROUBLESHOOTING.md](LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
 > guide which documents multi-master replication problems, directory structure
 > initialization, group membership attributes, and admin user seeding fixes.
 
@@ -760,7 +760,7 @@ cd application
    - **Group membership attribute error**: `groupOfUniqueNames` uses
      `uniqueMember`, not `member`. The LDAPClient now auto-detects the group
      objectClass.
-   - See [LDAP-ADMIN-SEED-TROUBLESHOOTING.md](LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+   - See [LDAP_ADMIN_SEED_TROUBLESHOOTING.md](LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
      for detailed investigation and fixes.
 
 7. **SES Issues**
@@ -868,11 +868,11 @@ gateway)
 - [ArgoCD Application Module](modules/argocd_app/README.md)
 - [Backend Application](backend/README.md)
 - [Frontend Application](frontend/README.md)
-- [Deploy 2FA Apps](DEPLOY-2FA-APPS.md)
-- [2FA Application PRD](PRD-2FA-APP.md) - Complete API and frontend requirements
-- [User Signup Management PRD](PRD-SIGNUP-MAN.md) - Self-service signup system
-- [Admin Functions PRD](PRD-ADMIN-FUNCS.md) - Admin dashboard and user management
-- [SMS OTP Management PRD](PRD-SMS-MAN.md) - Redis-based SMS OTP storage
+- [Deploy 2FA Apps](DEPLOY_2FA_APPS.md)
+- [2FA Application PRD](PRD_2FA_APP.md) - Complete API and frontend requirements
+- [User Signup Management PRD](PRD_SIGNUP_MAN.md) - Self-service signup system
+- [Admin Functions PRD](PRD_ADMIN_FUNCS.md) - Admin dashboard and user management
+- [SMS OTP Management PRD](PRD_SMS_MAN.md) - Redis-based SMS OTP storage
 
 ## References
 

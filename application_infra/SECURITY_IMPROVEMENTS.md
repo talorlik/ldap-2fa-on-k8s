@@ -438,7 +438,7 @@ provider when `state_account_role_arn` is configured
 - **No ExternalId Required**: State account role assumption does not require
 ExternalId (by design, different security model)
 - **Automatic Renewal**: ACM automatically renews certificates before expiration
-- **Comprehensive Documentation**: See `CROSS-ACCOUNT-ACCESS.md` for complete
+- **Comprehensive Documentation**: See `CROSS_ACCOUNT_ACCESS.md` for complete
 configuration details, including step-by-step AWS CLI commands for public ACM
 certificate setup and DNS validation.
 

@@ -357,7 +357,7 @@ cannot be assumed.
 
 - [AWS Route53 Alias Records](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-choosing-alias-non-alias.html)
 - [Application Load Balancer Zone IDs](https://docs.aws.amazon.com/general/latest/gr/elb.html)
-- [Cross-Account Access Documentation](../CROSS-ACCOUNT-ACCESS.md)
+- [Cross-Account Access Documentation](../CROSS_ACCOUNT_ACCESS.md)
 - [Application Infrastructure README](../README.md)
 
 ## Examples

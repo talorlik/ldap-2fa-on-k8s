@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **LDAP and Admin-Seed-Job Troubleshooting Guide**
   - Created comprehensive troubleshooting document
-  [application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md](application/LDAP-ADMIN-SEED-TROUBLESHOOTING.md)
+  [application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md](application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
   documenting persistent OpenLDAP issues, investigation timeline, root causes,
   ad-hoc manual corrections, and permanent code fixes
   - Includes verification commands, lessons learned, and references
@@ -52,8 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   account activation
   - Signup flow simplified to collect only: name, username, email, phone, and password
   - Email and phone verification still occur during signup as before
-  - Updated documentation: [application/PRD-SIGNUP-MAN.md](application/PRD-SIGNUP-MAN.md),
-  [application/PRD-ADMIN-FUNCS.md](application/PRD-ADMIN-FUNCS.md)
+  - Updated documentation: [application/PRD_SIGNUP_MAN.md](application/PRD_SIGNUP_MAN.md),
+  [application/PRD_ADMIN_FUNCS.md](application/PRD_ADMIN_FUNCS.md)
 
 ## [2026-02-16] - GitHub Actions Support for ArgoCD Module and Workflow Improvements
 
@@ -231,7 +231,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GitHub Actions and correct destroy order (Application → Application
   Infrastructure → Backend Infrastructure → State)
   - docs/index.html streamlined: removed long duplicate manual deployment
-  section in favor of link to DEPLOY-2FA-APPS.md; condensed Step 5 and build
+  section in favor of link to DEPLOY_2FA_APPS.md; condensed Step 5 and build
   steps
 
 ## [2026-02-03] - Build Workflow Image Tags, ArgoCD Access Entry, and Backend Dockerfile
@@ -477,7 +477,7 @@ code
   - Eliminates browser security warnings and simplifies certificate management
   - Updated all documentation to reflect Public ACM certificate architecture
   - Comprehensive Public ACM certificate setup documentation in
-    `application/CROSS-ACCOUNT-ACCESS.md` with step-by-step AWS CLI commands
+    `application/CROSS_ACCOUNT_ACCESS.md` with step-by-step AWS CLI commands
   - Private CA setup moved to "Legacy" section (deprecated for public-facing
     applications)
 
@@ -559,7 +559,7 @@ code
   - Compatible with EKS Auto Mode ALB controller requirements (certificate must
     be in same account as ALB)
   - Comprehensive Public ACM certificate setup documentation in
-    `application/CROSS-ACCOUNT-ACCESS.md` with step-by-step AWS CLI commands
+    `application/CROSS_ACCOUNT_ACCESS.md` with step-by-step AWS CLI commands
   - Certificate validation workflow documented for both production and development
     accounts
   - Certificates automatically renewed by ACM (no manual intervention required)
@@ -586,7 +586,7 @@ code
     injection
   - No ExternalId required for state account role assumption (by design)
   - Comprehensive cross-account access documentation in
-    `application/CROSS-ACCOUNT-ACCESS.md`
+    `application/CROSS_ACCOUNT_ACCESS.md`
   - Updated ALB module to handle null certificate ARN and include in triggers
 
 - **ExternalId Support for Cross-Account Role Assumption**
@@ -611,7 +611,7 @@ code
   - Prevents confused deputy attacks in multi-account deployments
   - ExternalId generation: `openssl rand -hex 32`
   - Comprehensive documentation updates across all README files,
-  SECURITY-IMPROVEMENTS.md, and docs/index.html
+  SECURITY_IMPROVEMENTS.md, and docs/index.html
 
 - **Destroy Scripts for Infrastructure Cleanup**
   - Created `application/destroy-application.sh` script for destroying application
@@ -763,9 +763,9 @@ code
   - Maintains backward compatibility with existing OpenLDAP password secrets
 
 - **Comprehensive Product Requirements Documents**
-  - Added `PRD-SIGNUP-MAN.md` for user signup management system
-  - Added `PRD-ADMIN-FUNCS.md` for admin functions and profile management
-  - Added `PRD-SMS-MAN.md` for SMS OTP management with Redis
+  - Added `PRD_SIGNUP_MAN.md` for user signup management system
+  - Added `PRD_ADMIN_FUNCS.md` for admin functions and profile management
+  - Added `PRD_SMS_MAN.md` for SMS OTP management with Redis
 
 - **Documentation and linting improvements**
   - All documentation files updated for Markdown lint compliance
@@ -891,7 +891,7 @@ code
   - Single domain routing with path-based access (`/` for frontend, `/api/*` for
   backend)
   - Complete Helm charts, Dockerfiles, and Kubernetes resources for deployment
-  - Comprehensive PRD documentation (`PRD-2FA-APP.md`)
+  - Comprehensive PRD documentation (`PRD_2FA_APP.md`)
 
 - **ArgoCD GitOps Integration**
   - AWS EKS managed ArgoCD service deployment

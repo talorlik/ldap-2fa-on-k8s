@@ -61,7 +61,7 @@ These are used for application infrastructure components:
 
 Local bash scripts retrieve secrets from AWS Secrets Manager. **Secrets reside in
 the State Account (Account A)** — the same account that holds Terraform state and
-Route53. See the [Two-Account Split Summary](application_infra/CROSS-ACCOUNT-ACCESS.md#two-account-split-summary)
+Route53. See the [Two-Account Split Summary](application_infra/CROSS_ACCOUNT_ACCESS.md#two-account-split-summary)
 in the Cross-Account Access documentation for a full overview of what lives in
 each account.
 

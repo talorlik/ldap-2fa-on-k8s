@@ -9,7 +9,7 @@ requirements.
 > [!NOTE]
 >
 > For technical details about the Helm chart and its configuration options,
-> see [OPENLDAP-README.md](./OPENLDAP-README.md).
+> see [OPENLDAP_README.md](./OPENLDAP_README.md).
 
 ## Functional Requirements
 
@@ -203,8 +203,8 @@ requirements.
 
 ## Related Documentation
 
-- [OPENLDAP-README.md](./OPENLDAP-README.md) - Technical reference for Helm chart
+- [OPENLDAP_README.md](./OPENLDAP_README.md) - Technical reference for Helm chart
 configuration
-- [PRD-ALB.md](./PRD-ALB.md) - ALB configuration requirements
-- [PRD-DOMAIN.md](./PRD-DOMAIN.md) - Route53 and ACM certificate requirements
+- [PRD_ALB.md](./PRD_ALB.md) - ALB configuration requirements
+- [PRD_DOMAIN.md](./PRD_DOMAIN.md) - Route53 and ACM certificate requirements
 - [Application Infrastructure README](./README.md) - Complete infrastructure overview

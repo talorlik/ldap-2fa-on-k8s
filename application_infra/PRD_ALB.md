@@ -120,5 +120,5 @@ For implementation details, configuration examples, and technical reference, see
 - [ALB Module Documentation](modules/alb/README.md) - Implementation guide and
 configuration examples
 - [Application Infrastructure README](./README.md) - Complete infrastructure overview
-- [Cross-Account Access Documentation](./CROSS-ACCOUNT-ACCESS.md) - Certificate
+- [Cross-Account Access Documentation](./CROSS_ACCOUNT_ACCESS.md) - Certificate
 setup instructions
