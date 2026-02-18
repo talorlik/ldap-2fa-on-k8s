@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 import bcrypt
 
 from app.config import get_settings
-from app.database import AsyncSessionLocal, init_db, close_db
+from app.database import init_db, close_db
 from app.database.models import User, ProfileStatus
 from app.ldap.client import LDAPClient
 
@@ -122,6 +122,11 @@ async def _upsert_db_admin(
 ) -> bool:
     """Insert or update PostgreSQL user: pre-verified, ACTIVE. MFA is not seeded; admin follows same login/MFA flow as others."""
     from sqlalchemy import select
+    from app.database.connection import AsyncSessionLocal
+
+    if AsyncSessionLocal is None:
+        logger.error("Database session factory not initialized")
+        return False
 
     password_hash = _hash_password(password)
 
