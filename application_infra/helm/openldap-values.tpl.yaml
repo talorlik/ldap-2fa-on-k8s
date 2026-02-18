@@ -24,25 +24,13 @@ global:
   imagePullSecrets: []
   storageClass: "${storage_class_name}"
   ldapDomain: "${openldap_ldap_domain}"
-  existingSecret: "${openldap_secret_name}"
+  # NOTE: Passwords are injected via Terraform set_sensitive blocks in the helm_release
+  # resource, NOT via existingSecret (which the chart ignores). This ensures:
+  # 1. The Helm-created secret has correct passwords from the start
+  # 2. OpenLDAP PVC is initialized with correct passwords
+  # 3. Passwords are not exposed in Terraform plan output
   ldapPort: 389
   sslLdapPort: 636
-
-# Enable TLS with auto-generated certificates for osixia/openldap image
-# osixia/openldap uses different environment variable names than Bitnami
-# CRITICAL: jp-gouin/helm-openldap chart doesn't properly use global.existingSecret in all cases
-# We must explicitly inject passwords via customEnv with secretKeyRef to ensure they're used
-customEnv:
-  - name: LDAP_ADMIN_PASSWORD
-    valueFrom:
-      secretKeyRef:
-        name: "${openldap_secret_name}"
-        key: LDAP_ADMIN_PASSWORD
-  - name: LDAP_CONFIG_ADMIN_PASSWORD
-    valueFrom:
-      secretKeyRef:
-        name: "${openldap_secret_name}"
-        key: LDAP_CONFIG_ADMIN_PASSWORD
 
 env:
   LDAP_DOMAIN: "${openldap_ldap_domain}"

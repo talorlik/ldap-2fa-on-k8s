@@ -7,7 +7,6 @@ locals {
     {
       storage_class_name   = var.storage_class_name
       openldap_ldap_domain = var.openldap_ldap_domain
-      openldap_secret_name = var.openldap_secret_name
       app_name             = var.app_name
       # ECR image configuration
       ecr_registry       = var.ecr_registry
@@ -107,6 +106,23 @@ resource "helm_release" "openldap" {
   replace = true
 
   values = [local.openldap_values]
+
+  # CRITICAL: The jp-gouin/helm-openldap chart ignores global.existingSecret and creates
+  # its own secret with the release name. We use set_sensitive to inject the correct
+  # passwords directly into the chart values. This ensures:
+  # 1. The Helm-created secret has the correct password from the start
+  # 2. OpenLDAP initializes the PVC with the correct password
+  # 3. Passwords are marked sensitive (not shown in plan output or logs)
+  # Ref: https://github.com/jp-gouin/helm-openldap - uses global.adminPassword/configPassword
+  set_sensitive {
+    name  = "global.adminPassword"
+    value = var.openldap_admin_password
+  }
+
+  set_sensitive {
+    name  = "global.configPassword"
+    value = var.openldap_config_password
+  }
 
   depends_on = [
     kubernetes_namespace.openldap,
