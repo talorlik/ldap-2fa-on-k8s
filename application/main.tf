@@ -264,6 +264,8 @@ resource "kubernetes_namespace" "backend_app" {
 # 
 # If the secret doesn't exist or cannot be read, we fall back to var.openldap_admin_password
 # This fallback is useful during initial deployment when OpenLDAP may not be deployed yet
+# When using openldap_secret_name: deploy application_infra (OpenLDAP) before application
+# to avoid apply failure (data source will error if the secret does not exist yet).
 data "kubernetes_secret" "openldap_admin" {
   count = var.enable_argocd_apps && var.argocd_app_backend_path != null && var.openldap_secret_name != "" && var.openldap_namespace != "" ? 1 : 0
 
