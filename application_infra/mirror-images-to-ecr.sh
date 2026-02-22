@@ -239,6 +239,8 @@ IMAGES=(
   "bitnami/redis:latest redis-latest"
   "bitnami/postgresql:latest postgresql-latest"
   "osixia/openldap:1.5.0 openldap-1.5.0"
+  "osixia/phpldapadmin:0.9.0 phpldapadmin-0.9.0"
+  "tiredofit/self-service-password:5.2.3 ltb-passwd-5.2.3"
 )
 
 info "Checking which images need to be mirrored..."

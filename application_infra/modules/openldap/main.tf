@@ -17,9 +17,11 @@ locals {
       openldap_secret_name   = var.openldap_secret_name
       app_name               = var.app_name
       # ECR image configuration
-      ecr_registry       = var.ecr_registry
-      ecr_repository     = var.ecr_repository
-      openldap_image_tag = var.openldap_image_tag
+      ecr_registry           = var.ecr_registry
+      ecr_repository         = var.ecr_repository
+      openldap_image_tag     = var.openldap_image_tag
+      phpldapadmin_image_tag = var.phpldapadmin_image_tag
+      ltb_passwd_image_tag   = var.ltb_passwd_image_tag
       # ALB configuration - IngressClassParams handles scheme and ipAddressType
       ingress_class_name     = var.use_alb && var.ingress_class_name != null ? var.ingress_class_name : "alb"
       alb_load_balancer_name = var.alb_load_balancer_name
@@ -102,7 +104,7 @@ resource "helm_release" "openldap" {
   wait            = true
   wait_for_jobs   = true
   upgrade_install = true
-  timeout         = 300 # 5 minutes
+  timeout         = 1200 # 20 minutes
   replace         = true
 
   values = [local.openldap_values]

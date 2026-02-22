@@ -76,7 +76,10 @@ customLdifFiles:
 ltb-passwd:
   enabled: true
   image:
-    tag: 5.2.3
+    registry: "${ecr_registry}"
+    repository: "${ecr_repository}"
+    tag: "${ltb_passwd_image_tag}"
+    pullPolicy: IfNotPresent
   podLabels:
     app.kubernetes.io/part-of: "${app_name}"
   env:
@@ -100,6 +103,11 @@ ltb-passwd:
 
 phpldapadmin:
   enabled: true
+  image:
+    registry: "${ecr_registry}"
+    repository: "${ecr_repository}"
+    tag: "${phpldapadmin_image_tag}"
+    pullPolicy: IfNotPresent
   env:
     PHPLDAPADMIN_LDAP_CLIENT_TLS_REQCERT: "allow"
   podLabels:

@@ -205,9 +205,11 @@ module "openldap" {
   storage_class_name       = local.storage_class_name
 
   # ECR image configuration
-  ecr_registry       = local.ecr_registry
-  ecr_repository     = local.ecr_repository
-  openldap_image_tag = var.openldap_image_tag
+  ecr_registry           = local.ecr_registry
+  ecr_repository         = local.ecr_repository
+  openldap_image_tag     = var.openldap_image_tag
+  phpldapadmin_image_tag = var.phpldapadmin_image_tag
+  ltb_passwd_image_tag   = var.ltb_passwd_image_tag
 
   # Use derived values from locals to ensure non-null values
   # These are derived from domain_name if not explicitly provided

@@ -140,3 +140,15 @@ variable "openldap_image_tag" {
   type        = string
   default     = "openldap-1.5.0"
 }
+
+variable "phpldapadmin_image_tag" {
+  description = "phpLDAPadmin image tag in ECR"
+  type        = string
+  default     = "phpldapadmin-0.9.0"
+}
+
+variable "ltb_passwd_image_tag" {
+  description = "LTB Self Service Password image tag in ECR"
+  type        = string
+  default     = "ltb-passwd-5.2.3"
+}
