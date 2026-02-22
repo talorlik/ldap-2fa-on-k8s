@@ -48,21 +48,15 @@ to enable secure LDAP connections (StartTLS/LDAPS).
 
 ## Certificate DNS Names
 
-The certificate includes the following DNS names:
+The certificate includes DNS names derived from `var.namespace` and `var.domain_name`:
 
 - `openldap-stack-ha`
-- `openldap-stack-ha.ldap`
-- `openldap-stack-ha.ldap.svc`
-- `openldap-stack-ha.ldap.svc.cluster.local`
-- `openldap-stack-ha-headless`
-- `openldap-stack-ha-headless.ldap`
-- `openldap-stack-ha-headless.ldap.svc`
-- `openldap-stack-ha-headless.ldap.svc.cluster.local`
-- `openldap-stack-ha-0.openldap-stack-ha-headless.ldap.svc.cluster.local`
-- `openldap-stack-ha-1.openldap-stack-ha-headless.ldap.svc.cluster.local`
-- `openldap-stack-ha-2.openldap-stack-ha-headless.ldap.svc.cluster.local`
-- `*.talorlik.com`
-- `talorlik.com`
+- `openldap-stack-ha.${var.namespace}`
+- `openldap-stack-ha.${var.namespace}.svc`
+- `openldap-stack-ha.${var.namespace}.svc.cluster.local`
+- `openldap-stack-ha-headless` and headless service FQDNs for replicas 0-2
+- `*.${var.domain_name}`
+- `var.domain_name`
 
 ## Usage
 

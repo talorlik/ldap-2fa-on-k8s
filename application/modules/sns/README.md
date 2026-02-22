@@ -120,6 +120,25 @@ All phone numbers must be in E.164 format:
 - **Transactional**: Higher delivery priority, used for verification codes
 - **Promotional**: Lower cost, used for marketing (may be filtered)
 
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ------ | ------------- | ------ | --------- | :--------: |
+| env | Deployment environment | `string` | n/a | yes |
+| region | AWS region | `string` | n/a | yes |
+| prefix | Prefix for resource names | `string` | n/a | yes |
+| cluster_name | Name of the EKS cluster | `string` | n/a | yes |
+| sns_topic_name | Name component for the SNS topic | `string` | `"2fa-sms"` | no |
+| sns_display_name | Display name for the SNS topic | `string` | `"2FA Verification"` | no |
+| iam_role_name | Name component for the IAM role | `string` | `"2fa-sns-publisher"` | no |
+| service_account_namespace | Kubernetes namespace for the service account | `string` | `"2fa-app"` | no |
+| service_account_name | Name of the Kubernetes service account | `string` | `"ldap-2fa-backend"` | no |
+| configure_sms_preferences | Whether to configure account-level SMS preferences | `bool` | `false` | no |
+| sms_sender_id | Default sender ID for SMS (max 11 alphanumeric) | `string` | `"2FA"` | no |
+| sms_type | Default SMS type: Promotional or Transactional | `string` | `"Transactional"` | no |
+| sms_monthly_spend_limit | Monthly spend limit for SMS in USD | `number` | `10` | no |
+| tags | Tags to apply to resources | `map(string)` | `{}` | no |
+
 ## Outputs
 
 | Output | Description |

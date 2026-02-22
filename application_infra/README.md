@@ -192,8 +192,10 @@ Deploys the complete OpenLDAP stack using the
 
 **Key Configuration:**
 
-- Chart: `openldap-stack-ha` version `4.0.1`
-- Repository: `https://jp-gouin.github.io/helm-openldap`
+- Chart: `openldap-stack-ha` vendored at `charts/openldap-stack-ha` (version 5.0.0,
+  osixia/openldap:1.5.0). See [OPENLDAP_CHANGELOG.md](OPENLDAP_CHANGELOG.md).
+  Upstream: [jp-gouin/helm-openldap](https://github.com/jp-gouin/helm-openldap)
+  (chart is vendored locally, not pulled from repository).
 - Namespace: `ldap` (created automatically)
 - Storage: Creates a new PVC using a StorageClass created by this Terraform
 configuration (see Storage Configuration section below)

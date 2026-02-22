@@ -37,7 +37,7 @@ a pod actually needs it
 
 - **Access Mode**: `ReadWriteOnce` - allows a single node to mount the volume as
 read-write
-- **Storage Size**: Defaults to `1Gi` (configurable via module variables)
+- **Storage Size**: Fixed at `1Gi` in the module
 - **Wait Until Bound**: Set to `false` to prevent Terraform from hanging - the
 PVC will bind when a pod requires it
 

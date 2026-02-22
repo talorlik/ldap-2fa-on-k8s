@@ -2,9 +2,13 @@
 
 # Script to configure backend.hcl and variables.tfvars with user-selected region and environment
 # and run Terraform destroy commands for application
-# Usage: ./destroy-application.sh
+# Usage: ./destroy-application.sh  (from application/) or ./application/destroy-application.sh (from repo root)
 
 set -euo pipefail
+
+# Run from script directory so placeholder and Terraform files are found (works when called from repo root or application)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # Clean up any existing AWS credentials from environment to prevent conflicts
 # This ensures the script starts with a clean slate and uses the correct credentials
@@ -582,7 +586,10 @@ echo ""
 print_info "Extracting image tags from Helm values..."
 BACKEND_VALUES_FILE="backend/helm/ldap-2fa-backend/values.yaml"
 if [ -f "$BACKEND_VALUES_FILE" ]; then
-    BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d '\r')
+    # Portable: sed only for tag prefix; parameter expansion for quotes (Mac and Ubuntu)
+    BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | tr -d '\r')
+    BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG#\"}"; BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG%\"}"
+    BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG#\'}"; BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG%\'}"
     if [ -n "$BACKEND_IMAGE_TAG" ] && [ "$BACKEND_IMAGE_TAG" != "tag:" ] && [ "$BACKEND_IMAGE_TAG" != "latest" ]; then
         export TF_VAR_backend_image_tag="$BACKEND_IMAGE_TAG"
         print_success "Using backend image tag: ${BACKEND_IMAGE_TAG}"
@@ -597,7 +604,10 @@ fi
 
 FRONTEND_VALUES_FILE="frontend/helm/ldap-2fa-frontend/values.yaml"
 if [ -f "$FRONTEND_VALUES_FILE" ]; then
-    FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d '\r')
+    # Portable: sed only for tag prefix; parameter expansion for quotes (Mac and Ubuntu)
+    FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | tr -d '\r')
+    FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG#\"}"; FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG%\"}"
+    FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG#\'}"; FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG%\'}"
     if [ -n "$FRONTEND_IMAGE_TAG" ] && [ "$FRONTEND_IMAGE_TAG" != "tag:" ] && [ "$FRONTEND_IMAGE_TAG" != "latest" ]; then
         export TF_VAR_frontend_image_tag="$FRONTEND_IMAGE_TAG"
         print_success "Using frontend image tag: ${FRONTEND_IMAGE_TAG}"

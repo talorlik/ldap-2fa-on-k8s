@@ -189,7 +189,6 @@ module "openldap" {
   alb_load_balancer_name = local.alb_load_balancer_name
   alb_target_type        = var.alb_target_type
   alb_ssl_policy         = var.alb_ssl_policy
-  acm_cert_arn           = data.aws_acm_certificate.this.arn
 
   enable_network_policies = var.enable_network_policies
 

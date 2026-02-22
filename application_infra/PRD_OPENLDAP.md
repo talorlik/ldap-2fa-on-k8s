@@ -154,8 +154,8 @@ requirements.
 | INT-1.4 | Module must deploy the vendored Helm chart at `charts/openldap-stack-ha/` via local path reference |
 | INT-1.5 | Module must accept ECR registry/repository from `backend_infra` remote state |
 | INT-1.6 | Module must accept StorageClass name from `application_infra` remote state |
-| INT-1.7 | Module must accept ALB configuration (IngressClass name, load-balancer name) |
-| INT-1.8 | Module must NOT use `set_sensitive` blocks or inline `set` overrides for passwords; all values must flow through the values template |
+| INT-1.7 | Module must accept ALB config (IngressClass, load-balancer name, alb_ssl_policy). ACM cert is in IngressClassParams (ALB module), not passed to this module. |
+| INT-1.8 | Module must NOT use `set_sensitive` or inline `set` for passwords; all values flow through the values template only. |
 
 ### INT-2: Infrastructure Dependencies
 

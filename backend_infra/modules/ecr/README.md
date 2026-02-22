@@ -60,21 +60,27 @@ Example lifecycle policy structure:
 }
 ```
 
-## Variables
+## Inputs
 
-- `env`: Deployment environment (e.g., prod, dev)
-- `region`: AWS region
-- `prefix`: Prefix added to all resource names
-- `ecr_name`: Name for the ECR repository
-- `image_tag_mutability`: Either `MUTABLE` or `IMMUTABLE`
-- `policy`: JSON-encoded lifecycle policy string
-- `tags`: Map of tags to apply to resources
+| Name | Description | Type | Required | Default |
+| ------ | ------------- | ------ | ---------- | --------- |
+| env | Deployment environment (e.g., prod, dev) | string | yes | - |
+| region | Deployment region | string | no | "us-east-1" |
+| prefix | Prefix added to all resource names | string | yes | - |
+| ecr_name | Name component for the ECR repository (full name: prefix-region-ecr_name-env) | string | yes | - |
+| image_tag_mutability | Either MUTABLE or IMMUTABLE | string | yes | - |
+| policy | JSON-encoded lifecycle policy string | string | yes | - |
+| tags | Map of tags to apply to resources | map(string) | yes | - |
 
 ## Outputs
 
-- `ecr_name`: Name of the ECR repository
-- `ecr_arn`: ARN of the ECR repository
-- `ecr_url`: Full URL of the ECR repository (for docker push/pull commands)
+| Name | Description |
+| ------ | ------------- |
+| ecr_name | Name of the ECR repository |
+| ecr_arn | ARN of the ECR repository |
+| ecr_url | Full URL of the ECR repository (for docker push/pull) |
+| ecr_registry | Registry host (e.g., account.dkr.ecr.region.amazonaws.com) |
+| ecr_repository | Repository name (for use in image references) |
 
 ## Usage Example
 

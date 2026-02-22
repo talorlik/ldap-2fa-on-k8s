@@ -142,6 +142,8 @@ README](../../application_infra/README.md#ecr-image-mirroring-automatic).
 | ecr_repository | ECR repository name | `string` | n/a | yes |
 | image_tag | Redis image tag in ECR | `string` | `"redis-latest"` | no |
 | backend_namespace | Namespace where backend pods are deployed (for network policy) | `string` | `"twofa-backend"` | no |
+| values_template_path | Path to the Redis values template file | `string` | `null` | no |
+| tags | Tags to apply to resources | `map(string)` | `{}` | no |
 
 ## Outputs
 

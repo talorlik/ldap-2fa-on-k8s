@@ -206,7 +206,7 @@ ldap-2fa-on-k8s/
 │   └── variables.tfvars
 ├── backend_infra/                  # Core AWS infrastructure (VPC, EKS, VPC endpoints, IRSA) - Account B
 │   ├── modules/
-│   │   ├── ebs/                    # EBS CSI driver
+│   │   ├── ebs/                    # EBS StorageClass and PVC
 │   │   ├── ecr/                    # ECR repository
 │   │   └── endpoints/              # VPC endpoints
 │   ├── CHANGELOG.md
@@ -1196,16 +1196,21 @@ GitOps application deployment
 certificate management (module exists, not currently used)
 - [Network Policies](application_infra/modules/network-policies/README.md) -
   Pod-to-pod security
+- [OpenLDAP Module](application_infra/modules/openldap/README.md) - OpenLDAP
+  stack HA with PhpLdapAdmin and LTB-passwd
 - [PostgreSQL Module](application/modules/postgresql/README.md) - User data and
 verification token storage
 - [Redis Module](application/modules/redis/README.md) - SMS OTP code storage
 - [SES Module](application/modules/ses/README.md) - Email verification and
 notifications
 - [SNS Module](application/modules/sns/README.md) - SMS 2FA integration
+- [Route53 Module](application_infra/modules/route53/README.md) - Route53
+  hosted zone and ACM certificate
 - [Route53 Record Module](application_infra/modules/route53_record/README.md) -
   Route53 A (alias) records for ALB
 - [VPC Endpoints Module](backend_infra/modules/endpoints/README.md) - Private
 AWS service access
+- [EBS Module](backend_infra/modules/ebs/README.md) - EBS StorageClass and PVC
 - [ECR Module](backend_infra/modules/ecr/README.md) - Container registry setup
 
 ### Changelogs

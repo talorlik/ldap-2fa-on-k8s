@@ -44,7 +44,7 @@ module "openldap" {
   ingress_class_name     = module.alb[0].ingress_class_name
   alb_load_balancer_name = local.alb_load_balancer_name
   alb_target_type        = var.alb_target_type
-  acm_cert_arn           = data.aws_acm_certificate.this.arn
+  alb_ssl_policy         = var.alb_ssl_policy
 
   # ECR image configuration
   ecr_registry       = local.ecr_registry
@@ -63,8 +63,8 @@ module "openldap" {
 ## Requirements
 
 - Kubernetes cluster with Helm provider configured
-- ALB Ingress Controller installed (if using ALB)
-- ACM certificate
+- ALB Ingress Controller installed (if using ALB). ACM certificate is configured
+  in IngressClassParams by the ALB module.
 - StorageClass for PVCs
 - ECR repository (for container images)
 
@@ -79,22 +79,20 @@ module "openldap" {
 | openldap_ldap_domain | OpenLDAP domain (e.g., ldap.talorlik.internal) | `string` | n/a | yes |
 | openldap_admin_password | OpenLDAP admin password | `string` | n/a | yes |
 | openldap_config_password | OpenLDAP config password | `string` | n/a | yes |
+| openldap_base_dn | OpenLDAP base DN (e.g., dc=ldap,dc=talorlik,dc=internal). Computed from openldap_ldap_domain if not provided. | `string` | n/a | no |
 | storage_class_name | Name of the Kubernetes StorageClass to use for OpenLDAP PVC | `string` | n/a | yes |
 | phpldapadmin_host | Hostname for phpLDAPadmin ingress | `string` | n/a | yes |
 | ltb_passwd_host | Hostname for ltb-passwd ingress | `string` | n/a | yes |
-| acm_cert_arn | ARN of the ACM certificate for HTTPS | `string` | n/a | yes |
 | alb_load_balancer_name | Custom name for the AWS ALB | `string` | n/a | yes |
 | ecr_registry | ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com) | `string` | n/a | yes |
 | ecr_repository | ECR repository name | `string` | n/a | yes |
 | openldap_image_tag | OpenLDAP image tag in ECR | `string` | `"openldap-1.5.0"` | no |
-| openldap_secret_name | Name of the Kubernetes secret for OpenLDAP passwords | `string` | `"openldap-secret"` | no |
+| openldap_secret_name | Name of the Kubernetes secret for OpenLDAP passwords | `string` | n/a | yes |
 | namespace | Kubernetes namespace for OpenLDAP | `string` | `"ldap"` | no |
 | use_alb | Whether to use ALB for ingress | `bool` | `true` | no |
 | ingress_class_name | Name of the IngressClass for ALB | `string` | `null` | no |
 | alb_target_type | ALB target type: ip or instance | `string` | `"ip"` | no |
-| helm_chart_version | OpenLDAP Helm chart version | `string` | `"4.0.1"` | no |
-| helm_chart_repository | Helm chart repository URL | `string` | `"https://jp-gouin.github.io/helm-openldap"` | no |
-| helm_chart_name | Helm chart name | `string` | `"openldap-stack-ha"` | no |
+| alb_ssl_policy | ALB SSL policy for HTTPS listeners | `string` | (from parent) | no |
 | helm_release_name | Helm release name | `string` | `"openldap-stack-ha"` | no |
 | values_template_path | Path to the OpenLDAP values template file | `string` | `null` | no |
 | enable_network_policies | Whether to enable network policies for the OpenLDAP namespace | `bool` | `true` | no |
@@ -107,15 +105,24 @@ module "openldap" {
 | namespace | Kubernetes namespace for OpenLDAP |
 | secret_name | Name of the Kubernetes secret for OpenLDAP passwords |
 | helm_release_name | Name of the Helm release |
+| ldap_host | OpenLDAP service host (Kubernetes DNS) |
+| ldap_base_dn | LDAP base DN derived from openldap_ldap_domain |
+| ldap_admin_dn | LDAP admin bind DN |
+| ldap_admin_group_dn | LDAP admin group DN (for 2FA app admin role) |
+| ldap_user_search_base | LDAP user search base (relative to base DN) |
+| ldap_group_search_base | LDAP group search base (relative to base DN) |
 | phpldapadmin_ingress_hostname | Hostname from phpLDAPadmin ingress (ALB DNS name) |
 | ltb_passwd_ingress_hostname | Hostname from ltb-passwd ingress (ALB DNS name) |
 | alb_dns_name | ALB DNS name (from either ingress) |
+| network_policy_name | Name of the network policy (when enable_network_policies is true) |
+| network_policy_namespace | Namespace where the network policy is applied |
+| network_policy_uid | UID of the network policy resource |
 
 ## Dependencies
 
 - `kubernetes_storage_class_v1` - StorageClass for PVCs
-- `module.alb` - ALB module for ingress (if using ALB)
-- `data.aws_acm_certificate` - ACM certificate
+- `module.alb` - ALB module for ingress (if using ALB). ACM certificate is
+  inherited from IngressClassParams (not passed to this module).
 - ECR repository (for container images, created by `backend_infra`)
 
 > [!NOTE]
@@ -225,5 +232,6 @@ Services in other namespaces can access the LDAP service using:
 - Route53 DNS records for phpLDAPadmin and ltb-passwd are created by the dedicated
   `route53_record` module in `application_infra/main.tf` (see
   [Route53 Record Module Documentation](../route53_record/README.md))
-- Chart version: 4.0.1 from `https://jp-gouin.github.io/helm-openldap`
+- Chart is vendored locally at `application_infra/charts/openldap-stack-ha` (version
+  5.0.0, osixia/openldap:1.5.0). See [OPENLDAP_CHANGELOG.md](../../OPENLDAP_CHANGELOG.md).
 - Helm release name: `openldap-stack-ha` (configurable)

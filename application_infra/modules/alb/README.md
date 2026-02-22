@@ -67,7 +67,7 @@ The configuration supports separate naming for:
   - used to group multiple Ingresses
   - Configured in IngressClassParams (`group.name`)
   - Used internally by Kubernetes to group Ingresses that share the same ALB
-  - Defaults to `app_name` if not provided
+  - Optional; when null, no group name is set in IngressClassParams
 
 - **ALB Load Balancer Name** (`load-balancer-name` annotation): AWS resource name
 (max 32 characters)
@@ -144,6 +144,8 @@ module "alb" {
 | alb_ip_address_type | IP address type (`ipv4` or `dualstack`) | string | no | "ipv4" |
 | alb_group_name | ALB group name (max 63 chars) | string | no | null |
 | wait_for_crd | Whether to wait for EKS Auto Mode CRD before creating IngressClassParams | bool | no | false |
+| kubernetes_master | Kubernetes API server endpoint (set by set-k8s-env.sh or workflow) | string | no | null |
+| kube_config_path | Path to kubeconfig (set by set-k8s-env.sh or workflow) | string | no | null |
 
 ## Outputs
 

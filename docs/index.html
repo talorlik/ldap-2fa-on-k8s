@@ -1067,11 +1067,14 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
         <h3 id="application-infrastructure-components">Application Infrastructure Components</h3>
         <div class="card">
             <ul>
-                <li><strong>OpenLDAP Stack HA</strong> deployed via Helm chart with:
+                <li><strong>OpenLDAP Stack HA</strong> deployed via vendored Helm chart
+                    (<code>application_infra/charts/openldap-stack-ha</code>, version 5.0.0,
+                    osixia/openldap:1.5.0; see <a href="../application_infra/OPENLDAP_CHANGELOG.md">OPENLDAP_CHANGELOG.md</a>) with:
                     <ul>
                         <li>OpenLDAP StatefulSet (3 replicas for high availability)</li>
                         <li>PhpLdapAdmin web interface</li>
                         <li>LTB-passwd self-service password management</li>
+                        <li>ACM certificate configured in IngressClassParams (ALB module), not passed to OpenLDAP module</li>
                     </ul>
                 </li>
                 <li><strong>Application Load Balancer (ALB)</strong> via EKS Auto Mode:

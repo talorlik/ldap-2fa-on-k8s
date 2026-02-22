@@ -56,6 +56,7 @@ module "postgresql" {
 | ecr_registry | ECR registry URL (e.g., account.dkr.ecr.region.amazonaws.com) | `string` | n/a | yes |
 | ecr_repository | ECR repository name | `string` | n/a | yes |
 | image_tag | PostgreSQL image tag in ECR | `string` | `"postgresql-latest"` | no |
+| values_template_path | Path to the PostgreSQL values template file | `string` | `null` | no |
 
 ## Outputs
 

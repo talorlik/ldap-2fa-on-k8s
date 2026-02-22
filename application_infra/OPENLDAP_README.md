@@ -4,14 +4,18 @@
  optional phpLDAPadmin and LTB self-service password UIs. Below is a breakdown
  of what it creates and how all the values control it.
 
-## 1. What the chart deploys
-
-The chart's current image targets Bitnami's OpenLDAP image and supports Bitnami
-OpenLDAP 2.x.([GitHub][1])
-
 > [!NOTE]
 >
-> I had to override it in the code because it couldn't access that image.
+> This project uses a **vendored** chart at `application_infra/charts/openldap-stack-ha`
+> (version 5.0.0, osixia/openldap:1.5.0). The upstream jp-gouin/helm-openldap chart
+> was forked and rewritten for osixia compatibility. See
+> [OPENLDAP_CHANGELOG.md](OPENLDAP_CHANGELOG.md) for details.
+
+## 1. What the chart deploys
+
+The vendored chart targets the **osixia/openldap:1.5.0** image. The upstream
+chart was designed for Bitnami's OpenLDAP image; the vendored version uses
+osixia-native paths, environment variables, and replication.([GitHub][1])
 
 ### 1.1 Core OpenLDAP resources
 

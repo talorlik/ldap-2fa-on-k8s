@@ -2,9 +2,13 @@
 
 # Script to configure backend.hcl and variables.tfvars with user-selected region and environment
 # and run Terraform commands
-# Usage: ./setup-application-infra.sh
+# Usage: ./setup-application-infra.sh  (from application_infra/) or ./application_infra/setup-application-infra.sh (from repo root)
 
 set -euo pipefail
+
+# Run from script directory so placeholder and Terraform files are found (works when called from repo root or application_infra)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # Clean up any existing AWS credentials from environment to prevent conflicts
 # This ensures the script starts with a clean slate and uses the correct credentials

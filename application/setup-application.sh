@@ -2,9 +2,13 @@
 
 # Script to configure backend.hcl and variables.tfvars with user-selected region and environment
 # and run Terraform commands for application deployment
-# Usage: ./setup-application.sh
+# Usage: ./setup-application.sh  (from application/) or ./application/setup-application.sh (from repo root)
 
 set -euo pipefail
+
+# Run from script directory so placeholder and Terraform files are found (works when called from repo root or application)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # Clean up any existing AWS credentials from environment to prevent conflicts
 # This ensures the script starts with a clean slate and uses the correct credentials
@@ -594,7 +598,10 @@ if [ ! -f "$BACKEND_VALUES_FILE" ]; then
     exit 1
 else
     # Extract image tag from values.yaml (line format: "  tag: \"tag-value\"")
-    BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d '\r')
+    # Portable: sed only for tag prefix; parameter expansion for quotes (works on Mac and Ubuntu)
+    BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | tr -d '\r')
+    BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG#\"}"; BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG%\"}"
+    BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG#\'}"; BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG%\'}"
     if [ -z "$BACKEND_IMAGE_TAG" ] || [ "$BACKEND_IMAGE_TAG" = "tag:" ] || [ "$BACKEND_IMAGE_TAG" = "latest" ]; then
         print_error "Could not extract valid backend image tag from ${BACKEND_VALUES_FILE}"
         print_error "Found tag: '${BACKEND_IMAGE_TAG:-<empty>}'"
@@ -615,7 +622,10 @@ if [ ! -f "$FRONTEND_VALUES_FILE" ]; then
     exit 1
 else
     # Extract image tag from values.yaml
-    FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*[\"x27]?([^\"x27]+)[\"x27]?.*/\1/' | tr -d '\r')
+    # Portable: sed only for tag prefix; parameter expansion for quotes (works on Mac and Ubuntu)
+    FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | tr -d '\r')
+    FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG#\"}"; FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG%\"}"
+    FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG#\'}"; FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG%\'}"
     if [ -z "$FRONTEND_IMAGE_TAG" ] || [ "$FRONTEND_IMAGE_TAG" = "tag:" ] || [ "$FRONTEND_IMAGE_TAG" = "latest" ]; then
         print_error "Could not extract valid frontend image tag from ${FRONTEND_VALUES_FILE}"
         print_error "Found tag: '${FRONTEND_IMAGE_TAG:-<empty>}'"

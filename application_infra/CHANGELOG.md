@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **OpenLDAP Module: ACM Certificate and Chart Configuration**
+  - Removed `acm_cert_arn` variable from the OpenLDAP Terraform module. The ACM
+  certificate is now configured only in IngressClassParams by the ALB module;
+  the OpenLDAP module no longer receives or passes the certificate ARN.
+  - OpenLDAP module now receives `alb_ssl_policy` from the parent module for
+  ALB HTTPS listener configuration (passed through to Ingress annotations where
+  applicable).
+  - Chart is vendored locally at `application_infra/charts/openldap-stack-ha`
+  (version 5.0.0, osixia/openldap:1.5.0). READMEs and module documentation
+  reference [OPENLDAP_CHANGELOG.md](OPENLDAP_CHANGELOG.md) for chart change
+  details.
+
 ### Added
 
 - **OpenLDAP Directory Structure Initialization via customLdifFiles**

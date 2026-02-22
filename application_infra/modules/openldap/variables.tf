@@ -94,11 +94,6 @@ variable "alb_target_type" {
   }
 }
 
-variable "acm_cert_arn" {
-  description = "ARN of the ACM certificate for HTTPS"
-  type        = string
-}
-
 variable "alb_ssl_policy" {
   description = "ALB SSL policy for HTTPS listeners"
   type        = string

@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Application Infrastructure: OpenLDAP Module ACM and Chart**
+  - OpenLDAP Terraform module no longer accepts `acm_cert_arn`; the ACM
+  certificate is configured in IngressClassParams by the ALB module. The
+  OpenLDAP module now receives `alb_ssl_policy` from the parent for ALB
+  configuration.
+  - OpenLDAP chart is vendored at `application_infra/charts/openldap-stack-ha`
+  (version 5.0.0, osixia/openldap:1.5.0). See
+  [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md) and
+  [application_infra/OPENLDAP_CHANGELOG.md](application_infra/OPENLDAP_CHANGELOG.md).
+
 - **Kubernetes Version Upgrade**
   - Upgraded Kubernetes version from 1.34 to 1.35
   - Updated `backend_infra/variables.tfvars` with new Kubernetes version

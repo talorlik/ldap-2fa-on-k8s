@@ -62,6 +62,7 @@ module "ses" {
 | service_account_namespace | K8s namespace | `string` | `"ldap-2fa"` | no |
 | service_account_name | K8s service account name | `string` | `"ldap-2fa-backend"` | no |
 | route53_zone_id | Route53 zone for DNS records | `string` | `null` | no |
+| tags | Tags to apply to resources | `map(string)` | `{}` | no |
 
 ## Outputs
 
