@@ -130,6 +130,8 @@ ldap-2fa-on-k8s/
 │       ├── tfstate_infra_destroying.yaml
 │       └── tfstate_infra_provisioning.yaml
 ├── application_infra/          # Application infrastructure - Account B
+│   ├── charts/                 # Vendored Helm charts
+│   │   └── openldap-stack-ha/  # OpenLDAP 5.0.0 chart (vendored locally)
 │   ├── helm/                   # Helm values templates (OpenLDAP)
 │   │   └── openldap-values.tpl.yaml
 │   ├── modules/                # Infrastructure Terraform modules
@@ -143,6 +145,7 @@ ldap-2fa-on-k8s/
 │   ├── assume-github-role.sh   # Role assumption script for multi-account access
 │   ├── destroy-application-infra.sh
 │   ├── mirror-images-to-ecr.sh # ECR image mirroring script
+│   ├── OPENLDAP_CHANGELOG.md   # OpenLDAP chart change documentation
 │   ├── set-k8s-env.sh
 │   ├── setup-application-infra.sh
 │   └── [other infrastructure files...]
@@ -167,6 +170,7 @@ ldap-2fa-on-k8s/
 │   │   └── sns/                # SNS for SMS 2FA
 │   ├── destroy-application.sh
 │   ├── setup-application.sh
+│   ├── LDAP_ADMIN_SEED_TROUBLESHOOTING.md  # LDAP and admin-seed troubleshooting guide
 │   ├── PASSWORD_FLOW.md        # Password flow from secrets to Terraform to K8s
 │   ├── REDIS_ENABLEMENT_SUMMARY.md  # Redis and SMS 2FA enablement guide
 │   ├── SECRET_DEPENDENCIES.md  # Secret dependencies across components
@@ -590,8 +594,11 @@ confirmations and Kubernetes environment setup
 - `application_infra/set-k8s-env.sh` - Kubernetes environment variable configuration
 - `application_infra/mirror-images-to-ecr.sh` - ECR image mirroring script for OpenLDAP
 (called by setup-application-infra.sh)
+- `application_infra/charts/openldap-stack-ha/` - Vendored OpenLDAP Helm chart
+(version 5.0.0, osixia/openldap:1.5.0)
 - `application_infra/helm/openldap-values.tpl.yaml` - Helm chart values template
-configured to pull OpenLDAP image from ECR (openldap-1.5.0)
+configured to pull OpenLDAP image from ECR (openldap-1.5.0) and create initial
+LDAP directory structure via customLdifFiles
 - `application_infra/providers.tf` - Retrieves cluster name from backend_infra remote
 state (with fallback options)
 - `application_infra/main.tf` - Creates:
@@ -610,6 +617,7 @@ state (with fallback options)
   - `route53/` - Route53 hosted zone creation (commented out, uses data sources)
   - `route53_record/` - Route53 A (alias) record creation
 - `application_infra/CHANGELOG.md` - Infrastructure-specific changelog
+- `application_infra/OPENLDAP_CHANGELOG.md` - OpenLDAP chart change documentation
 - `application_infra/PRD_ALB.md` - Comprehensive ALB implementation guide
 - `application_infra/PRD_DOMAIN.md` - Domain and DNS configuration
 - `application_infra/PRD_OPENLDAP.md` - OpenLDAP deployment requirements
@@ -674,6 +682,8 @@ practices
 system
 - `application/PRD_ADMIN_FUNCS.md` - Product requirements for admin functions
 - `application/PRD_SMS_MAN.md` - Product requirements for SMS management
+- `application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md` - Comprehensive LDAP and
+admin-seed-job troubleshooting guide
 - `application/PASSWORD_FLOW.md` - How passwords flow from secrets to Terraform
 variables to Kubernetes secrets
 - `application/REDIS_ENABLEMENT_SUMMARY.md` - Guide for enabling Redis and SMS 2FA
@@ -768,12 +778,14 @@ variables to Kubernetes secrets
 
 **OpenLDAP Stack (via OpenLDAP Module):**
 
-- Deployed via `application/modules/openldap/` Terraform module
-- OpenLDAP chart version: 4.0.1 from `https://jp-gouin.github.io/helm-openldap`
+- Deployed via `application_infra/modules/openldap/` Terraform module
+- OpenLDAP chart version: 5.0.0 (vendored locally at `application_infra/charts/openldap-stack-ha/`)
 - Uses osixia/openldap:1.5.0 Docker image mirrored to ECR (chart's default
 bitnami image doesn't exist)
 - Image pulled from ECR with tag `openldap-1.5.0` instead of Docker Hub
 - **Multi-master replication**: 3 replicas for high availability
+- **Directory structure initialization**: `customLdifFiles` automatically creates
+`ou=users`, `ou=groups`, and `cn=admins` group on all pods at startup
 - **Kubernetes secrets**: Admin and config passwords stored in Kubernetes secrets,
 not plain-text in Helm values
 - **Web UIs**: phpLDAPadmin and ltb-passwd exposed via ALB with separate Ingress
@@ -988,6 +1000,41 @@ deployment)
 workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - February 2026)
+
+### OpenLDAP Chart Vendoring and Directory Structure Initialization (Unreleased)
+
+- **OpenLDAP Module ACM and Chart Configuration**:
+  - OpenLDAP Terraform module no longer accepts `acm_cert_arn` variable
+  - ACM certificate is now configured only in IngressClassParams by the ALB module
+  - OpenLDAP module now receives `alb_ssl_policy` from parent for ALB HTTPS listener configuration
+  - Chart is vendored locally at `application_infra/charts/openldap-stack-ha` (version 5.0.0, osixia/openldap:1.5.0)
+  - See `application_infra/OPENLDAP_CHANGELOG.md` for detailed chart change documentation
+
+- **OpenLDAP Directory Structure Initialization**:
+  - Added `customLdifFiles` to `helm/openldap-values.tpl.yaml` to automatically create LDAP directory structure on all pods
+  - Creates `ou=users`, `ou=groups`, and `cn=admins` group on pod startup
+  - Fixes issue where multi-master replication didn't sync initial directory structure (each pod initialized independently)
+  - Added `openldap_base_dn` variable and computed local in OpenLDAP module for LDIF template interpolation
+  - See `application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md` for detailed investigation and root cause analysis
+
+- **LDAPClient Group Membership Handling**:
+  - Added methods to detect group objectClass and use correct membership attribute
+  - `uniqueMember` for `groupOfUniqueNames`, `member` for `groupOfNames`
+  - Added `update_user()` and `create_or_update_user()` for idempotent operations
+  - Fixes "attribute 'member' not allowed" errors when adding users to groups
+
+- **Image Tag Validation for Admin-Seed Job**:
+  - Added validation to reject `"latest"` tag (doesn't exist in ECR)
+  - Scripts and workflows fail early with helpful error if tag extraction fails
+  - Destroy scripts use empty string as fallback (acceptable for destroy operations)
+  - ECR uses commit-based tags; backend build workflow updates Helm values automatically
+
+- **LDAP and Admin-Seed-Job Troubleshooting Guide**:
+  - Created comprehensive `application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md` documenting:
+    - Persistent OpenLDAP issues and investigation timeline
+    - Root causes and ad-hoc manual corrections
+    - Permanent code fixes and verification commands
+    - Lessons learned and references
 
 ### LDAP Secret Consistency and Workflow Improvements (Feb 17, 2026)
 
@@ -1867,8 +1914,8 @@ workflow or `setup-backend.sh` script (required for build workflows)
 ### User Signup Management System (December 18, 2025)
 
 - **Self-Service User Registration**:
-  - Signup form with fields: first/last name, username, email, phone, password,
-  MFA method
+  - Signup form with fields: first/last name, username, email, phone, password
+  - MFA method selection removed from signup (users enroll during login after activation)
   - Username validation (3-64 chars, alphanumeric + underscore/hyphen)
   - Email and phone uniqueness validation
   - Password hashing with bcrypt

@@ -386,8 +386,11 @@ resource "kubernetes_secret" "redis_secret_backend_namespace" {
 # seeds the first admin user (same username/password as LDAP admin) with email/phone
 # pre-verified. Values must be set via TF_VAR_admin_seed_* (e.g. from GitHub Secrets);
 # never hard-code in tfvars.
+# admin_seed_enabled also requires local.ldap_admin_password != "" so the job is only
+# created when ldap-admin-secret exists (avoids referencing kubernetes_secret.ldap_admin[0]
+# when count = 0, e.g. when OpenLDAP secret exists but has empty LDAP_ADMIN_PASSWORD).
 locals {
-  admin_seed_enabled = var.enable_argocd_apps && var.argocd_app_backend_path != null && var.enable_postgresql && var.openldap_admin_password != "" && var.admin_seed_username != "" && var.admin_seed_email != "" && var.admin_seed_first_name != "" && var.admin_seed_last_name != "" && var.admin_seed_phone_country_code != "" && var.admin_seed_phone_number != ""
+  admin_seed_enabled = var.enable_argocd_apps && var.argocd_app_backend_path != null && var.enable_postgresql && local.ldap_admin_password != "" && var.openldap_admin_password != "" && var.admin_seed_username != "" && var.admin_seed_email != "" && var.admin_seed_first_name != "" && var.admin_seed_last_name != "" && var.admin_seed_phone_country_code != "" && var.admin_seed_phone_number != ""
 }
 
 resource "kubernetes_secret" "admin_seed" {
@@ -520,9 +523,11 @@ resource "kubernetes_job" "admin_seed" {
             name  = "LDAP_GROUP_SEARCH_BASE"
             value = local.ldap_group_search_base
           }
+          # Must match OpenLDAP StatefulSet replica count (application_infra helm replicaCount, default 3)
+          # so seed_admin.py can target each pod for multi-master replication seeding.
           env {
             name  = "LDAP_REPLICA_COUNT"
-            value = "3"
+            value = tostring(var.ldap_replica_count)
           }
         }
       }

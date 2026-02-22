@@ -96,6 +96,12 @@ variable "openldap_namespace" {
   default     = "ldap"
 }
 
+variable "ldap_replica_count" {
+  description = "OpenLDAP StatefulSet replica count (must match application_infra OpenLDAP replicaCount). Used by admin-seed Job to seed each pod when > 0."
+  type        = number
+  default     = 3
+}
+
 ##################### First admin user seed (2FA app) ##########################
 # When all admin seed variables are set, a one-time Job seeds the first admin user
 # (same username/password as LDAP admin) with email/phone pre-verified. Do NOT set in tfvars; use TF_VAR_admin_seed_* or GitHub Secrets.
