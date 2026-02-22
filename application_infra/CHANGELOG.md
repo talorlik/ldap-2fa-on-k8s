@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **StorageClass Volume Binding Mode**
+  - `volume_binding_mode` set to `WaitForFirstConsumer` (reverted from
+  `Immediate`). Required for EKS Auto Mode: the PVC is provisioned after a pod
+  is scheduled, which triggers node creation; with `Immediate`, binding could
+  occur before nodes exist.
+
 - **OpenLDAP Module: ACM Certificate and Chart Configuration**
   - Removed `acm_cert_arn` variable from the OpenLDAP Terraform module. The ACM
   certificate is now configured only in IngressClassParams by the ALB module;

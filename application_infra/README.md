@@ -249,7 +249,8 @@ StorageClass:
 (`kubernetes_storage_class_v1` resource)
   - Name: `${prefix}-${region}-${storage_class_name}-${env}`
   - Provisioner: `ebs.csi.eks.amazonaws.com`
-  - Volume binding mode: `WaitForFirstConsumer`
+  - Volume binding mode: `WaitForFirstConsumer` (required for EKS Auto Mode;
+  PVC provisions after pod scheduling triggers node creation)
   - Encryption: Configurable via `storage_class_encrypted` variable
   - Volume type: Configurable via `storage_class_type` variable (gp2, gp3, io1,
   io2, etc.)
