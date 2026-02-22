@@ -86,12 +86,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `app.kubernetes.io/part-of` instead of `app` to avoid conflicting with
   reserved/standard Kubernetes labels.
 
-- **Application Infrastructure: OpenLDAP Secret Key Name Correction**
-  - Corrected Kubernetes secret key name from `LDAP_CONFIG_PASSWORD` to
-  `LDAP_CONFIG_ADMIN_PASSWORD` in OpenLDAP module
-  - Aligns with the expected secret key name used by the osixia/openldap container
-  and jp-gouin/helm-openldap chart
-  - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) remains unchanged
+- **Application Infrastructure: OpenLDAP Secret Key Name (osixia compatibility)**
+  - Kubernetes secret created by Terraform uses key `LDAP_CONFIG_PASSWORD` (not
+  `LDAP_CONFIG_ADMIN_PASSWORD`) to match the osixia/openldap image. The upstream
+  jp-gouin/helm-openldap chart documents `LDAP_CONFIG_ADMIN_PASSWORD` for the
+  Bitnami image; this project uses the osixia image. See
+  [application_infra/OSIXIA_OPENLDAP_REQUIREMENTS.md](application_infra/OSIXIA_OPENLDAP_REQUIREMENTS.md).
+  - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) is unchanged.
 
 ## [2026-02-16] - GitHub Actions Support for ArgoCD Module and Workflow Improvements
 

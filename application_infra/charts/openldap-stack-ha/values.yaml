@@ -24,7 +24,7 @@ ldapOrganisation: "Example Inc"
 adminPassword: changeme
 configPassword: changeme
 
-# Use an existing Kubernetes secret for LDAP_ADMIN_PASSWORD and LDAP_CONFIG_ADMIN_PASSWORD.
+# Use an existing Kubernetes secret for LDAP_ADMIN_PASSWORD and LDAP_CONFIG_PASSWORD.
 # When set, the chart will NOT create its own secret.
 existingSecret: ""
 
@@ -42,7 +42,7 @@ replication:
   enabled: true
   clusterName: "cluster.local"
   # syncprov overlay settings
-  configSyncprov: "binddn=\"cn=admin,cn=config\" bindmethod=simple credentials=$LDAP_CONFIG_ADMIN_PASSWORD searchbase=\"cn=config\" type=refreshAndPersist retry=\"60 +\" timeout=1 starttls=critical tls_reqcert=never"
+  configSyncprov: "binddn=\"cn=admin,cn=config\" bindmethod=simple credentials=$LDAP_CONFIG_PASSWORD searchbase=\"cn=config\" type=refreshAndPersist retry=\"60 +\" timeout=1 starttls=critical tls_reqcert=never"
   dbSyncprov: "binddn=\"cn=admin,$LDAP_BASE_DN\" bindmethod=simple credentials=$LDAP_ADMIN_PASSWORD searchbase=\"$LDAP_BASE_DN\" type=refreshAndPersist interval=00:00:00:10 retry=\"60 +\" timeout=1 starttls=critical tls_reqcert=never"
 
 # Global values passed to subcharts (phpldapadmin, ltb-passwd)

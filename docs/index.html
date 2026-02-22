@@ -342,6 +342,9 @@
                             <li><code>TF_VAR_openldap_admin_password</code></li>
                             <li><code>TF_VAR_openldap_config_password</code></li>
                         </ul>
+                        Terraform writes these to a Kubernetes secret with keys
+                        <code>LDAP_ADMIN_PASSWORD</code> and
+                        <code>LDAP_CONFIG_PASSWORD</code> (osixia/openldap image).
                     </li>
                     <li>Assumes State Account role for backend operations</li>
                     <li>Exports <code>TERRAFORM_WORKSPACE</code> before sourcing <code>set-k8s-env.sh</code> so the correct backend_infra state is read</li>
@@ -1074,6 +1077,9 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li>OpenLDAP StatefulSet (3 replicas for high availability)</li>
                         <li>PhpLdapAdmin web interface</li>
                         <li>LTB-passwd self-service password management</li>
+                        <li>Credentials from Terraform-managed Kubernetes secret (keys
+                            <code>LDAP_ADMIN_PASSWORD</code> and
+                            <code>LDAP_CONFIG_PASSWORD</code> for osixia image)</li>
                         <li>ACM certificate configured in IngressClassParams (ALB module), not passed to OpenLDAP module</li>
                     </ul>
                 </li>

@@ -1267,7 +1267,7 @@ After modifying the template, run `terraform plan` and `terraform apply`.
 To use Kubernetes secrets instead of plain text passwords:
 
 1. Create a Kubernetes secret with keys `LDAP_ADMIN_PASSWORD` and
-`LDAP_CONFIG_ADMIN_PASSWORD`
+   `LDAP_CONFIG_PASSWORD`
 2. Update the Helm values template to use `global.existingSecret`
 3. Remove `adminPassword` and `configPassword` from the template
 

@@ -22,6 +22,21 @@ osixia/openldap.
 | `LDAP_TLS_ENFORCE` | `LDAP_TLS_ENFORCE` | ✅ Correct | OK |
 | `LDAP_TLS_VERIFY_CLIENT` | `LDAP_TLS_VERIFY_CLIENT` | ✅ Correct | OK |
 
+### Secret Key Names (Passwords)
+
+The **osixia/openldap** image expects these exact secret keys (see [osixia
+README Environment
+Variables](https://github.com/osixia/docker-openldap#environment-variables) and
+`image/service/slapd/startup.sh`):
+
+- **LDAP_ADMIN_PASSWORD** - Admin user (cn=admin) password
+- **LDAP_CONFIG_PASSWORD** - Config user (cn=admin,cn=config) password
+
+The upstream **jp-gouin/helm-openldap** chart (Bitnami-based) documents
+**LDAP_CONFIG_ADMIN_PASSWORD** for the config password. That name is for the
+Bitnami image. This project uses the osixia image, so the Kubernetes secret
+and replication `configSyncprov` must use **LDAP_CONFIG_PASSWORD**.
+
 ### TLS Certificate Handling
 
 **osixia/openldap** expects:

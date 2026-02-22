@@ -922,7 +922,7 @@ the osixia/openldap container
 - Must explicitly set these in the `env:` section of Helm values:
   - `LDAP_DOMAIN`: The LDAP domain (e.g., "ldap.talorlik.internal")
   - `LDAP_ADMIN_PASSWORD`: Admin password
-  - `LDAP_CONFIG_ADMIN_PASSWORD`: Config password
+  - `LDAP_CONFIG_PASSWORD`: Config password (osixia image)
 - Without `LDAP_DOMAIN`, OpenLDAP initializes with empty/default config and
 authentication fails
 - If authentication fails after deployment, delete PVCs and restart pods to
@@ -1057,16 +1057,22 @@ workflow or `setup-backend.sh` script (required for build workflows)
 - **OpenLDAP Module ACM and Chart Configuration**:
   - OpenLDAP Terraform module no longer accepts `acm_cert_arn` variable
   - ACM certificate is now configured only in IngressClassParams by the ALB module
-  - OpenLDAP module now receives `alb_ssl_policy` from parent for ALB HTTPS listener configuration
-  - Chart is vendored locally at `application_infra/charts/openldap-stack-ha` (version 5.0.0, osixia/openldap:1.5.0)
+  - OpenLDAP module now receives `alb_ssl_policy` from parent for ALB HTTPS listener
+  configuration
+  - Chart is vendored locally at `application_infra/charts/openldap-stack-ha`
+  (version 5.0.0, osixia/openldap:1.5.0)
   - See `application_infra/OPENLDAP_CHANGELOG.md` for detailed chart change documentation
 
 - **OpenLDAP Directory Structure Initialization**:
-  - Added `customLdifFiles` to `helm/openldap-values.tpl.yaml` to automatically create LDAP directory structure on all pods
+  - Added `customLdifFiles` to `helm/openldap-values.tpl.yaml` to automatically
+  create LDAP directory structure on all pods
   - Creates `ou=users`, `ou=groups`, and `cn=admins` group on pod startup
-  - Fixes issue where multi-master replication didn't sync initial directory structure (each pod initialized independently)
-  - Added `openldap_base_dn` variable and computed local in OpenLDAP module for LDIF template interpolation
-  - See `application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md` for detailed investigation and root cause analysis
+  - Fixes issue where multi-master replication didn't sync initial directory structure
+  (each pod initialized independently)
+  - Added `openldap_base_dn` variable and computed local in OpenLDAP module for
+  LDIF template interpolation
+  - See `application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md` for detailed investigation
+  and root cause analysis
 
 - **LDAPClient Group Membership Handling**:
   - Added methods to detect group objectClass and use correct membership attribute
@@ -1089,12 +1095,13 @@ workflow or `setup-backend.sh` script (required for build workflows)
 
 ### LDAP Secret Consistency and Workflow Improvements (Feb 17, 2026)
 
-- **OpenLDAP Secret Key Name Correction**:
-  - Corrected Kubernetes secret key name from `LDAP_CONFIG_PASSWORD` to
-  `LDAP_CONFIG_ADMIN_PASSWORD` in OpenLDAP module
-  - Aligns with the expected secret key name used by the osixia/openldap container
-  and jp-gouin/helm-openldap chart
-  - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) remains unchanged
+- **OpenLDAP Secret Key Name (osixia compatibility)**:
+  - The Kubernetes secret must use key `LDAP_CONFIG_PASSWORD` (not
+  `LDAP_CONFIG_ADMIN_PASSWORD`) because this project uses the osixia/openldap
+  image. The jp-gouin/helm-openldap chart documents `LDAP_CONFIG_ADMIN_PASSWORD`
+  for the Bitnami image. Terraform and the vendored chart use
+  `LDAP_CONFIG_PASSWORD`.
+  - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) is unchanged.
 
 - **LDAP Admin Password Consistency: Cross-Namespace Secret Reading**:
   - Fixed password mismatch issue that caused `admin-seed-job` to fail with
@@ -2287,7 +2294,7 @@ environment variable
    - The jp-gouin chart's `global.ldapDomain` doesn't pass through to
    osixia/openldap container
    - Must explicitly set `LDAP_DOMAIN`, `LDAP_ADMIN_PASSWORD`, and
-   `LDAP_CONFIG_ADMIN_PASSWORD` in `env:` section
+   `LDAP_CONFIG_PASSWORD` in `env:` (or via existingSecret with those keys)
 
 2. **Fix**: Delete PVCs to force re-initialization with correct environment
 variables:

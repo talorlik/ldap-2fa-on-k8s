@@ -69,8 +69,8 @@ resource "kubernetes_secret" "openldap_passwords" {
   }
 
   data = {
-    "LDAP_ADMIN_PASSWORD"        = var.openldap_admin_password
-    "LDAP_CONFIG_ADMIN_PASSWORD" = var.openldap_config_password
+    "LDAP_ADMIN_PASSWORD"   = var.openldap_admin_password
+    "LDAP_CONFIG_PASSWORD"  = var.openldap_config_password
   }
 
   type = "Opaque"

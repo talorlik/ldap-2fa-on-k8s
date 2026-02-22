@@ -70,7 +70,7 @@ requirements.
 | REQ-5.4 | Passwords must be stored in a Terraform-managed Kubernetes Secret |
 | REQ-5.5 | Secret names must be configurable |
 | REQ-5.6 | Helm chart must consume the Terraform-managed secret via `existingSecret` (the chart must NOT create its own secret when `existingSecret` is set) |
-| REQ-5.7 | The secret must contain keys `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_ADMIN_PASSWORD` |
+| REQ-5.7 | The secret must contain keys `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_PASSWORD` |
 
 ### REQ-6: LDAP Configuration
 

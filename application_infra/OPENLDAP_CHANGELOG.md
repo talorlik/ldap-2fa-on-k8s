@@ -141,7 +141,7 @@ configuration. Vendoring the chart eliminates all of these workarounds.
 **Simplified:**
 
 - Only creates secret when `existingSecret` is empty
-- Contains `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_ADMIN_PASSWORD` keys
+- Contains `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_PASSWORD` keys
 - When `existingSecret` is set (Terraform-managed secret), the chart skips
   secret creation entirely
 

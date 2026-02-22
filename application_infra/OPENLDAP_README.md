@@ -47,7 +47,7 @@ From the chart README and a static analysis of rendered manifests:([GitHub][1])
    set.
 
      - Expected keys if you use your own Secret: `LDAP_ADMIN_PASSWORD` and
-     `LDAP_CONFIG_ADMIN_PASSWORD`.([GitHub][1])
+     `LDAP_CONFIG_PASSWORD`. ([GitHub][1])
    - One Secret for TLS if you enable `initTLSSecret.tls_enabled` and point
    `initTLSSecret.secret` at an existing Secret that has `tls.crt`,
    `tls.key`, `ca.crt`.([GitHub][1])
@@ -217,7 +217,7 @@ Global values mostly affect credentials, ports and image sources.
    - That Secret must contain:
 
      - `LDAP_ADMIN_PASSWORD`
-     - `LDAP_CONFIG_ADMIN_PASSWORD`
+     - `LDAP_CONFIG_PASSWORD`
    - If set, chart will not manage admin/config passwords itself.
 
 5. `global.adminUser` / `global.adminPassword`
