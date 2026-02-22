@@ -255,13 +255,13 @@ resource "kubernetes_namespace" "backend_app" {
 
 # Read OpenLDAP admin password from the OpenLDAP secret in ldap namespace
 # This ensures the backend uses the same password as OpenLDAP was initialized with
-# 
+#
 # IMPORTANT: Cross-namespace secret reading works because:
 # 1. Terraform Kubernetes provider uses the Kubernetes API (not pod-to-pod communication)
 # 2. Network policies only affect pod-to-pod traffic, not API calls
 # 3. The provider authenticates via EKS cluster auth (data.aws_eks_cluster_auth.cluster.token)
 #    which typically grants cluster-admin permissions, allowing secret reads from any namespace
-# 
+#
 # If the secret doesn't exist or cannot be read, we fall back to var.openldap_admin_password
 # This fallback is useful during initial deployment when OpenLDAP may not be deployed yet
 # When using openldap_secret_name: deploy application_infra (OpenLDAP) before application
@@ -278,7 +278,7 @@ data "kubernetes_secret" "openldap_admin" {
 locals {
   # Use password from OpenLDAP secret if available, otherwise fall back to variable
   # This ensures consistency: if OpenLDAP secret exists and was successfully read, use it; otherwise use provided variable
-  # 
+  #
   # Behavior:
   # - If openldap_secret_name is empty: Uses var.openldap_admin_password (data source not created)
   # - If data source is created but secret doesn't exist: Terraform will error (enforces deployment order)
@@ -294,7 +294,7 @@ locals {
   # - Terraform will mask it in plan/apply logs when derived from sensitive variable
   # - Never output or logged - only used to create the Kubernetes secret resource
   # - The kubernetes_secret resource handles the data securely (base64 encoding, encrypted at rest in etcd)
-  # 
+  #
   # Note: The kubernetes_secret data source's `data` attribute returns decoded (plain text) values,
   # not base64-encoded. We use nonsensitive() to unwrap the sensitive value so it can be used
   # in the kubernetes_secret resource. The resulting password is still secure because it's only

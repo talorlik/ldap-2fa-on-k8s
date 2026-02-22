@@ -42,7 +42,7 @@ resource "kubernetes_storage_class_v1" "this" {
 
   storage_provisioner    = "ebs.csi.eks.amazonaws.com"
   reclaim_policy         = "Delete"
-  volume_binding_mode    = "Immediate" # Changed from WaitForFirstConsumer to prevent PVC binding deadlocks
+  volume_binding_mode    = "WaitForFirstConsumer" # Required for EKS Auto Mode - PVC provisions after pod scheduling triggers node creation
   allow_volume_expansion = true
 
   parameters = {
