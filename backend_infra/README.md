@@ -157,22 +157,25 @@ backend_infra/
 ├── tfstate-backend-values-template.hcl  # Backend config template
 ├── CHANGELOG.md                   # Change log for this module
 ├── setup-backend.sh               # Backend setup script (GitHub CLI)
-└── modules/
-    ├── ebs/                       # EBS storage resources (currently commented out in main.tf)
-    │   ├── main.tf
-    │   ├── variables.tf
-    │   ├── outputs.tf
-    │   └── README.md
-    ├── ecr/                       # ECR repository
-    │   ├── main.tf
-    │   ├── variables.tf
-    │   ├── outputs.tf
-    │   └── README.md
-    └── endpoints/                 # VPC endpoints (SSM, STS, SNS)
-        ├── main.tf
-        ├── variables.tf
-        ├── outputs.tf
-        └── README.md
+├── destroy-backend.sh             # Backend destroy script
+├── variables.tfvars               # Variable values (customize for your environment)
+├── modules/
+│   ├── ebs/                       # EBS storage (currently commented out in main.tf)
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── ecr/                       # ECR repository
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   └── endpoints/                 # VPC endpoints (SSM, STS, SNS)
+│       ├── main.tf
+│       ├── variables.tf
+│       ├── outputs.tf
+│       └── README.md
+└── README.md                      # This file
 ```
 
 ## Destroying Infrastructure

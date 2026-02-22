@@ -276,7 +276,8 @@ enabling cross-namespace communication for LDAP service access.
 
 The `modules/argocd/` module deploys the AWS EKS managed ArgoCD service for GitOps
 deployments, including IAM integration, Identity Center authentication, and
-cluster registration.
+cluster registration. In `main.tf`, the ArgoCD module is declared first so it
+is created before other modules that reference its outputs.
 
 The `modules/argocd_app/` module creates ArgoCD Application CRDs for GitOps-driven
 deployments.
@@ -311,64 +312,71 @@ deployments.
 
 ```bash
 application_infra/
-├── main.tf                    # Main infrastructure configuration
+├── main.tf                    # Main configuration; ArgoCD module declared first
 ├── variables.tf               # Variable definitions
-├── variables.tfvars          # Variable values (customize for your environment)
+├── variables.tfvars           # Variable values (customize for your environment)
 ├── outputs.tf                 # Output values (exports StorageClass, ArgoCD outputs, ALB DNS)
 ├── providers.tf               # Provider configuration (AWS, Kubernetes, Helm)
 ├── backend.hcl                # Terraform backend configuration
 ├── tfstate-backend-values-template.hcl  # Backend state configuration template
-├── CHANGELOG.md              # Change log for infrastructure changes
-├── setup-application-infra.sh # Infrastructure setup script
-├── destroy-application-infra.sh # Infrastructure destroy script
-├── mirror-images-to-ecr.sh   # Script to mirror Docker images to ECR
-├── set-k8s-env.sh            # Kubernetes environment setup script
+├── CHANGELOG.md               # Change log for infrastructure changes
+├── setup-application-infra.sh  # Infrastructure setup script
+├── destroy-application-infra.sh  # Infrastructure destroy script
+├── mirror-images-to-ecr.sh    # Script to mirror Docker images to ECR
+├── set-k8s-env.sh             # Kubernetes environment setup script
+├── assume-github-role.sh      # Role assumption script for multi-account access
 ├── helm/
 │   └── openldap-values.tpl.yaml  # OpenLDAP Helm values template
+├── charts/                    # Vendored Helm charts
+│   └── openldap-stack-ha/     # OpenLDAP 5.0.0 chart (vendored locally)
 ├── modules/
-│   ├── alb/                    # ALB module - creates IngressClass and IngressClassParams for EKS Auto Mode
+│   ├── alb/                   # ALB - IngressClass and IngressClassParams for EKS Auto Mode
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   ├── outputs.tf
 │   │   └── README.md
-│   ├── argocd/                 # ArgoCD Capability module - deploys managed ArgoCD
+│   ├── argocd/                # ArgoCD Capability - deploys managed ArgoCD
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   ├── outputs.tf
 │   │   └── README.md
-│   ├── cert-manager/           # cert-manager module - TLS certificate management
+│   ├── cert-manager/          # cert-manager - TLS (module exists, not currently used)
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   ├── outputs.tf
 │   │   └── README.md
-│   ├── network-policies/       # Network Policies module - secures pod-to-pod communication
+│   ├── network-policies/      # Network Policies - pod-to-pod security
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   ├── outputs.tf
 │   │   └── README.md
-│   ├── openldap/               # OpenLDAP module - LDAP directory service deployment
+│   ├── openldap/              # OpenLDAP - LDAP directory service deployment
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   ├── outputs.tf
 │   │   └── README.md
-│   ├── route53/                # Route53 module - hosted zone and DNS management
+│   ├── route53/               # Route53 - hosted zone and DNS management
 │   │   ├── main.tf
 │   │   ├── variables.tf
-│   │   └── outputs.tf
-│   └── route53_record/         # Route53 Record module - A (alias) records for ALB
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   └── route53_record/        # Route53 Record - A (alias) records for ALB
 │       ├── main.tf
 │       ├── variables.tf
 │       ├── outputs.tf
 │       ├── providers.tf
 │       └── README.md
-├── PRD_ALB.md                  # ALB configuration PRD
-├── PRD_ArgoCD.md               # ArgoCD Capability configuration PRD
-├── PRD_DOMAIN.md               # Domain configuration PRD
-├── OPENLDAP_README.md          # OpenLDAP deployment documentation
-├── OSIXIA_OPENLDAP_REQUIREMENTS.md  # OpenLDAP requirements documentation
-├── SECURITY_IMPROVEMENTS.md   # Security improvements documentation
 ├── CROSS_ACCOUNT_ACCESS.md    # Cross-account Route53/ACM access documentation
-└── README.md                   # This file
+├── OPENLDAP_CHANGELOG.md      # OpenLDAP chart change documentation
+├── OPENLDAP_README.md         # OpenLDAP deployment documentation
+├── OSIXIA_OPENLDAP_REQUIREMENTS.md  # OpenLDAP requirements documentation
+├── PRD_ALB.md                 # ALB configuration PRD
+├── PRD_ArgoCD.md              # ArgoCD Capability configuration PRD
+├── PRD_DOMAIN.md              # Domain configuration PRD
+├── PRD_OPENLDAP.md            # OpenLDAP configuration PRD
+├── SECURITY_IMPROVEMENTS.md   # Security improvements documentation
+├── SILENT_MODE_EXPLANATION.md # ArgoCD external data source silent mode
+└── README.md                  # This file
 ```
 
 > [!NOTE]

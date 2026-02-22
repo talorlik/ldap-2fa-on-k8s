@@ -321,36 +321,43 @@ port 8080)
 application/
 ├── main.tf                    # Main application configuration
 ├── variables.tf               # Variable definitions
-├── variables.tfvars          # Variable values (customize for your environment)
+├── variables.tfvars           # Variable values (customize for your environment)
 ├── outputs.tf                 # Output values
 ├── providers.tf               # Provider configuration (AWS, Kubernetes, Helm)
 ├── backend.hcl                # Terraform backend configuration (generated)
 ├── tfstate-backend-values-template.hcl  # Backend state configuration template
-├── CHANGELOG.md              # Change log for application changes
+├── CHANGELOG.md               # Change log for application changes
 ├── setup-application.sh       # Application setup script
 ├── destroy-application.sh     # Application destroy script
 ├── helm/
 │   ├── postgresql-values.tpl.yaml  # PostgreSQL Helm values template
 │   └── redis-values.tpl.yaml       # Redis Helm values template
-├── backend/                   # 2FA Backend application
-│   ├── src/                   # Python FastAPI source code
-│   ├── helm/                  # Backend Helm chart
-│   └── Dockerfile
-├── frontend/                  # 2FA Frontend application
-│   ├── src/                   # HTML/JS/CSS source code
-│   ├── helm/                  # Frontend Helm chart
-│   └── Dockerfile
+├── backend/                   # 2FA Backend (Python FastAPI)
+│   ├── src/                   # Source code
+│   ├── helm/                  # Helm chart (ldap-2fa-backend)
+│   ├── Dockerfile
+│   └── README.md
+├── frontend/                  # 2FA Frontend (HTML/JS/CSS + nginx)
+│   ├── src/                   # Source code
+│   ├── helm/                  # Helm chart (ldap-2fa-frontend)
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── README.md
 ├── modules/
-│   ├── argocd_app/            # ArgoCD Application module
-│   ├── postgresql/            # PostgreSQL module
-│   ├── redis/                 # Redis module
-│   ├── ses/                   # SES module
-│   └── sns/                   # SNS module
-├── PRD_2FA_APP.md            # 2FA Application Product Requirements Document
-├── PRD_ADMIN_FUNCS.md        # Admin Functions and Profile Management PRD
-├── PRD_SIGNUP_MAN.md         # User Signup Management PRD
-├── PRD_SMS_MAN.md            # SMS OTP Management with Redis PRD
-├── DEPLOY_2FA_APPS.md        # Application deployment documentation
+│   ├── argocd_app/            # ArgoCD Application CRDs
+│   ├── postgresql/            # PostgreSQL (Bitnami Helm)
+│   ├── redis/                 # Redis for SMS OTP
+│   ├── ses/                   # AWS SES for email
+│   └── sns/                   # AWS SNS for SMS
+├── DEPLOY_2FA_APPS.md         # Application deployment documentation
+├── LDAP_ADMIN_SEED_TROUBLESHOOTING.md  # LDAP and admin-seed troubleshooting
+├── PASSWORD_FLOW.md           # Password flow from secrets to Terraform to K8s
+├── PRD_2FA_APP.md             # 2FA Application Product Requirements Document
+├── PRD_ADMIN_FUNCS.md         # Admin Functions and Profile Management PRD
+├── PRD_SIGNUP_MAN.md          # User Signup Management PRD
+├── PRD_SMS_MAN.md             # SMS OTP Management with Redis PRD
+├── REDIS_ENABLEMENT_SUMMARY.md # Redis and SMS 2FA enablement guide
+├── SECRET_DEPENDENCIES.md     # Secret dependencies across components
 └── README.md                  # This file
 ```
 

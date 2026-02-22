@@ -121,8 +121,10 @@ ldap-2fa-on-k8s/
 │   │   ├── bug_report.md
 │   │   └── feature_request.md
 │   └── workflows/
+│       ├── application_destroying.yaml
 │       ├── application_infra_destroying.yaml
 │       ├── application_infra_provisioning.yaml
+│       ├── application_provisioning.yaml
 │       ├── backend_build_push.yaml
 │       ├── backend_infra_destroying.yaml
 │       ├── backend_infra_provisioning.yaml
@@ -131,73 +133,122 @@ ldap-2fa-on-k8s/
 │       └── tfstate_infra_provisioning.yaml
 ├── application_infra/          # Application infrastructure - Account B
 │   ├── charts/                 # Vendored Helm charts
-│   │   └── openldap-stack-ha/  # OpenLDAP 5.0.0 chart (vendored locally)
-│   ├── helm/                   # Helm values templates (OpenLDAP)
+│   │   └── openldap-stack-ha/  # OpenLDAP 5.0.0 (vendored locally)
+│   ├── helm/
 │   │   └── openldap-values.tpl.yaml
-│   ├── modules/                # Infrastructure Terraform modules
+│   ├── modules/
 │   │   ├── alb/                # IngressClass and IngressClassParams
 │   │   ├── argocd/             # ArgoCD Capability (AWS managed)
-│   │   ├── cert-manager/       # TLS certificate management (module exists, not currently used)
+│   │   ├── cert-manager/       # TLS (module exists, not currently used)
 │   │   ├── network-policies/   # Kubernetes NetworkPolicies
-│   │   ├── openldap/           # OpenLDAP Stack HA deployment module
+│   │   ├── openldap/           # OpenLDAP Stack HA deployment
 │   │   ├── route53/            # Route53 hosted zone
-│   │   └── route53_record/     # Route53 A (alias) record creation
-│   ├── assume-github-role.sh   # Role assumption script for multi-account access
+│   │   └── route53_record/     # Route53 A (alias) records
+│   ├── assume-github-role.sh
+│   ├── backend.hcl
 │   ├── destroy-application-infra.sh
-│   ├── mirror-images-to-ecr.sh # ECR image mirroring script
-│   ├── OPENLDAP_CHANGELOG.md   # OpenLDAP chart change documentation
+│   ├── main.tf
+│   ├── mirror-images-to-ecr.sh
+│   ├── CROSS_ACCOUNT_ACCESS.md
+│   ├── OPENLDAP_CHANGELOG.md
+│   ├── OPENLDAP_README.md
+│   ├── OSIXIA_OPENLDAP_REQUIREMENTS.md
+│   ├── outputs.tf
+│   ├── PRD_ALB.md
+│   ├── PRD_ArgoCD.md
+│   ├── PRD_DOMAIN.md
+│   ├── PRD_OPENLDAP.md
+│   ├── providers.tf
 │   ├── set-k8s-env.sh
 │   ├── setup-application-infra.sh
-│   └── [other infrastructure files...]
-├── application/                # 2FA Application code and dependencies - Account B
+│   ├── SECURITY_IMPROVEMENTS.md
+│   ├── SILENT_MODE_EXPLANATION.md
+│   ├── tfstate-backend-values-template.hcl
+│   ├── variables.tf
+│   ├── variables.tfvars
+│   └── README.md
+├── application/                # 2FA Application - Account B
 │   ├── backend/                # 2FA Backend (Python FastAPI)
-│   │   ├── src/                # Source code
-│   │   ├── helm/               # Helm chart
+│   │   ├── src/
+│   │   ├── helm/ldap-2fa-backend/
 │   │   ├── Dockerfile
-│   │   └── README.md           # Backend API documentation
-│   ├── frontend/               # 2FA Frontend (HTML/JS/CSS)
-│   │   ├── src/                # Source code
-│   │   ├── helm/               # Helm chart
+│   │   └── README.md
+│   ├── frontend/               # 2FA Frontend (HTML/JS/CSS + nginx)
+│   │   ├── src/
+│   │   ├── helm/ldap-2fa-frontend/
 │   │   ├── Dockerfile
 │   │   ├── nginx.conf
-│   │   └── README.md           # Frontend documentation
-│   ├── helm/                   # Application Helm values templates (Redis, PostgreSQL)
-│   ├── modules/                # Application Terraform modules
-│   │   ├── argocd_app/         # ArgoCD Application CRD
-│   │   ├── postgresql/         # PostgreSQL database (Bitnami Helm)
-│   │   ├── redis/              # Redis cache for SMS OTP
-│   │   ├── ses/                # SES for email verification
-│   │   └── sns/                # SNS for SMS 2FA
+│   │   └── README.md
+│   ├── helm/
+│   │   ├── postgresql-values.tpl.yaml
+│   │   └── redis-values.tpl.yaml
+│   ├── modules/
+│   │   ├── argocd_app/
+│   │   ├── postgresql/
+│   │   ├── redis/
+│   │   ├── ses/
+│   │   └── sns/
+│   ├── backend.hcl
 │   ├── destroy-application.sh
 │   ├── setup-application.sh
-│   ├── LDAP_ADMIN_SEED_TROUBLESHOOTING.md  # LDAP and admin-seed troubleshooting guide
-│   ├── PASSWORD_FLOW.md        # Password flow from secrets to Terraform to K8s
-│   ├── REDIS_ENABLEMENT_SUMMARY.md  # Redis and SMS 2FA enablement guide
-│   ├── SECRET_DEPENDENCIES.md  # Secret dependencies across components
-│   └── [other application files...]
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── providers.tf
+│   ├── variables.tf
+│   ├── variables.tfvars
+│   ├── tfstate-backend-values-template.hcl
+│   ├── CHANGELOG.md
+│   ├── DEPLOY_2FA_APPS.md
+│   ├── LDAP_ADMIN_SEED_TROUBLESHOOTING.md
+│   ├── PASSWORD_FLOW.md
+│   ├── REDIS_ENABLEMENT_SUMMARY.md
+│   ├── SECRET_DEPENDENCIES.md
+│   ├── PRD_2FA_APP.md
+│   ├── PRD_ADMIN_FUNCS.md
+│   ├── PRD_SIGNUP_MAN.md
+│   ├── PRD_SMS_MAN.md
+│   └── README.md
 ├── backend_infra/              # Core AWS infrastructure - Account B
 │   ├── modules/
-│   │   ├── ebs/                # EBS storage
-│   │   ├── ecr/                # Container registry
-│   │   └── endpoints/          # VPC endpoints (SSM, STS, SNS)
+│   │   ├── ebs/
+│   │   ├── ecr/
+│   │   └── endpoints/
+│   ├── backend.hcl
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── providers.tf
+│   ├── variables.tf
+│   ├── variables.tfvars
+│   ├── tfstate-backend-values-template.hcl
+│   ├── CHANGELOG.md
 │   ├── destroy-backend.sh
 │   ├── setup-backend.sh
-│   └── [other backend_infra files...]
-├── docs/                       # GitHub Pages documentation
-│   ├── index.html              # Project documentation website
+│   └── README.md
+├── docs/                        # GitHub Pages documentation
+│   ├── index.html
 │   ├── dark-theme.css
 │   ├── light-theme.css
-│   └── [other docs files...]
-├── tf_backend_state/           # Terraform state backend (S3) - Account A
+│   ├── header_banner.png
+│   └── favicon.ico
+├── tf_backend_state/            # Terraform state backend (S3) - Account A
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── providers.tf
+│   ├── variables.tf
+│   ├── variables.tfvars
 │   ├── get-state.sh
 │   ├── set-state.sh
-│   └── [other tf_backend_state files...]
+│   ├── CHANGELOG.md
+│   └── README.md
 ├── CHANGELOG.md
 ├── LICENSE
-├── monitor-deployments.sh      # Deployment monitoring script
 ├── README.md
-├── SECRETS_REQUIREMENTS.md     # Secrets management documentation
-└── [other root files...]
+├── WARP.md
+├── SECRETS_REQUIREMENTS.md
+├── monitor-deployments.sh
+├── repomix.config.json
+├── repomix_instructions.md
+└── repomix_output.md
 ```
 
 ## Common Commands

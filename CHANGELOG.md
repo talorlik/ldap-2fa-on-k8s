@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Application Infrastructure: ArgoCD Module Ordering and Dependencies**
+  - ArgoCD module is now declared first in `application_infra/main.tf` so it is
+  created before other modules that reference its outputs.
+  - ArgoCD module internal dependency graph updated to avoid race conditions:
+  IAM and namespace propagation wait extended to 2m; downstream resources
+  (cluster registration secret, access policy association, manifests) depend
+  on `time_sleep.wait_for_argocd` so the EKS capability's access entry exists
+  before associating policies. See
+  [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
+
 - **StorageClass Volume Binding Mode (EKS Auto Mode)**
   - StorageClass `volume_binding_mode` set to `WaitForFirstConsumer` (was
   `Immediate`). Required for EKS Auto Mode so that PVC provisioning occurs
@@ -69,6 +79,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ECR uses commit-based tags; Backend Build workflow updates Helm values
 
 ### Fixed
+
+- **Application Infrastructure: OpenLDAP Helm Pod Labels**
+  - ltb-passwd and phpldapadmin `podLabels` in
+  `application_infra/helm/openldap-values.tpl.yaml` now use
+  `app.kubernetes.io/part-of` instead of `app` to avoid conflicting with
+  reserved/standard Kubernetes labels.
 
 - **Application Infrastructure: OpenLDAP Secret Key Name Correction**
   - Corrected Kubernetes secret key name from `LDAP_CONFIG_PASSWORD` to

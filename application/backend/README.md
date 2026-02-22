@@ -429,31 +429,37 @@ backend/
 │   │   │   └── routes.py          # All API endpoints
 │   │   ├── config.py              # Configuration management
 │   │   ├── main.py                # FastAPI app entry point
+│   │   ├── seed_admin.py          # LDAP admin seed job entry point
 │   │   ├── database/
 │   │   │   ├── __init__.py
-│   │   │   ├── connection.py      # Database connection management
-│   │   │   └── models.py          # SQLAlchemy models
+│   │   │   ├── connection.py     # Database connection management
+│   │   │   └── models.py         # SQLAlchemy models
 │   │   ├── utils/
 │   │   │   ├── __init__.py
-│   │   │   └── security.py        # Log redaction for secrets
+│   │   │   └── security.py       # Log redaction for secrets
 │   │   ├── email/
 │   │   │   ├── __init__.py
-│   │   │   └── client.py          # AWS SES email client
+│   │   │   └── client.py         # AWS SES email client
 │   │   ├── ldap/
 │   │   │   ├── __init__.py
-│   │   │   └── client.py          # LDAP client
+│   │   │   └── client.py         # LDAP client
 │   │   ├── mfa/
 │   │   │   ├── __init__.py
-│   │   │   └── totp.py            # TOTP manager
+│   │   │   └── totp.py           # TOTP manager
 │   │   ├── redis/
 │   │   │   ├── __init__.py
-│   │   │   └── client.py          # Redis OTP client
+│   │   │   └── client.py         # Redis OTP client
 │   │   └── sms/
 │   │       ├── __init__.py
-│   │       └── client.py           # AWS SNS SMS client
+│   │       └── client.py         # AWS SNS SMS client
 │   └── requirements.txt
 ├── Dockerfile
-├── helm/                          # Kubernetes Helm charts
+├── pyrightconfig.json             # Pyright/Pylance extraPaths for app imports
+├── helm/                          # Kubernetes Helm chart
+│   └── ldap-2fa-backend/
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── templates/
 └── README.md
 ```
 

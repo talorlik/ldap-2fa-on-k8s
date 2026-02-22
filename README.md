@@ -119,30 +119,37 @@ ldap-2fa-on-k8s/
 ├── application_infra/               # Application infrastructure - Account B
 │   ├── helm/                        # Helm values templates
 │   │   └── openldap-values.tpl.yaml
+│   ├── charts/                      # Vendored Helm charts
+│   │   └── openldap-stack-ha/       # OpenLDAP 5.0.0 (vendored locally)
 │   ├── modules/                     # Infrastructure Terraform modules
 │   │   ├── alb/                     # Application Load Balancer
 │   │   ├── argocd/                  # ArgoCD Capability (AWS managed service)
-│   │   ├── cert-manager/            # TLS certificate management (module exists, not currently used)
+│   │   ├── cert-manager/            # TLS (module exists, not currently used)
 │   │   ├── network-policies/        # Pod-to-pod security
 │   │   ├── openldap/                # OpenLDAP stack
 │   │   ├── route53/                 # Route53 hosted zone
 │   │   └── route53_record/          # Route53 DNS records
+│   ├── assume-github-role.sh
+│   ├── backend.hcl
 │   ├── CHANGELOG.md
 │   ├── CROSS_ACCOUNT_ACCESS.md
 │   ├── destroy-application-infra.sh
 │   ├── main.tf
 │   ├── mirror-images-to-ecr.sh
+│   ├── OPENLDAP_CHANGELOG.md
 │   ├── OPENLDAP_README.md
 │   ├── OSIXIA_OPENLDAP_REQUIREMENTS.md
 │   ├── outputs.tf
 │   ├── PRD_ALB.md
 │   ├── PRD_ArgoCD.md
 │   ├── PRD_DOMAIN.md
+│   ├── PRD_OPENLDAP.md
 │   ├── providers.tf
 │   ├── README.md
 │   ├── SECURITY_IMPROVEMENTS.md
 │   ├── set-k8s-env.sh
 │   ├── setup-application-infra.sh
+│   ├── SILENT_MODE_EXPLANATION.md
 │   ├── tfstate-backend-values-template.hcl
 │   ├── variables.tf
 │   └── variables.tfvars
@@ -164,7 +171,8 @@ ldap-2fa-on-k8s/
 │   │           ├── main.py
 │   │           ├── mfa/
 │   │           ├── redis/
-│   │           └── sms/
+│   │           ├── sms/
+│   │           └── utils/
 │   ├── frontend/                    # 2FA Frontend (HTML/JS/CSS + nginx)
 │   │   ├── Dockerfile
 │   │   ├── nginx.conf
@@ -186,8 +194,10 @@ ldap-2fa-on-k8s/
 │   │   ├── redis/                   # Redis for SMS OTP storage
 │   │   ├── ses/                     # AWS SES for email
 │   │   └── sns/                     # AWS SNS for SMS
+│   ├── backend.hcl
 │   ├── CHANGELOG.md
 │   ├── DEPLOY_2FA_APPS.md
+│   ├── LDAP_ADMIN_SEED_TROUBLESHOOTING.md
 │   ├── PASSWORD_FLOW.md
 │   ├── REDIS_ENABLEMENT_SUMMARY.md
 │   ├── SECRET_DEPENDENCIES.md
@@ -209,6 +219,7 @@ ldap-2fa-on-k8s/
 │   │   ├── ebs/                    # EBS StorageClass and PVC
 │   │   ├── ecr/                    # ECR repository
 │   │   └── endpoints/              # VPC endpoints
+│   ├── backend.hcl
 │   ├── CHANGELOG.md
 │   ├── destroy-backend.sh
 │   ├── main.tf
