@@ -987,6 +987,57 @@ class LDAPClient:
             logger.error("Unexpected error getting admin emails: %s", e)
             return []
 
+    def ensure_directory_structure(self) -> tuple[bool, str]:
+        """
+        Ensure required LDAP directory structure exists under the base DN.
+
+        Creates ou=users and ou=groups OUs if they don't exist.
+        Idempotent - safe to call multiple times.
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        base_dn = self.settings.ldap_base_dn
+        user_ou_dn = self._get_user_search_base()
+        group_ou_dn = self._get_group_search_base()
+
+        ous = [
+            (user_ou_dn, self.settings.ldap_user_search_base.split("=")[-1].split(",")[0]),
+            (group_ou_dn, self.settings.ldap_group_search_base.split("=")[-1].split(",")[0]),
+        ]
+
+        try:
+            conn = self._get_admin_connection()
+
+            for ou_dn, ou_name in ous:
+                try:
+                    conn.add(
+                        ou_dn,
+                        attributes={
+                            "objectClass": ["organizationalUnit", "top"],
+                            "ou": ou_name,
+                            "description": f"{ou_name.capitalize()} organizational unit",
+                        },
+                    )
+                    logger.info("Created OU: %s", ou_dn)
+                except LDAPException as e:
+                    if "entryAlreadyExists" in str(e) or "already exists" in str(e).lower():
+                        logger.debug("OU already exists: %s", ou_dn)
+                    else:
+                        logger.error("Failed to create OU %s: %s", ou_dn, e)
+                        conn.unbind()
+                        return False, f"Failed to create OU {ou_dn}: {e!s}"
+
+            conn.unbind()
+            return True, "Directory structure verified"
+
+        except LDAPException as e:
+            logger.error("LDAP error ensuring directory structure: %s", e)
+            return False, f"LDAP error: {e!s}"
+        except Exception as e:
+            logger.error("Unexpected error ensuring directory structure: %s", e)
+            return False, f"Error: {e!s}"
+
     def get_group_members(self, group_dn: str) -> list[str]:
         """
         Get all members of a group.

@@ -8,8 +8,14 @@ requirements.
 
 > [!NOTE]
 >
-> For technical details about the Helm chart and its configuration options,
-> see [OPENLDAP_README.md](./OPENLDAP_README.md).
+> The Helm chart is **vendored locally** at `charts/openldap-stack-ha/` and
+> purpose-built for the **osixia/openldap:1.5.0** container image. The upstream
+> jp-gouin/helm-openldap chart (v4.0.1) was forked and rewritten to remove all
+> Bitnami dependencies and align volume paths, ports, environment variables, and
+> replication with the osixia image.
+>
+> For the full list of changes see
+> [OPENLDAP_CHANGELOG.md](./OPENLDAP_CHANGELOG.md).
 
 ## Functional Requirements
 
@@ -28,8 +34,8 @@ requirements.
 | ---- | ------------- |
 | REQ-2.1 | PhpLdapAdmin UI must be accessible via internet-facing ALB |
 | REQ-2.2 | LTB-passwd UI must be accessible via internet-facing ALB |
-| REQ-2.3 | Both UIs must use HTTPS with TLS termination at ALB |
-| REQ-2.4 | Both UIs must share the same ALB (via IngressGroup) |
+| REQ-2.3 | Both UIs must use HTTPS with TLS termination at ALB (ACM certificate inherited from IngressClassParams) |
+| REQ-2.4 | Both UIs must share the same ALB (via IngressGroup configured in IngressClassParams) |
 | REQ-2.5 | UIs must be accessible on configurable hostnames (e.g., `phpldapadmin.{domain}`, `passwd.{domain}`) |
 
 ### REQ-3: Persistent Storage
@@ -41,6 +47,7 @@ requirements.
 | REQ-3.3 | StorageClass must be configurable (provided by infrastructure) |
 | REQ-3.4 | Minimum storage size must be configurable (default: 8Gi) |
 | REQ-3.5 | Storage must use ReadWriteOnce access mode |
+| REQ-3.6 | PVC must mount osixia-native paths via subPaths: `data` → `/var/lib/ldap`, `config` → `/etc/ldap/slapd.d`, `certs` → `/container/service/slapd/assets/certs` |
 
 ### REQ-4: Container Image Requirements
 
@@ -51,6 +58,7 @@ requirements.
 | REQ-4.3 | ECR registry and repository must be configurable via Terraform variables |
 | REQ-4.4 | Image tags must follow standardized naming (e.g., `openldap-1.5.0`) |
 | REQ-4.5 | Image mirroring must skip images that already exist in ECR |
+| REQ-4.6 | Container image must be osixia/openldap:1.5.0 (not Bitnami OpenLDAP) |
 
 ### REQ-5: Credential Management
 
@@ -59,8 +67,10 @@ requirements.
 | REQ-5.1 | LDAP admin password must be sourced from GitHub Secrets or AWS Secrets Manager |
 | REQ-5.2 | LDAP config password must be sourced from GitHub Secrets or AWS Secrets Manager |
 | REQ-5.3 | Passwords must not be hardcoded in Helm values files |
-| REQ-5.4 | Passwords must be stored in Kubernetes Secrets |
+| REQ-5.4 | Passwords must be stored in a Terraform-managed Kubernetes Secret |
 | REQ-5.5 | Secret names must be configurable |
+| REQ-5.6 | Helm chart must consume the Terraform-managed secret via `existingSecret` (the chart must NOT create its own secret when `existingSecret` is set) |
+| REQ-5.7 | The secret must contain keys `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_ADMIN_PASSWORD` |
 
 ### REQ-6: LDAP Configuration
 
@@ -69,6 +79,9 @@ requirements.
 | REQ-6.1 | LDAP domain must be configurable (e.g., `ldap.{domain}`) |
 | REQ-6.2 | LDAP must use standard ports (389 for LDAP, 636 for LDAPS) |
 | REQ-6.3 | LDAP base DN must be derived from configured domain |
+| REQ-6.4 | LDAP domain must be set via the osixia `LDAP_DOMAIN` environment variable (not only `global.ldapDomain`) |
+| REQ-6.5 | Custom LDIF files must be supported for bootstrapping directory structure (OUs, groups) on all pods |
+| REQ-6.6 | Custom LDIFs must mount at osixia bootstrap path `/container/service/slapd/assets/config/bootstrap/ldif/custom` |
 
 ### REQ-7: ALB Integration
 
@@ -77,10 +90,11 @@ requirements.
 | REQ-7.1 | Ingress resources must use EKS Auto Mode ALB controller |
 | REQ-7.2 | IngressClass must reference cluster-wide IngressClassParams |
 | REQ-7.3 | ALB group name must be configurable (for sharing ALB across Ingresses) |
-| REQ-7.4 | ACM certificate ARN must be configurable (from data source or variable) |
+| REQ-7.4 | ACM certificate ARN must be inherited from IngressClassParams (not per-Ingress annotation) |
 | REQ-7.5 | ALB must be internet-facing (not internal) |
 | REQ-7.6 | ALB target type must be configurable (default: `ip`) |
 | REQ-7.7 | HTTPS redirect must be enabled (HTTP to HTTPS) |
+| REQ-7.8 | SSL policy must be configurable via Ingress annotation (e.g., `ELBSecurityPolicy-TLS13-1-2-2021-06`) |
 
 ### REQ-8: DNS Integration
 
@@ -90,6 +104,15 @@ requirements.
 | REQ-8.2 | Route53 A (alias) records must be created for ltb-passwd hostname |
 | REQ-8.3 | DNS records must point to ALB DNS name |
 | REQ-8.4 | DNS records must support cross-account deployment (State Account for Route53, Deployment Account for ALB) |
+
+### REQ-9: Replication
+
+| ID | Requirement |
+| ---- | ------------- |
+| REQ-9.1 | Multi-master replication must use osixia native `LDAP_REPLICATION_HOSTS` environment variable |
+| REQ-9.2 | Replication hosts must be auto-computed from StatefulSet ordinals and headless service DNS |
+| REQ-9.3 | Replication must NOT use Bitnami LDIF-based olcSyncRepl mechanism |
+| REQ-9.4 | Default replica count must be 3 |
 
 ## Security Requirements
 
@@ -128,10 +151,11 @@ requirements.
 | INT-1.1 | OpenLDAP must be deployed via Terraform module (`modules/openldap/`) |
 | INT-1.2 | Module must create Kubernetes namespace |
 | INT-1.3 | Module must create Kubernetes Secret for credentials |
-| INT-1.4 | Module must deploy Helm chart with templated values |
+| INT-1.4 | Module must deploy the vendored Helm chart at `charts/openldap-stack-ha/` via local path reference |
 | INT-1.5 | Module must accept ECR registry/repository from `backend_infra` remote state |
 | INT-1.6 | Module must accept StorageClass name from `application_infra` remote state |
-| INT-1.7 | Module must accept ALB configuration (IngressClass, certificate ARN) |
+| INT-1.7 | Module must accept ALB configuration (IngressClass name, load-balancer name) |
+| INT-1.8 | Module must NOT use `set_sensitive` blocks or inline `set` overrides for passwords; all values must flow through the values template |
 
 ### INT-2: Infrastructure Dependencies
 
@@ -161,6 +185,17 @@ requirements.
 | INT-4.3 | Repository variables must be accessible to GitHub Actions workflows and local deployment scripts |
 | INT-4.4 | State file key must use `APPLICATION_INFRA_PREFIX` to ensure isolation from application state |
 
+### INT-5: Helm Chart Architecture
+
+| ID | Requirement |
+| ---- | ------------- |
+| INT-5.1 | Helm chart must be vendored locally at `charts/openldap-stack-ha/` (not pulled from a remote repository) |
+| INT-5.2 | Chart must have zero external dependencies (no `bitnami/common` library chart) |
+| INT-5.3 | All required helper functions must be inlined in `_helpers.tpl` |
+| INT-5.4 | Subcharts (phpldapadmin, ltb-passwd) must also be self-contained with inlined helpers |
+| INT-5.5 | Subchart Ingress templates must use hardcoded Kubernetes API versions (networking.k8s.io/v1 for K8s 1.35) |
+| INT-5.6 | Subcharts must receive parent LDAP domain and secret name via `global` values |
+
 ## Non-Functional Requirements
 
 ### NFR-1: Availability
@@ -185,6 +220,8 @@ requirements.
 | NFR-3.1 | Configuration must be templated via Terraform (not hardcoded) |
 | NFR-3.2 | All sensitive values must be sourced from variables or secrets |
 | NFR-3.3 | Helm values template must be version-controlled |
+| NFR-3.4 | Vendored chart must be self-contained; no init containers, no external chart dependencies |
+| NFR-3.5 | Chart changes must be documented in `OPENLDAP_CHANGELOG.md` |
 
 ## Future Requirements
 
@@ -201,8 +238,45 @@ requirements.
 > The cert-manager module exists in the codebase but is not currently used.
 > This is a future enhancement requirement.
 
+## Implementation Details
+
+### Vendored Chart Structure
+
+The chart lives at `application_infra/charts/openldap-stack-ha/` and contains:
+
+- `Chart.yaml` — version 5.0.0, appVersion 1.5.0
+- `values.yaml` — osixia-native defaults
+- `templates/` — StatefulSet, ConfigMaps, Secrets, Services
+- `charts/phpldapadmin/` — self-contained subchart
+- `charts/ltb-passwd/` — self-contained subchart
+
+### Key Architectural Decisions
+
+1. **osixia-native volume paths** — PVC subPaths map to `/var/lib/ldap` (data),
+   `/etc/ldap/slapd.d` (config), `/container/service/slapd/assets/certs` (certs)
+   instead of Bitnami's `/bitnami/openldap/`.
+2. **osixia-native replication** — Uses `LDAP_REPLICATION_HOSTS` env var
+   auto-computed from StatefulSet ordinals. Bitnami's LDIF-based
+   olcSyncRepl/olcServerID configmaps were removed.
+3. **No init containers** — Bitnami TLS cert-generation and volume-permission
+   init containers were removed; osixia auto-generates self-signed certs.
+4. **Terraform-managed secret** — Terraform creates the Kubernetes secret;
+   the chart consumes it via `existingSecret` in `envFrom`.
+5. **Inlined helpers** — ~6 bitnami/common helpers inlined into `_helpers.tpl`;
+   no external chart dependency.
+6. **Subchart communication** — phpldapadmin and ltb-passwd receive LDAP domain
+   and secret name via `global` values section.
+
+### Values Template Flow
+
+Terraform module → `templatefile()` on `helm/openldap-values.tpl.yaml` →
+rendered values passed to `helm_release` → chart uses them directly. No
+`set_sensitive` blocks or inline `set` overrides are needed.
+
 ## Related Documentation
 
+- [OPENLDAP_CHANGELOG.md](./OPENLDAP_CHANGELOG.md) - Detailed changelog for
+vendored chart
 - [OPENLDAP_README.md](./OPENLDAP_README.md) - Technical reference for Helm chart
 configuration
 - [PRD_ALB.md](./PRD_ALB.md) - ALB configuration requirements

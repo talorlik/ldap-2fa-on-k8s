@@ -1,0 +1,16 @@
+{{- if .Values.customLdifFiles }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "openldap.fullname" . }}-customldif
+  labels:
+    {{- include "openldap.labels" . | nindent 4 }}
+    {{- with .Values.extraLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+data:
+  {{- range $key, $val := .Values.customLdifFiles }}
+  {{ $key }}: |-
+{{ $val | indent 4 }}
+  {{- end }}
+{{- end }}

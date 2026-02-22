@@ -1,40 +1,54 @@
 # High availability configuration with 3 replicas
-# Note: StatefulSet creates individual PVCs for each replica, so ReadWriteOnce works fine
 replicaCount: 3
 
-# Enable replication for HA multi-master setup
-replication:
-  enabled: true
-  retry: 60
-  timeout: 30  # Increased from default 1 second to prevent replication failures
-  interval: "00:00:00:10"
-  starttls: "critical"
-  tls_reqcert: "never"
-  clusterName: "cluster.local"
-
-# Override default image to use ECR repository
+# Image from ECR
 image:
   registry: "${ecr_registry}"
   repository: "${ecr_repository}"
   tag: "${openldap_image_tag}"
   pullPolicy: IfNotPresent
 
-global:
-  imageRegistry: ""
-  imagePullSecrets: []
-  storageClass: "${storage_class_name}"
-  ldapDomain: "${openldap_ldap_domain}"
-  # NOTE: Passwords are injected via Terraform set_sensitive blocks in the helm_release
-  # resource, NOT via existingSecret (which the chart ignores). This ensures:
-  # 1. The Helm-created secret has correct passwords from the start
-  # 2. OpenLDAP PVC is initialized with correct passwords
-  # 3. Passwords are not exposed in Terraform plan output
-  ldapPort: 389
-  sslLdapPort: 636
+# LDAP domain and organization
+ldapDomain: "${openldap_ldap_domain}"
+ldapOrganisation: "${openldap_ldap_domain}"
 
-# Custom LDIF files to initialize directory structure on all pods
-# This ensures ou=users, ou=groups, and cn=admins group exist on every replica
-# IMPORTANT: This is applied during first initialization of each pod's PVC
+# Use Terraform-managed Kubernetes secret for passwords
+existingSecret: "${openldap_secret_name}"
+
+# TLS configuration (osixia auto-generates self-signed certs)
+tls:
+  enabled: true
+  enforce: false
+  verifyClient: "never"
+  certFilename: "ldap.crt"
+  keyFilename: "ldap.key"
+  caFilename: "ca.crt"
+
+# osixia native multi-master replication
+replication:
+  enabled: true
+  clusterName: "cluster.local"
+
+# Pass ldapDomain and existingSecret to subcharts via global
+global:
+  ldapDomain: "${openldap_ldap_domain}"
+  existingSecret: "${openldap_secret_name}"
+
+# Persistence
+persistence:
+  enabled: true
+  storageClass: "${storage_class_name}"
+  accessModes:
+    - ReadWriteOnce
+  size: 8Gi
+
+service:
+  annotations: {}
+  externalIPs: []
+  type: ClusterIP
+  sessionAffinity: None
+
+# Custom LDIF files to initialize directory structure on all pods.
 customLdifFiles:
   01-init-ous.ldif: |-
     # Create users organizational unit
@@ -59,52 +73,24 @@ customLdifFiles:
     description: Administrator group
     uniqueMember: cn=admin,${openldap_base_dn}
 
-env:
-  LDAP_DOMAIN: "${openldap_ldap_domain}"
-  # Enable TLS (osixia/openldap will auto-generate certificates if they don't exist)
-  LDAP_TLS: "true"
-  # Don't enforce TLS (allows both LDAP and LDAPS connections)
-  LDAP_TLS_ENFORCE: "false"
-  # Don't require client certificates
-  LDAP_TLS_VERIFY_CLIENT: "never"
-  # Certificate filenames (not full paths) - osixia/openldap expects these in /container/service/slapd/assets/certs/
-  # If certificates don't exist, osixia/openldap will auto-generate them
-  LDAP_TLS_CRT_FILENAME: "ldap.crt"
-  LDAP_TLS_KEY_FILENAME: "ldap.key"
-  LDAP_TLS_CA_CRT_FILENAME: "ca.crt"
-
-persistence:
-  enabled: true
-  accessModes:
-    - ReadWriteOnce
-  size: 8Gi
-
-service:
-  annotations: {}
-  externalIPs: []
-  type: ClusterIP
-  sessionAffinity: None
-
 ltb-passwd:
   enabled: true
   image:
     tag: 5.2.3
   podLabels:
     app: "${app_name}"
-  # Allow TLS but don't verify certificates (accept self-signed)
   env:
-    LDAPTLS_REQCERT: "allow"
+    - name: LDAPTLS_REQCERT
+      value: "allow"
   ingress:
     enabled: true
     ingressClassName: "${ingress_class_name}"
     annotations:
-      # Note: load-balancer-name is the AWS ALB name (max 32 chars), while group.name is the Kubernetes group identifier (max 63 chars)
       alb.ingress.kubernetes.io/load-balancer-name: "${alb_load_balancer_name}"
       alb.ingress.kubernetes.io/target-type: "${alb_target_type}"
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
       alb.ingress.kubernetes.io/ssl-redirect: "443"
       alb.ingress.kubernetes.io/ssl-policy: "${alb_ssl_policy}"
-      # Note: scheme and ipAddressType are inherited from IngressClassParams
     path: /
     pathType: Prefix
     hosts:
@@ -114,7 +100,6 @@ ltb-passwd:
 
 phpldapadmin:
   enabled: true
-  # Allow StartTLS but don't verify certificates (accept self-signed)
   env:
     PHPLDAPADMIN_LDAP_CLIENT_TLS_REQCERT: "allow"
   podLabels:

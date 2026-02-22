@@ -520,6 +520,10 @@ resource "kubernetes_job" "admin_seed" {
             name  = "LDAP_GROUP_SEARCH_BASE"
             value = local.ldap_group_search_base
           }
+          env {
+            name  = "LDAP_REPLICA_COUNT"
+            value = "3"
+          }
         }
       }
     }

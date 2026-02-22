@@ -1,0 +1,41 @@
+env:
+  PHPLDAPADMIN_HTTPS: "false"
+  PHPLDAPADMIN_TRUST_PROXY_SSL: "true"
+
+replicaCount: 1
+
+image:
+  registry: ""
+  repository: osixia/phpldapadmin
+  tag: 0.9.0
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+ingress:
+  enabled: false
+  annotations: {}
+  path: /
+  pathType: Prefix
+  ingressClassName: ""
+  hosts: []
+  tls: []
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podLabels: {}

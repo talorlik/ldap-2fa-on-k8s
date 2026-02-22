@@ -1,0 +1,160 @@
+# Default values for openldap-stack-ha (osixia/openldap).
+# Ref: https://github.com/osixia/docker-openldap#environment-variables
+
+nameOverride: ""
+fullnameOverride: ""
+extraLabels: {}
+
+replicaCount: 3
+
+image:
+  # Override registry/repository/tag for ECR or custom images
+  registry: ""
+  repository: osixia/openldap
+  tag: "1.5.0"
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# LDAP domain (e.g., "ldap.example.com" → base DN "dc=ldap,dc=example,dc=com")
+ldapDomain: "example.org"
+ldapOrganisation: "Example Inc"
+
+# Passwords (only used when existingSecret is empty).
+# For production, set existingSecret to a Terraform-managed Kubernetes secret.
+adminPassword: changeme
+configPassword: changeme
+
+# Use an existing Kubernetes secret for LDAP_ADMIN_PASSWORD and LDAP_CONFIG_ADMIN_PASSWORD.
+# When set, the chart will NOT create its own secret.
+existingSecret: ""
+
+# TLS configuration (osixia auto-generates self-signed certs on first startup)
+tls:
+  enabled: true
+  enforce: false
+  verifyClient: "never"
+  certFilename: "ldap.crt"
+  keyFilename: "ldap.key"
+  caFilename: "ca.crt"
+
+# osixia native multi-master replication
+replication:
+  enabled: true
+  clusterName: "cluster.local"
+  # syncprov overlay settings
+  configSyncprov: "binddn=\"cn=admin,cn=config\" bindmethod=simple credentials=$LDAP_CONFIG_ADMIN_PASSWORD searchbase=\"cn=config\" type=refreshAndPersist retry=\"60 +\" timeout=1 starttls=critical tls_reqcert=never"
+  dbSyncprov: "binddn=\"cn=admin,$LDAP_BASE_DN\" bindmethod=simple credentials=$LDAP_ADMIN_PASSWORD searchbase=\"$LDAP_BASE_DN\" type=refreshAndPersist interval=00:00:00:10 retry=\"60 +\" timeout=1 starttls=critical tls_reqcert=never"
+
+# Global values passed to subcharts (phpldapadmin, ltb-passwd)
+global:
+  ldapDomain: "example.org"
+  existingSecret: ""
+
+# Additional environment variables passed to osixia/openldap
+env: {}
+
+# Custom LDIF files to bootstrap the directory (mounted at osixia bootstrap path)
+# customLdifFiles:
+#   01-init-ous.ldif: |-
+#     dn: ou=users,dc=example,dc=org
+#     objectClass: organizationalUnit
+#     ou: users
+
+# Service configuration
+service:
+  annotations: {}
+  externalIPs: []
+  type: ClusterIP
+  sessionAffinity: None
+
+# Persistent storage
+persistence:
+  enabled: true
+  # existingClaim: ""
+  # storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 8Gi
+
+# Pod security context
+podSecurityContext:
+  enabled: true
+  fsGroup: 1001
+
+# Container security context
+containerSecurityContext:
+  enabled: false
+  runAsUser: 1001
+  runAsNonRoot: true
+
+# Probes
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  timeoutSeconds: 1
+  successThreshold: 1
+  failureThreshold: 10
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  timeoutSeconds: 1
+  successThreshold: 1
+  failureThreshold: 10
+
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 1
+  successThreshold: 1
+  failureThreshold: 30
+
+# Resources
+resources: {}
+
+# Scheduling
+affinity: {}
+nodeSelector: {}
+tolerations: []
+podLabels: {}
+podAnnotations: {}
+priorityClassName: ""
+
+# Update strategy
+updateStrategy:
+  type: RollingUpdate
+
+# Extra volumes and mounts
+extraEnvVars: []
+extraVolumes: []
+extraVolumeMounts: []
+
+# Subcharts
+ltb-passwd:
+  enabled: true
+  image:
+    tag: 5.2.3
+  ingress:
+    enabled: true
+    annotations: {}
+    path: /
+    pathType: Prefix
+    hosts:
+      - "ssl-ldap2.example"
+  ldap:
+    bindPWKey: LDAP_ADMIN_PASSWORD
+
+phpldapadmin:
+  enabled: true
+  env:
+    PHPLDAPADMIN_LDAP_CLIENT_TLS_REQCERT: "never"
+  ingress:
+    enabled: true
+    annotations: {}
+    path: /
+    pathType: Prefix
+    hosts:
+      - "phpldapadmin.example"

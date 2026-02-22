@@ -1,0 +1,43 @@
+replicaCount: 1
+
+image:
+  registry: ""
+  repository: tiredofit/self-service-password
+  tag: latest
+  pullPolicy: Always
+  pullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  annotations: {}
+  path: /
+  pathType: Prefix
+  ingressClassName: ""
+  hosts: []
+  tls: []
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podLabels: {}
+
+ldap:
+  bindPWKey: LDAP_ADMIN_PASSWORD
+
+env:
+  - name: SECRETEKEY
+    value: "password"
+  - name: LDAP_LOGIN_ATTRIBUTE
+    value: "cn"
+  - name: LDAP_STARTTLS
+    value: "false"
+  - name: CHANGE_SSHKEY
+    value: "true"

@@ -1517,15 +1517,6 @@ const App = {
     clearResults() {
         document.getElementById('login-result').classList.add('hidden');
         document.getElementById('signup-result').classList.add('hidden');
-        document.getElementById('enroll-result').classList.add('hidden');
-        document.getElementById('qr-section').classList.add('hidden');
-        document.getElementById('sms-enroll-section').classList.add('hidden');
-
-        // Reset SMS button state
-        const sendSmsBtn = document.getElementById('send-sms-btn');
-        const smsStatus = document.getElementById('sms-status');
-        sendSmsBtn.classList.add('hidden');
-        smsStatus.classList.add('hidden');
     }
 };
 

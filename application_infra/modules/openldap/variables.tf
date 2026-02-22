@@ -111,23 +111,6 @@ variable "tags" {
   default     = {}
 }
 
-variable "helm_chart_version" {
-  description = "OpenLDAP Helm chart version"
-  type        = string
-  default     = "4.0.1"
-}
-
-variable "helm_chart_repository" {
-  description = "Helm chart repository URL"
-  type        = string
-  default     = "https://jp-gouin.github.io/helm-openldap"
-}
-
-variable "helm_chart_name" {
-  description = "Helm chart name"
-  type        = string
-  default     = "openldap-stack-ha"
-}
 
 variable "helm_release_name" {
   description = "Helm release name"

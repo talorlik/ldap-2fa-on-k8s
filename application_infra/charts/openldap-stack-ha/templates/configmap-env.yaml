@@ -1,0 +1,38 @@
+#
+# ConfigMap for osixia/openldap environment variables.
+# Ref: https://github.com/osixia/docker-openldap#environment-variables
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "openldap.fullname" . }}-env
+  labels:
+    {{- include "openldap.labels" . | nindent 4 }}
+    {{- with .Values.extraLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+data:
+  # Core LDAP configuration
+  LDAP_DOMAIN: {{ .Values.ldapDomain | quote }}
+  LDAP_ORGANISATION: {{ .Values.ldapOrganisation | quote }}
+
+  # TLS configuration (osixia auto-generates self-signed certs when enabled)
+  LDAP_TLS: {{ .Values.tls.enabled | quote }}
+  LDAP_TLS_ENFORCE: {{ .Values.tls.enforce | quote }}
+  LDAP_TLS_VERIFY_CLIENT: {{ .Values.tls.verifyClient | quote }}
+  LDAP_TLS_CRT_FILENAME: {{ .Values.tls.certFilename | quote }}
+  LDAP_TLS_KEY_FILENAME: {{ .Values.tls.keyFilename | quote }}
+  LDAP_TLS_CA_CRT_FILENAME: {{ .Values.tls.caFilename | quote }}
+
+  {{- if .Values.replication.enabled }}
+  # osixia native multi-master replication
+  LDAP_REPLICATION: "true"
+  LDAP_REPLICATION_CONFIG_SYNCPROV: {{ .Values.replication.configSyncprov | quote }}
+  LDAP_REPLICATION_DB_SYNCPROV: {{ .Values.replication.dbSyncprov | quote }}
+  LDAP_REPLICATION_HOSTS: {{ include "openldap.replicationHosts" . | quote }}
+  {{- end }}
+
+  # Additional user-provided env vars
+  {{- range $key, $val := .Values.env }}
+  {{ $key }}: {{ $val | quote }}
+  {{- end }}

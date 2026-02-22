@@ -5,6 +5,11 @@ Uses the same username and password as the LDAP admin. Creates the LDAP user
 (if missing), ensures they are in the admins group, and upserts the PostgreSQL
 profile with email/phone pre-verified and status ACTIVE.
 
+When LDAP_REPLICA_COUNT > 0, the seed job connects to each StatefulSet pod
+directly (using pod DNS names derived from LDAP_HOST) to ensure the admin user
+and directory structure exist on every replica. This is necessary because
+osixia/openldap multi-master replication does not reliably sync data.
+
 All sensitive values (password, email, phone, etc.) must be provided via
 environment variables (e.g. from a Kubernetes secret). Never log or print them.
 
@@ -19,7 +24,7 @@ from datetime import datetime, timezone
 
 import bcrypt
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.database import init_db, close_db
 from app.database.models import User, ProfileStatus
 from app.ldap.client import LDAPClient
@@ -65,6 +70,89 @@ def _get_seed_env() -> dict | None:
     return out
 
 
+def _get_pod_hostnames() -> list[str]:
+    """
+    Derive individual StatefulSet pod hostnames from LDAP_HOST and LDAP_REPLICA_COUNT.
+
+    LDAP_HOST is the Kubernetes service name, e.g.:
+        openldap-stack-ha.ldap.svc.cluster.local
+    Pod DNS names follow the pattern:
+        {statefulset}-{i}.{service}.{namespace}.svc.cluster.local
+    For the jp-gouin/helm-openldap chart, statefulset name == service name.
+
+    Returns empty list if LDAP_REPLICA_COUNT is 0 or unset.
+    """
+    replica_count = int(os.environ.get("LDAP_REPLICA_COUNT", "0"))
+    if replica_count <= 0:
+        return []
+
+    settings = get_settings()
+    service_host = settings.ldap_host  # e.g. openldap-stack-ha.ldap.svc.cluster.local
+    # Extract service name (first component)
+    service_name = service_host.split(".", 1)[0]
+    # Pod hostname: {service_name}-{i}.{full_service_host}
+    return [f"{service_name}-{i}.{service_host}" for i in range(replica_count)]
+
+
+def _create_ldap_client_for_host(host: str) -> LDAPClient:
+    """Create an LDAPClient targeting a specific LDAP host (e.g. a single pod)."""
+    settings = get_settings().model_copy(update={"ldap_host": host})
+    return LDAPClient(settings=settings)
+
+
+def _seed_ldap_on_host(
+    ldap: LDAPClient,
+    username: str,
+    password: str,
+    first_name: str,
+    last_name: str,
+    email: str,
+) -> bool:
+    """
+    Ensure directory structure, create/update user, and add to admins group on a
+    single LDAP host. Returns True on success.
+    """
+    host = ldap.settings.ldap_host
+    admin_group_dn = ldap.settings.ldap_admin_group_dn
+
+    # Step 1: Ensure ou=users and ou=groups exist
+    ok, msg = ldap.ensure_directory_structure()
+    if not ok:
+        logger.error("[%s] Failed to ensure directory structure: %s", host, msg)
+        return False
+    logger.info("[%s] Directory structure OK", host)
+
+    # Step 2: Create or update user
+    ok, msg = ldap.create_or_update_user(
+        username=username,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        email=email,
+    )
+    if not ok:
+        logger.error("[%s] Failed to create/update LDAP user: %s", host, msg)
+        return False
+    logger.info("[%s] LDAP user ensured: %s (%s)", host, username, msg)
+
+    # Step 3: Ensure admins group exists and add user to it
+    try:
+        groups = ldap.list_groups()
+        if not any((g.get("dn") or "").lower() == admin_group_dn.lower() for g in groups):
+            created, create_msg, _ = ldap.create_group("admins", "Administrators")
+            if not created and "already exists" not in (create_msg or "").lower():
+                logger.warning("[%s] Could not create admins group: %s", host, create_msg)
+        add_ok, add_msg = ldap.add_user_to_group(username, admin_group_dn)
+        if add_ok:
+            logger.info("[%s] User %s is in admin group", host, username)
+        else:
+            logger.warning("[%s] Could not add user to admin group: %s", host, add_msg)
+    except Exception as e:
+        logger.warning("[%s] Admin group check/add failed (non-fatal): %s", host, type(e).__name__)
+
+    return True
+
+
 async def _ensure_ldap_admin_user(
     username: str,
     password: str,
@@ -72,41 +160,29 @@ async def _ensure_ldap_admin_user(
     last_name: str,
     email: str,
 ) -> bool:
-    """Create or update LDAP user and ensure they are in the admins group. Returns True on success."""
-    ldap = LDAPClient()
-    settings = get_settings()
-    admin_group_dn = settings.ldap_admin_group_dn
+    """Create or update LDAP user and ensure they are in the admins group.
 
-    # Create or update user in LDAP (idempotent - will update if exists)
-    success, msg = ldap.create_or_update_user(
-        username=username,
-        password=password,
-        first_name=first_name,
-        last_name=last_name,
-        email=email,
-    )
-    if not success:
-        logger.error("Failed to create/update LDAP user: %s", msg)
-        return False
-    logger.info("LDAP user ensured: %s (%s)", username, msg)
+    When LDAP_REPLICA_COUNT > 0, seeds each pod directly. Otherwise uses the
+    LDAP service (single connection).
+    Returns True on success.
+    """
+    pod_hostnames = _get_pod_hostnames()
 
-    # Ensure admins group exists and add user to it
-    try:
-        groups = ldap.list_groups()
-        if not any((g.get("dn") or "").lower() == admin_group_dn.lower() for g in groups):
-            created, create_msg, _ = ldap.create_group("admins", "Administrators")
-            if not created and "already exists" not in (create_msg or "").lower():
-                logger.warning("Could not create admins group: %s", create_msg)
-        add_ok, add_msg = ldap.add_user_to_group(username, admin_group_dn)
-        if add_ok:
-            logger.info("User %s is in admin group", username)
-        else:
-            # Log as warning but don't fail - user might already be in group
-            logger.warning("Could not add user to admin group: %s", add_msg)
-    except Exception as e:
-        logger.warning("Admin group check/add failed (non-fatal): %s", type(e).__name__)
-
-    return True
+    if pod_hostnames:
+        logger.info("Multi-pod seeding enabled for %d replicas", len(pod_hostnames))
+        all_ok = True
+        for host in pod_hostnames:
+            logger.info("Seeding LDAP pod: %s", host)
+            ldap = _create_ldap_client_for_host(host)
+            if not _seed_ldap_on_host(ldap, username, password, first_name, last_name, email):
+                logger.error("Failed to seed pod: %s", host)
+                all_ok = False
+        return all_ok
+    else:
+        # Single-host mode: connect via service
+        logger.info("Single-host seeding via LDAP service")
+        ldap = LDAPClient()
+        return _seed_ldap_on_host(ldap, username, password, first_name, last_name, email)
 
 
 async def _upsert_db_admin(

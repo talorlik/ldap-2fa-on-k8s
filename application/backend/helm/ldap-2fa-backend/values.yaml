@@ -61,6 +61,8 @@ ingress:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
     alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS13-1-0-PQ-2025-09"
+    # Health check path for ALB target group (backend only serves /api/*)
+    alb.ingress.kubernetes.io/healthcheck-path: "/api/healthz"
     # Order annotation for path priority (lower number = higher priority)
     alb.ingress.kubernetes.io/group.order: "10"
   hosts:
