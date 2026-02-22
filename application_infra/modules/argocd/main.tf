@@ -385,7 +385,7 @@ resource "kubernetes_manifest" "argocd_application_controller_clusterrole" {
 
   depends_on = [
     kubernetes_namespace_v1.argocd,
-    aws_eks_capability.argocd
+    time_sleep.wait_for_argocd
   ]
 }
 
@@ -435,7 +435,7 @@ resource "kubernetes_manifest" "argocd_application_controller_clusterrolebinding
 
   depends_on = [
     kubernetes_namespace_v1.argocd,
-    aws_eks_capability.argocd,
+    time_sleep.wait_for_argocd,
     kubernetes_manifest.argocd_application_controller_clusterrole
   ]
 }
@@ -446,6 +446,10 @@ resource "kubernetes_manifest" "argocd_application_controller_clusterrolebinding
 # This grants the ArgoCD Capability IAM role full cluster admin permissions (in addition to the ArgoCD-specific policies
 # that are automatically associated), which is required for ArgoCD to sync applications and manage resources
 # across all namespaces, including cluster-scoped resources like runtimeclasses.node.k8s.io
+#
+# IMPORTANT: This must depend on time_sleep.wait_for_argocd (not directly on aws_eks_capability.argocd)
+# because the capability auto-creates the access entry asynchronously. If we try to associate a policy
+# before the access entry exists, it creates a premature/conflicting entry that causes AccessDenied.
 resource "aws_eks_access_policy_association" "argocd_capability_cluster_admin" {
   cluster_name  = var.cluster_name
   principal_arn = aws_iam_role.argocd_capability.arn
@@ -456,7 +460,7 @@ resource "aws_eks_access_policy_association" "argocd_capability_cluster_admin" {
   }
 
   depends_on = [
-    aws_eks_capability.argocd
+    time_sleep.wait_for_argocd
   ]
 }
 
@@ -490,7 +494,7 @@ resource "kubernetes_manifest" "argocd_application_controller_iam_role_binding" 
 
   depends_on = [
     kubernetes_namespace_v1.argocd,
-    aws_eks_capability.argocd,
+    time_sleep.wait_for_argocd,
     aws_iam_role.argocd_capability,
     kubernetes_manifest.argocd_application_controller_clusterrole
   ]
@@ -516,6 +520,6 @@ resource "kubernetes_secret" "argocd_local_cluster" {
 
   depends_on = [
     kubernetes_namespace_v1.argocd,
-    aws_eks_capability.argocd
+    time_sleep.wait_for_argocd
   ]
 }
