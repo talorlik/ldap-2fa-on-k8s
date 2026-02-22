@@ -78,7 +78,7 @@ ltb-passwd:
   image:
     tag: 5.2.3
   podLabels:
-    app: "${app_name}"
+    app.kubernetes.io/part-of: "${app_name}"
   env:
     - name: LDAPTLS_REQCERT
       value: "allow"
@@ -103,7 +103,7 @@ phpldapadmin:
   env:
     PHPLDAPADMIN_LDAP_CLIENT_TLS_REQCERT: "allow"
   podLabels:
-    app: "${app_name}"
+    app.kubernetes.io/part-of: "${app_name}"
   ingress:
     enabled: true
     ingressClassName: "${ingress_class_name}"
