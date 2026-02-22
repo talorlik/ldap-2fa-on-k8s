@@ -1,3 +1,31 @@
+##################### ArgoCD ##########################
+
+# ArgoCD Capability Module
+# Deployed early to allow other modules to depend on it
+module "argocd" {
+  source = "./modules/argocd"
+
+  count = var.enable_argocd ? 1 : 0
+
+  env    = var.env
+  region = var.region
+  prefix = var.prefix
+
+  cluster_name = local.cluster_name
+
+  argocd_role_name_component       = var.argocd_role_name_component
+  argocd_capability_name_component = var.argocd_capability_name_component
+  argocd_namespace                 = var.argocd_namespace
+  argocd_project_name              = var.argocd_project_name
+
+  idc_instance_arn = var.idc_instance_arn
+  idc_region       = var.idc_region
+
+  rbac_role_mappings        = var.argocd_rbac_role_mappings
+  argocd_vpce_ids           = var.argocd_vpce_ids
+  delete_propagation_policy = var.argocd_delete_propagation_policy
+}
+
 locals {
   storage_class_name = "${var.prefix}-${var.region}-${var.storage_class_name}-${var.env}"
 
@@ -50,7 +78,9 @@ resource "kubernetes_storage_class_v1" "this" {
     encrypted = tostring(var.storage_class_encrypted)
   }
 
-  depends_on = [data.aws_eks_cluster.cluster]
+  depends_on = [
+    data.aws_eks_cluster.cluster
+  ]
 
   lifecycle {
     # Prevent Terraform from trying to recreate if the resource already exists
@@ -256,32 +286,4 @@ module "route53_record_ltb_passwd" {
   providers = {
     aws.state_account = aws.state_account
   }
-}
-
-##################### ArgoCD ##########################
-
-# ArgoCD Capability Module
-# Deployed early to allow other modules to depend on it
-module "argocd" {
-  source = "./modules/argocd"
-
-  count = var.enable_argocd ? 1 : 0
-
-  env    = var.env
-  region = var.region
-  prefix = var.prefix
-
-  cluster_name = local.cluster_name
-
-  argocd_role_name_component       = var.argocd_role_name_component
-  argocd_capability_name_component = var.argocd_capability_name_component
-  argocd_namespace                 = var.argocd_namespace
-  argocd_project_name              = var.argocd_project_name
-
-  idc_instance_arn = var.idc_instance_arn
-  idc_region       = var.idc_region
-
-  rbac_role_mappings        = var.argocd_rbac_role_mappings
-  argocd_vpce_ids           = var.argocd_vpce_ids
-  delete_propagation_policy = var.argocd_delete_propagation_policy
 }

@@ -125,11 +125,6 @@ resource "aws_iam_role_policy" "argocd_capability" {
   policy = data.aws_iam_policy_document.argocd_capability.json
 }
 
-# EKS Cluster Data Source
-data "aws_eks_cluster" "this" {
-  name = var.cluster_name
-}
-
 # Create ArgoCD namespace
 # The namespace must exist before the EKS Capability can deploy into it
 # and before the cluster registration secret can be created
@@ -151,13 +146,14 @@ resource "kubernetes_namespace_v1" "argocd" {
 }
 
 # Wait for IAM role to propagate before creating EKS capability
-resource "time_sleep" "wait_for_iam_propagation" {
+resource "time_sleep" "wait_for_iam_and_ns_propagation" {
   depends_on = [
     aws_iam_role.argocd_capability,
-    aws_iam_role_policy.argocd_capability
+    aws_iam_role_policy.argocd_capability,
+    kubernetes_namespace_v1.argocd,
   ]
 
-  create_duration = "60s"
+  create_duration = "2m"
 }
 
 # EKS Capability for ArgoCD
@@ -212,10 +208,7 @@ resource "aws_eks_capability" "argocd" {
   )
 
   depends_on = [
-    kubernetes_namespace_v1.argocd,
-    aws_iam_role.argocd_capability,
-    aws_iam_role_policy.argocd_capability,
-    time_sleep.wait_for_iam_propagation
+    time_sleep.wait_for_iam_and_ns_propagation
   ]
 }
 
@@ -275,7 +268,7 @@ data "external" "argocd_capability" {
         source "$SCRIPT_PATH" "$ACCOUNT_TYPE" >"$TMP" 2>&1
         SCRIPT_RC=$?
         set -e
-        
+
         # Check for script error flag (set in silent mode)
         # Use env command to check variables without Terraform interpolation issues
         SCRIPT_ERROR_CHECK=$(env | grep '^SCRIPT_ERROR=' || echo "")
@@ -384,8 +377,7 @@ resource "kubernetes_manifest" "argocd_application_controller_clusterrole" {
   }
 
   depends_on = [
-    kubernetes_namespace_v1.argocd,
-    time_sleep.wait_for_argocd
+    time_sleep.wait_for_iam_and_ns_propagation
   ]
 }
 
@@ -434,7 +426,6 @@ resource "kubernetes_manifest" "argocd_application_controller_clusterrolebinding
   }
 
   depends_on = [
-    kubernetes_namespace_v1.argocd,
     time_sleep.wait_for_argocd,
     kubernetes_manifest.argocd_application_controller_clusterrole
   ]
@@ -493,11 +484,13 @@ resource "kubernetes_manifest" "argocd_application_controller_iam_role_binding" 
   }
 
   depends_on = [
-    kubernetes_namespace_v1.argocd,
-    time_sleep.wait_for_argocd,
-    aws_iam_role.argocd_capability,
-    kubernetes_manifest.argocd_application_controller_clusterrole
+    time_sleep.wait_for_argocd
   ]
+}
+
+# EKS Cluster Data Source
+data "aws_eks_cluster" "this" {
+  name = var.cluster_name
 }
 
 # Cluster Registration Secret
@@ -519,7 +512,6 @@ resource "kubernetes_secret" "argocd_local_cluster" {
   type = "Opaque"
 
   depends_on = [
-    kubernetes_namespace_v1.argocd,
     time_sleep.wait_for_argocd
   ]
 }
