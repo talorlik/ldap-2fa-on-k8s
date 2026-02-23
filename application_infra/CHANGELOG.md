@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
-## [Unreleased]
+## [2025-02-23] - OpenLDAP, ArgoCD, PhpLdapAdmin/LTB-passwd, and Destroy Cleanup
 
 ### Changed
 
@@ -61,6 +61,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [LDAP_ADMIN_SEED_TROUBLESHOOTING.md](../application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
   for detailed investigation and root cause analysis
 
+- **PhpLdapAdmin and LTB-passwd image mirroring and Helm timeout**
+  - Mirroring of PhpLdapAdmin and LTB-passwd images to ECR added to
+  `mirror-images-to-ecr.sh` (now in `scripts/`). Image names are injected into
+  OpenLDAP Helm values via Terraform variables.
+  - Helm apply timeout for OpenLDAP release increased to 20 minutes to accommodate
+  longer apply times.
+
+- **Destroy script and workflow cleanup step**
+  - `destroy-application-infra.sh` and the application_infra destroying workflow
+  now include a cleanup step so destroy runs leave the workspace in a consistent
+  state.
+
 ### Fixed
 
 - **OpenLDAP Helm Pod Labels**
@@ -77,6 +89,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`charts/openldap-stack-ha`) are aligned on `LDAP_CONFIG_PASSWORD`.
   - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) is unchanged.
   - See [OSIXIA_OPENLDAP_REQUIREMENTS.md](OSIXIA_OPENLDAP_REQUIREMENTS.md).
+
+- **OpenLDAP secret and chart: environment variable names for passwords**
+  - Corrected secret key names in the vendored chart and Terraform to use
+  `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_PASSWORD` (osixia/openldap image
+  convention). Chart templates and `values.yaml` updated so the created secret
+  and container env vars match what the image expects.
 
 ## [2026-02-16] - GitHub Actions Support for ArgoCD Module and Workflow Improvements
 

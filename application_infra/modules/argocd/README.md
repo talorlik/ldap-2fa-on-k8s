@@ -120,7 +120,7 @@ module "argocd" {
 >
 > The `argocd_server_url` and `argocd_capability_status` outputs are automatically
 > retrieved via an external data source that queries the AWS EKS capability using
-> AWS CLI. The external data source uses `assume-github-role.sh` script, which
+> AWS CLI. The external data source uses `scripts/assume-github-role.sh` script, which
 > automatically detects the execution environment:
 >
 > - **GitHub Actions**: The script uses `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID`
@@ -216,8 +216,8 @@ echo $TF_OUTPUT_argocd_server_url
 - IAM policies use wildcards by default; tighten for production use
 - Delete propagation policy defaults to `RETAIN` to prevent accidental deletion
 - The external data source requires `jq` command-line tool for JSON parsing
-- The external data source requires `assume-github-role.sh` script to be present
-  in the root module directory
+- The external data source requires `scripts/assume-github-role.sh` script to be present
+  (in the repository `scripts/` directory; workflows run from application_infra)
 - The script automatically works in both environments:
   - **GitHub Actions**: Uses `DEPLOYMENT_ROLE_ARN`/`EXTERNAL_ID` environment variables
   - **Local**: Falls back to AWS Secrets Manager (secrets: `github-role`, `external-id`)

@@ -10,7 +10,7 @@ user storage.
 - Configurable resources
 - ClusterIP service for internal access
 - **ECR Image Support**: Uses ECR images instead of Docker Hub
-(images mirrored via `mirror-images-to-ecr.sh`)
+(images mirrored via `scripts/mirror-images-to-ecr.sh`)
 
 ## Usage
 
@@ -73,7 +73,7 @@ module "postgresql" {
 
 This module uses ECR images instead of Docker Hub to eliminate Docker Hub rate
 limiting and external dependencies. Images are automatically mirrored from Docker
-Hub to ECR by the `mirror-images-to-ecr.sh` script in `application_infra/` before
+Hub to ECR by the `scripts/mirror-images-to-ecr.sh` script before
 Terraform operations.
 
 **Image Details:**
@@ -99,7 +99,7 @@ The module uses the Bitnami PostgreSQL Helm chart from the OCI registry:
 
 **Image Mirroring:**
 
-The `mirror-images-to-ecr.sh` script in `application_infra/` automatically:
+The `scripts/mirror-images-to-ecr.sh` script automatically:
 
 1. Checks if the image exists in ECR (skips if already present)
 2. Pulls the image from Docker Hub

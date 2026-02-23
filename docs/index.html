@@ -90,6 +90,7 @@
                         <li><a href="#multi-account-architecture">Multi-Account Architecture</a></li>
                         <li><a href="#how-it-works">How It Works</a></li>
                         <li><a href="#project-structure">Project Structure</a></li>
+                        <li><a href="#scripts-directory">Shared Scripts (scripts/)</a></li>
                         <li><a href="#backend-infrastructure-components">Backend Infrastructure Components</a></li>
                         <li><a href="#application-infrastructure-components">Application Infrastructure Components</a></li>
                     </ul>
@@ -207,7 +208,7 @@
                 <li><strong>Route53 Record Module</strong>: Dedicated module for Route53 A (alias) records with cross-account support and ALB zone_id mapping</li>
                 <li><strong>Automated Configuration Management</strong>: ECR repository name automatically saved to GitHub variables during backend infrastructure provisioning (eliminates manual configuration steps)</li>
                 <li><strong>ArgoCD Status Validation</strong>: Automatic validation that ArgoCD capability is "ACTIVE" before deploying applications (prevents deployment failures due to incomplete ArgoCD setup)</li>
-                <li><strong>Role Assumption Script</strong>: Convenient <code>assume-github-role.sh</code> script for switching between AWS account roles (State, Development, Production) when working in the terminal</li>
+                <li><strong>Role Assumption Script</strong>: Convenient <code>scripts/assume-github-role.sh</code> script for switching between AWS account roles (State, Development, Production) when working in the terminal</li>
                 <li><strong>Unique Build Image Tags</strong>: Backend and frontend build workflows use commit SHA plus run ID for image tags (<code>&lt;name&gt;-&lt;sha&gt;-&lt;run_id&gt;</code>), push only that tag to ECR (no <code>:latest</code>), and update Helm values; application provisioning reads tags from Helm values</li>
                 <li><strong>ArgoCD Access Entry</strong>: ArgoCD Capability uses EKS Access Policy association for cluster admin permissions, ensuring reliable GitOps sync across namespaces and cluster-scoped resources</li>
             </ul>
@@ -271,7 +272,7 @@
                     <p><strong>Note on State File Isolation:</strong> The <code>APPLICATION_INFRA_PREFIX</code> and <code>APPLICATION_PREFIX</code> variables ensure that infrastructure and application state files are stored separately in the same S3 bucket, preventing state conflicts. Both directories use the same <code>BACKEND_BUCKET_NAME</code> but different keys for complete isolation.</p>
                 </li>
                 <li><strong>For Local Deployment:</strong> GitHub CLI (<code>gh</code>), AWS CLI, Terraform, kubectl, and <code>jq</code> installed and configured</li>
-                <li><strong>For Local Deployment:</strong> <strong>Docker</strong> must be installed and running for ECR image mirroring. The <code>mirror-images-to-ecr.sh</code> script requires Docker to pull images from Docker Hub and push them to ECR. This step is automatically executed by <code>setup-application-infra.sh</code> before Terraform operations.</li>
+                <li><strong>For Local Deployment:</strong> <strong>Docker</strong> must be installed and running for ECR image mirroring. The <code>scripts/mirror-images-to-ecr.sh</code> script requires Docker to pull images from Docker Hub and push them to ECR. This step is automatically executed by <code>setup-application-infra.sh</code> before Terraform operations.</li>
                 <li><strong>For Local Deployment:</strong> AWS Secrets Manager configured with <code>github-role</code>, <code>tf-vars</code>, and <code>external-id</code> secrets (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>)</li>
             </ul>
             <p><strong>For detailed prerequisites and setup:</strong> <a href="../README.md#prerequisites">Prerequisites</a> | <a href="../README.md#secrets-configuration">Secrets Configuration</a> | <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
@@ -322,7 +323,7 @@
                 <ul>
                     <li>Prompts for AWS region (us-east-1 or us-east-2) and environment (prod or dev)</li>
                     <li>Retrieves repository variables from GitHub (<code>BACKEND_BUCKET_NAME</code>, <code>APPLICATION_INFRA_PREFIX</code>)</li>
-                    <li><strong>Mirrors Docker images to ECR</strong> (runs <code>mirror-images-to-ecr.sh</code> before Terraform operations):
+                    <li><strong>Mirrors Docker images to ECR</strong> (runs <code>scripts/mirror-images-to-ecr.sh</code> before Terraform operations):
                         <ul>
                             <li>Checks if images exist in ECR before mirroring (skips if already present)</li>
                             <li>Pulls images from Docker Hub: <code>bitnami/redis:latest</code>, <code>bitnami/postgresql:latest</code>, <code>osixia/openldap:1.5.0</code></li>
@@ -347,10 +348,10 @@
                         <code>LDAP_CONFIG_PASSWORD</code> (osixia/openldap image).
                     </li>
                     <li>Assumes State Account role for backend operations</li>
-                    <li>Exports <code>TERRAFORM_WORKSPACE</code> before sourcing <code>set-k8s-env.sh</code> so the correct backend_infra state is read</li>
+                    <li>Exports <code>TERRAFORM_WORKSPACE</code> before sourcing <code>scripts/set-k8s-env.sh</code> so the correct backend_infra state is read</li>
                     <li>Generates <code>backend.hcl</code> from template using <code>APPLICATION_INFRA_PREFIX</code> for state file key (if it doesn't exist)</li>
                     <li>Updates <code>variables.tfvars</code> with selected values</li>
-                    <li>Sets Kubernetes environment variables using <code>set-k8s-env.sh</code> (uses <code>BACKEND_PREFIX</code> and <code>TERRAFORM_WORKSPACE</code>; restores original directory after sourcing)</li>
+                    <li>Sets Kubernetes environment variables using <code>scripts/set-k8s-env.sh</code> (uses <code>BACKEND_PREFIX</code> and <code>TERRAFORM_WORKSPACE</code>; restores original directory after sourcing)</li>
                     <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
                 </ul>
                 <h5 id="local-step-4">Step 4: Build Container Images (Required Before Application Deployment)</h5>
@@ -405,7 +406,7 @@
                     <li>Generates <code>backend.hcl</code> from template using <code>APPLICATION_PREFIX</code> for state file key (if it doesn't exist)</li>
                     <li>Updates <code>variables.tfvars</code> with selected values</li>
                     <li>Extracts backend and frontend image tags from Helm values (<code>backend/helm/ldap-2fa-backend/values.yaml</code>, <code>frontend/helm/ldap-2fa-frontend/values.yaml</code>) and sets <code>TF_VAR_backend_image_tag</code> and <code>TF_VAR_frontend_image_tag</code> (defaults to <code>latest</code> if missing)</li>
-                    <li>Exports <code>TERRAFORM_WORKSPACE</code>, sources <code>set-k8s-env.sh</code> (from application_infra), then restores current directory so Terraform runs in <code>application/</code></li>
+                    <li>Exports <code>TERRAFORM_WORKSPACE</code>, sources <code>scripts/set-k8s-env.sh</code>, then restores current directory so Terraform runs in <code>application/</code></li>
                     <li><strong>Validates ArgoCD capability status</strong> - Ensures ArgoCD capability is "ACTIVE" before proceeding (prevents deployment failures)</li>
                     <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
                     <li>References infrastructure outputs from <code>application_infra</code> remote state (including LDAP host, base DN, admin DN—used by the admin-seed Job and not hardcoded)</li>
@@ -1041,15 +1042,33 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
 ├── SECRETS_REQUIREMENTS.md  # Secrets management documentation (AWS Secrets Manager & GitHub Secrets)
 ├── tf_backend_state/      # Terraform state backend infrastructure (S3) - Account A
 ├── backend_infra/         # Core AWS infrastructure (VPC, EKS, VPC endpoints, IRSA) - Account B
+│   └── monitor-deployments.sh   # Backend-infra deployment monitoring
 ├── application_infra/      # Application infrastructure (OpenLDAP, ALB, ArgoCD Capability) - Account B
 │   ├── helm/              # Helm values for OpenLDAP stack
+│   ├── monitor-deployments.sh   # Application-infra deployment monitoring
 │   └── modules/           # Infrastructure Terraform modules (ALB, ArgoCD Capability, etc.)
 ├── application/           # 2FA Application code and dependencies - Account B
 │   ├── backend/           # 2FA Backend (Python FastAPI)
 │   ├── frontend/          # 2FA Frontend (HTML/JS/CSS + nginx)
 │   ├── helm/              # Helm values for PostgreSQL and Redis
+│   ├── monitor-deployments.sh   # Application deployment monitoring
 │   └── modules/           # Application Terraform modules (PostgreSQL, Redis, SES, SNS, ArgoCD Apps)
+├── scripts/               # Shared scripts (run from repo root or workflows)
+│   ├── assume-github-role.sh   # AWS role assumption (State/Dev/Prod)
+│   ├── get-eks-token.sh        # EKS auth token for Terraform exec plugin
+│   ├── mirror-images-to-ecr.sh # Mirror Docker Hub images to ECR
+│   └── set-k8s-env.sh         # Kubernetes env and kubeconfig setup
 └── .github/workflows/     # GitHub Actions workflows for CI/CD</code></pre>
+        <h4 id="scripts-directory">Shared Scripts (scripts/)</h4>
+        <div class="card">
+            <p>Shared automation scripts live in <code>scripts/</code>. Workflows and setup/destroy scripts reference them as <code>../scripts/...</code>.</p>
+            <ul>
+                <li><strong>assume-github-role.sh</strong>: Assume AWS roles (State, Dev, Prod). Used by the ArgoCD module and for manual role switching.</li>
+                <li><strong>get-eks-token.sh</strong>: Used by Terraform Kubernetes and Helm providers (exec plugin) to generate a fresh EKS token on every API call, avoiding token timeout during long operations (e.g. 20-minute Helm timeouts). Supports optional cross-account role assumption via <code>ASSUME_ROLE_ARN</code> and <code>ASSUME_EXTERNAL_ID</code>.</li>
+                <li><strong>mirror-images-to-ecr.sh</strong>: Mirrors Docker Hub images (OpenLDAP, Redis, PostgreSQL, phpldapadmin, ltb-passwd) to ECR. Run by <code>setup-application-infra.sh</code> and application_infra provisioning workflow.</li>
+                <li><strong>set-k8s-env.sh</strong>: Sets Kubernetes environment variables and updates kubeconfig from backend_infra Terraform state. Sourced by application_infra and application setup/destroy scripts and workflows.</li>
+            </ul>
+        </div>
         <h3 id="backend-infrastructure-components">Backend Infrastructure Components</h3>
         <div class="card">
             <ul>
@@ -1444,103 +1463,47 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
         <h2>Contributing & Support</h2>
         <h3 id="operations-monitoring">Operations & Monitoring</h3>
         <div class="card">
-            <h4>Deployment Monitoring Script</h4>
-            <p>The project includes a comprehensive monitoring script (<code>monitor-deployments.sh</code>) located in the project root that provides health checks for all deployed components.</p>
-            <h5>Features</h5>
+            <h4>Deployment Monitoring Scripts</h4>
+            <p>There are three layer-specific monitoring scripts. Each prompts for region and environment, retrieves credentials from AWS Secrets Manager, updates kubeconfig, and produces a report suitable for agent investigation or manual review.</p>
             <ul>
-                <li><strong>Interactive Setup:</strong> Prompts for AWS region and environment (prod/dev)</li>
-                <li><strong>Automatic Configuration:</strong> Retrieves role ARNs and ExternalId from AWS Secrets Manager</li>
-                <li><strong>Cluster Access:</strong> Automatically retrieves cluster name from Terraform state and updates kubeconfig</li>
-                <li><strong>Comprehensive Health Checks:</strong>
-                    <ul>
-                        <li>ArgoCD capability status (if enabled)</li>
-                        <li>OpenLDAP Helm release and pod status</li>
-                        <li>PostgreSQL Helm release and pod status</li>
-                        <li>Redis Helm release and pod status</li>
-                        <li>Ingress resources across all namespaces</li>
-                        <li>Application Load Balancer status</li>
-                    </ul>
-                </li>
-                <li><strong>Color-Coded Output:</strong> Green for success, yellow for warnings, red for errors</li>
-                <li><strong>Summary Report:</strong> Overall deployment health status with exit codes</li>
+                <li><strong>backend_infra/monitor-deployments.sh</strong> - Backend infrastructure (EKS, VPC, ECR, etc.)</li>
+                <li><strong>application_infra/monitor-deployments.sh</strong> - Application infrastructure (ArgoCD, OpenLDAP, ALB, ingress)</li>
+                <li><strong>application/monitor-deployments.sh</strong> - Application layer (PostgreSQL, Redis, 2FA app, ingress, ALB)</li>
             </ul>
+            <p>Each script provides interactive setup, cluster access, layer-specific health checks, and color-coded output. Exit code 0 = healthy, 1 = issues found. Prerequisites: <code>jq</code>, <code>kubectl</code>, <code>helm</code>, AWS CLI; optional: GitHub CLI (<code>gh</code>).</p>
             <h5>Usage</h5>
-            <pre><code>./monitor-deployments.sh</code></pre>
-            <p>The script will prompt for region and environment, then automatically perform all health checks and display a summary.</p>
-            <h4>Role Assumption Script</h4>
-            <p>The project includes a convenient role assumption script (<code>assume-github-role.sh</code>) located in the <code>application_infra/</code> directory that allows you to easily switch between AWS account roles when working in the terminal.</p>
+            <pre><code>cd backend_infra &amp;&amp; ./monitor-deployments.sh
+cd application_infra &amp;&amp; ./monitor-deployments.sh
+cd application &amp;&amp; ./monitor-deployments.sh</code></pre>
+            <h4>Role Assumption Script (scripts/assume-github-role.sh)</h4>
+            <p>The role assumption script is located in <code>scripts/assume-github-role.sh</code>. It allows you to switch between AWS account roles (State, Dev, Prod) when working in the terminal.</p>
             <h5>Features</h5>
             <ul>
                 <li><strong>Account Role Switching:</strong> Switch between State Account, Development Account, or Production Account roles</li>
-                <li><strong>Automatic Configuration:</strong> Automatically retrieves role ARNs from AWS Secrets Manager (secret: <code>github-role</code>)</li>
-                <li><strong>Credential Persistence:</strong> Credentials persist in your current shell session when script is sourced</li>
-                <li><strong>Clean Option:</strong> Remove all AWS credentials from environment with <code>clean</code> option</li>
+                <li><strong>Automatic Configuration:</strong> Retrieves role ARNs from AWS Secrets Manager (secret: <code>github-role</code>)</li>
+                <li><strong>Credential Persistence:</strong> Credentials persist in your current shell when script is sourced</li>
+                <li><strong>Clean Option:</strong> Remove all AWS credentials with <code>clean</code> option</li>
                 <li><strong>Interactive Mode:</strong> Prompts for account selection if no argument is provided</li>
             </ul>
             <h5>Usage</h5>
             <pre><code># Source the script (recommended - credentials persist in current shell)
-source ./assume-github-role.sh [state|dev|prod|clean]
+source ./scripts/assume-github-role.sh [state|dev|prod|clean]
 
 # Or use eval
-eval $(./assume-github-role.sh [state|dev|prod|clean])
+eval $(./scripts/assume-github-role.sh [state|dev|prod|clean])
 
 # Interactive mode (prompts for account selection)
-source ./assume-github-role.sh</code></pre>
+source ./scripts/assume-github-role.sh</code></pre>
             <h5>Options</h5>
             <ul>
                 <li><code>state</code> - Assume State Account role (for backend state operations)</li>
-                <li><code>dev</code> - Assume Development Account role (for development deployments)</li>
-                <li><code>prod</code> - Assume Production Account role (for production deployments)</li>
+                <li><code>dev</code> - Assume Development Account role</li>
+                <li><code>prod</code> - Assume Production Account role</li>
                 <li><code>clean</code> - Remove all AWS credentials from environment</li>
                 <li>No argument - Interactive prompt for account selection</li>
             </ul>
-            <h5>Integration</h5>
-            <ul>
-                <li><strong>ArgoCD Module:</strong> Used by the ArgoCD module's external data resource to assume the correct deployment account role when querying capability status</li>
-                <li><strong>Manual Use:</strong> Can be used manually for role switching when working with AWS CLI or Terraform commands</li>
-            </ul>
-            <p><strong>Note:</strong> The script must be <strong>sourced</strong> (not executed) for credentials to persist in your current shell. Use <code>source ./assume-github-role.sh [option]</code> or <code>eval $(./assume-github-role.sh [option])</code>.</p>
-            <h5>Prerequisites</h5>
-            <ul>
-                <li><code>jq</code> command-line tool installed</li>
-                <li><code>kubectl</code> and <code>helm</code> installed</li>
-                <li>AWS CLI configured with permissions to:
-                    <ul>
-                        <li>Access AWS Secrets Manager</li>
-                        <li>Assume IAM roles in deployment accounts</li>
-                        <li>Access S3 bucket containing Terraform state</li>
-                        <li>Access EKS cluster</li>
-                    </ul>
-                </li>
-                <li>GitHub CLI (<code>gh</code>) installed (optional, for retrieving backend bucket name)</li>
-            </ul>
-            <h5>Exit Codes</h5>
-            <ul>
-                <li><code>0</code>: All deployments are healthy</li>
-                <li><code>1</code>: Some deployments have issues (check output for details)</li>
-            </ul>
-            <h5>Example Output</h5>
-            <pre><code>=========================================
-Monitoring Deployments for prod in us-east-1
-=========================================
-
-✓ Retrieved State Account role ARN
-✓ Retrieved Deployment Account role ARN (production)
-✓ Successfully assumed Deployment Account role
-✓ Cluster name: my-cluster-prod
-✓ Kubeconfig updated successfully
-
-=========================================
-Checking ArgoCD Capability
-=========================================
-ArgoCD pods: 3/3 running
-✓ ArgoCD is deployed and running
-
-=========================================
-Monitoring Summary
-=========================================
-✓ All deployments are healthy!</code></pre>
-            <p><strong>For detailed documentation:</strong> See <a href="../README.md#operations--monitoring">Operations & Monitoring</a> in the main README.</p>
+            <p><strong>Note:</strong> The script must be <strong>sourced</strong> for credentials to persist. Use <code>source ./scripts/assume-github-role.sh [option]</code> or <code>eval $(./scripts/assume-github-role.sh [option])</code>.</p>
+            <p><strong>For detailed documentation:</strong> See <a href="../README.md#operations--monitoring">Operations &amp; Monitoring</a> in the main README.</p>
         </div>
         <h3 id="troubleshooting">Troubleshooting</h3>
         <div class="card">

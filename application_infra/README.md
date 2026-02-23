@@ -204,7 +204,7 @@ configuration (see Storage Configuration section below)
   automatically create `ou=users`, `ou=groups`, and `cn=admins` group on all
   pods at startup (fixes multi-master replication data sync issues)
 - **ECR Images**: Uses ECR images instead of Docker Hub (images mirrored via
-  `mirror-images-to-ecr.sh`)
+  `scripts/mirror-images-to-ecr.sh`)
   - Image tags: `redis-latest`, `postgresql-latest`, `openldap-1.5.0`
 - **Route53 Records**: Route53 record creation has been moved to the dedicated
   `route53_record` module (see Route53 Record Module section above)
@@ -322,9 +322,7 @@ application_infra/
 ├── CHANGELOG.md               # Change log for infrastructure changes
 ├── setup-application-infra.sh  # Infrastructure setup script
 ├── destroy-application-infra.sh  # Infrastructure destroy script
-├── mirror-images-to-ecr.sh    # Script to mirror Docker images to ECR
-├── set-k8s-env.sh             # Kubernetes environment setup script
-├── assume-github-role.sh      # Role assumption script for multi-account access
+├── monitor-deployments.sh     # Application-infra deployment monitoring
 ├── helm/
 │   └── openldap-values.tpl.yaml  # OpenLDAP Helm values template
 ├── charts/                    # Vendored Helm charts
@@ -445,7 +443,7 @@ configured:
     - `APPLICATION_INFRA_PREFIX`: State file key prefix (value: `application_infra_state/terraform.tfstate`)
 
 14. **Docker (for Local Deployment)**: Docker must be installed and running for
-ECR image mirroring. The `mirror-images-to-ecr.sh` script requires Docker to
+ECR image mirroring. The `scripts/mirror-images-to-ecr.sh` script requires Docker to
 pull images from Docker Hub and push them to ECR.
 15. **jq (for Local Deployment)**: The `jq` command-line tool is required for
 JSON parsing in the image mirroring script (with fallback to sed for
@@ -570,7 +568,7 @@ The backend configuration (bucket, key, region) is read from `backend_infra/back
 
 #### Kubernetes Kubeconfig Auto-Update
 
-The `set-k8s-env.sh` script automatically updates the kubeconfig file on every
+The `scripts/set-k8s-env.sh` script automatically updates the kubeconfig file on every
 run to ensure it always contains the latest cluster endpoint. This prevents issues
 with stale kubeconfig entries that can occur when:
 
@@ -687,18 +685,18 @@ defaults to `app_name`)
 
 These variables specify the image tags for container images stored in ECR. The
 images are automatically mirrored from Docker Hub to ECR by the
-`mirror-images-to-ecr.sh` script before Terraform operations.
+`scripts/mirror-images-to-ecr.sh` script before Terraform operations.
 
 - `openldap_image_tag`: OpenLDAP image tag in ECR (default: `"openldap-1.5.0"`)
   - Corresponds to `osixia/openldap:1.5.0` from Docker Hub
-  - Tag created by `mirror-images-to-ecr.sh`
+  - Tag created by `scripts/mirror-images-to-ecr.sh`
 - `postgresql_image_tag`: PostgreSQL image tag in ECR (default: `"postgresql-latest"`)
   - Corresponds to `bitnami/postgresql:18.1.0-debian-12-r4` from Docker Hub
-  - Tag created by `mirror-images-to-ecr.sh`
+  - Tag created by `scripts/mirror-images-to-ecr.sh`
   - Uses 'latest' tag instead of SHA digests for simplified image management
 - `redis_image_tag`: Redis image tag in ECR (default: `"redis-latest"`)
   - Corresponds to `bitnami/redis:8.4.0-debian-12-r6` from Docker Hub
-  - Tag created by `mirror-images-to-ecr.sh`
+  - Tag created by `scripts/mirror-images-to-ecr.sh`
   - Uses 'latest' tag instead of SHA digests for simplified image management
 
 > [!NOTE]
@@ -778,7 +776,7 @@ The script will:
 - Update `variables.tfvars` with selected region, environment, and deployment
 account role ARN
 - Mirror Docker images to ECR (OpenLDAP)
-- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Set Kubernetes environment variables using `scripts/set-k8s-env.sh`
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
 #### Option 2: Using GitHub Actions Workflow
@@ -801,12 +799,12 @@ Route53/ACM access
 Terraform operations (required for accessing backend_infra remote state via `providers.tf`)
 - Create `backend.hcl` from template for application_infra state
 - Mirror Docker images to ECR (OpenLDAP)
-- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Set Kubernetes environment variables using `scripts/set-k8s-env.sh`
 - Run Terraform operations automatically
 
 > [!NOTE]
 >
-> The `set-k8s-env.sh` script correctly resolves its directory path when sourced
+> The `scripts/set-k8s-env.sh` script correctly resolves its directory path when sourced
 > (using `${BASH_SOURCE[0]}`), ensuring it works both locally and in GitHub Actions.
 > It uses `BACKEND_PREFIX` (from repository variables or `backend_infra/backend.hcl`)
 > for the backend_infra state key, and `TERRAFORM_WORKSPACE` or `AWS_REGION`+`ENVIRONMENT`
@@ -838,7 +836,7 @@ The script will:
 - Generate `backend.hcl` from template (if it doesn't exist)
 - Update `variables.tfvars` with selected region, environment, deployment account
   role ARN, and ExternalId
-- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Set Kubernetes environment variables using `scripts/set-k8s-env.sh`
 - Run Terraform destroy commands (init, workspace, validate, plan destroy, apply
   destroy) automatically
 - **Requires confirmation**: Type 'yes' to confirm, then 'DESTROY' to proceed
@@ -856,7 +854,7 @@ The script will:
 The provisioning workflow will:
 
 - Install `jq` command-line tool (required for ArgoCD module external data source)
-- Make `assume-github-role.sh` executable (for local fallback)
+- Make `scripts/assume-github-role.sh` executable (for local fallback)
 - Export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX` for `set-k8s-env.sh` and
   state path consistency
 - Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
@@ -884,8 +882,8 @@ Terraform operations (required for accessing backend_infra remote state)
 The destroying workflow will:
 
 - Install `jq` command-line tool (required for ArgoCD module external data source)
-- Make `assume-github-role.sh` executable (for local fallback)
-- Export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX` for `set-k8s-env.sh` and state
+- Make `scripts/assume-github-role.sh` executable (for local fallback)
+- Export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX` for `scripts/set-k8s-env.sh` and state
 path consistency
 - Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
   Route53/ACM access
@@ -936,12 +934,12 @@ instructions, including:
 
 > [!NOTE]
 >
-> The `setup-application-infra.sh` script automatically runs `mirror-images-to-ecr.sh`
+> The `setup-application-infra.sh` script automatically runs `scripts/mirror-images-to-ecr.sh`
 > before Terraform operations. This step is documented here for reference.
 
 **Purpose:**
 
-The `mirror-images-to-ecr.sh` script eliminates Docker Hub rate limiting and
+The `scripts/mirror-images-to-ecr.sh` script eliminates Docker Hub rate limiting and
 external dependencies by mirroring third-party container images to a private
 ECR repository. This ensures reliable deployments without depending on Docker
 Hub availability or rate limits.
@@ -976,8 +974,8 @@ Hub availability or rate limits.
 
 ```bash
 cd application_infra
-chmod +x ./mirror-images-to-ecr.sh
-./mirror-images-to-ecr.sh
+chmod +x ../scripts/mirror-images-to-ecr.sh
+../scripts/mirror-images-to-ecr.sh
 ```
 
 The script uses `BACKEND_PREFIX` (or parses `backend_infra/backend.hcl`) for the
@@ -989,11 +987,11 @@ for the workspace so the correct state path is used when run locally or from CI.
 - **Local Deployment**: Automatically executed by `setup-application-infra.sh` before
   Terraform operations
 - **GitHub Actions**: Automatically executed in workflow after Terraform
-  validate, before `set-k8s-env.sh`
+  validate, before `scripts/set-k8s-env.sh`
 
-#### Role Assumption Script (`assume-github-role.sh`)
+#### Role Assumption Script (`scripts/assume-github-role.sh`)
 
-The `assume-github-role.sh` script provides a convenient way to assume AWS IAM
+The `scripts/assume-github-role.sh` script provides a convenient way to assume AWS IAM
 roles for different accounts (State, Development, Production) when working in the
 terminal. This script is used internally by the ArgoCD module's external data
 resource and can also be used manually for role switching.
@@ -1010,13 +1008,13 @@ Production Account)
 
 ```bash
 # Source the script (recommended - credentials persist in current shell)
-source ./assume-github-role.sh [state|dev|prod|clean]
+source ./scripts/assume-github-role.sh [state|dev|prod|clean]
 
 # Or use eval
-eval $(./assume-github-role.sh [state|dev|prod|clean])
+eval $(./scripts/assume-github-role.sh [state|dev|prod|clean])
 
 # Interactive mode (prompts for account selection)
-source ./assume-github-role.sh
+source ./scripts/assume-github-role.sh
 ```
 
 **Options:**
@@ -1039,13 +1037,13 @@ account roles
 
 ```bash
 # Assume production account role
-source ./assume-github-role.sh prod
+source ./scripts/assume-github-role.sh prod
 
 # Verify credentials
 aws sts get-caller-identity
 
 # Clean up credentials
-source ./assume-github-role.sh clean
+source ./scripts/assume-github-role.sh clean
 ```
 
 **Integration:**
@@ -1063,8 +1061,8 @@ AWS CLI or Terraform commands
 > [!NOTE]
 >
 > The script must be **sourced** (not executed) for credentials to persist in your
-> current shell. Use `source ./assume-github-role.sh [option]` or
-> `eval $(./assume-github-role.sh [option])`.
+> current shell. Use `source ./scripts/assume-github-role.sh [option]` or
+> `eval $(./scripts/assume-github-role.sh [option])`.
 >
 > **GitHub Actions Compatibility**: The script automatically detects GitHub Actions
 > environment and uses `DEPLOYMENT_ROLE_ARN`/`EXTERNAL_ID` or
@@ -1095,7 +1093,7 @@ based on the selected environment:
   - `dev` → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`
 - Retrieve ExternalId from AWS Secrets Manager (secret: `external-id`) for
 cross-account role assumption security
-- **Mirror Docker images to ECR** (runs `mirror-images-to-ecr.sh` before
+- **Mirror Docker images to ECR** (runs `scripts/mirror-images-to-ecr.sh` before
   Terraform operations):
   - Checks if images exist in ECR before mirroring (skips if already present)
   - Pulls images from Docker Hub: `bitnami/redis:8.4.0-debian-12-r6`,
@@ -1113,7 +1111,7 @@ environment variables
 actual values (if it doesn't exist)
 - Update `variables.tfvars` with the selected region, environment,
 deployment account role ARN, and ExternalId
-- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Set Kubernetes environment variables using `scripts/set-k8s-env.sh`
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
 > [!NOTE]
@@ -1283,45 +1281,32 @@ global:
 
 ### Deployment Monitoring Script
 
-The project includes a monitoring script (`monitor-deployments.sh`) located in the
-project root that provides comprehensive health checks for all deployed application
-components. This script is particularly useful for verifying the status of
-application infrastructure deployments.
+This directory contains `monitor-deployments.sh`, which monitors **application
+infrastructure** (ArgoCD, OpenLDAP, ALB, ingress). For other layers, use:
 
-**What it monitors:**
+- **Backend infrastructure:** `backend_infra/monitor-deployments.sh`
+- **Application layer (PostgreSQL, Redis, 2FA app):** `application/monitor-deployments.sh`
+
+**What this script monitors:**
 
 - **ArgoCD Capability:** Verifies ArgoCD namespace and pod status (if enabled)
 - **OpenLDAP Stack:** Checks Helm release status and pod health in the `ldap` namespace
-- **PostgreSQL:** Verifies Helm release and pod status in the `ldap-2fa` namespace
-- **Redis:** Checks Helm release and pod status in the `redis` namespace
-- **Ingress Resources:** Lists all ingress resources across all namespaces
+- **Ingress Resources:** Lists ingress resources
 - **Application Load Balancers:** Displays ALB status and configuration
 
 **Usage:**
 
 ```bash
-cd /path/to/ldap-2fa-on-k8s
+cd application_infra
 ./monitor-deployments.sh
 ```
 
-The script will:
+The script prompts for region and environment, retrieves credentials from AWS
+Secrets Manager, updates kubeconfig, runs health checks, and produces a
+color-coded report (exit 0 = healthy, 1 = issues). Prerequisites: `jq`, `kubectl`,
+`helm`, AWS CLI; optional: GitHub CLI (`gh`).
 
-1. Prompt for AWS region (us-east-1 or us-east-2) and environment (prod or dev)
-2. Automatically retrieve role ARNs and ExternalId from AWS Secrets Manager
-3. Assume the appropriate deployment account role
-4. Retrieve cluster name from backend_infra Terraform state
-5. Update kubeconfig to access the EKS cluster
-6. Perform health checks on all components
-7. Display a color-coded summary report
-
-**Prerequisites:**
-
-- `jq` command-line tool installed
-- `kubectl` and `helm` installed
-- AWS CLI configured with appropriate permissions
-- GitHub CLI (`gh`) installed (optional, for retrieving backend bucket name)
-
-**For detailed documentation:** See [Deployment Monitoring Script](../README.md#operations--monitoring)
+**For full details:** See [Operations & Monitoring](../README.md#operations--monitoring)
 in the main README.
 
 ## Troubleshooting

@@ -329,6 +329,7 @@ application/
 ├── CHANGELOG.md               # Change log for application changes
 ├── setup-application.sh       # Application setup script
 ├── destroy-application.sh     # Application destroy script
+├── monitor-deployments.sh     # Application deployment monitoring
 ├── helm/
 │   ├── postgresql-values.tpl.yaml  # PostgreSQL Helm values template
 │   └── redis-values.tpl.yaml       # Redis Helm values template
@@ -672,6 +673,15 @@ cd application
     - Approve/revoke users
     - Group CRUD operations
     - User-group assignment
+
+## Deployment Monitoring
+
+This directory contains `monitor-deployments.sh`, which monitors the **application
+layer** (PostgreSQL, Redis, 2FA app, ingress, ALB). Run it from this directory;
+it prompts for region and environment, then produces a report. For backend-infra
+and application-infra monitoring, use `backend_infra/monitor-deployments.sh` and
+`application_infra/monitor-deployments.sh`. Setup and destroy scripts use
+`scripts/set-k8s-env.sh` for Kubernetes env and kubeconfig. See [Operations & Monitoring](../README.md#operations--monitoring) in the main README.
 
 ## Troubleshooting
 

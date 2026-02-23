@@ -158,6 +158,7 @@ backend_infra/
 ├── CHANGELOG.md                   # Change log for this module
 ├── setup-backend.sh               # Backend setup script (GitHub CLI)
 ├── destroy-backend.sh             # Backend destroy script
+├── monitor-deployments.sh         # Backend-infra deployment monitoring
 ├── variables.tfvars               # Variable values (customize for your environment)
 ├── modules/
 │   ├── ebs/                       # EBS storage (currently commented out in main.tf)
@@ -470,6 +471,19 @@ failure)
   - Estimated cost per endpoint: ~$7-10/month per availability zone
 - **ExternalId Security**: ExternalId required for cross-account role assumption
   to prevent confused deputy attacks
+
+## Deployment Monitoring
+
+This directory contains `monitor-deployments.sh`, which monitors **backend
+infrastructure** (EKS, VPC, ECR, etc.). Run it from this directory after
+selecting region and environment; it retrieves credentials from AWS Secrets
+Manager, updates kubeconfig, and produces a report. For application-infra and
+application-layer monitoring, use `application_infra/monitor-deployments.sh` and
+`application/monitor-deployments.sh` respectively. See [Operations &amp;
+Monitoring](../README.md#operations--monitoring) in the main README for details.
+
+The Kubernetes and Helm providers in this module use `scripts/get-eks-token.sh`
+(exec plugin) to generate fresh EKS tokens and avoid timeout during long runs.
 
 ## Troubleshooting
 

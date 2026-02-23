@@ -81,7 +81,7 @@ Configuration](#github-repository-configuration))
   cluster. See [Public ACM Certificate Setup and DNS Validation](application_infra/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for step-by-step AWS CLI commands.
 - **Docker (for Local Deployment)**: Docker must be installed and running for
-  ECR image mirroring. The `mirror-images-to-ecr.sh` script requires Docker to
+  ECR image mirroring. The `scripts/mirror-images-to-ecr.sh` script requires Docker to
   pull images from Docker Hub and push them to ECR. This step is automatically
   executed by `setup-application-infra.sh` before Terraform operations.
 - **jq (for Local Deployment)**: The `jq` command-line tool is required for
@@ -129,13 +129,12 @@ ldap-2fa-on-k8s/
 │   │   ├── openldap/                # OpenLDAP stack
 │   │   ├── route53/                 # Route53 hosted zone
 │   │   └── route53_record/          # Route53 DNS records
-│   ├── assume-github-role.sh
 │   ├── backend.hcl
 │   ├── CHANGELOG.md
 │   ├── CROSS_ACCOUNT_ACCESS.md
 │   ├── destroy-application-infra.sh
 │   ├── main.tf
-│   ├── mirror-images-to-ecr.sh
+│   ├── monitor-deployments.sh   # Application-infra deployment monitoring
 │   ├── OPENLDAP_CHANGELOG.md
 │   ├── OPENLDAP_README.md
 │   ├── OSIXIA_OPENLDAP_REQUIREMENTS.md
@@ -147,7 +146,6 @@ ldap-2fa-on-k8s/
 │   ├── providers.tf
 │   ├── README.md
 │   ├── SECURITY_IMPROVEMENTS.md
-│   ├── set-k8s-env.sh
 │   ├── setup-application-infra.sh
 │   ├── SILENT_MODE_EXPLANATION.md
 │   ├── tfstate-backend-values-template.hcl
@@ -210,6 +208,7 @@ ldap-2fa-on-k8s/
 │   ├── PRD_SMS_MAN.md
 │   ├── providers.tf
 │   ├── README.md
+│   ├── monitor-deployments.sh   # Application deployment monitoring
 │   ├── setup-application.sh
 │   ├── tfstate-backend-values-template.hcl
 │   ├── variables.tf
@@ -223,6 +222,7 @@ ldap-2fa-on-k8s/
 │   ├── CHANGELOG.md
 │   ├── destroy-backend.sh
 │   ├── main.tf
+│   ├── monitor-deployments.sh   # Backend-infra deployment monitoring
 │   ├── outputs.tf
 │   ├── providers.tf
 │   ├── README.md
@@ -230,6 +230,11 @@ ldap-2fa-on-k8s/
 │   ├── tfstate-backend-values-template.hcl
 │   ├── variables.tf
 │   └── variables.tfvars
+├── scripts/                        # Shared scripts (run from repo root or workflow)
+│   ├── assume-github-role.sh    # AWS role assumption (State/Dev/Prod)
+│   ├── get-eks-token.sh         # EKS auth token for Terraform exec plugin
+│   ├── mirror-images-to-ecr.sh  # Mirror Docker Hub images to ECR
+│   └── set-k8s-env.sh           # Kubernetes env and kubeconfig setup
 ├── docs/                           # Documentation website
 │   ├── dark-theme.css
 │   ├── favicon.ico
@@ -248,7 +253,6 @@ ldap-2fa-on-k8s/
 │   └── variables.tfvars
 ├── CHANGELOG.md
 ├── LICENSE
-├── monitor-deployments.sh          # Deployment monitoring script
 ├── README.md                       # This file
 ├── repomix_instructions.md
 ├── repomix_output.md
@@ -799,7 +803,7 @@ The script will:
 - Update `variables.tfvars` with selected region, environment, and deployment
 account role ARN
 - Mirror Docker images to ECR (OpenLDAP)
-- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Set Kubernetes environment variables using `scripts/set-k8s-env.sh`
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
 #### Step 4. Deploy Application
@@ -818,7 +822,7 @@ The script will:
 - Generate `backend.hcl` from template (if it doesn't exist)
 - Update `variables.tfvars` with selected region, environment, and deployment
 account role ARN
-- Set Kubernetes environment variables using `set-k8s-env.sh` (from application_infra)
+- Set Kubernetes environment variables using `scripts/set-k8s-env.sh`
 - Run Terraform commands (init, workspace, validate, plan, apply) automatically
 
 > [!IMPORTANT]
@@ -929,7 +933,7 @@ and admin-seed resources
 - Generate `backend.hcl` from template (if it doesn't exist)
 - Update `variables.tfvars` with selected region, environment, deployment account
   role ARN, and ExternalId
-- Set Kubernetes environment variables using `set-k8s-env.sh` (from application_infra)
+- Set Kubernetes environment variables using `scripts/set-k8s-env.sh`
 - Run Terraform destroy commands (init, workspace, validate, plan destroy, apply
   destroy) automatically
 - **Requires confirmation**: Type 'yes' to confirm, then 'DESTROY' to proceed
@@ -943,7 +947,7 @@ The application infrastructure destroy script will:
 - Generate `backend.hcl` from template (if it doesn't exist)
 - Update `variables.tfvars` with selected region, environment, deployment account
   role ARN, and ExternalId
-- Set Kubernetes environment variables using `set-k8s-env.sh`
+- Set Kubernetes environment variables using `scripts/set-k8s-env.sh`
 - Run Terraform destroy commands (init, workspace, validate, plan destroy, apply
   destroy) automatically
 - **Requires confirmation**: Type 'yes' to confirm, then 'DESTROY' to proceed
@@ -1266,73 +1270,62 @@ security documentation.
 
 ## Operations & Monitoring
 
-### Deployment Monitoring Script
+### Shared Scripts (`scripts/`)
 
-The project includes a monitoring script (`monitor-deployments.sh`) that provides
-comprehensive health checks for all deployed components. This script is useful for
-verifying deployment status, troubleshooting issues, and ensuring all services are
-running correctly.
+Shared automation scripts live in the `scripts/` directory. Run them from the
+repository root (e.g. `./scripts/assume-github-role.sh`) or from workflow steps
+that reference `../scripts/...`.
 
-**Location:** `monitor-deployments.sh` (project root)
+| Script | Purpose |
+|--------|--------|
+| `scripts/assume-github-role.sh` | Assume AWS roles (State, Dev, Prod). Used by ArgoCD module and manually. |
+| `scripts/get-eks-token.sh` | EKS auth token for Terraform Kubernetes/Helm exec plugin; avoids token timeout during long runs. |
+| `scripts/mirror-images-to-ecr.sh` | Mirror Docker Hub images (OpenLDAP, Redis, PostgreSQL, etc.) to ECR. |
+| `scripts/set-k8s-env.sh` | Set Kubernetes env vars and update kubeconfig from backend_infra state. |
 
-**What it does:**
+**get-eks-token.sh:** Used by Terraform's Kubernetes and Helm providers (exec
+plugin) to generate a fresh EKS token on every API call. Prevents token expiration
+during long operations (e.g. Helm releases with 20-minute timeouts). Supports
+optional cross-account role assumption via `ASSUME_ROLE_ARN` and
+`ASSUME_EXTERNAL_ID` environment variables.
 
-1. **Interactive Setup:**
-   - Prompts for AWS region (us-east-1 or us-east-2)
-   - Prompts for environment (prod or dev)
-   - Retrieves role ARNs from AWS Secrets Manager (`github-role` secret)
-   - Retrieves ExternalId from AWS Secrets Manager for cross-account role assumption
+### Deployment Monitoring Scripts
 
-2. **Cluster Access:**
-   - Assumes the appropriate deployment account role (production or development)
-   - Retrieves cluster name from backend_infra Terraform state (S3)
-   - Updates kubeconfig to access the EKS cluster
+There are **three** layer-specific monitoring scripts. Each prompts for region and
+environment, retrieves credentials from AWS Secrets Manager, updates kubeconfig,
+and produces a report suitable for agent investigation or manual review.
 
-3. **Health Checks:**
-   - **ArgoCD Capability:** Verifies ArgoCD namespace and pod status
-   - **OpenLDAP:** Checks Helm release status and pod health
-   - **PostgreSQL:** Verifies Helm release and pod status
-   - **Redis:** Checks Helm release and pod status
-   - **Ingress Resources:** Lists all ingress resources across namespaces
-   - **Application Load Balancers:** Displays ALB status and configuration
+| Location | Scope |
+|----------|--------|
+| `backend_infra/monitor-deployments.sh` | Backend infrastructure (EKS, VPC, ECR, etc.) |
+| `application_infra/monitor-deployments.sh` | Application infrastructure (ArgoCD, OpenLDAP, ALB, ingress) |
+| `application/monitor-deployments.sh` | Application layer (PostgreSQL, Redis, 2FA app, ingress, ALB) |
 
-4. **Output:**
-   - Color-coded status messages (green for success, yellow for warnings, red for
-   errors)
-   - Detailed pod status with counts (running, pending, failed)
-   - Helm release status information
-   - Summary report indicating overall deployment health
+**What each does:**
 
-**Prerequisites:**
+1. **Interactive setup:** Prompts for AWS region (us-east-1 or us-east-2) and
+   environment (prod or dev); retrieves role ARNs and ExternalId from AWS Secrets
+   Manager.
+2. **Cluster access:** Assumes the deployment account role and updates kubeconfig
+   using cluster name from Terraform state.
+3. **Health checks:** Layer-specific checks (e.g. application_infra: ArgoCD,
+   OpenLDAP, ingress; application: PostgreSQL, Redis, 2FA app, ingress, ALB).
+4. **Output:** Color-coded status, pod/release details, and a summary with exit
+   code 0 (healthy) or 1 (issues found).
 
-- `jq` command-line tool installed
-- `kubectl` configured (script will update kubeconfig automatically)
-- `helm` installed (for Helm release checks)
-- AWS CLI configured with permissions to:
-  - Access AWS Secrets Manager (to retrieve role ARNs and ExternalId)
-  - Assume IAM roles in deployment accounts
-  - Access S3 bucket containing Terraform state
-  - Access EKS cluster
-- GitHub CLI (`gh`) installed (optional, for retrieving `BACKEND_BUCKET_NAME` from
-repository variables)
+**Prerequisites:** `jq`, `kubectl`, `helm`, AWS CLI with access to Secrets Manager,
+role assumption, S3 state, and EKS. Optional: GitHub CLI (`gh`) for
+`BACKEND_BUCKET_NAME`.
 
-**Usage:**
+**Usage (examples):**
 
 ```bash
-./monitor-deployments.sh
+cd backend_infra && ./monitor-deployments.sh
+cd application_infra && ./monitor-deployments.sh
+cd application && ./monitor-deployments.sh
 ```
 
-The script will:
-
-1. Prompt you to select region and environment
-2. Automatically retrieve credentials and configure access
-3. Perform health checks on all components
-4. Display a summary with exit code 0 (all healthy) or 1 (issues found)
-
-**Exit Codes:**
-
-- `0`: All deployments are healthy
-- `1`: Some deployments have issues (check output for details)
+**Exit codes:** `0` = all healthy; `1` = issues found (see output for details).
 
 **Example Output:**
 

@@ -2,7 +2,7 @@
 
 ## How SILENT_MODE is Set
 
-The `assume-github-role.sh` script automatically detects when it's running in a
+The `scripts/assume-github-role.sh` script automatically detects when it's running in a
 non-interactive environment (like Terraform external data sources or GitHub Actions)
 and enables `SILENT_MODE` to suppress all output.
 
@@ -18,7 +18,7 @@ and enables `SILENT_MODE` to suppress all output.
 
 ### Location in Code
 
-The detection happens at the **beginning** of `assume-github-role.sh` (lines 22-27):
+The detection happens at the **beginning** of `scripts/assume-github-role.sh` (lines 22-27):
 
 ```bash
 SILENT_MODE=false
@@ -86,5 +86,5 @@ To verify SILENT_MODE detection:
 echo "SILENT_MODE would be: $([ -n "${GITHUB_ACTIONS:-}" ] && echo "true" || echo "false")"
 
 # In local terminal (should be false)
-TERRAFORM_CLI_PATH="" TF_DATA_DIR="" TERM="xterm" ./assume-github-role.sh --help
+TERRAFORM_CLI_PATH="" TF_DATA_DIR="" TERM="xterm" ./scripts/assume-github-role.sh --help
 ```

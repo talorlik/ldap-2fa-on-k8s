@@ -45,13 +45,13 @@ kubectl get jobs -n 2fa-app
 cd /Users/talo/www/ldap-2fa-on-k8s/application
 
 # Assume deployment account credentials
-eval $(../application_infra/assume-github-role.sh prod 2>/dev/null | grep "^export")
+eval $(../scripts/assume-github-role.sh prod 2>/dev/null | grep "^export")
 
 # Taint the job to force recreation
 terraform taint 'kubernetes_job.admin_seed[0]'
 
 # Assume state account for Terraform apply
-eval $(../application_infra/assume-github-role.sh state 2>/dev/null | grep "^export")
+eval $(../scripts/assume-github-role.sh state 2>/dev/null | grep "^export")
 
 terraform apply -var-file=variables.tfvars -auto-approve
 ```

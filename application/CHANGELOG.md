@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG.md](../application_infra/CHANGELOG.md).
 
-## [Unreleased]
+## [2025-02-23] - Admin-Seed, Image Tags, and LDAP Fixes
 
 ### Added
 
@@ -58,15 +58,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   since Terraform doesn't need valid tags to destroy resources
   - Added check to reject `"latest"` even if extracted from Helm values
 
-- **setup-application.sh: Image tags from Helm values and set-k8s-env directory
-handling**
+- **setup-application.sh: Image tags from Helm values and scripts/set-k8s-env.sh**
   - Backend and frontend image tags are read from
   `backend/helm/ldap-2fa-backend/values.yaml` and
   `frontend/helm/ldap-2fa-frontend/values.yaml` and exported as
   `TF_VAR_backend_image_tag` and `TF_VAR_frontend_image_tag` (replacing reliance
   on `:latest`). Defaults to `latest` if files are missing or tag cannot be parsed.
-  - Script exports `TERRAFORM_WORKSPACE` before sourcing `set-k8s-env.sh` and
-  restores the current directory after sourcing so Terraform runs in `application/`.
+  - Script exports `TERRAFORM_WORKSPACE` before sourcing `scripts/set-k8s-env.sh`
+  and restores the current directory after sourcing so Terraform runs in
+  `application/`.
 - **Application Terraform variable `frontend_image_tag`**
   - New variable (default `latest`) for the frontend Docker image tag used by the
   ArgoCD Application; application layer uses tags from Helm values updated by
@@ -131,7 +131,7 @@ handling**
   and populated during MFA enrollment at login
   - Updated documentation: [PRD_SIGNUP_MAN.md](PRD_SIGNUP_MAN.md), [PRD_ADMIN_FUNCS.md](PRD_ADMIN_FUNCS.md)
 
-## [Unreleased] - Remember me and Forgot/Reset password
+## [2025-02-23] - Remember me and Forgot/Reset password
 
 ### Added
 

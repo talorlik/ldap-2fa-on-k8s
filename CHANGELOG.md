@@ -5,7 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - LDAP Admin-Seed Fixes and Image Tag Validation
+## [2025-02-23] - LDAP Admin-Seed Fixes and Image Tag Validation
+
+### Added
+
+- **Shared Scripts Directory (`scripts/`)**
+  - Moved `assume-github-role.sh`, `mirror-images-to-ecr.sh`, and `set-k8s-env.sh`
+    from `application_infra/` to `scripts/` for a single shared location. All
+    workflows and setup/destroy scripts now reference `../scripts/...`.
+  - **get-eks-token.sh**: New script used by Terraform Kubernetes and Helm
+    providers (exec plugin) to generate a fresh EKS token on every API call,
+    avoiding token timeout during long operations (e.g. 20-minute Helm timeouts).
+    Supports optional cross-account role assumption via `ASSUME_ROLE_ARN` and
+    `ASSUME_EXTERNAL_ID`. Located at `scripts/get-eks-token.sh`.
+  - **Layer-specific monitoring scripts:** Replaced the single root
+    `monitor-deployments.sh` with three scripts:
+    - `backend_infra/monitor-deployments.sh` - backend infrastructure
+    - `application_infra/monitor-deployments.sh` - application infrastructure
+    - `application/monitor-deployments.sh` - application layer
+    Each produces a report suitable for agent investigation or manual review.
+
+- **LDAP and Admin-Seed-Job Troubleshooting Guide**
+  - Created comprehensive troubleshooting document
+  [application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md](application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
+  documenting persistent OpenLDAP issues, investigation timeline, root causes,
+  ad-hoc manual corrections, and permanent code fixes
+  - Includes verification commands, lessons learned, and references
+
+- **OpenLDAP Directory Structure Initialization**
+  - Added `customLdifFiles` to OpenLDAP Helm values to automatically create
+  `ou=users`, `ou=groups`, and `cn=admins` on all OpenLDAP pods at startup
+  - Fixes issue where multi-master replication didn't sync initial directory
+  structure (each pod initialized independently with empty directory)
+  - See [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md) for details
+
+- **LDAPClient Group Membership Handling**
+  - Added methods to detect group objectClass and use correct membership attribute
+  (`uniqueMember` for `groupOfUniqueNames`, `member` for `groupOfNames`)
+  - Added `update_user()` and `create_or_update_user()` for idempotent operations
+  - See [application/CHANGELOG.md](application/CHANGELOG.md) for details
+
+- **Image Tag Validation for Admin-Seed Job**
+  - Added validation to reject `"latest"` tag (which doesn't exist in ECR)
+  - Scripts and workflows fail early with helpful error if tag extraction fails
+  - Destroy scripts use empty string as fallback (acceptable for destroy operations)
+  - ECR uses commit-based tags; Backend Build workflow updates Helm values
 
 ### Changed
 
@@ -49,34 +93,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Email and phone verification still occur during signup as before
   - Updated documentation: [application/PRD_SIGNUP_MAN.md](application/PRD_SIGNUP_MAN.md),
   [application/PRD_ADMIN_FUNCS.md](application/PRD_ADMIN_FUNCS.md)
-
-### Added
-
-- **LDAP and Admin-Seed-Job Troubleshooting Guide**
-  - Created comprehensive troubleshooting document
-  [application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md](application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
-  documenting persistent OpenLDAP issues, investigation timeline, root causes,
-  ad-hoc manual corrections, and permanent code fixes
-  - Includes verification commands, lessons learned, and references
-
-- **OpenLDAP Directory Structure Initialization**
-  - Added `customLdifFiles` to OpenLDAP Helm values to automatically create
-  `ou=users`, `ou=groups`, and `cn=admins` on all OpenLDAP pods at startup
-  - Fixes issue where multi-master replication didn't sync initial directory
-  structure (each pod initialized independently with empty directory)
-  - See [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md) for details
-
-- **LDAPClient Group Membership Handling**
-  - Added methods to detect group objectClass and use correct membership attribute
-  (`uniqueMember` for `groupOfUniqueNames`, `member` for `groupOfNames`)
-  - Added `update_user()` and `create_or_update_user()` for idempotent operations
-  - See [application/CHANGELOG.md](application/CHANGELOG.md) for details
-
-- **Image Tag Validation for Admin-Seed Job**
-  - Added validation to reject `"latest"` tag (which doesn't exist in ECR)
-  - Scripts and workflows fail early with helpful error if tag extraction fails
-  - Destroy scripts use empty string as fallback (acceptable for destroy operations)
-  - ECR uses commit-based tags; Backend Build workflow updates Helm values
 
 ### Fixed
 
