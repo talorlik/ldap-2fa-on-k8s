@@ -87,11 +87,14 @@ Auto Mode ALB behavior (scheme, IP address type, certificate ARN, group name)
 - **Network Policies**: Kubernetes NetworkPolicies for secure internal cluster
 communication with cross-namespace access for LDAP service
 - **Container Image Management**: All third-party images (OpenLDAP, Redis,
-PostgreSQL) are mirrored to ECR to eliminate Docker Hub rate limits and external
-dependencies. Images are pulled from ECR during deployment
+PostgreSQL, phpLDAPadmin, LTB Self-Service Password) are mirrored to ECR to
+eliminate Docker Hub rate limits and external dependencies. Images are pulled
+from ECR during deployment
   - OpenLDAP: osixia/openldap:1.5.0 → ECR tag `openldap-1.5.0`
   - Redis: bitnami/redis:8.4.0-debian-12-r6 → ECR tag `redis-latest`
   - PostgreSQL: bitnami/postgresql:18.1.0-debian-12-r4 → ECR tag `postgresql-latest`
+  - phpLDAPadmin: osixia/phpldapadmin:0.9.0 → ECR tag `phpldapadmin-0.9.0`
+  - LTB Self-Service Password: ltbproject/self-service-password:5.2.3 → ECR tag `ltb-passwd-5.2.3`
 - **2FA Application**: Full-stack application with Python FastAPI backend and
 static HTML/JS/CSS frontend, supporting TOTP and SMS MFA methods
 - **User Signup Management**: Self-service registration with email/phone
@@ -144,11 +147,10 @@ ldap-2fa-on-k8s/
 │   │   ├── openldap/           # OpenLDAP Stack HA deployment
 │   │   ├── route53/            # Route53 hosted zone
 │   │   └── route53_record/     # Route53 A (alias) records
-│   ├── assume-github-role.sh
 │   ├── backend.hcl
 │   ├── destroy-application-infra.sh
 │   ├── main.tf
-│   ├── mirror-images-to-ecr.sh
+│   ├── monitor-deployments.sh  # Monitor application_infra deployments
 │   ├── CROSS_ACCOUNT_ACCESS.md
 │   ├── OPENLDAP_CHANGELOG.md
 │   ├── OPENLDAP_README.md
@@ -159,7 +161,6 @@ ldap-2fa-on-k8s/
 │   ├── PRD_DOMAIN.md
 │   ├── PRD_OPENLDAP.md
 │   ├── providers.tf
-│   ├── set-k8s-env.sh
 │   ├── setup-application-infra.sh
 │   ├── SECURITY_IMPROVEMENTS.md
 │   ├── SILENT_MODE_EXPLANATION.md
@@ -190,6 +191,7 @@ ldap-2fa-on-k8s/
 │   │   └── sns/
 │   ├── backend.hcl
 │   ├── destroy-application.sh
+│   ├── monitor-deployments.sh  # Monitor application deployments
 │   ├── setup-application.sh
 │   ├── main.tf
 │   ├── outputs.tf
@@ -222,6 +224,7 @@ ldap-2fa-on-k8s/
 │   ├── tfstate-backend-values-template.hcl
 │   ├── CHANGELOG.md
 │   ├── destroy-backend.sh
+│   ├── monitor-deployments.sh  # Monitor backend_infra deployments
 │   ├── setup-backend.sh
 │   └── README.md
 ├── docs/                        # GitHub Pages documentation
@@ -240,12 +243,16 @@ ldap-2fa-on-k8s/
 │   ├── set-state.sh
 │   ├── CHANGELOG.md
 │   └── README.md
+├── scripts/                     # Shared scripts used across all layers
+│   ├── assume-github-role.sh    # AWS account role switching
+│   ├── get-eks-token.sh         # EKS token exec plugin for Terraform
+│   ├── mirror-images-to-ecr.sh  # Mirror Docker Hub images to ECR
+│   └── set-k8s-env.sh           # Kubernetes environment setup
 ├── CHANGELOG.md
 ├── LICENSE
 ├── README.md
 ├── WARP.md
 ├── SECRETS_REQUIREMENTS.md
-├── monitor-deployments.sh
 ├── repomix.config.json
 ├── repomix_instructions.md
 └── repomix_output.md
@@ -405,11 +412,12 @@ This script will:
 environment variables
 - Create backend.hcl from template if it doesn't exist
 - Update variables.tfvars with selected values
-- **Mirror third-party Docker image to ECR** (OpenLDAP)
+- **Mirror third-party Docker images to ECR** (OpenLDAP, phpLDAPadmin,
+LTB Self-Service Password)
   - Checks if image already exists in ECR
   - Only mirrors if missing from Docker Hub
   - Uses Deployment Account credentials for ECR operations
-- Set Kubernetes environment variables using set-k8s-env.sh
+- Set Kubernetes environment variables using scripts/set-k8s-env.sh
 - Run all Terraform commands automatically (init, workspace, validate, plan,
 apply)
 
@@ -514,7 +522,7 @@ The `assume-github-role.sh` script provides a convenient way to switch between
 State Account, Development Account, and Production Account roles when working locally.
 
 ```bash
-cd application_infra
+cd scripts
 
 # Interactive mode (prompts for account selection)
 source ./assume-github-role.sh
@@ -563,7 +571,7 @@ from Docker Hub to ECR. This eliminates Docker Hub rate limits and external
 dependencies.
 
 ```bash
-cd application
+cd scripts
 
 # Run manually (if needed)
 ./mirror-images-to-ecr.sh
@@ -579,6 +587,8 @@ The script:
   - `redis-latest` tag for Redis (bitnami/redis:latest)
   - `postgresql-latest` tag for PostgreSQL (bitnami/postgresql:latest)
   - `openldap-1.5.0` for OpenLDAP (osixia/openldap:1.5.0)
+  - `phpldapadmin-0.9.0` for phpLDAPadmin (osixia/phpldapadmin:0.9.0)
+  - `ltb-passwd-5.2.3` for LTB Self-Service Password (ltbproject/self-service-password:5.2.3)
 
 **Push Custom Docker Image to ECR:**
 
@@ -593,7 +603,7 @@ docker push <ecr_url>:<tag>
 
 > [!NOTE]
 >
-> The `setup-application.sh` script automatically runs the image
+> The `setup-application-infra.sh` script automatically runs the image
 > mirroring script, so manual execution is typically not needed.
 
 ## Key Configuration Files
@@ -637,14 +647,16 @@ confirmations
   - OpenLDAP passwords retrieved automatically by setup-application-infra.sh from
   AWS Secrets Manager
 - `application_infra/setup-application-infra.sh` - Setup script for infrastructure
-deployment (retrieves secrets from AWS Secrets Manager, mirrors OpenLDAP image
-to ECR)
+deployment (retrieves secrets from AWS Secrets Manager, mirrors third-party
+images to ECR)
 - `application_infra/destroy-application-infra.sh` - Automated destroy script with
 safety
 confirmations and Kubernetes environment setup
-- `application_infra/set-k8s-env.sh` - Kubernetes environment variable configuration
-- `application_infra/mirror-images-to-ecr.sh` - ECR image mirroring script for OpenLDAP
-(called by setup-application-infra.sh)
+- `scripts/set-k8s-env.sh` - Kubernetes environment variable configuration
+(shared across all layers)
+- `scripts/mirror-images-to-ecr.sh` - ECR image mirroring script for all
+third-party images (OpenLDAP, phpLDAPadmin, LTB Self-Service Password, Redis,
+PostgreSQL; called by setup-application-infra.sh)
 - `application_infra/charts/openldap-stack-ha/` - Vendored OpenLDAP Helm chart
 (version 5.0.0, osixia/openldap:1.5.0)
 - `application_infra/helm/openldap-values.tpl.yaml` - Helm chart values template
@@ -907,8 +919,11 @@ rate limits during pod startup
   - `redis-latest` tag for Redis (bitnami/redis:latest)
   - `postgresql-latest` tag for PostgreSQL (bitnami/postgresql:latest)
   - `openldap-1.5.0` for OpenLDAP (osixia/openldap:1.5.0) - version-pinned
-- **Automatic mirroring**: `setup-application.sh` and GitHub Actions workflow
-automatically check and mirror images before Terraform deployment
+  - `phpldapadmin-0.9.0` for phpLDAPadmin (osixia/phpldapadmin:0.9.0)
+  - `ltb-passwd-5.2.3` for LTB Self-Service Password
+  (ltbproject/self-service-password:5.2.3)
+- **Automatic mirroring**: `setup-application-infra.sh` and GitHub Actions
+workflow automatically check and mirror images before Terraform deployment
 - **Idempotent operation**: Script only mirrors images that don't already exist
 in ECR
 - **Multi-account support**: Script properly handles credential switching between
@@ -1051,6 +1066,77 @@ deployment)
 workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - February 2026)
+
+### Script Consolidation, EKS Token Exec Plugin, and Image Mirroring Enhancements (Feb 23, 2026)
+
+- **Scripts Consolidated into `scripts/` Directory**:
+  - Moved shared scripts from `application_infra/` to centralized `scripts/`
+  directory:
+    - `assume-github-role.sh` - AWS account role switching
+    - `set-k8s-env.sh` - Kubernetes environment setup
+    - `mirror-images-to-ecr.sh` - Docker Hub to ECR image mirroring
+  - All setup/destroy scripts and GitHub Actions workflows updated to reference
+  `../scripts/` paths
+  - Eliminates script duplication and ensures single source of truth
+
+- **New EKS Token Exec Plugin (`scripts/get-eks-token.sh`)**:
+  - Generates fresh EKS authentication tokens on every Kubernetes API call
+  - Prevents token expiration issues during long Terraform operations (e.g., Helm
+  releases with 20-minute timeouts)
+  - Used by Terraform `kubernetes` and `helm` providers via exec plugin
+  configuration
+  - Supports optional cross-account role assumption with ExternalId
+  - Environment variables set by Terraform exec block: `EKS_CLUSTER_NAME`,
+  `EKS_REGION`, `ASSUME_ROLE_ARN`, `ASSUME_EXTERNAL_ID`
+  - All three providers.tf files (backend_infra, application_infra, application)
+  updated to use exec-based token retrieval instead of static tokens
+
+- **Per-Layer Deployment Monitoring Scripts**:
+  - Removed root-level `monitor-deployments.sh`
+  - Created layer-specific monitoring scripts:
+    - `backend_infra/monitor-deployments.sh` - Monitors VPC, EKS, ECR resources
+    - `application_infra/monitor-deployments.sh` - Monitors OpenLDAP, ALB,
+    ArgoCD resources
+    - `application/monitor-deployments.sh` - Monitors 2FA app, PostgreSQL,
+    Redis, ArgoCD Applications
+  - Each script produces a report that can be used as context for troubleshooting
+  - Interactive region and environment selection
+  - Automatic role assumption via AWS Secrets Manager
+
+- **ECR Image Mirroring Enhancements**:
+  - phpLDAPadmin (osixia/phpldapadmin:0.9.0) now mirrored to ECR with tag
+  `phpldapadmin-0.9.0`
+  - LTB Self-Service Password (ltbproject/self-service-password:5.2.3) now
+  mirrored to ECR with tag `ltb-passwd-5.2.3`
+  - OpenLDAP Helm values template updated to inject all image tags from ECR
+  variables
+  - New Terraform variables: `phpldapadmin_image_tag` (default:
+  `phpldapadmin-0.9.0`) and `ltb_passwd_image_tag` (default: `ltb-passwd-5.2.3`)
+
+- **OpenLDAP Helm Release Timeout Increase**:
+  - Timeout increased from 300s to 1200s (20 minutes) for more reliable
+  deployments
+
+- **StorageClass Volume Binding Mode**:
+  - Changed from `Immediate` to `WaitForFirstConsumer` for proper EKS Auto Mode
+  behavior (PVCs stay Pending until pod is scheduled)
+
+- **ArgoCD Module Dependency Improvements**:
+  - Added `time_sleep` wait resources for IAM and namespace propagation
+  - Improved resource ordering to avoid race conditions during ArgoCD capability
+  creation
+  - EKS access policy association now waits for ArgoCD readiness
+  - ArgoCD external data source updated to use `scripts/assume-github-role.sh`
+  path
+
+- **Password Environment Variable Name Correction**:
+  - Corrected environment variable names for OpenLDAP passwords to use
+  `LDAP_ADMIN_PASSWORD` and `LDAP_CONFIG_PASSWORD` consistently
+
+- **GitHub Actions Workflow Updates**:
+  - All workflows updated to reference scripts from `../scripts/` directory
+  - Added step to ensure `get-eks-token.sh` is executable in workflows
+  - Workflows now use exec-based EKS token retrieval for Kubernetes operations
 
 ### OpenLDAP Chart Vendoring and Directory Structure Initialization (Unreleased)
 
@@ -1403,7 +1489,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Includes `--help` option with usage examples and documentation
   - Automatically cleans existing AWS credentials before role assumption to prevent
   conflicts
-  - Located at `application_infra/assume-github-role.sh` (490+ lines)
+  - Located at `scripts/assume-github-role.sh` (490+ lines)
 
 - **Application Deployment Validation**:
   - Added ArgoCD capability ACTIVE status check in `application/setup-application.sh`
@@ -1495,7 +1581,9 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Contains OpenLDAP, ALB, ArgoCD Capability, network-policies, Route53 records
   (phpldapadmin, ltb-passwd). cert-manager module exists but is not invoked.
   - Scripts: `setup-application-infra.sh`, `destroy-application-infra.sh`,
-  `mirror-images-to-ecr.sh`, `set-k8s-env.sh`
+  `monitor-deployments.sh`
+  - Shared scripts in `scripts/`: `mirror-images-to-ecr.sh`, `set-k8s-env.sh`,
+  `assume-github-role.sh`, `get-eks-token.sh`
   - Exports outputs for application use: `storage_class_name`, `local_cluster_secret_name`,
   `argocd_namespace`, `argocd_project_name`, `alb_dns_name`
   - State file key: `application_infra_state/terraform.tfstate`
@@ -1504,7 +1592,8 @@ workflow or `setup-backend.sh` script (required for build workflows)
 - **Application Components (`application/`)**
   - Contains 2FA application code: `backend/` (Python FastAPI), `frontend/` (HTML/JS/CSS)
   - Contains application modules: argocd_app, postgresql, redis, ses, sns
-  - Scripts: `setup-application.sh`, `destroy-application.sh`
+  - Scripts: `setup-application.sh`, `destroy-application.sh`,
+  `monitor-deployments.sh`
   - References `application_infra` remote state for infrastructure dependencies
   - State file key: `application_state/terraform.tfstate`
   (uses `APPLICATION_PREFIX` repository variable)
