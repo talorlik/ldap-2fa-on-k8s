@@ -681,7 +681,8 @@ layer** (PostgreSQL, Redis, 2FA app, ingress, ALB). Run it from this directory;
 it prompts for region and environment, then produces a report. For backend-infra
 and application-infra monitoring, use `backend_infra/monitor-deployments.sh` and
 `application_infra/monitor-deployments.sh`. Setup and destroy scripts use
-`scripts/set-k8s-env.sh` for Kubernetes env and kubeconfig. See [Operations & Monitoring](../README.md#operations--monitoring) in the main README.
+`scripts/set-k8s-env.sh` for Kubernetes env and kubeconfig.
+See [Operations & Monitoring](../README.md#operations--monitoring) in the main README.
 
 ## Troubleshooting
 
