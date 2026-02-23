@@ -10,7 +10,15 @@
 
 set -euo pipefail
 
+# Save caller's working directory before changing to script directory
+_MIRROR_CALLER_PWD="$(pwd)"
 cd "$(dirname "$0")"
+
+# Resolve BACKEND_FILE relative to caller's working directory
+# This ensures the script works correctly regardless of where it lives
+if [ -n "${BACKEND_FILE:-}" ] && [[ "$BACKEND_FILE" != /* ]] && [ -f "$_MIRROR_CALLER_PWD/$BACKEND_FILE" ]; then
+    BACKEND_FILE="$_MIRROR_CALLER_PWD/$BACKEND_FILE"
+fi
 
 # Colors for output (if not already defined by sourcing script)
 if [ -z "${RED:-}" ]; then

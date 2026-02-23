@@ -135,15 +135,15 @@ jobs:
           # 1. Fetches ECR URL from backend_infra state (using State Account credentials)
           # 2. Assumes Deployment Account role for ECR operations
           # 3. Checks if images exist, mirrors only missing ones
-          chmod +x ./mirror-images-to-ecr.sh
-          ./mirror-images-to-ecr.sh
+          chmod +x ../scripts/mirror-images-to-ecr.sh
+          ../scripts/mirror-images-to-ecr.sh
 
       - name: Set Kubernetes environment variables
         run: |
           # set-k8s-env.sh expects State Account credentials to be active for S3 operations
           # It will assume Deployment Account role internally for EKS operations
-          chmod +x ./set-k8s-env.sh
-          source ./set-k8s-env.sh
+          chmod +x ../scripts/set-k8s-env.sh
+          source ../scripts/set-k8s-env.sh
           # Export as TF_VAR_ environment variables for Terraform
           echo "TF_VAR_kubernetes_master=$KUBERNETES_MASTER" >> $GITHUB_ENV
           echo "TF_VAR_kube_config_path=$KUBE_CONFIG_PATH" >> $GITHUB_ENV
@@ -172,7 +172,10 @@ jobs:
           fi
 
       - name: Ensure assume-github-role.sh is executable
-        run: chmod +x ./assume-github-role.sh
+        run: chmod +x ../scripts/assume-github-role.sh
+
+      - name: Ensure get-eks-token.sh is executable
+        run: chmod +x ../scripts/get-eks-token.sh
 
       - name: Terraform plan
         run: terraform plan -var-file="variables.tfvars" -out terraform.tfplan

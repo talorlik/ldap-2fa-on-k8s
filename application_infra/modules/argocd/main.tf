@@ -252,9 +252,9 @@ data "external" "argocd_capability" {
     # DEPLOYMENT_ROLE_ARN/EXTERNAL_ID from environment variables, or falls back
     # to AWS Secrets Manager for local environments
     if [ -z "$ERR" ]; then
-      SCRIPT_PATH="${path.root}/assume-github-role.sh"
+      SCRIPT_PATH="${path.root}/../scripts/assume-github-role.sh"
       if [ ! -x "$SCRIPT_PATH" ]; then
-        SCRIPT_PATH="./assume-github-role.sh"
+        SCRIPT_PATH="../scripts/assume-github-role.sh"
       fi
 
       if [ ! -x "$SCRIPT_PATH" ]; then

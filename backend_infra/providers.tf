@@ -35,12 +35,25 @@ provider "aws" {
   }
 }
 
+# EKS token exec configuration
+# Uses get-eks-token.sh to generate fresh tokens on every Kubernetes API call,
+# preventing token expiration during long Terraform operations.
+locals {
+  eks_exec_env = {
+    EKS_CLUSTER_NAME   = module.eks.cluster_name
+    EKS_REGION         = var.region
+    ASSUME_ROLE_ARN    = var.deployment_account_role_arn != null ? var.deployment_account_role_arn : ""
+    ASSUME_EXTERNAL_ID = var.deployment_account_external_id != null ? var.deployment_account_external_id : ""
+  }
+}
+
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-  token                  = data.aws_eks_cluster_auth.cluster.token
-}
 
-data "aws_eks_cluster_auth" "cluster" {
-  name = module.eks.cluster_name
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "${path.module}/../scripts/get-eks-token.sh"
+    env         = local.eks_exec_env
+  }
 }

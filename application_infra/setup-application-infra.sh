@@ -487,16 +487,16 @@ echo ""
 
 # Mirror third-party images to ECR (if not already present)
 print_info "Checking if Docker images need to be mirrored to ECR..."
-if [ ! -f "mirror-images-to-ecr.sh" ]; then
+if [ ! -f "../scripts/mirror-images-to-ecr.sh" ]; then
     print_error "mirror-images-to-ecr.sh not found."
     exit 1
 fi
 
 # Make sure the script is executable
-chmod +x ./mirror-images-to-ecr.sh
+chmod +x ../scripts/mirror-images-to-ecr.sh
 
 # Run the image mirroring script
-if ./mirror-images-to-ecr.sh; then
+if ../scripts/mirror-images-to-ecr.sh; then
     print_success "ECR image mirroring completed"
 else
     print_error "ECR image mirroring failed"
@@ -509,20 +509,20 @@ terraform validate
 
 # Set Kubernetes environment variables
 print_info "Setting Kubernetes environment variables..."
-if [ ! -f "set-k8s-env.sh" ]; then
+if [ ! -f "../scripts/set-k8s-env.sh" ]; then
     print_error "set-k8s-env.sh not found."
     exit 1
 fi
 
 # Make sure the script is executable
-chmod +x ./set-k8s-env.sh
+chmod +x ../scripts/set-k8s-env.sh
 
 # Export backend_infra workspace for set-k8s-env.sh (consistent behavior when sourced from scripts or CI)
 export TERRAFORM_WORKSPACE="$WORKSPACE_NAME"
 
 # Source the script to set environment variables
 # The script uses environment variables (Deployment Account credentials for EKS, State Account credentials for S3)
-source ./set-k8s-env.sh
+source ../scripts/set-k8s-env.sh
 
 if [ -z "$KUBERNETES_MASTER" ]; then
     print_error "Failed to set KUBERNETES_MASTER environment variable."

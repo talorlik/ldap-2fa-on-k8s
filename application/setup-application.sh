@@ -664,13 +664,13 @@ echo ""
 # Set Kubernetes environment variables
 # Use the infrastructure's set-k8s-env.sh script (shared between infrastructure and application)
 print_info "Setting Kubernetes environment variables..."
-if [ ! -f "../application_infra/set-k8s-env.sh" ]; then
-    print_error "../application_infra/set-k8s-env.sh not found. Ensure infrastructure is deployed first."
+if [ ! -f "../scripts/set-k8s-env.sh" ]; then
+    print_error "../scripts/set-k8s-env.sh not found. Ensure infrastructure is deployed first."
     exit 1
 fi
 
 # Make sure the script is executable
-chmod +x ../application_infra/set-k8s-env.sh
+chmod +x ../scripts/set-k8s-env.sh
 
 # Export backend_infra workspace for set-k8s-env.sh (so it reads correct state when run from application/)
 export TERRAFORM_WORKSPACE="$WORKSPACE_NAME"
@@ -681,7 +681,7 @@ SAVED_PWD="$(pwd)"
 
 # Source the script to set environment variables
 # The script uses environment variables (Deployment Account credentials for EKS, State Account credentials for S3)
-source ../application_infra/set-k8s-env.sh
+source ../scripts/set-k8s-env.sh
 
 # Restore directory - critical to ensure terraform runs against correct state
 cd "$SAVED_PWD"

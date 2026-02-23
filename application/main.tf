@@ -259,7 +259,7 @@ resource "kubernetes_namespace" "backend_app" {
 # IMPORTANT: Cross-namespace secret reading works because:
 # 1. Terraform Kubernetes provider uses the Kubernetes API (not pod-to-pod communication)
 # 2. Network policies only affect pod-to-pod traffic, not API calls
-# 3. The provider authenticates via EKS cluster auth (data.aws_eks_cluster_auth.cluster.token)
+# 3. The provider authenticates via EKS cluster auth (exec plugin with get-eks-token.sh)
 #    which typically grants cluster-admin permissions, allowing secret reads from any namespace
 #
 # If the secret doesn't exist or cannot be read, we fall back to var.openldap_admin_password

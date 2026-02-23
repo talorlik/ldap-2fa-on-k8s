@@ -28,6 +28,16 @@ _SET_K8S_ENV_ORIGINAL_PWD="$(pwd)"
 
 cd "$SCRIPT_DIR"
 
+# Resolve BACKEND_FILE and VARIABLES_FILE relative to caller's working directory
+# (before cd changed us to script dir). This ensures the scripts work correctly
+# regardless of where the script lives (e.g., scripts/ instead of application_infra/).
+if [ -n "${BACKEND_FILE:-}" ] && [[ "$BACKEND_FILE" != /* ]] && [ -f "$_SET_K8S_ENV_ORIGINAL_PWD/$BACKEND_FILE" ]; then
+    BACKEND_FILE="$_SET_K8S_ENV_ORIGINAL_PWD/$BACKEND_FILE"
+fi
+if [ -n "${VARIABLES_FILE:-}" ] && [[ "$VARIABLES_FILE" != /* ]] && [ -f "$_SET_K8S_ENV_ORIGINAL_PWD/$VARIABLES_FILE" ]; then
+    VARIABLES_FILE="$_SET_K8S_ENV_ORIGINAL_PWD/$VARIABLES_FILE"
+fi
+
 # Colors for output (if not already defined by sourcing script)
 if [ -z "${RED:-}" ]; then
     RED='\033[0;31m'

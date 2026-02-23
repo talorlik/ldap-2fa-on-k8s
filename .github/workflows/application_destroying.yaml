@@ -195,8 +195,8 @@ jobs:
           # set-k8s-env.sh expects State Account credentials to be active for S3 operations
           # It will assume Deployment Account role internally for EKS operations
           # Use the infrastructure's set-k8s-env.sh script (shared between infrastructure and application)
-          chmod +x ../application_infra/set-k8s-env.sh
-          source ../application_infra/set-k8s-env.sh
+          chmod +x ../scripts/set-k8s-env.sh
+          source ../scripts/set-k8s-env.sh
           # Export as TF_VAR_ environment variables for Terraform
           echo "TF_VAR_kubernetes_master=$KUBERNETES_MASTER" >> $GITHUB_ENV
           echo "TF_VAR_kube_config_path=$KUBE_CONFIG_PATH" >> $GITHUB_ENV
@@ -243,6 +243,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_STATE_ACCOUNT_ROLE_ARN }}
           role-session-name: GitHubActions-ApplicationDestroy-Terraform
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Ensure get-eks-token.sh is executable
+        run: chmod +x ../scripts/get-eks-token.sh
 
       - name: Terraform plan destroy
         run: terraform plan -var-file="variables.tfvars" -destroy -out terraform.tfplan
