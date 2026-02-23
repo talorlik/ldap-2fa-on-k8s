@@ -182,3 +182,10 @@ jobs:
 
       - name: Provision application infrastructure
         run: terraform apply -auto-approve terraform.tfplan
+
+      - name: Log troubleshooting hint on failure
+        if: failure()
+        run: |
+          echo "## Application Infra deployment failed" >> $GITHUB_STEP_SUMMARY
+          echo "See **application_infra/TROUBLESHOOTING.md** for ArgoCD and OpenLDAP failure causes and fixes." >> $GITHUB_STEP_SUMMARY
+          echo "Expand the failed step above for the exact Terraform/Helm error." >> $GITHUB_STEP_SUMMARY

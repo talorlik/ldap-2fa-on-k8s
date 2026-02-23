@@ -84,6 +84,24 @@ variable "ltb_passwd_image_tag" {
   default     = "ltb-passwd-5.2.3"
 }
 
+variable "openldap_helm_timeout" {
+  description = "OpenLDAP Helm release timeout in seconds. Increase on slow clusters or with Karpenter (node provisioning delay). Default 1200 (20 min)."
+  type        = number
+  default     = 1200
+}
+
+variable "openldap_replica_count" {
+  description = "OpenLDAP StatefulSet replica count. Use 1 for first deploy or to reduce resource use, then 3 for HA."
+  type        = number
+  default     = 3
+}
+
+variable "openldap_pre_deploy_delay_seconds" {
+  description = "Seconds to wait after StorageClass and ALB are ready before installing OpenLDAP. Use 30-60 on first deploy to let IngressClassParams settle. 0 disables."
+  type        = number
+  default     = 0
+}
+
 
 ##################### Storage ##########################
 
@@ -325,6 +343,18 @@ variable "argocd_delete_propagation_policy" {
     condition     = contains(["RETAIN", "DELETE"], var.argocd_delete_propagation_policy)
     error_message = "Delete propagation policy must be either 'RETAIN' or 'DELETE'"
   }
+}
+
+variable "argocd_wait_iam_propagation_duration" {
+  description = "Duration to wait for IAM/namespace before creating ArgoCD capability (e.g. 2m, 3m). Increase if capability creation fails."
+  type        = string
+  default     = "2m"
+}
+
+variable "argocd_wait_capability_ready_duration" {
+  description = "Duration to wait after ArgoCD capability creation (e.g. 5m, 8m). Increase if access policy or RBAC fails."
+  type        = string
+  default     = "5m"
 }
 
 ##################### Network Policies ##########################

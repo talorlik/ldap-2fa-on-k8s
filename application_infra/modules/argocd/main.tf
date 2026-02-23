@@ -153,7 +153,7 @@ resource "time_sleep" "wait_for_iam_and_ns_propagation" {
     kubernetes_namespace_v1.argocd,
   ]
 
-  create_duration = "2m"
+  create_duration = var.wait_iam_propagation_duration
 }
 
 # EKS Capability for ArgoCD
@@ -215,7 +215,7 @@ resource "aws_eks_capability" "argocd" {
 # Wait for ArgoCD capability to be fully deployed and ACTIVE
 # This ensures proper deployment ordering when ArgoCD is enabled
 resource "time_sleep" "wait_for_argocd" {
-  create_duration = "5m" # Wait 5 minutes for ArgoCD capability to be ready
+  create_duration = var.wait_capability_ready_duration
 
   depends_on = [aws_eks_capability.argocd]
 }

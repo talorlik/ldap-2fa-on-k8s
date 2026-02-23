@@ -86,6 +86,18 @@ variable "delete_propagation_policy" {
   }
 }
 
+variable "wait_iam_propagation_duration" {
+  description = "Duration to wait for IAM role and namespace propagation before creating EKS capability (e.g. 2m, 3m). Increase if capability creation fails with permission errors."
+  type        = string
+  default     = "2m"
+}
+
+variable "wait_capability_ready_duration" {
+  description = "Duration to wait after EKS capability creation before creating dependent resources (e.g. 5m, 8m). Increase if access policy association or RBAC fails with AccessDenied."
+  type        = string
+  default     = "5m"
+}
+
 # IAM Policy Resources
 variable "iam_policy_eks_resources" {
   description = "List of EKS resource ARNs for IAM policy (use ['*'] for all clusters)"

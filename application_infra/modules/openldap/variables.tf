@@ -152,3 +152,15 @@ variable "ltb_passwd_image_tag" {
   type        = string
   default     = "ltb-passwd-5.2.3"
 }
+
+variable "helm_timeout" {
+  description = "Helm release install/upgrade timeout in seconds. Increase on slow clusters or when using Karpenter (node provisioning delay)."
+  type        = number
+  default     = 1200
+}
+
+variable "replica_count" {
+  description = "Number of OpenLDAP StatefulSet replicas. Use 1 for first deploy or small clusters, then scale to 3 for HA."
+  type        = number
+  default     = 3
+}

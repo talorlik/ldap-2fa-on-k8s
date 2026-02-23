@@ -1,5 +1,5 @@
-# High availability configuration with 3 replicas
-replicaCount: 3
+# Replica count (use 1 for first deploy, then 3 for HA)
+replicaCount: ${openldap_replica_count}
 
 # Image from ECR
 image:
@@ -28,6 +28,25 @@ tls:
 replication:
   enabled: true
   clusterName: "cluster.local"
+
+# Resources aligned with OpenLDAP/LMDB guidance (Symas sizing, OpenLDAP tuning).
+# Requests and limits match for predictable scheduling (no bursting).
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "1"
+  limits:
+    memory: "1Gi"
+    cpu: "1"
+
+# Allow up to 10 min for first replica to start (cold node, image pull, PVC attach)
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 1
+  successThreshold: 1
+  failureThreshold: 60
 
 # Pass ldapDomain and existingSecret to subcharts via global
 global:

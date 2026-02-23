@@ -22,6 +22,7 @@ locals {
       openldap_image_tag     = var.openldap_image_tag
       phpldapadmin_image_tag = var.phpldapadmin_image_tag
       ltb_passwd_image_tag   = var.ltb_passwd_image_tag
+      openldap_replica_count = var.replica_count
       # ALB configuration - IngressClassParams handles scheme and ipAddressType
       ingress_class_name     = var.use_alb && var.ingress_class_name != null ? var.ingress_class_name : "alb"
       alb_load_balancer_name = var.alb_load_balancer_name
@@ -104,7 +105,7 @@ resource "helm_release" "openldap" {
   wait            = true
   wait_for_jobs   = true
   upgrade_install = true
-  timeout         = 1200 # 20 minutes
+  timeout         = var.helm_timeout
   replace         = true
 
   values = [local.openldap_values]

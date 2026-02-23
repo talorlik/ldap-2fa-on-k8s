@@ -443,11 +443,54 @@ configured:
     - `APPLICATION_INFRA_PREFIX`: State file key prefix (value: `application_infra_state/terraform.tfstate`)
 
 14. **Docker (for Local Deployment)**: Docker must be installed and running for
-ECR image mirroring. The `scripts/mirror-images-to-ecr.sh` script requires Docker to
-pull images from Docker Hub and push them to ECR.
+ECR image mirroring. The `scripts/mirror-images-to-ecr.sh` script requires Docker
+to pull images from Docker Hub and push them to ECR.
 15. **jq (for Local Deployment)**: The `jq` command-line tool is required for
 JSON parsing in the image mirroring script (with fallback to sed for
 compatibility).
+
+## Deployment Order (ArgoCD and OpenLDAP)
+
+**ArgoCD must be deployed first** when `enable_argocd = true`. OpenLDAP is
+deployed by Terraform (Helm) and does not depend on ArgoCD for operation, but
+Terraform enforces ArgoCD-before-OpenLDAP so the capability is ACTIVE before
+other cluster resources are created.
+
+### What ArgoCD Requires (to operate correctly)
+
+- **EKS cluster** (existing, any supported version)
+- **AWS Identity Center** (IdC) configured; local users are not supported
+- **IAM capability role** with permissions for Argo CD (EKS describe, Secrets
+  Manager, CodeConnections; optionally ECR/CodeCommit for private repos)
+- **Cluster registration** (Kubernetes Secret in `argocd` namespace) so
+  Applications can target the local cluster
+
+See [Create an Argo CD capability (AWS)](https://docs.aws.amazon.com/eks/latest/userguide/create-argocd-capability.html)
+and [PRD_ArgoCD.md](PRD_ArgoCD.md).
+
+### What OpenLDAP Requires (to operate correctly)
+
+- **StorageClass** (for PVCs); created by this Terraform
+- **ALB module** (when `use_alb = true`): IngressClass and IngressClassParams
+  so the chart's Ingress resources get an ALB
+- **Optional**: `openldap_pre_deploy_delay_seconds` after ALB/StorageClass for
+  first-time cluster readiness
+
+OpenLDAP does **not** require ArgoCD. It is installed by Terraform via Helm,
+not by an Argo CD Application.
+
+### Terraform Execution Order
+
+1. **ArgoCD** (if enabled): IAM role, namespace, wait, EKS capability, wait,
+   then cluster secret and RBAC (ClusterRole, ClusterRoleBinding, access
+   policy).
+2. **StorageClass** and **ALB** (optional wait if `wait_for_crd = true`).
+3. **OpenLDAP**: namespace, secret, Helm release; depends on StorageClass, ALB,
+   and (when ArgoCD is enabled) ArgoCD module.
+4. **Route53 records** and other resources that depend on OpenLDAP/ALB.
+
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md#deployment-order-summary) for
+failure handling.
 
 ## Backend State Configuration
 
@@ -568,9 +611,9 @@ The backend configuration (bucket, key, region) is read from `backend_infra/back
 
 #### Kubernetes Kubeconfig Auto-Update
 
-The `scripts/set-k8s-env.sh` script automatically updates the kubeconfig file on every
-run to ensure it always contains the latest cluster endpoint. This prevents issues
-with stale kubeconfig entries that can occur when:
+The `scripts/set-k8s-env.sh` script automatically updates the kubeconfig file on
+every run to ensure it always contains the latest cluster endpoint. This prevents
+issues with stale kubeconfig entries that can occur when:
 
 - The EKS cluster is recreated (new cluster endpoint)
 - The cluster endpoint changes due to AWS infrastructure updates
@@ -804,9 +847,9 @@ Terraform operations (required for accessing backend_infra remote state via `pro
 
 > [!NOTE]
 >
-> The `scripts/set-k8s-env.sh` script correctly resolves its directory path when sourced
-> (using `${BASH_SOURCE[0]}`), ensuring it works both locally and in GitHub Actions.
-> It uses `BACKEND_PREFIX` (from repository variables or `backend_infra/backend.hcl`)
+> The `scripts/set-k8s-env.sh` script correctly resolves its directory path when
+> sourced (using `${BASH_SOURCE[0]}`), ensuring it works both locally and in
+> GitHub Actions. It uses `BACKEND_PREFIX` (from repository variables or `backend_infra/backend.hcl`)
 > for the backend_infra state key, and `TERRAFORM_WORKSPACE` or `AWS_REGION`+`ENVIRONMENT`
 > for the workspace. Callers (setup/destroy scripts and CI) should export
 > `TERRAFORM_WORKSPACE` before sourcing so the correct state is read. The script
@@ -883,8 +926,8 @@ The destroying workflow will:
 
 - Install `jq` command-line tool (required for ArgoCD module external data source)
 - Make `scripts/assume-github-role.sh` executable (for local fallback)
-- Export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX` for `scripts/set-k8s-env.sh` and state
-path consistency
+- Export `TERRAFORM_WORKSPACE` and `BACKEND_PREFIX` for `scripts/set-k8s-env.sh`
+and state path consistency
 - Use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations and
   Route53/ACM access
 - Use environment-specific deployment account role ARN
@@ -939,8 +982,8 @@ instructions, including:
 
 **Purpose:**
 
-The `scripts/mirror-images-to-ecr.sh` script eliminates Docker Hub rate limiting and
-external dependencies by mirroring third-party container images to a private
+The `scripts/mirror-images-to-ecr.sh` script eliminates Docker Hub rate limiting
+and external dependencies by mirroring third-party container images to a private
 ECR repository. This ensures reliable deployments without depending on Docker
 Hub availability or rate limits.
 
@@ -991,10 +1034,10 @@ for the workspace so the correct state path is used when run locally or from CI.
 
 #### Role Assumption Script (`scripts/assume-github-role.sh`)
 
-The `scripts/assume-github-role.sh` script provides a convenient way to assume AWS IAM
-roles for different accounts (State, Development, Production) when working in the
-terminal. This script is used internally by the ArgoCD module's external data
-resource and can also be used manually for role switching.
+The `scripts/assume-github-role.sh` script provides a convenient way to assume
+AWS IAM roles for different accounts (State, Development, Production) when working
+in the terminal. This script is used internally by the ArgoCD module's external
+data resource and can also be used manually for role switching.
 
 **Purpose:**
 
