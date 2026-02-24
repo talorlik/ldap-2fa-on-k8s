@@ -238,12 +238,13 @@ jobs:
               echo "Found ${PVC_COUNT} PVC(s) remaining in ldap namespace."
               echo "Helm does not delete PVCs by default. Deleting PVCs now..."
               echo "This will also delete the underlying EBS volumes (reclaim_policy=Delete)."
-              
-              if kubectl delete pvc --all -n ldap; then
-                echo "✅ PVCs deleted successfully!"
+              # Use --wait=false so we don't block: EBS detach/delete can take minutes.
+              # PVCs will finish terminating and EBS volumes will be reclaimed asynchronously.
+              if kubectl delete pvc --all -n ldap --wait=false; then
+                echo "✅ PVC delete requested. They will terminate in the background."
               else
                 echo "::warning::Failed to delete PVCs. You may need to delete them manually:"
-                echo "  kubectl delete pvc --all -n ldap"
+                echo "  kubectl delete pvc --all -n ldap --wait=false"
               fi
             else
               echo "No PVCs found in ldap namespace (already cleaned up)."
