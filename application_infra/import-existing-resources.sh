@@ -56,8 +56,8 @@ read_error_content() {
 }
 
 # Parse "already exists" blocks from Terraform error output.
-# Extracts resource address (from "with ADDRESS,") and optional name (from "NAME" already exists).
-# Outputs one line per resource: ADDRESS\tNAME (NAME may be empty). Uses portable awk.
+# Terraform prints: "with module.xxx," then later "resource \"/NAME\" already exists" (or "already" and "exists" on two lines).
+# Extracts resource address and name. Outputs one line per resource: ADDRESS\tNAME. Uses portable awk.
 parse_already_exists() {
   local content="$1"
   echo "$content" | awk '
@@ -68,21 +68,22 @@ parse_already_exists() {
       }
       next
     }
-    /already exists/ {
+    # Only match the "resource \"/name\" already exists" line, not "in resource \"kubernetes_manifest\""
+    index($0, "resource \"/") > 0 {
       if (addr == "") next
       name = ""
-      if (match($0, /"[^"]+"[[:space:]]+already exists/)) {
-        start = index($0, "\"")
-        rest = substr($0, start + 1)
+      # Extract quoted string (format: resource "/name" or resource "/name" already)
+      start = index($0, "resource \"/")
+      if (start > 0) {
+        rest = substr($0, start + length("resource \"/"))
         end = index(rest, "\"")
-        if (end > 0) name = substr(rest, 1, end - 1)
-      } else if (match($0, /"[^"]+"/)) {
-        start = index($0, "\"")
-        rest = substr($0, start + 1)
-        end = index(rest, "\"")
-        if (end > 0) name = substr(rest, 1, end - 1)
+        if (end > 0) {
+          name = substr(rest, 1, end - 1)
+        }
       }
-      print addr "\t" name
+      if (name != "") {
+        print addr "\t" name
+      }
       addr = ""
     }
   '
@@ -140,6 +141,33 @@ import_resource() {
       fi
       [ -z "$cluster_name" ] && return 1
       import_id="${cluster_name},${name}"
+      ;;
+    module.argocd[0].kubernetes_manifest.argocd_application_controller_clusterrole)
+      if [ -z "$name" ]; then
+        name=$(get_tf_var 'module.argocd[0].argocd_capability_name')
+        [ -n "$name" ] && name="${name}-application-controller"
+      fi
+      [ -z "$name" ] && return 1
+      import_id="apiVersion=rbac.authorization.k8s.io/v1,kind=ClusterRole,name=$name"
+      need_kubectl=1
+      ;;
+    module.argocd[0].kubernetes_manifest.argocd_application_controller_clusterrolebinding)
+      if [ -z "$name" ]; then
+        name=$(get_tf_var 'module.argocd[0].argocd_capability_name')
+        [ -n "$name" ] && name="${name}-application-controller"
+      fi
+      [ -z "$name" ] && return 1
+      import_id="apiVersion=rbac.authorization.k8s.io/v1,kind=ClusterRoleBinding,name=$name"
+      need_kubectl=1
+      ;;
+    module.argocd[0].kubernetes_manifest.argocd_application_controller_iam_role_binding)
+      if [ -z "$name" ]; then
+        name=$(get_tf_var 'module.argocd[0].argocd_capability_name')
+        [ -n "$name" ] && name="${name}-application-controller-iam"
+      fi
+      [ -z "$name" ] && return 1
+      import_id="apiVersion=rbac.authorization.k8s.io/v1,kind=ClusterRoleBinding,name=$name"
+      need_kubectl=1
       ;;
     *)
       echo "No import rule for resource: $addr" >&2
