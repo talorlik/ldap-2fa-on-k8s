@@ -177,36 +177,11 @@ jobs:
       - name: Ensure get-eks-token.sh is executable
         run: chmod +x ../scripts/get-eks-token.sh
 
-      - name: Install kubectl (for import-existing-resources.sh if needed)
-        run: |
-          if ! command -v kubectl &> /dev/null; then
-            echo "Installing kubectl..."
-            curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-            chmod +x kubectl
-            sudo mv kubectl /usr/local/bin/
-          fi
-
-      - name: Import existing resources (if any)
-        run: |
-          chmod +x import-existing-resources.sh
-          ./import-existing-resources.sh || true
-
       - name: Terraform plan
         run: terraform plan -var-file="variables.tfvars" -out terraform.tfplan
 
       - name: Provision application infrastructure
-        id: apply
         run: terraform apply -auto-approve terraform.tfplan
-
-      - name: Import existing resources and retry apply
-        if: steps.apply.outcome == 'failure'
-        run: |
-          echo "Previous apply failed. Parsing error and importing existing resources, then retrying..."
-          # Capture apply error from the failed step by re-running apply to collect output (or use a stored log)
-          terraform apply -auto-approve terraform.tfplan 2>&1 | tee apply_err.log || true
-          ./import-existing-resources.sh apply_err.log || true
-          terraform plan -var-file="variables.tfvars" -out terraform.tfplan
-          terraform apply -auto-approve terraform.tfplan
 
       - name: Log troubleshooting hint on failure
         if: failure()

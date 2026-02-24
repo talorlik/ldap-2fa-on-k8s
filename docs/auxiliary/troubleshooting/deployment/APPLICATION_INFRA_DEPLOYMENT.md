@@ -240,12 +240,8 @@ state did not track them, different workspace/state, or destroy failed
 partway). They remain in the cluster but are not in Terraform state, so
 the next apply tries to create them and gets "already exists".
 
-**Fix:** The **setup script** and **Application Infra Provisioning**
-workflow run `import-existing-resources.sh`: it parses apply error output
-for "already exists" and imports those resources, then retries apply. You
-can also run it manually with the error log: `./import-existing-resources.sh
-apply-error.log`. If you prefer to import by hand from the
-**application_infra** directory:
+**Fix:** Import the existing resources into state so Terraform manages
+them. Run from the **application_infra** directory.
 
 1. Get the resource names (from your vars they are
    `<prefix>-<region>-<ingressclassparams_alb_name>-<env>` and

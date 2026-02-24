@@ -547,32 +547,13 @@ fi
 
 echo ""
 
-# Import existing resources (IngressClass, IngressClassParams, capability, etc.) if they exist,
-# so apply does not fail with "resource already exists" after a previous destroy that left them behind.
-if [ -f "./import-existing-resources.sh" ]; then
-  print_info "Importing existing resources (if any)..."
-  bash ./import-existing-resources.sh || true
-fi
-
 # Terraform plan
 print_info "Running terraform plan..."
 terraform plan -var-file="${VARIABLES_FILE}" -out terraform.tfplan
 
-# Terraform apply; on "already exists" failure, parse error and import failed resources, then retry once
+# Terraform apply
 print_info "Running terraform apply..."
-apply_log=$(mktemp)
-trap 'rm -f "$apply_log"' EXIT
-if ! (terraform apply -auto-approve terraform.tfplan 2>&1 | tee "$apply_log"); then
-  if grep -qE 'already exists|Cannot create resource that already exists' "$apply_log" 2>/dev/null; then
-    print_info "Apply failed due to existing resources. Importing them and retrying..."
-    bash ./import-existing-resources.sh "$apply_log" || true
-    print_info "Re-running terraform plan and apply..."
-    terraform plan -var-file="${VARIABLES_FILE}" -out terraform.tfplan
-    terraform apply -auto-approve terraform.tfplan
-  else
-    exit 1
-  fi
-fi
+terraform apply -auto-approve terraform.tfplan
 
 echo ""
 print_success "Script completed successfully!"
