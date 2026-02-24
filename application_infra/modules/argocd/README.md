@@ -17,11 +17,9 @@ The ArgoCD Capability module:
 
 1. **IAM Role** (`aws_iam_role.argocd_capability`)
    - Trusted by `capabilities.eks.amazonaws.com`
-   - AWS managed policy `AmazonEKSCapabilityArgoCD`
-   - Core integrations inline policy: EKS describe/list, Secrets Manager,
-   CodeConnections (incl. UseConnection), KMS decrypt (avoids AccessDenied when
-   the managed policy omits any of these)
-   - Optional supplemental inline policy for ECR and/or CodeCommit when enabled
+   - Single inline policy: EKS describe/list, Secrets Manager, KMS decrypt,
+   CodeConnections (incl. UseConnection), and optional ECR/CodeCommit when
+   enabled
 
 2. **EKS Capability** (`aws_eks_capability.argocd`)
    - Managed ArgoCD service running in EKS control plane
@@ -37,15 +35,15 @@ The ArgoCD Capability module:
 
 Resources are created in this order (later items wait for earlier ones).
 Roles and IAM-role bindings are created **before** the capability so the
-capability starts with permissions already in place.
+capability starts with permissions already in place. The capability
+resource explicitly depends on the ClusterRole and IAM-role
+ClusterRoleBinding so Terraform creates them first.
 
 **Before the capability:**
 
-1. **IAM role, managed policy, core integrations policy, and optional supplemental**
+1. **IAM role and inline policy**
    (`aws_iam_role.argocd_capability`,
-   `aws_iam_role_policy_attachment.argocd_capability_policy`,
-   `aws_iam_role_policy.argocd_core_integrations`,
-   `aws_iam_role_policy.argocd_supplemental` when ECR or CodeCommit enabled)
+   `aws_iam_role_policy.argocd_capability`)
 2. **Namespace** (`kubernetes_namespace_v1.argocd`)
 3. **Sleep** (`time_sleep.wait_for_iam_and_ns_propagation`) – IAM and namespace
    propagation
@@ -145,14 +143,14 @@ module "argocd" {
 | rbac_role_mappings | List of RBAC role mappings for Identity Center | list(object) | no | [] |
 | argocd_vpce_ids | List of VPC endpoint IDs for private access | list(string) | no | [] |
 | delete_propagation_policy | Delete propagation policy (RETAIN or DELETE) | string | no | "RETAIN" |
-| iam_policy_eks_resources | EKS resource ARNs for core integrations policy | list(string) | no | ["*"] |
-| iam_policy_secrets_manager_resources | Secrets Manager ARNs for core integrations policy | list(string) | no | ["*"] |
-| iam_policy_code_connections_resources | CodeConnections ARNs for core integrations policy | list(string) | no | ["*"] |
+| iam_policy_eks_resources | EKS resource ARNs for IAM policy | list(string) | no | ["*"] |
+| iam_policy_secrets_manager_resources | Secrets Manager ARNs for IAM policy | list(string) | no | ["*"] |
+| iam_policy_code_connections_resources | CodeConnections ARNs for IAM policy | list(string) | no | ["*"] |
 | iam_policy_kms_key_arns | KMS key ARNs for Secrets Manager decrypt | list(string) | no | ["*"] |
-| enable_ecr_access | Add ECR pull permissions (supplemental policy) | bool | no | false |
-| iam_policy_ecr_resources | ECR repository ARNs for supplemental policy | list(string) | no | ["*"] |
-| enable_codecommit_access | Add CodeCommit access (supplemental policy) | bool | no | false |
-| iam_policy_codecommit_resources | CodeCommit repository ARNs for supplemental policy | list(string) | no | ["*"] |
+| enable_ecr_access | Add ECR pull permissions to IAM policy | bool | no | false |
+| iam_policy_ecr_resources | ECR repository ARNs for IAM policy | list(string) | no | ["*"] |
+| enable_codecommit_access | Add CodeCommit access to IAM policy | bool | no | false |
+| iam_policy_codecommit_resources | CodeCommit repository ARNs for IAM policy | list(string) | no | ["*"] |
 
 ## Outputs
 
@@ -172,8 +170,8 @@ module "argocd" {
 >
 > The `argocd_server_url` and `argocd_capability_status` outputs are automatically
 > retrieved via an external data source that queries the AWS EKS capability using
-> AWS CLI. The external data source uses `scripts/assume-github-role.sh` script, which
-> automatically detects the execution environment:
+> AWS CLI. The external data source uses `scripts/assume-github-role.sh` script,
+> which automatically detects the execution environment:
 >
 > - **GitHub Actions**: The script uses `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID`
 >   environment variables (no AWS Secrets Manager access required)
@@ -219,15 +217,13 @@ Valid ArgoCD roles:
 
 ## IAM Policy
 
-The role has three sources of permissions:
+The role has a single **inline policy** with:
 
-1. **Managed policy** `AmazonEKSCapabilityArgoCD` (AWS-defined).
-2. **Core integrations** inline policy: EKS (DescribeCluster, ListClusters,
-   DescribeUpdate, ListUpdates), Secrets Manager (GetSecretValue,
-   DescribeSecret, ListSecrets), CodeConnections (UseConnection, GetConnection,
-   ListConnections), KMS (Decrypt, DescribeKey). This ensures the role has all
-   documented permissions even if the managed policy omits some.
-3. **Supplemental** inline policy (when enabled): ECR and/or CodeCommit.
+- EKS (DescribeCluster, ListClusters, DescribeUpdate, ListUpdates), Secrets
+  Manager (GetSecretValue, DescribeSecret, ListSecrets), KMS (Decrypt,
+  DescribeKey), CodeConnections (UseConnection, GetConnection, ListConnections)
+- Optional ECR and/or CodeCommit when `enable_ecr_access` and/or
+  `enable_codecommit_access` are true
 
 For production, scope resources via the IAM policy variables (e.g.
 `iam_policy_eks_resources`, `iam_policy_secrets_manager_resources`,
@@ -241,6 +237,34 @@ iam_policy_ecr_resources  = ["arn:aws:ecr:us-east-1:123456789012:repository/my-a
 enable_codecommit_access        = true
 iam_policy_codecommit_resources = ["arn:aws:codecommit:us-east-1:123456789012:my-repo"]
 ```
+
+### Permissions by service
+
+| Service | Actions | Variable for resources |
+| -------- | -------- | ----------------------- |
+| EKS | DescribeCluster, ListClusters, DescribeUpdate, ListUpdates | `iam_policy_eks_resources` |
+| Secrets Manager | GetSecretValue, DescribeSecret, ListSecrets | `iam_policy_secrets_manager_resources` |
+| KMS | Decrypt, DescribeKey | `iam_policy_kms_key_arns` |
+| CodeConnections | UseConnection, GetConnection, ListConnections | `iam_policy_code_connections_resources` |
+| ECR (optional) | GetAuthorizationToken, BatchCheckLayerAvailability, GetDownloadUrlForLayer, BatchGetImage | `iam_policy_ecr_resources` |
+| CodeCommit (optional) | GitPull, GetRepository | `iam_policy_codecommit_resources` |
+
+No AWS managed policy is used; the role has only the trust policy and this
+inline policy.
+
+### Recommendations
+
+1. **Least privilege:** Scope resources via the IAM policy variables instead of
+   `["*"]` where possible.
+2. **ECR:** Set `enable_ecr_access = true` (and pass it from the root module) if
+   Argo CD pulls from ECR.
+
+### AWS documentation
+
+- [Amazon EKS capability IAM role](https://docs.aws.amazon.com/eks/latest/userguide/capability-role.html)
+- [Argo CD considerations - Permissions](https://docs.aws.amazon.com/eks/latest/userguide/argocd-considerations.html)
+- [Configure Argo CD permissions - AWS service permissions](https://docs.aws.amazon.com/eks/latest/userguide/argocd-permissions.html)
+- [Connect to Git repositories with AWS CodeConnections](https://docs.aws.amazon.com/eks/latest/userguide/integration-codeconnections.html)
 
 ## Network Access Control
 
@@ -279,8 +303,8 @@ echo $TF_OUTPUT_argocd_server_url
 - IAM policies use wildcards by default; tighten for production use
 - Delete propagation policy defaults to `RETAIN` to prevent accidental deletion
 - The external data source requires `jq` command-line tool for JSON parsing
-- The external data source requires `scripts/assume-github-role.sh` script to be present
-  (in the repository `scripts/` directory; workflows run from application_infra)
+- The external data source requires `scripts/assume-github-role.sh` script to be
+present (in the repository `scripts/` directory; workflows run from application_infra)
 - The script automatically works in both environments:
   - **GitHub Actions**: Uses `DEPLOYMENT_ROLE_ARN`/`EXTERNAL_ID` environment variables
   - **Local**: Falls back to AWS Secrets Manager (secrets: `github-role`, `external-id`)

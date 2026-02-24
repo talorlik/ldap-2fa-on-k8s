@@ -44,15 +44,10 @@ resource "aws_iam_role" "argocd_capability" {
   }
 }
 
-# Core ArgoCD capability permissions (EKS, Secrets Manager, CodeConnections)
-resource "aws_iam_role_policy_attachment" "argocd_capability_policy" {
-  role       = aws_iam_role.argocd_capability.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSCapabilityArgoCD"
-}
-
-# Core integrations: EKS describe/list, Secrets Manager, CodeConnections (incl. UseConnection), KMS
-# Explicitly included so the role has all documented permissions even if the managed policy omits some.
-data "aws_iam_policy_document" "argocd_core_integrations" {
+# IAM Policy Document for ArgoCD Capability
+# Single inline policy with all required permissions: EKS, Secrets Manager, KMS,
+# CodeConnections (incl. UseConnection), and optional ECR/CodeCommit when enabled.
+data "aws_iam_policy_document" "argocd_capability" {
   statement {
     sid    = "EKSDescribe"
     effect = "Allow"
@@ -96,31 +91,18 @@ data "aws_iam_policy_document" "argocd_core_integrations" {
     ]
     resources = var.iam_policy_code_connections_resources
   }
-}
-
-resource "aws_iam_role_policy" "argocd_core_integrations" {
-  name   = "${local.argocd_role_name}-core-integrations"
-  role   = aws_iam_role.argocd_capability.id
-  policy = data.aws_iam_policy_document.argocd_core_integrations.json
-}
-
-# Optional extras: ECR and/or CodeCommit (only when at least one is enabled)
-data "aws_iam_policy_document" "argocd_supplemental" {
-  count = var.enable_ecr_access || var.enable_codecommit_access ? 1 : 0
 
   dynamic "statement" {
     for_each = var.enable_ecr_access ? [1] : []
     content {
       sid    = "ECRAccess"
       effect = "Allow"
-
       actions = [
         "ecr:GetAuthorizationToken",
         "ecr:BatchCheckLayerAvailability",
         "ecr:GetDownloadUrlForLayer",
         "ecr:BatchGetImage"
       ]
-
       resources = var.iam_policy_ecr_resources
     }
   }
@@ -130,23 +112,20 @@ data "aws_iam_policy_document" "argocd_supplemental" {
     content {
       sid    = "CodeCommitAccess"
       effect = "Allow"
-
       actions = [
         "codecommit:GitPull",
         "codecommit:GetRepository"
       ]
-
       resources = var.iam_policy_codecommit_resources
     }
   }
 }
 
-resource "aws_iam_role_policy" "argocd_supplemental" {
-  count = var.enable_ecr_access || var.enable_codecommit_access ? 1 : 0
-
-  name   = "${local.argocd_role_name}-supplemental"
+# Attach IAM Policy to Role
+resource "aws_iam_role_policy" "argocd_capability" {
+  name   = "${local.argocd_role_name}-policy"
   role   = aws_iam_role.argocd_capability.id
-  policy = data.aws_iam_policy_document.argocd_supplemental[0].json
+  policy = data.aws_iam_policy_document.argocd_capability.json
 }
 
 # Create ArgoCD namespace
@@ -173,9 +152,7 @@ resource "kubernetes_namespace_v1" "argocd" {
 resource "time_sleep" "wait_for_iam_and_ns_propagation" {
   depends_on = [
     aws_iam_role.argocd_capability,
-    aws_iam_role_policy_attachment.argocd_capability_policy,
-    aws_iam_role_policy.argocd_core_integrations,
-    aws_iam_role_policy.argocd_supplemental,
+    aws_iam_role_policy.argocd_capability,
     kubernetes_namespace_v1.argocd,
   ]
 
@@ -233,8 +210,13 @@ resource "aws_eks_capability" "argocd" {
     }
   )
 
+  # Create ClusterRole and IAM-role ClusterRoleBinding before the capability so
+  # the role has RBAC in place as soon as the capability starts. Only resources
+  # that require the capability (access entry, SAs) are created after.
   depends_on = [
-    time_sleep.wait_for_iam_and_ns_propagation
+    time_sleep.wait_for_iam_and_ns_propagation,
+    kubernetes_manifest.argocd_application_controller_clusterrole,
+    kubernetes_manifest.argocd_application_controller_iam_role_binding,
   ]
 }
 

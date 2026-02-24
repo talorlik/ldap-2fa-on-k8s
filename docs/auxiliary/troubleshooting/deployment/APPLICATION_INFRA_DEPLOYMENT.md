@@ -44,14 +44,12 @@ OpenLDAP via the Application Infra Provisioning workflow or local Terraform.
   `eks:DescribeCapability`, and related EKS permissions. The ArgoCD
   module creates its own IAM role; ensure the account has permission
   to create IAM roles and that EKS can assume the capability role.
-- **Capability role permissions:** The ArgoCD capability role has (1) AWS
-  managed policy `AmazonEKSCapabilityArgoCD`, (2) a core integrations
-  inline policy (EKS, Secrets Manager, CodeConnections, KMS), and (3)
-  an optional supplemental policy for ECR and CodeCommit when enabled.
-  ECR is enabled from the root via `argocd_enable_ecr_access`. See
-  [ArgoCD IAM Policy
-  Comparison](../../reference/ARGOCD_IAM_POLICY_COMPARISON.md) for
-  details.
+- **Capability role permissions:** The ArgoCD capability role has a
+  single   inline IAM policy with EKS, Secrets Manager, KMS,
+  CodeConnections (incl. UseConnection), and optional ECR/CodeCommit when
+  enabled. ECR is enabled from the root via `argocd_enable_ecr_access`.
+  See the [ArgoCD module README](../../../application_infra/modules/argocd/README.md)
+  (IAM Policy section) for permissions by service and variable names.
 
 ### 2. IAM Propagation / Access Entry Timing
 
@@ -198,6 +196,36 @@ Kubernetes provider) has sufficient EKS cluster access. Use the same
 role/assumption as in a working backend_infra apply. If you use the
 ArgoCD capability's access policy association, ensure the 5-minute (or
 longer) wait has passed and retry.
+
+## ALB / IngressClassParams Failures
+
+### 1. IngressClassParams "resource already exists"
+
+**Symptom:** Apply fails with:
+`Error: Cannot create resource that already exists` for
+`module.alb[0].kubernetes_manifest.ingressclassparams_alb`, and the
+message shows a resource name like `talo-tf-us-east-1-icp-alb-ldap-prod`.
+
+**Cause:** The IngressClassParams object exists in the cluster (e.g. from
+a previous apply or another tool) but is not in Terraform state, so
+Terraform tries to create it and Kubernetes returns "already exists".
+
+**Fix:** Import the existing resource into state so Terraform can manage
+and update it. Run from the **application_infra** directory. Replace
+`<name>` with the resource name from the error (e.g.
+`talo-tf-us-east-1-icp-alb-ldap-prod`), or with
+`<prefix>-<region>-<ingressclassparams_alb_name>-<env>` from your
+variables.
+
+```bash
+cd application_infra
+
+terraform import 'module.alb[0].kubernetes_manifest.ingressclassparams_alb' \
+  "apiVersion=eks.amazonaws.com/v1,kind=IngressClassParams,name=<name>"
+```
+
+Then run `terraform apply` again; Terraform will update the resource if
+the configuration differs, instead of trying to create it.
 
 ## OpenLDAP Deployment Failures
 

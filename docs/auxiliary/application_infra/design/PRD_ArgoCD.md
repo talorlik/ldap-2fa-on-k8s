@@ -205,19 +205,16 @@ resource "aws_iam_role" "argocd_capability" {
 
 **REQ-4.2.2.2**: Implementation in `application_infra/modules/argocd`:
 
-The module attaches (1) the AWS managed policy
-`AmazonEKSCapabilityArgoCD`, (2) a core integrations inline policy
-(EKS describe/list, Secrets Manager, CodeConnections including
-UseConnection, KMS Decrypt), and (3) an optional supplemental inline
-policy for ECR and CodeCommit when `enable_ecr_access` and/or
-`enable_codecommit_access` are set. This ensures all documented
-permissions are present and avoids AccessDenied regardless of the
-managed policy contents.
+The module attaches a single inline IAM policy with EKS describe/list,
+Secrets Manager, CodeConnections (including UseConnection), KMS Decrypt,
+and optional ECR and CodeCommit when `enable_ecr_access` and/or
+`enable_codecommit_access` are set. No AWS managed policy is used, so
+the role works in all regions/accounts without depending on a
+managed policy that may not exist.
 
-See [ArgoCD IAM Policy
-Comparison](../../reference/ARGOCD_IAM_POLICY_COMPARISON.md) and the
-module README (`application_infra/modules/argocd/README.md`) for
-details and variable names for resource scoping.
+See the module README (`application_infra/modules/argocd/README.md`)
+(IAM Policy section) for permissions by service, variable names for
+resource scoping, and AWS documentation links.
 
 **REQ-4.2.2.3**: In production, scope resources via the module
 variables (e.g. `iam_policy_secrets_manager_resources`,

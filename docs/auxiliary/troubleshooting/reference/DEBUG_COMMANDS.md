@@ -243,26 +243,21 @@ Expected: principal `Service` =
 Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md) (sections 3 and 4)
 if policies are correct but capability remains CREATING.
 
-### Capability Role Policies (Attached and Inline)
+### Capability Role Policies (Inline)
 
-The capability role has the AWS managed policy
-`AmazonEKSCapabilityArgoCD`, a core integrations inline policy (EKS,
-Secrets Manager, CodeConnections, KMS), and an optional supplemental
-inline policy for ECR/CodeCommit when enabled. To list what is
-attached:
+The capability role has a single inline IAM policy (EKS, Secrets Manager,
+KMS, CodeConnections, and optional ECR/CodeCommit when enabled). To list
+what is attached:
 
 ```bash
-# Managed policies attached to the role
-aws iam list-attached-role-policies --role-name talo-tf-us-east-1-argocd-role-prod
-
 # Inline policy names on the role
 aws iam list-role-policies --role-name talo-tf-us-east-1-argocd-role-prod
 ```
 
-Expect `AmazonEKSCapabilityArgoCD` in attached policies and inline
-policies such as `*-core-integrations` and (if ECR/CodeCommit enabled)
-`*-supplemental`. See [ArgoCD IAM Policy
-Comparison](../../reference/ARGOCD_IAM_POLICY_COMPARISON.md).
+Expect one inline policy named `*-policy` (e.g.
+`talo-tf-us-east-1-argocd-role-prod-policy`). No AWS managed policies are
+attached. See the [ArgoCD module README](../../../application_infra/modules/argocd/README.md)
+(IAM Policy section) for permissions by service.
 
 ### ArgoCD Namespace and Pods
 

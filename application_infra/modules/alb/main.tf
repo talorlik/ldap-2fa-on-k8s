@@ -136,6 +136,14 @@ resource "time_sleep" "wait_for_eks_auto_mode" {
   }
 }
 
+# If apply fails with "resource ... already exists", the IngressClassParams exists in the
+# cluster but is not in Terraform state. Import it so Terraform can manage/update it:
+#
+#   terraform import 'module.alb[0].kubernetes_manifest.ingressclassparams_alb' \
+#     "apiVersion=eks.amazonaws.com/v1,kind=IngressClassParams,name=<name>"
+#
+# Replace <name> with the value from the error (e.g. talo-tf-us-east-1-icp-alb-ldap-prod)
+# or with the module name: prefix-region-ingressclassparams_alb_name-env (e.g. talo-tf-us-east-1-icp-alb-ldap-prod).
 resource "kubernetes_manifest" "ingressclassparams_alb" {
   # Wait for:
   # 1. The Kubernetes provider to be configured (implicit via data.aws_eks_cluster)

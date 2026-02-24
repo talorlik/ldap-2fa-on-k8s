@@ -5,61 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2026-02-24] - ArgoCD IAM and Capability Propagation
-
-### Added
-
-- **ArgoCD IAM Policy Comparison Reference**
-  - New document
-  [ArgoCD IAM Policy Comparison](docs/auxiliary/reference/ARGOCD_IAM_POLICY_COMPARISON.md)
-  comparing the project's ArgoCD capability role permissions with AWS
-  documentation (managed policy, core integrations, supplemental ECR/CodeCommit).
-  - Linked from troubleshooting index and Application Infrastructure Deployment
-  guide.
-
-- **Application Infrastructure Troubleshooting**
-  - New section "Capability Stuck in CREATING with AccessDenied in Health" in
-  [APPLICATION_INFRA_DEPLOYMENT.md](docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
-  with causes, checks (associated policies, trust policy), and fixes (re-apply,
-  increase wait durations).
-  - New section "Capability Already Exists (State Out of Sync)" with
-  `terraform import` steps for the ArgoCD capability.
-  - [DEBUG_COMMANDS.md](docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
-  expanded with ArgoCD capability status, access entry, associated policies, IAM
-  trust, and import command examples.
+## [2026-02-24] - ArgoCD IAM Revert and IngressClassParams Troubleshooting
 
 ### Changed
 
-- **Application Infrastructure: ArgoCD Module IAM and Propagation**
-  - ArgoCD capability role now uses (1) AWS managed policy
-  `AmazonEKSCapabilityArgoCD`, (2) core integrations inline policy (EKS
-  describe/list, Secrets Manager, CodeConnections including `UseConnection`, KMS
-  decrypt), and (3) optional supplemental inline policy for ECR and CodeCommit
-  when enabled. Ensures documented permissions are present regardless of
-  managed policy contents.
-  - New root variable `argocd_enable_ecr_access` to enable ECR access for the
-  capability; ECR/CodeCommit moved into supplemental policy.
-  - New propagation wait: `argocd_wait_after_capability_propagation_duration`
-  and `time_sleep.wait_after_argocd_propagation` so access policy association
-  and ClusterRoleBinding run after capability is ACTIVE and access entry has
-  propagated, reducing AccessDenied and CREATING-stuck issues.
-  - ClusterRole for application-controller created before capability; only
-  ClusterRoleBinding and access policy association depend on propagation wait.
-  - See [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md) and
-  [PRD_ArgoCD.md](docs/auxiliary/application_infra/design/PRD_ArgoCD.md).
+- **Application Infrastructure: ArgoCD IAM Reverted to Single Inline Policy**
+  - Removed dependency on AWS managed policy
+  `AmazonEKSCapabilityArgoCD` (policy does not exist or is not attachable in
+  some regions/accounts). ArgoCD capability role now uses only one inline
+  policy with EKS, Secrets Manager, KMS, CodeConnections (incl. UseConnection),
+  and optional ECR/CodeCommit when enabled. Same permissions; no managed policy.
+  - All ArgoCD IAM documentation updated (PRD, DEBUG_COMMANDS, module README,
+  APPLICATION_INFRA_DEPLOYMENT). Removed ARGOCD_IAM_POLICY_COMPARISON.md;
+  content moved to ArgoCD module README (IAM Policy section).
 
-- **Documentation**
-  - PRD_ArgoCD REQ-4.2.2 updated to describe implementation (managed + core +
-  supplemental), CodeConnections UseConnection, KMS decrypt, and link to
-  ArgoCD IAM Policy Comparison. Resource scoping documented via module
-  variables.
-  - Troubleshooting index links to ArgoCD IAM Policy Comparison.
-
-### Removed
-
-- **docs/auxiliary/reference/DEBUG_OUTPUT.md**
-  - Removed; debug and copy-paste commands are in
-  [DEBUG_COMMANDS.md](docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md).
+- **Application Infrastructure: IngressClassParams "Already Exists"**
+  - When apply fails with "resource ... already exists" for
+  `module.alb[0].kubernetes_manifest.ingressclassparams_alb`, import the
+  existing resource into state so Terraform can manage/update it.
+  - New troubleshooting section "ALB / IngressClassParams Failures" in
+  [APPLICATION_INFRA_DEPLOYMENT.md](docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+  with `terraform import` command. ALB module comment added with import
+  instructions.
+  - See [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
 
 ## [2025-02-23] - LDAP Admin-Seed Fixes and Image Tag Validation
 
