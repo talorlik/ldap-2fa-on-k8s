@@ -227,6 +227,55 @@ terraform import 'module.alb[0].kubernetes_manifest.ingressclassparams_alb' \
 Then run `terraform apply` again; Terraform will update the resource if
 the configuration differs, instead of trying to create it.
 
+### 2. IngressClass and/or IngressClassParams exist after destroy (redeploy fails)
+
+**Symptom:** You ran `terraform destroy` on application_infra, but the
+IngressClass and/or IngressClassParams still exist in the cluster. When
+you redeploy, apply fails with "resource already exists" for
+`module.alb[0].kubernetes_manifest.ingressclassparams_alb` and/or
+`module.alb[0].kubernetes_ingress_class_v1.ingressclass_alb`.
+
+**Cause:** Destroy did not remove these resources from the cluster (e.g.
+state did not track them, different workspace/state, or destroy failed
+partway). They remain in the cluster but are not in Terraform state, so
+the next apply tries to create them and gets "already exists".
+
+**Fix:** The **setup script** and **Application Infra Provisioning**
+workflow run `import-existing-resources.sh`: it parses apply error output
+for "already exists" and imports those resources, then retries apply. You
+can also run it manually with the error log: `./import-existing-resources.sh
+apply-error.log`. If you prefer to import by hand from the
+**application_infra** directory:
+
+1. Get the resource names (from your vars they are
+   `<prefix>-<region>-<ingressclassparams_alb_name>-<env>` and
+   `<prefix>-<region>-<ingressclass_alb_name>-<env>`, e.g.
+   `talo-tf-us-east-1-icp-alb-ldap-prod` and
+   `talo-tf-us-east-1-ic-alb-ldap-prod`). Or list them:
+
+   ```bash
+   kubectl get ingressclassparams
+   kubectl get ingressclass
+   ```
+
+2. Import IngressClassParams (replace `<name>` with the actual name, e.g.
+   `talo-tf-us-east-1-icp-alb-ldap-prod`):
+
+   ```bash
+   terraform import 'module.alb[0].kubernetes_manifest.ingressclassparams_alb' \
+     "apiVersion=eks.amazonaws.com/v1,kind=IngressClassParams,name=<name>"
+   ```
+
+3. Import IngressClass (replace `<name>` with the IngressClass name, e.g.
+   `talo-tf-us-east-1-ic-alb-ldap-prod`):
+
+   ```bash
+   terraform import 'module.alb[0].kubernetes_ingress_class_v1.ingressclass_alb' <name>
+   ```
+
+4. Run `terraform plan` or `terraform apply` again; Terraform will adopt
+   the existing resources and update them if the configuration differs.
+
 ## OpenLDAP Deployment Failures
 
 ### 1. Image Pull Errors (ECR / Wrong Image)
