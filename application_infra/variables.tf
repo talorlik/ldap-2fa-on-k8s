@@ -336,6 +336,12 @@ variable "argocd_vpce_ids" {
   default     = []
 }
 
+variable "argocd_enable_ecr_access" {
+  description = "Enable ECR pull permissions for Argo CD capability role (for Helm charts and container images)"
+  type        = bool
+  default     = true
+}
+
 variable "argocd_delete_propagation_policy" {
   description = "Delete propagation policy for ArgoCD capability (RETAIN or DELETE)"
   type        = string
@@ -355,6 +361,12 @@ variable "argocd_wait_capability_ready_duration" {
   description = "Duration to wait after ArgoCD capability creation (e.g. 5m, 8m). Increase if access policy or RBAC fails."
   type        = string
   default     = "5m"
+}
+
+variable "argocd_wait_after_capability_propagation_duration" {
+  description = "Short sleep after capability is ACTIVE before ClusterRoleBinding and access policy association (e.g. 30s, 1m)."
+  type        = string
+  default     = "30s"
 }
 
 ##################### Network Policies ##########################

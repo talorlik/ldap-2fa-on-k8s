@@ -44,6 +44,14 @@ OpenLDAP via the Application Infra Provisioning workflow or local Terraform.
   `eks:DescribeCapability`, and related EKS permissions. The ArgoCD
   module creates its own IAM role; ensure the account has permission
   to create IAM roles and that EKS can assume the capability role.
+- **Capability role permissions:** The ArgoCD capability role has (1) AWS
+  managed policy `AmazonEKSCapabilityArgoCD`, (2) a core integrations
+  inline policy (EKS, Secrets Manager, CodeConnections, KMS), and (3)
+  an optional supplemental policy for ECR and CodeCommit when enabled.
+  ECR is enabled from the root via `argocd_enable_ecr_access`. See
+  [ArgoCD IAM Policy
+  Comparison](../../reference/ARGOCD_IAM_POLICY_COMPARISON.md) for
+  details.
 
 ### 2. IAM Propagation / Access Entry Timing
 
@@ -63,7 +71,88 @@ creating the capability; sometimes that is not enough.
   `argocd_wait_iam_propagation_duration = "3m"` and/or
   `argocd_wait_capability_ready_duration = "8m"` (defaults 2m and 5m).
 
-### 3. Assume-Role Script or Wrong Account When Querying Capability
+### 3. Capability Stuck in CREATING with AccessDenied in Health
+
+**Symptom:** `aws eks describe-capability` shows `"status": "CREATING"` and
+`health.issues` contains an issue with `"code": "AccessDenied"` and message
+like "High error rate in attempting to reach customer cluster. Check trust
+policy and/or access entry permissions."
+
+**Cause:** The access entry for the capability IAM role exists (created by
+EKS when the capability is created), but the **access policy** that grants
+cluster permissions (e.g. `AmazonEKSClusterAdminPolicy`) is not associated
+yet, or association failed. Without it, the capability cannot reach the
+cluster and stays in CREATING.
+
+**Fixes:**
+
+1. **Check associated policies** (copy-paste commands in [Debug
+   Commands - ArgoCD
+   Debugging](../reference/DEBUG_COMMANDS.md#argocd-debugging)):
+
+   ```bash
+   aws eks list-associated-access-policies \
+     --cluster-name <cluster-name> \
+     --principal-arn arn:aws:iam::<account>:role/<argocd-role-name> \
+     --region <region>
+   ```
+
+   If `AmazonEKSClusterAdminPolicy` (or the policy your module associates) is
+   not listed, the association has not been applied.
+
+2. **Re-run Terraform apply** so that
+   `aws_eks_access_policy_association.argocd_capability_cluster_admin` runs
+   (it depends on the capability and a propagation sleep). If the first apply
+   failed or timed out before that resource, a second apply often succeeds.
+
+3. **Increase wait durations** in `variables.tfvars` so the access entry and
+   propagation are ready before association: e.g.
+   `argocd_wait_capability_ready_duration = "8m"` and
+   `argocd_wait_after_capability_propagation_duration = "1m"`, then re-apply.
+
+**If policies are already associated** (e.g. `AmazonEKSClusterAdminPolicy` and
+ArgoCD policies appear in `list-associated-access-policies`) but the capability
+still shows AccessDenied in health:
+
+- **Trust policy:** Ensure the capability IAM role has a trust policy allowing
+  `capabilities.eks.amazonaws.com` to assume it (`sts:AssumeRole`,
+  `sts:TagSession`). Check in IAM console or use the `aws iam get-role` command
+  in [Debug Commands - ArgoCD Debugging](../reference/DEBUG_COMMANDS.md#argocd-debugging).
+- **Wait and re-check:** Access and health can take a few minutes to
+  propagate. Run `aws eks describe-capability` again after 5–10 minutes and
+  check whether `status` becomes ACTIVE and `health.issues` clears.
+
+### 4. Capability Already Exists (State Out of Sync)
+
+**Symptom:** Apply fails with an error that the capability already exists, or
+you cancelled the workflow after the capability was created in AWS but before
+Terraform state was updated. Re-running apply tries to create the capability
+again and conflicts with the existing one.
+
+**Cause:** The capability exists in AWS but is not (or no longer) in Terraform
+state, so Terraform tries to create it and AWS returns "already exists".
+
+**Fix:** Import the existing capability into state. Run from the
+**application_infra** directory (with the same backend and credentials you use
+for apply). Replace cluster and capability names if yours differ. See [Debug
+Commands](../reference/DEBUG_COMMANDS.md#argocd-debugging) for related AWS CLI
+checks (capability status, access entry, policies).
+
+```bash
+cd application_infra
+
+# Import ID format: cluster_name,capability_name
+terraform import 'module.argocd[0].aws_eks_capability.argocd' \
+  'talo-tf-us-east-1-kc-prod,talo-tf-us-east-1-argocd-prod'
+```
+
+After a successful import, run `terraform plan`; it should no longer show a
+create for the capability. Then run `terraform apply` to create or update any
+other resources (e.g. access policy association, ClusterRoleBinding, secret).
+Releasing the Terraform state lock (if one was left by a cancelled run) may be
+required before import or apply.
+
+### 5. Assume-Role Script or Wrong Account When Querying Capability
 
 **Symptom:** No Terraform failure, but ArgoCD outputs show empty
 `argocd_server_url` or `argocd_capability_status`, or
@@ -94,7 +183,7 @@ Note: The external data source always exits 0 and returns errors in the
 impact is missing server URL/status in outputs; ArgoCD itself can still
 be deployed.
 
-### 4. Kubernetes RBAC / ClusterRoleBinding
+### 6. Kubernetes RBAC / ClusterRoleBinding
 
 **Symptom:** Error creating
 `kubernetes_manifest.argocd_application_controller_clusterrolebinding`

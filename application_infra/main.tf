@@ -23,10 +23,12 @@ module "argocd" {
 
   rbac_role_mappings        = var.argocd_rbac_role_mappings
   argocd_vpce_ids           = var.argocd_vpce_ids
+  enable_ecr_access         = var.argocd_enable_ecr_access
   delete_propagation_policy = var.argocd_delete_propagation_policy
 
-  wait_iam_propagation_duration = var.argocd_wait_iam_propagation_duration
-  wait_capability_ready_duration = var.argocd_wait_capability_ready_duration
+  wait_iam_propagation_duration         = var.argocd_wait_iam_propagation_duration
+  wait_capability_ready_duration        = var.argocd_wait_capability_ready_duration
+  wait_after_capability_propagation_duration = var.argocd_wait_after_capability_propagation_duration
 }
 
 locals {

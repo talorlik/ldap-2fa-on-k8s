@@ -1304,13 +1304,12 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
         </div>
         <h3 id="auxiliary-documentation">Auxiliary Documentation</h3>
         <div class="card">
-            <p>Additional design docs, guides, and troubleshooting live under
-            <code>docs/auxiliary/</code> in a hierarchical layout:</p>
+            <p>Design docs, guides, and troubleshooting under <code>docs/auxiliary/</code>:</p>
             <ul>
-                <li><strong>Reference:</strong> <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>, <a href="auxiliary/reference/DEBUG_OUTPUT.md">Debug Output</a></li>
+                <li><strong>Reference:</strong> <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>, <a href="auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md">Debug Commands</a> (copy-paste commands for OpenLDAP, ArgoCD, admin-seed, 2FA backend, EKS), <a href="auxiliary/reference/ARGOCD_IAM_POLICY_COMPARISON.md">ArgoCD IAM Policy Comparison</a></li>
                 <li><strong>Application:</strong> design (PRDs), deployment, guides (password flow, Redis, secret dependencies)</li>
-                <li><strong>Application infrastructure:</strong> design (PRDs), guides (cross-account, OpenLDAP, security, silent mode)</li>
-                <li><strong>Troubleshooting:</strong> <a href="auxiliary/troubleshooting/INDEX.md">Troubleshooting Index</a> (application layer, backend, cross-account/DNS, deployment, frontend, LDAP admin seed, secrets/variables, reference commands)</li>
+                <li><strong>Application infrastructure:</strong> design (PRDs), guides (cross-account, OpenLDAP, security)</li>
+                <li><strong>Troubleshooting:</strong> <a href="auxiliary/troubleshooting/INDEX.md">Troubleshooting Index</a></li>
             </ul>
         </div>
         <h3 id="security-operations">Security & Operations</h3>
@@ -1519,12 +1518,13 @@ source ./scripts/assume-github-role.sh</code></pre>
         </div>
         <h3 id="troubleshooting">Troubleshooting</h3>
         <div class="card">
-            <p>For troubleshooting guides, see:</p>
+            <p><strong><a href="auxiliary/troubleshooting/INDEX.md">Troubleshooting Index</a></strong> – Central index (deployment, application layer, LDAP admin seed, secrets, debug commands).</p>
+            <p>Copy-paste commands: <a href="auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md">Debug Commands</a>. ArgoCD capability IAM: <a href="auxiliary/reference/ARGOCD_IAM_POLICY_COMPARISON.md">ArgoCD IAM Policy Comparison</a>.</p>
             <ul>
-                <li><a href="../backend_infra/README.md#troubleshooting">Backend Infrastructure Troubleshooting</a></li>
-                <li><a href="../application_infra/README.md#troubleshooting">Application Infrastructure Troubleshooting</a></li>
-                <li><a href="../application/README.md#troubleshooting">Application Troubleshooting</a></li>
-                <li><strong><a href="auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md">LDAP and Admin-Seed-Job Troubleshooting Guide</a></strong> - Comprehensive guide for OpenLDAP multi-master replication issues, directory structure initialization, group membership attributes, and admin user seeding</li>
+                <li><a href="../backend_infra/README.md#troubleshooting">Backend Infrastructure</a></li>
+                <li><a href="../application_infra/README.md#troubleshooting">Application Infrastructure</a></li>
+                <li><a href="../application/README.md#troubleshooting">Application</a></li>
+                <li><a href="auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md">LDAP and Admin-Seed-Job</a></li>
             </ul>
         </div>
         <h3 id="repository">Repository</h3>

@@ -13,6 +13,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [2026-02-24] - ArgoCD IAM Restructure and Capability Propagation Wait
+
+### Added
+
+- **ArgoCD Module: AWS Managed Policy and Core/Supplemental Inline Policies**
+  - Role now has (1) `aws_iam_role_policy_attachment` for AWS managed policy
+  `AmazonEKSCapabilityArgoCD`, (2) inline policy "core integrations" (EKS
+  describe/list, Secrets Manager, CodeConnections including
+  `codeconnections:UseConnection`, KMS decrypt via `iam_policy_kms_key_arns`),
+  and (3) optional inline policy "supplemental" for ECR and CodeCommit when
+  `enable_ecr_access` and/or `enable_codecommit_access` are true. Ensures all
+  documented permissions are present even if the managed policy omits some.
+  - New variable `iam_policy_kms_key_arns` (default `["*"]`) for KMS decrypt
+  (Secrets Manager with customer-managed keys).
+
+- **Post-Capability Propagation Wait**
+  - New `time_sleep.wait_after_argocd_propagation` with
+  `wait_after_capability_propagation_duration` (root variable
+  `argocd_wait_after_capability_propagation_duration`) so the access entry and
+  ArgoCD service accounts can propagate before
+  `aws_eks_access_policy_association.argocd_capability_cluster_admin` and the
+  ClusterRoleBinding are created. Reduces "Capability stuck in CREATING" and
+  AccessDenied-in-health issues.
+  - External data source, ClusterRoleBinding, and access policy association now
+  depend on `time_sleep.wait_after_argocd_propagation` instead of
+  `time_sleep.wait_for_argocd`.
+
+- **Root Variables**
+  - `argocd_enable_ecr_access` passed through to ArgoCD module
+  `enable_ecr_access`.
+  - `argocd_wait_after_capability_propagation_duration` for the new propagation
+  sleep (e.g. `"1m"`).
+
+### Changed
+
+- **ArgoCD Module: IAM Policy Layout**
+  - Replaced single custom policy with managed policy attachment plus
+  `argocd_core_integrations` (always) and `argocd_supplemental` (when ECR or
+  CodeCommit enabled). ECR/CodeCommit statements moved into supplemental
+  policy.
+  - ClusterRole `argocd_application_controller_clusterrole` created after
+  `time_sleep.wait_for_iam_and_ns_propagation` only (no longer waits for
+  capability); ClusterRoleBinding and access policy association depend on
+  `time_sleep.wait_after_argocd_propagation`.
+  - Module README updated with variable table (including
+  `iam_policy_kms_key_arns`, `wait_after_capability_propagation_duration`) and
+  resource-scoping guidance. See
+  [ARGOCD_IAM_POLICY_COMPARISON.md](../docs/auxiliary/reference/ARGOCD_IAM_POLICY_COMPARISON.md).
+
 ## [2025-02-23] - OpenLDAP, ArgoCD, PhpLdapAdmin/LTB-passwd, and Destroy Cleanup
 
 ### Changed

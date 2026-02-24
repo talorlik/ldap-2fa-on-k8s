@@ -198,62 +198,31 @@ resource "aws_iam_role" "argocd_capability" {
 - EKS API calls (describe cluster, list clusters, etc.)
 - Access to Git repositories and AWS services used by Argo CD:
   - Secrets Manager (for repository credentials)
-  - CodeConnections (for AWS CodeCommit/CodePipeline integration)
+  - CodeConnections (for Git; must include `UseConnection`, `GetConnection`)
   - CodeCommit (if using AWS Git repositories)
   - ECR (if pulling images)
+  - KMS decrypt (for Secrets Manager when using customer-managed keys)
 
-**REQ-4.2.2.2**: Example policy document (tighten for production):
+**REQ-4.2.2.2**: Implementation in `application_infra/modules/argocd`:
 
-```hcl
-data "aws_iam_policy_document" "argocd_capability" {
-  statement {
-    sid    = "EKSDescribe"
-    effect = "Allow"
+The module attaches (1) the AWS managed policy
+`AmazonEKSCapabilityArgoCD`, (2) a core integrations inline policy
+(EKS describe/list, Secrets Manager, CodeConnections including
+UseConnection, KMS Decrypt), and (3) an optional supplemental inline
+policy for ECR and CodeCommit when `enable_ecr_access` and/or
+`enable_codecommit_access` are set. This ensures all documented
+permissions are present and avoids AccessDenied regardless of the
+managed policy contents.
 
-    actions = [
-      "eks:DescribeCluster",
-      "eks:ListClusters",
-      "eks:DescribeUpdate",
-      "eks:ListUpdates"
-    ]
+See [ArgoCD IAM Policy
+Comparison](../../reference/ARGOCD_IAM_POLICY_COMPARISON.md) and the
+module README (`application_infra/modules/argocd/README.md`) for
+details and variable names for resource scoping.
 
-    resources = ["*"]
-  }
-
-  statement {
-    sid    = "SecretsManager"
-    effect = "Allow"
-
-    actions = [
-      "secretsmanager:GetSecretValue",
-      "secretsmanager:DescribeSecret",
-      "secretsmanager:ListSecrets"
-    ]
-
-    resources = ["*"]
-  }
-
-  statement {
-    sid    = "CodeConnections"
-    effect = "Allow"
-
-    actions = [
-      "codeconnections:ListConnections",
-      "codeconnections:GetConnection"
-    ]
-
-    resources = ["*"]
-  }
-}
-
-resource "aws_iam_role_policy" "argocd_capability" {
-  role   = aws_iam_role.argocd_capability.id
-  policy = data.aws_iam_policy_document.argocd_capability.json
-}
-```
-
-**REQ-4.2.2.3**: In production, replace `resources = ["*"]` with specific ARNs
-for secrets, connections, and clusters.
+**REQ-4.2.2.3**: In production, scope resources via the module
+variables (e.g. `iam_policy_secrets_manager_resources`,
+`iam_policy_code_connections_resources`, `iam_policy_ecr_resources`)
+instead of `["*"]`.
 
 ### 4.3 Argo CD Capability Configuration
 

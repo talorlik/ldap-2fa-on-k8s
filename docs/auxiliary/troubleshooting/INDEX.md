@@ -57,6 +57,9 @@ Comprehensive troubleshooting guide (investigation, root causes, corrections).
 - [Debug Commands](reference/DEBUG_COMMANDS.md) - Copy-paste commands for
   OpenLDAP, ArgoCD, admin-seed-job, 2FA backend, EKS events/logs, Terraform
   state.
+- [ArgoCD IAM Policy Comparison](../reference/ARGOCD_IAM_POLICY_COMPARISON.md) -
+  Capability role permissions (managed policy, core integrations, supplemental);
+  comparison with AWS documentation.
 
 ## Module-Specific Troubleshooting
 

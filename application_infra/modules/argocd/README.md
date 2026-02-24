@@ -17,8 +17,11 @@ The ArgoCD Capability module:
 
 1. **IAM Role** (`aws_iam_role.argocd_capability`)
    - Trusted by `capabilities.eks.amazonaws.com`
-   - Attached with policies for EKS, Secrets Manager, CodeConnections, and
-   optionally ECR/CodeCommit
+   - AWS managed policy `AmazonEKSCapabilityArgoCD`
+   - Core integrations inline policy: EKS describe/list, Secrets Manager,
+   CodeConnections (incl. UseConnection), KMS decrypt (avoids AccessDenied when
+   the managed policy omits any of these)
+   - Optional supplemental inline policy for ECR and/or CodeCommit when enabled
 
 2. **EKS Capability** (`aws_eks_capability.argocd`)
    - Managed ArgoCD service running in EKS control plane
@@ -29,6 +32,54 @@ The ArgoCD Capability module:
 3. **Cluster Registration Secret** (`kubernetes_secret.argocd_local_cluster`)
    - Registers the local EKS cluster with ArgoCD
    - Required for Applications to target the cluster
+
+## Creation Order
+
+Resources are created in this order (later items wait for earlier ones).
+Roles and IAM-role bindings are created **before** the capability so the
+capability starts with permissions already in place.
+
+**Before the capability:**
+
+1. **IAM role, managed policy, core integrations policy, and optional supplemental**
+   (`aws_iam_role.argocd_capability`,
+   `aws_iam_role_policy_attachment.argocd_capability_policy`,
+   `aws_iam_role_policy.argocd_core_integrations`,
+   `aws_iam_role_policy.argocd_supplemental` when ECR or CodeCommit enabled)
+2. **Namespace** (`kubernetes_namespace_v1.argocd`)
+3. **Sleep** (`time_sleep.wait_for_iam_and_ns_propagation`) – IAM and namespace
+   propagation
+4. **ClusterRole** (`kubernetes_manifest.argocd_application_controller_clusterrole`)
+   – RBAC role for ArgoCD application controller
+5. **IAM role ClusterRoleBinding**
+   (`kubernetes_manifest.argocd_application_controller_iam_role_binding`) –
+   binds ClusterRole to the capability IAM role (so the role has permissions
+   as soon as the capability starts)
+
+**Capability and then associations:**
+
+1. **EKS ArgoCD capability** (`aws_eks_capability.argocd`) – AWS deploys managed
+   ArgoCD (CREATING then ACTIVE). AWS also creates an EKS access entry for the
+   capability IAM role; we do not create that entry.
+2. **Sleep** (`time_sleep.wait_for_argocd`) – waits for capability to be ACTIVE
+3. **Sleep** (`time_sleep.wait_after_argocd_propagation`) – short wait (e.g. 30s)
+   so access entry and ArgoCD SAs can fully propagate
+4. **ClusterRoleBinding for service accounts**
+   (`kubernetes_manifest.argocd_application_controller_clusterrolebinding`) –
+   binds ClusterRole to ArgoCD SAs (argocd-application-controller, etc.); must
+   be after capability because those SAs are created by the capability
+5. **Access policy association**
+   (`aws_eks_access_policy_association.argocd_capability_cluster_admin`) –
+   associates cluster-admin policy with the **auto-created** access entry
+   (entry must exist first, hence after capability)
+6. **Cluster registration secret** (`kubernetes_secret.argocd_local_cluster`)
+7. **External data** (`data.external.argocd_capability`) – queries server URL
+   and status
+
+The **EKS access entry** for the capability IAM role is created automatically by
+AWS when the capability is created; it cannot be created beforehand. We only
+associate an additional access policy with that entry after the capability
+(and thus the entry) exists.
 
 ## Prerequisites
 
@@ -94,13 +145,14 @@ module "argocd" {
 | rbac_role_mappings | List of RBAC role mappings for Identity Center | list(object) | no | [] |
 | argocd_vpce_ids | List of VPC endpoint IDs for private access | list(string) | no | [] |
 | delete_propagation_policy | Delete propagation policy (RETAIN or DELETE) | string | no | "RETAIN" |
-| iam_policy_eks_resources | EKS resource ARNs for IAM policy | list(string) | no | ["*"] |
-| iam_policy_secrets_manager_resources | Secrets Manager ARNs for IAM policy | list(string) | no | ["*"] |
-| iam_policy_code_connections_resources | CodeConnections ARNs for IAM policy | list(string) | no | ["*"] |
-| enable_ecr_access | Whether to enable ECR access in IAM policy | bool | no | false |
-| iam_policy_ecr_resources | ECR repository ARNs for IAM policy | list(string) | no | ["*"] |
-| enable_codecommit_access | Whether to enable CodeCommit access in IAM policy | bool | no | false |
-| iam_policy_codecommit_resources | CodeCommit repository ARNs for IAM policy | list(string) | no | ["*"] |
+| iam_policy_eks_resources | EKS resource ARNs for core integrations policy | list(string) | no | ["*"] |
+| iam_policy_secrets_manager_resources | Secrets Manager ARNs for core integrations policy | list(string) | no | ["*"] |
+| iam_policy_code_connections_resources | CodeConnections ARNs for core integrations policy | list(string) | no | ["*"] |
+| iam_policy_kms_key_arns | KMS key ARNs for Secrets Manager decrypt | list(string) | no | ["*"] |
+| enable_ecr_access | Add ECR pull permissions (supplemental policy) | bool | no | false |
+| iam_policy_ecr_resources | ECR repository ARNs for supplemental policy | list(string) | no | ["*"] |
+| enable_codecommit_access | Add CodeCommit access (supplemental policy) | bool | no | false |
+| iam_policy_codecommit_resources | CodeCommit repository ARNs for supplemental policy | list(string) | no | ["*"] |
 
 ## Outputs
 
@@ -165,18 +217,29 @@ Valid ArgoCD roles:
 - `READ_ONLY` - Read-only access
 - Custom roles defined in ArgoCD Projects
 
-## IAM Policy Resources
+## IAM Policy
 
-For production, replace wildcard resources (`["*"]`) with specific ARNs:
+The role has three sources of permissions:
+
+1. **Managed policy** `AmazonEKSCapabilityArgoCD` (AWS-defined).
+2. **Core integrations** inline policy: EKS (DescribeCluster, ListClusters,
+   DescribeUpdate, ListUpdates), Secrets Manager (GetSecretValue,
+   DescribeSecret, ListSecrets), CodeConnections (UseConnection, GetConnection,
+   ListConnections), KMS (Decrypt, DescribeKey). This ensures the role has all
+   documented permissions even if the managed policy omits some.
+3. **Supplemental** inline policy (when enabled): ECR and/or CodeCommit.
+
+For production, scope resources via the IAM policy variables (e.g.
+`iam_policy_eks_resources`, `iam_policy_secrets_manager_resources`,
+`iam_policy_code_connections_resources`, `iam_policy_kms_key_arns`,
+`iam_policy_ecr_resources`, `iam_policy_codecommit_resources`):
 
 ```hcl
-iam_policy_eks_resources = [
-  "arn:aws:eks:us-east-1:123456789012:cluster/my-cluster"
-]
+enable_ecr_access         = true
+iam_policy_ecr_resources  = ["arn:aws:ecr:us-east-1:123456789012:repository/my-app"]
 
-iam_policy_secrets_manager_resources = [
-  "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-git-repo-*"
-]
+enable_codecommit_access        = true
+iam_policy_codecommit_resources = ["arn:aws:codecommit:us-east-1:123456789012:my-repo"]
 ```
 
 ## Network Access Control

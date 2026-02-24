@@ -173,16 +173,101 @@ curl -sI https://passwd.talorlik.com --max-time 10 | head -5
 
 ## ArgoCD Debugging
 
-```bash
-# Check ArgoCD capability status
-aws eks describe-capability \
-  --cluster-name "talo-tf-us-east-1-kc-prod" \
-  --capability-name "talo-tf-us-east-1-argocd-prod" \
-  --region "us-east-1" \
-  --output json \
-  --query 'capability.{server_url:configuration.argoCd.serverUrl,status:status}'
+When the ArgoCD capability is stuck in CREATING or you see AccessDenied in
+health, use the commands below to inspect capability status, access entry,
+associated policies, and IAM trust. See [Application Infrastructure
+Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md) for fixes (e.g.
+[Capability stuck in CREATING with AccessDenied](../deployment/APPLICATION_INFRA_DEPLOYMENT.md#3-capability-stuck-in-creating-with-accessdenied-in-health),
+[Capability already exists / state out of
+sync](../deployment/APPLICATION_INFRA_DEPLOYMENT.md#4-capability-already-exists-state-out-of-sync)).
 
-# List all pods (to see argocd namespace)
+### Capability Status and Health
+
+```bash
+# Full capability details (status, health.issues, configuration)
+aws eks describe-capability \
+  --cluster-name talo-tf-us-east-1-kc-prod \
+  --capability-name talo-tf-us-east-1-argocd-prod \
+  --region us-east-1
+
+# Status and health only (quick check)
+aws eks describe-capability \
+  --cluster-name talo-tf-us-east-1-kc-prod \
+  --capability-name talo-tf-us-east-1-argocd-prod \
+  --region us-east-1 \
+  --query 'capability.{status:status,health:health}'
+
+# Status and server URL
+aws eks describe-capability \
+  --cluster-name talo-tf-us-east-1-kc-prod \
+  --capability-name talo-tf-us-east-1-argocd-prod \
+  --region us-east-1 \
+  --query 'capability.{server_url:configuration.argoCd.serverUrl,status:status}'
+```
+
+### Access Entry and Associated Policies
+
+If health shows AccessDenied, verify the access entry exists and has the
+expected policies (e.g. `AmazonEKSClusterAdminPolicy`). Use the ArgoCD
+capability IAM role ARN as principal.
+
+```bash
+# Describe the access entry for the ArgoCD capability role
+aws eks describe-access-entry \
+  --cluster-name talo-tf-us-east-1-kc-prod \
+  --principal-arn arn:aws:iam::944880695150:role/talo-tf-us-east-1-argocd-role-prod \
+  --region us-east-1
+
+# List policies associated with that entry (must include cluster-admin if
+# Terraform association succeeded)
+aws eks list-associated-access-policies \
+  --cluster-name talo-tf-us-east-1-kc-prod \
+  --principal-arn arn:aws:iam::944880695150:role/talo-tf-us-east-1-argocd-role-prod \
+  --region us-east-1
+```
+
+### IAM Role Trust Policy
+
+The capability role must allow `capabilities.eks.amazonaws.com` to assume it.
+If policies are associated but health still shows AccessDenied, check the
+trust policy.
+
+```bash
+aws iam get-role --role-name talo-tf-us-east-1-argocd-role-prod \
+  --query 'Role.AssumeRolePolicyDocument'
+```
+
+Expected: principal `Service` =
+`capabilities.eks.amazonaws.com`, actions `sts:AssumeRole` and
+`sts:TagSession`. See [Application Infrastructure
+Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md) (sections 3 and 4)
+if policies are correct but capability remains CREATING.
+
+### Capability Role Policies (Attached and Inline)
+
+The capability role has the AWS managed policy
+`AmazonEKSCapabilityArgoCD`, a core integrations inline policy (EKS,
+Secrets Manager, CodeConnections, KMS), and an optional supplemental
+inline policy for ECR/CodeCommit when enabled. To list what is
+attached:
+
+```bash
+# Managed policies attached to the role
+aws iam list-attached-role-policies --role-name talo-tf-us-east-1-argocd-role-prod
+
+# Inline policy names on the role
+aws iam list-role-policies --role-name talo-tf-us-east-1-argocd-role-prod
+```
+
+Expect `AmazonEKSCapabilityArgoCD` in attached policies and inline
+policies such as `*-core-integrations` and (if ECR/CodeCommit enabled)
+`*-supplemental`. See [ArgoCD IAM Policy
+Comparison](../../reference/ARGOCD_IAM_POLICY_COMPARISON.md).
+
+### ArgoCD Namespace and Pods
+
+```bash
+kubectl get pods -n argocd
 kubectl get pods -A
 ```
 
@@ -372,6 +457,12 @@ aws logs filter-log-events \
 
 ### EKS Access & IAM Debugging
 
+Use these to inspect access entries and policy associations. For ArgoCD
+capability stuck in CREATING with AccessDenied, see [Application
+Infrastructure Deployment - ArgoCD
+failures](../deployment/APPLICATION_INFRA_DEPLOYMENT.md#argocd-deployment-failures)
+(sections 3 and 4).
+
 ```bash
 # List access entries on the cluster
 aws eks list-access-entries \
@@ -395,6 +486,11 @@ aws sts get-caller-identity
 ```
 
 ### EKS Add-ons & Capabilities
+
+For ArgoCD capability status and health (CREATING, AccessDenied), use the
+[ArgoCD Debugging](#argocd-debugging) section above and [Application
+Infrastructure Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+(ArgoCD failures, state out of sync).
 
 ```bash
 # List installed add-ons
@@ -433,4 +529,6 @@ terraform apply -target='kubernetes_job.admin_seed[0]' \
 
 - [Troubleshooting Index](../INDEX.md)
 - [Application Infrastructure Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+  - ArgoCD: capability stuck in CREATING, AccessDenied in health, access
+    entry/policies, state out of sync (sections 3 and 4)
 - [LDAP and Admin-Seed](../ldap_admin_seed/LDAP_ADMIN_SEED.md)

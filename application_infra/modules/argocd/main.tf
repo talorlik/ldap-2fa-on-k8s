@@ -44,46 +44,69 @@ resource "aws_iam_role" "argocd_capability" {
   }
 }
 
-# IAM Policy Document for ArgoCD Capability
-data "aws_iam_policy_document" "argocd_capability" {
+# Core ArgoCD capability permissions (EKS, Secrets Manager, CodeConnections)
+resource "aws_iam_role_policy_attachment" "argocd_capability_policy" {
+  role       = aws_iam_role.argocd_capability.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSCapabilityArgoCD"
+}
+
+# Core integrations: EKS describe/list, Secrets Manager, CodeConnections (incl. UseConnection), KMS
+# Explicitly included so the role has all documented permissions even if the managed policy omits some.
+data "aws_iam_policy_document" "argocd_core_integrations" {
   statement {
     sid    = "EKSDescribe"
     effect = "Allow"
-
     actions = [
       "eks:DescribeCluster",
       "eks:ListClusters",
       "eks:DescribeUpdate",
       "eks:ListUpdates"
     ]
-
     resources = var.iam_policy_eks_resources
   }
 
   statement {
     sid    = "SecretsManager"
     effect = "Allow"
-
     actions = [
       "secretsmanager:GetSecretValue",
       "secretsmanager:DescribeSecret",
       "secretsmanager:ListSecrets"
     ]
-
     resources = var.iam_policy_secrets_manager_resources
+  }
+
+  statement {
+    sid    = "KMSDecrypt"
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+      "kms:DescribeKey"
+    ]
+    resources = var.iam_policy_kms_key_arns
   }
 
   statement {
     sid    = "CodeConnections"
     effect = "Allow"
-
     actions = [
-      "codeconnections:ListConnections",
-      "codeconnections:GetConnection"
+      "codeconnections:UseConnection",
+      "codeconnections:GetConnection",
+      "codeconnections:ListConnections"
     ]
-
     resources = var.iam_policy_code_connections_resources
   }
+}
+
+resource "aws_iam_role_policy" "argocd_core_integrations" {
+  name   = "${local.argocd_role_name}-core-integrations"
+  role   = aws_iam_role.argocd_capability.id
+  policy = data.aws_iam_policy_document.argocd_core_integrations.json
+}
+
+# Optional extras: ECR and/or CodeCommit (only when at least one is enabled)
+data "aws_iam_policy_document" "argocd_supplemental" {
+  count = var.enable_ecr_access || var.enable_codecommit_access ? 1 : 0
 
   dynamic "statement" {
     for_each = var.enable_ecr_access ? [1] : []
@@ -118,11 +141,12 @@ data "aws_iam_policy_document" "argocd_capability" {
   }
 }
 
-# Attach IAM Policy to Role
-resource "aws_iam_role_policy" "argocd_capability" {
-  name   = "${local.argocd_role_name}-policy"
+resource "aws_iam_role_policy" "argocd_supplemental" {
+  count = var.enable_ecr_access || var.enable_codecommit_access ? 1 : 0
+
+  name   = "${local.argocd_role_name}-supplemental"
   role   = aws_iam_role.argocd_capability.id
-  policy = data.aws_iam_policy_document.argocd_capability.json
+  policy = data.aws_iam_policy_document.argocd_supplemental[0].json
 }
 
 # Create ArgoCD namespace
@@ -149,7 +173,9 @@ resource "kubernetes_namespace_v1" "argocd" {
 resource "time_sleep" "wait_for_iam_and_ns_propagation" {
   depends_on = [
     aws_iam_role.argocd_capability,
-    aws_iam_role_policy.argocd_capability,
+    aws_iam_role_policy_attachment.argocd_capability_policy,
+    aws_iam_role_policy.argocd_core_integrations,
+    aws_iam_role_policy.argocd_supplemental,
     kubernetes_namespace_v1.argocd,
   ]
 
@@ -218,6 +244,14 @@ resource "time_sleep" "wait_for_argocd" {
   create_duration = var.wait_capability_ready_duration
 
   depends_on = [aws_eks_capability.argocd]
+}
+
+# Short sleep after capability is ACTIVE so access entry and ArgoCD SAs can propagate
+# before we create ClusterRoleBinding and associate the access policy
+resource "time_sleep" "wait_after_argocd_propagation" {
+  create_duration = var.wait_after_capability_propagation_duration
+
+  depends_on = [time_sleep.wait_for_argocd]
 }
 
 # External data source to query ArgoCD capability details via AWS CLI
@@ -335,13 +369,17 @@ data "external" "argocd_capability" {
   ]
 
   query      = { wait_for = aws_eks_capability.argocd.arn }
-  depends_on = [time_sleep.wait_for_argocd]
+  depends_on = [time_sleep.wait_after_argocd_propagation]
 }
 
 # ClusterRole for ArgoCD application-controller
 # Based on official ArgoCD manifests: https://github.com/argoproj/argo-cd/blob/master/manifests/cluster-rbac/application-controller/argocd-application-controller-clusterrole.yaml
 # ArgoCD needs full CRUD permissions (create, update, patch, delete, get, list, watch) on all resources
 # to properly sync applications from Git to the cluster and remove resources when applications are deleted
+#
+# Created before the EKS capability so that all roles and IAM-role bindings exist first; the capability
+# then starts with permissions already in place. Only the service-account ClusterRoleBinding must wait
+# for the capability (because the SAs are created by the capability).
 resource "kubernetes_manifest" "argocd_application_controller_clusterrole" {
   manifest = {
     apiVersion = "rbac.authorization.k8s.io/v1"
@@ -376,9 +414,7 @@ resource "kubernetes_manifest" "argocd_application_controller_clusterrole" {
     ]
   }
 
-  depends_on = [
-    time_sleep.wait_for_iam_and_ns_propagation
-  ]
+  depends_on = [time_sleep.wait_for_iam_and_ns_propagation]
 }
 
 # ClusterRoleBinding to grant ArgoCD service accounts permission to sync application resources
@@ -426,7 +462,7 @@ resource "kubernetes_manifest" "argocd_application_controller_clusterrolebinding
   }
 
   depends_on = [
-    time_sleep.wait_for_argocd,
+    time_sleep.wait_after_argocd_propagation,
     kubernetes_manifest.argocd_application_controller_clusterrole
   ]
 }
@@ -438,9 +474,9 @@ resource "kubernetes_manifest" "argocd_application_controller_clusterrolebinding
 # that are automatically associated), which is required for ArgoCD to sync applications and manage resources
 # across all namespaces, including cluster-scoped resources like runtimeclasses.node.k8s.io
 #
-# IMPORTANT: This must depend on time_sleep.wait_for_argocd (not directly on aws_eks_capability.argocd)
-# because the capability auto-creates the access entry asynchronously. If we try to associate a policy
-# before the access entry exists, it creates a premature/conflicting entry that causes AccessDenied.
+# IMPORTANT: This must depend on time_sleep.wait_after_argocd_propagation (after capability is ACTIVE
+# and a short propagation sleep) because the capability auto-creates the access entry asynchronously.
+# If we associate a policy before the access entry exists, it can cause AccessDenied.
 resource "aws_eks_access_policy_association" "argocd_capability_cluster_admin" {
   cluster_name  = var.cluster_name
   principal_arn = aws_iam_role.argocd_capability.arn
@@ -450,14 +486,13 @@ resource "aws_eks_access_policy_association" "argocd_capability_cluster_admin" {
     type = "cluster"
   }
 
-  depends_on = [
-    time_sleep.wait_for_argocd
-  ]
+  depends_on = [time_sleep.wait_after_argocd_propagation]
 }
 
 # ClusterRoleBinding for IAM role-based authentication (kept for backward compatibility)
 # Note: EKS Access Entry with access policy is the preferred method for IAM role-based RBAC
-# This ClusterRoleBinding may still be needed for some edge cases
+# This ClusterRoleBinding may still be needed for some edge cases.
+# Created before the capability so the IAM role has the ClusterRole as soon as the capability starts.
 resource "kubernetes_manifest" "argocd_application_controller_iam_role_binding" {
   manifest = {
     apiVersion = "rbac.authorization.k8s.io/v1"
@@ -483,9 +518,7 @@ resource "kubernetes_manifest" "argocd_application_controller_iam_role_binding" 
     ]
   }
 
-  depends_on = [
-    time_sleep.wait_for_argocd
-  ]
+  depends_on = [kubernetes_manifest.argocd_application_controller_clusterrole]
 }
 
 # EKS Cluster Data Source
@@ -511,7 +544,5 @@ resource "kubernetes_secret" "argocd_local_cluster" {
 
   type = "Opaque"
 
-  depends_on = [
-    time_sleep.wait_for_argocd
-  ]
+  depends_on = [time_sleep.wait_after_argocd_propagation]
 }

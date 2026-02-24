@@ -98,25 +98,38 @@ variable "wait_capability_ready_duration" {
   default     = "5m"
 }
 
-# IAM Policy Resources
+variable "wait_after_capability_propagation_duration" {
+  description = "Short sleep after capability is ACTIVE to allow access entry and ArgoCD SAs to propagate before ClusterRoleBinding and access policy association (e.g. 30s, 1m)."
+  type        = string
+  default     = "30s"
+}
+
+# IAM Policy Resources (core integrations: EKS, Secrets Manager, CodeConnections, KMS)
 variable "iam_policy_eks_resources" {
-  description = "List of EKS resource ARNs for IAM policy (use ['*'] for all clusters)"
+  description = "EKS resource ARNs for core integrations policy (e.g. ['*'] or cluster ARNs)"
   type        = list(string)
   default     = ["*"]
 }
 
 variable "iam_policy_secrets_manager_resources" {
-  description = "List of Secrets Manager secret ARNs for IAM policy (use ['*'] for all secrets)"
+  description = "Secrets Manager secret ARNs for core integrations policy (e.g. ['*'] or secret ARNs)"
   type        = list(string)
   default     = ["*"]
 }
 
 variable "iam_policy_code_connections_resources" {
-  description = "List of CodeConnections connection ARNs for IAM policy (use ['*'] for all connections)"
+  description = "CodeConnections connection ARNs for core integrations policy (e.g. ['*'] or connection ARNs)"
   type        = list(string)
   default     = ["*"]
 }
 
+variable "iam_policy_kms_key_arns" {
+  description = "KMS key ARNs for Secrets Manager decrypt (e.g. ['*'] or specific key ARNs)"
+  type        = list(string)
+  default     = ["*"]
+}
+
+# IAM Policy Resources (supplemental policy: ECR, CodeCommit)
 variable "enable_ecr_access" {
   description = "Whether to enable ECR access in IAM policy (for pulling container images)"
   type        = bool
