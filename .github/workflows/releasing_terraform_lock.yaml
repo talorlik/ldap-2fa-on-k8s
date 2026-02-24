@@ -1,0 +1,151 @@
+name: Release Terraform Lock
+
+# Use this workflow to force-unlock Terraform state after a crash or interrupted run.
+# Required GitHub Repository Secrets:
+# - AWS_STATE_ACCOUNT_ROLE_ARN: IAM role ARN for backend state operations
+#
+# Required GitHub Repository Variables:
+# - BACKEND_BUCKET_NAME, BACKEND_PREFIX (backend_infra)
+# - APPLICATION_INFRA_PREFIX (application_infra)
+# - APPLICATION_PREFIX (application)
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'Select AWS Region'
+        required: true
+        type: choice
+        default: 'us-east-1: N. Virginia'
+        options:
+          - 'us-east-1: N. Virginia'
+          - 'us-east-2: Ohio'
+      environment:
+        description: 'Select Environment'
+        required: true
+        type: choice
+        default: prod
+        options:
+          - prod
+          - dev
+      level:
+        description: 'Terraform layer to unlock (selects backend, workspace, and permissions)'
+        required: true
+        type: choice
+        default: application_infra
+        options:
+          - backend_infra
+          - application_infra
+          - application
+      lock_id:
+        description: 'Lock ID to release (from terraform plan/apply error or DynamoDB lock table)'
+        required: true
+        type: string
+
+jobs:
+  SetRegion:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      region_code: ${{ steps.set_region.outputs.region_code }}
+    steps:
+      - name: Set Region
+        id: set_region
+        run: |
+          SELECTED_REGION="${{ inputs.region }}"
+          echo "region_code=${SELECTED_REGION%%:*}" >> $GITHUB_OUTPUT
+
+  ReleaseLock:
+    runs-on: ubuntu-latest
+    needs:
+      - SetRegion
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ needs.SetRegion.outputs.region_code }}
+      LOCK_LEVEL: ${{ inputs.level }}
+      LOCK_ID: ${{ inputs.lock_id }}
+    steps:
+      - name: Set working directory for level
+        id: set_work_dir
+        run: |
+          echo "work_dir=./${{ inputs.level }}" >> $GITHUB_OUTPUT
+          echo "Releasing Terraform lock for level: ${{ inputs.level }}"
+
+      - name: Checkout the repo code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.0
+
+      - name: Configure AWS credentials (State Account)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_STATE_ACCOUNT_ROLE_ARN }}
+          role-session-name: GitHubActions-ReleaseTerraformLock-${{ inputs.level }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create backend_infra backend.hcl
+        if: inputs.level == 'backend_infra' || inputs.level == 'application_infra' || inputs.level == 'application'
+        run: |
+          DIR=backend_infra
+          if [ ! -f "$DIR/backend.hcl" ]; then
+            cp "$DIR/tfstate-backend-values-template.hcl" "$DIR/backend.hcl"
+            sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
+              -e "s|<BACKEND_PREFIX>|${{ vars.BACKEND_PREFIX }}|g" \
+              -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
+              "$DIR/backend.hcl"
+            echo "Created $DIR/backend.hcl"
+          else
+            echo "$DIR/backend.hcl already exists."
+          fi
+
+      - name: Create application_infra backend.hcl
+        if: inputs.level == 'application_infra' || inputs.level == 'application'
+        run: |
+          DIR=application_infra
+          if [ ! -f "$DIR/backend.hcl" ]; then
+            cp "$DIR/tfstate-backend-values-template.hcl" "$DIR/backend.hcl"
+            sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
+              -e "s|<APPLICATION_INFRA_PREFIX>|${{ vars.APPLICATION_INFRA_PREFIX }}|g" \
+              -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
+              "$DIR/backend.hcl"
+            echo "Created $DIR/backend.hcl"
+          else
+            echo "$DIR/backend.hcl already exists."
+          fi
+
+      - name: Create application backend.hcl
+        if: inputs.level == 'application'
+        run: |
+          DIR=application
+          if [ ! -f "$DIR/backend.hcl" ]; then
+            cp "$DIR/tfstate-backend-values-template.hcl" "$DIR/backend.hcl"
+            sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
+              -e "s|<APPLICATION_PREFIX>|${{ vars.APPLICATION_PREFIX }}|g" \
+              -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
+              "$DIR/backend.hcl"
+            echo "Created $DIR/backend.hcl"
+          else
+            echo "$DIR/backend.hcl already exists."
+          fi
+
+      - name: Terraform init
+        working-directory: ${{ steps.set_work_dir.outputs.work_dir }}
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform workspace select
+        working-directory: ${{ steps.set_work_dir.outputs.work_dir }}
+        run: |
+          WORKSPACE="${{ env.AWS_REGION }}-${{ inputs.environment }}"
+          terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
+
+      - name: Release Terraform lock
+        working-directory: ${{ steps.set_work_dir.outputs.work_dir }}
+        run: |
+          terraform force-unlock -force "${{ env.LOCK_ID }}"
+          echo "Lock ${{ env.LOCK_ID }} released for ${{ inputs.level }} (${{ env.AWS_REGION }}-${{ inputs.environment }})."
