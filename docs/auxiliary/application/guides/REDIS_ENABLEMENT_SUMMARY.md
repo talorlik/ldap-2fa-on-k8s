@@ -157,84 +157,11 @@ kubectl exec -n 2fa-app -l app.kubernetes.io/name=ldap-2fa-backend -- env | grep
 
 ## Troubleshooting
 
-### Redis Connection Issues
+For Redis connection issues, SMS not sending, and related application-layer
+issues, see:
 
-**Problem:** Backend logs show "Failed to connect to Redis"
-
-**Solutions:**
-
-1. Verify Redis pod is running:
-
-    ```bash
-    kubectl get pods -n redis
-    ```
-
-2. Check network policy allows backend → Redis:
-
-    ```bash
-    kubectl get networkpolicy -n redis
-    ```
-
-3. Verify Redis secret exists:
-
-    ```bash
-    kubectl get secret redis-secret -n 2fa-app
-    ```
-
-4. Check Redis password is correct:
-
-    ```bash
-    kubectl get secret redis-secret -n 2fa-app -o jsonpath='{.data.redis-password}' | base64 -d
-    ```
-
-### SMS Not Sending
-
-**Problem:** SMS codes not being sent
-
-**Solutions:**
-
-1. Verify SNS module is deployed:
-
-    ```bash
-    terraform output -json | jq '.sns_topic_arn'
-    ```
-
-2. Check backend service account has IRSA role:
-
-    ```bash
-    kubectl get sa ldap-2fa-backend -n 2fa-app -o yaml
-    ```
-
-3. Verify AWS SNS permissions in IAM role
-4. Check backend logs for SNS errors:
-
-    ```bash
-    kubectl logs -n 2fa-app -l app.kubernetes.io/name=ldap-2fa-backend | grep -i sns
-    ```
-
-### OTP Codes Not Stored in Redis
-
-**Problem:** Codes stored in-memory instead of Redis
-
-**Solutions:**
-
-1. Verify `REDIS_ENABLED=true` in backend pod:
-
-    ```bash
-    kubectl exec -n 2fa-app -l app.kubernetes.io/name=ldap-2fa-backend -- env | grep REDIS_ENABLED
-    ```
-
-2. Check Redis connection in logs:
-
-    ```bash
-    kubectl logs -n 2fa-app -l app.kubernetes.io/name=ldap-2fa-backend | grep -i "redis connected"
-    ```
-
-3. Verify Redis secret is enabled: Check Helm values
-
-    ```yaml
-    redis.existingSecret.enabled: true
-    ```
+- [Application Layer Troubleshooting](../docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
+- [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)
 
 ## Rollback
 

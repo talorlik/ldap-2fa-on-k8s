@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **LDAP and Admin-Seed-Job Troubleshooting Guide**
   - Created comprehensive troubleshooting document
-  [LDAP_ADMIN_SEED_TROUBLESHOOTING.md](LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
+  [LDAP and Admin-Seed Troubleshooting](../docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
   documenting persistent LDAP issues, investigation timeline, root causes,
   ad-hoc manual corrections, and permanent code fixes
   - Includes verification commands and lessons learned
@@ -129,7 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (country code + number), password, confirm password
   - User model: `mfa_method` and `totp_secret` are set to `None` during signup
   and populated during MFA enrollment at login
-  - Updated documentation: [PRD_SIGNUP_MAN.md](PRD_SIGNUP_MAN.md), [PRD_ADMIN_FUNCS.md](PRD_ADMIN_FUNCS.md)
+  - Updated documentation: [PRD Signup Management](../docs/auxiliary/application/design/PRD_SIGNUP_MAN.md),
+  [PRD Admin Functions](../docs/auxiliary/application/design/PRD_ADMIN_FUNCS.md)
 
 ## [2025-02-23] - Remember me and Forgot/Reset password
 
@@ -164,7 +165,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Login challenge storage (in-memory) now stores `remember_me` and passes it to
 the verify step for JWT expiry selection.
-- Documentation: [application/README.md](README.md), [application/PRD_2FA_APP.md](PRD_2FA_APP.md),
+- Documentation: [application/README.md](README.md), [PRD 2FA App](../docs/auxiliary/application/design/PRD_2FA_APP.md),
 [application/backend/README.md](backend/README.md), [application/frontend/README.md](frontend/README.md)
 updated with new endpoints, request/response schemas, config, and frontend API methods.
 
@@ -209,7 +210,7 @@ updated with new endpoints, request/response schemas, config, and frontend API m
   use by the 2FA application and other consumers.
 
 - **Documentation**
-  [SECRETS_REQUIREMENTS.md](../SECRETS_REQUIREMENTS.md), [application/README.md](README.md),
+  [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md), [application/README.md](README.md),
   root [README.md](../README.md), and [docs/index.html](../docs/index.html) updated
   to describe admin seed secrets, script/workflow behavior, and first admin login.
 

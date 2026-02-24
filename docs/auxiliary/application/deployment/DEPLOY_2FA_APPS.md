@@ -354,88 +354,11 @@ Once deployed, access the application at:
 
 ## Troubleshooting
 
-### Pods Not Starting
+For pods not starting, image pull errors, Ingress/ALB conflicting load
+balancer name, backend connectivity (LDAP, PostgreSQL, Redis), and IRSA, see:
 
-```bash
-# Check pod events
-kubectl describe pod -n 2fa-app <pod-name>
-
-# Check logs
-kubectl logs -n 2fa-app <pod-name>
-
-# Check if secrets exist
-kubectl get secrets -n 2fa-app
-kubectl get secrets -n ldap-2fa  # PostgreSQL secret
-kubectl get secrets -n redis      # Redis secret
-```
-
-### Image Pull Errors
-
-```bash
-# Verify ECR authentication
-aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ECR_URL%%/*}
-
-# Check if image exists in ECR
-aws ecr describe-images --repository-name ${ECR_REPO_NAME} --region ${REGION} --image-ids imageTag=${BACKEND_TAG}
-```
-
-### Ingress Not Creating ALB / Conflicting Load Balancer Name
-
-If you see **"Failed build model due to conflicting load balancer name"**, the
-2FA frontend or backend Ingress has a different (or empty)
-`alb.ingress.kubernetes.io/load-balancer-name` than the OpenLDAP Ingresses. All
-Ingresses in the same IngressGroup must use the same ALB name so they attach to
-the existing ALB and add new paths; otherwise the driver rejects the conflict.
-
-- **ArgoCD**: Ensure `application_infra` is applied first so it outputs
-  `alb_load_balancer_name`. Then apply `application/` so the ArgoCD apps
-  receive Helm parameters with that name and the IngressClass. Sync the
-  frontend and backend applications in ArgoCD.
-- **Manual Helm**: Use the same `ALB_NAME` as OpenLDAP (see Step 2) in your
-  backend and frontend values under `ingress.annotations.alb.ingress.kubernetes.io/load-balancer-name`.
-
-```bash
-# Check Ingress status
-kubectl describe ingress -n 2fa-app
-
-# Verify IngressClass exists
-kubectl get ingressclass ${INGRESS_CLASS}
-
-# Check IngressClassParams
-kubectl get ingressclassparams
-
-# Verify all Ingresses use the same load-balancer-name annotation
-kubectl get ingress -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.annotations.alb\.ingress\.kubernetes\.io/load-balancer-name}{"\n"}{end}'
-```
-
-### Backend Cannot Connect to Services
-
-```bash
-# Test LDAP connectivity from backend pod
-kubectl exec -n 2fa-app -it <backend-pod-name> -- \
-  python -c "import socket; s = socket.socket(); s.connect(('openldap-stack-ha.ldap.svc.cluster.local', 389)); print('LDAP reachable')"
-
-# Test PostgreSQL connectivity
-kubectl exec -n 2fa-app -it <backend-pod-name> -- \
-  python -c "import socket; s = socket.socket(); s.connect(('${POSTGRES_HOST}', 5432)); print('PostgreSQL reachable')"
-
-# Test Redis connectivity
-kubectl exec -n 2fa-app -it <backend-pod-name> -- \
-  python -c "import socket; s = socket.socket(); s.connect(('${REDIS_HOST}', ${REDIS_PORT})); print('Redis reachable')"
-```
-
-### IRSA Not Working
-
-```bash
-# Check service account annotations
-kubectl get serviceaccount -n 2fa-app -o yaml
-
-# Verify IAM role exists
-aws iam get-role --role-name <role-name>
-
-# Check pod annotations (should have AWS_ROLE_ARN and AWS_WEB_IDENTITY_TOKEN_FILE)
-kubectl get pod -n 2fa-app -o jsonpath='{.items[0].spec.containers[0].env}' | jq
-```
+- [Application Layer Troubleshooting](../docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
+- [Debug Commands](../docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
 
 ## Updating Deployments
 

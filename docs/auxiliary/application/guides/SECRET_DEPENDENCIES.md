@@ -12,7 +12,7 @@ one for first-admin seed:
 3. **`ldap-admin-secret`** - LDAP admin password for backend authentication
 4. **`admin-seed-secret`** (optional) - First admin user profile (username, email,
 name, phone). When set with all required keys, a one-time Job seeds the first admin
-so they can log in with the same username/password as LDAP. See [SECRETS_REQUIREMENTS.md](../SECRETS_REQUIREMENTS.md).
+so they can log in with the same username/password as LDAP. See [SECRETS_REQUIREMENTS.md](../../reference/SECRETS_REQUIREMENTS.md).
 
 ## Component Dependencies
 

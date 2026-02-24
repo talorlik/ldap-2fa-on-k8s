@@ -489,8 +489,8 @@ CREATE TABLE verification_tokens (
 >
 > **ECR Image Support**: PostgreSQL uses ECR images instead of Docker Hub.
 > The image `bitnami/postgresql:18.1.0-debian-12-r4` is automatically mirrored to
-> ECR with tag `postgresql-latest` by the `scripts/mirror-images-to-ecr.sh` script before
-> Terraform operations. The ECR registry and repository are computed from
+> ECR with tag `postgresql-latest` by the `scripts/mirror-images-to-ecr.sh` script
+> before Terraform operations. The ECR registry and repository are computed from
 > `backend_infra` Terraform state.
 
 ### 7.3 Configuration Variables

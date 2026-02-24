@@ -351,7 +351,7 @@ application/
 │   ├── ses/                   # AWS SES for email
 │   └── sns/                   # AWS SNS for SMS
 ├── DEPLOY_2FA_APPS.md         # Application deployment documentation
-├── LDAP_ADMIN_SEED_TROUBLESHOOTING.md  # LDAP and admin-seed troubleshooting
+├── LDAP_ADMIN_SEED_TROUBLESHOOTING.md  # Redirect to docs/auxiliary/troubleshooting
 ├── PASSWORD_FLOW.md           # Password flow from secrets to Terraform to K8s
 ├── PRD_2FA_APP.md             # 2FA Application Product Requirements Document
 ├── PRD_ADMIN_FUNCS.md         # Admin Functions and Profile Management PRD
@@ -372,7 +372,8 @@ application/
 3. **Multi-Account Setup**: Same as infrastructure (State Account and Deployment
    Account)
 4. **Secrets Configuration**: All required secrets must be configured.
-   See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete setup instructions.
+   See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+   for complete setup instructions.
    **First admin seed (optional):** To have the same LDAP admin username/password
    log into the 2FA app, set the admin seed secrets (e.g. `ADMIN_SEED_USERNAME`,
    `ADMIN_SEED_EMAIL`, etc.) in AWS Secrets Manager `tf-vars` or GitHub Secrets.
@@ -496,7 +497,8 @@ accidental state conflicts or overwrites.
 > - `TF_VAR_postgresql_database_password`
 > - `TF_VAR_redis_password`
 >
-> See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for configuration details.
+> See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+> for configuration details.
 
 ## Deployment
 
@@ -686,112 +688,16 @@ See [Operations & Monitoring](../README.md#operations--monitoring) in the main R
 
 ## Troubleshooting
 
-> [!TIP]
->
-> **For LDAP and Admin-Seed-Job issues**, see the comprehensive
-> [LDAP_ADMIN_SEED_TROUBLESHOOTING.md](LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
-> guide which documents multi-master replication problems, directory structure
-> initialization, group membership attributes, and admin user seeding fixes.
+Consolidated troubleshooting for the application layer (2FA app, PostgreSQL,
+Redis, admin-seed, Ingress/ALB, SES, SNS) and for LDAP/admin-seed in detail:
 
-### Common Issues
-
-1. **2FA Application Issues**
-   - Check backend pods: `kubectl logs -n 2fa-app -l app=ldap-2fa-backend`
-   - Check frontend pods: `kubectl logs -n 2fa-app -l app=ldap-2fa-frontend`
-   - Verify LDAP connectivity from backend: test internal DNS resolution
-   - Check IRSA role assumption: verify service account annotations
-
-2. **SMS 2FA Not Working**
-   - Verify SNS topic exists: `aws sns list-topics`
-   - Check IAM role permissions: `aws iam get-role-policy`
-   - Verify VPC endpoints for SNS and STS
-   - Check backend logs for SNS errors
-   - Verify phone number format (E.164)
-
-3. **PostgreSQL Issues**
-   - Check pods: `kubectl get pods -n ldap-2fa -l app.kubernetes.io/name=postgresql`
-   - Check logs: `kubectl logs -n ldap-2fa -l app.kubernetes.io/name=postgresql`
-   - Check PVC: `kubectl get pvc -n ldap-2fa`
-   - Test connection: `kubectl exec -it -n ldap-2fa postgresql-0 -- \
-     psql -U ldap2fa -d ldap2fa`
-
-   **Backend fails with "Name or service not known" (gaierror) when connecting
-   to PostgreSQL**
-   - The backend expects a Kubernetes Service named `postgresql` in namespace
-   `ldap-2fa` (DNS: `postgresql.ldap-2fa.svc.cluster.local`). If that name does
-   not resolve, either PostgreSQL is not deployed or the Service has a different
-   name.
-   - Check that the `ldap-2fa` namespace and a Service named `postgresql` exist:
-     - `kubectl get ns ldap-2fa`
-     - `kubectl get svc -n ldap-2fa` — you should see a service named `postgresql`.
-     If the service has a longer name (e.g. `talo-tf-us-east-1-postgresql-prod`),
-     the application Terraform has not been applied with the PostgreSQL `fullnameOverride`
-     fix; re-apply the `application/` Terraform so the Helm values use
-     `fullnameOverride: "postgresql"` (see `application/helm/postgresql-values.tpl.yaml`).
-   - Ensure PostgreSQL is enabled and applied before or with the backend:
-   `enable_postgresql = true` in tfvars and `terraform apply` for the application
-   layer so the PostgreSQL Helm release is installed/updated first.
-
-   **Backend fails with "Connection refused" (Errno 111) when connecting to PostgreSQL**
-   - DNS is working (hostname resolves) but nothing is accepting TCP on port 5432.
-   Usually the PostgreSQL pod is still starting or not ready.
-   - Check that the PostgreSQL pod is Running and ready:
-   `kubectl get pods -n ldap-2fa -l app.kubernetes.io/name=postgresql`
-   (READY should be 1/1).
-   - If the pod is still starting, the backend will retry the DB connection on startup
-   (about 3 attempts, 5 seconds apart). Ensure you are running a backend image that
-   includes this retry logic, then restart the backend so it waits for PostgreSQL
-   to become ready.
-   - If the pod is Running but connection is still refused, check PostgreSQL logs:
-   `kubectl logs -n ldap-2fa -l app.kubernetes.io/name=postgresql` and confirm the
-   Service targets port 5432: `kubectl get svc -n ldap-2fa postgresql -o yaml`.
-
-4. **Redis Issues**
-   - Check pods: `kubectl get pods -n redis -l app.kubernetes.io/name=redis`
-   - Check logs: `kubectl logs -n redis -l app.kubernetes.io/name=redis`
-   - Check PVC: `kubectl get pvc -n redis`
-   - Test connection: `kubectl exec -it -n redis redis-master-0 -- \
-     redis-cli -a $REDIS_PASSWORD ping`
-
-5. **FailedBuildModel / Conflicting load balancer name**
-   - If the EKS load balancer driver reports "Failed build model due to
-     conflicting load balancer name", the 2FA frontend or backend Ingress has a
-     different `alb.ingress.kubernetes.io/load-balancer-name` than OpenLDAP (or
-     it is empty). All Ingresses in the same IngressGroup must use the same
-     ALB name. Ensure `application_infra` is applied first (so
-     `alb_load_balancer_name` output exists), then apply `application/` so
-     ArgoCD apps receive the correct Helm parameters. After applying, sync the
-     frontend and backend applications in ArgoCD so their Ingresses are
-     updated with the shared ALB name and IngressClass.
-
-6. **Admin-Seed-Job Failures**
-   - **ImagePullBackOff**: ECR uses commit-based tags (e.g.,
-     `ldap-2fa-backend-<sha>-<run_id>`), not `:latest`. Ensure the Backend Build
-     workflow has run and the Helm values contain the correct tag.
-   - **LDAP noSuchObject (32)**: Directory structure (`ou=users`, `ou=groups`,
-     `cn=admins`) may be missing on some pods due to multi-master replication
-     not syncing initial data. The `customLdifFiles` in OpenLDAP Helm values
-     now auto-creates these on all pods.
-   - **LDAP invalidCredentials (49)**: Password mismatch between
-     `application_infra` and `application`. The `ldap-admin-secret` now reads
-     password from OpenLDAP secret in `ldap` namespace.
-   - **Group membership attribute error**: `groupOfUniqueNames` uses
-     `uniqueMember`, not `member`. The LDAPClient now auto-detects the group
-     objectClass.
-   - See [LDAP_ADMIN_SEED_TROUBLESHOOTING.md](LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
-     for detailed investigation and fixes.
-
-7. **SES Issues**
-   - Check email identity: `aws ses get-identity-verification-attributes \
-     --identities your@email.com`
-   - Check send quota: `aws ses get-send-quota`
-   - Verify IRSA: Check service account annotation for SES IAM role
-
-8. **User Registration Issues**
-   - Check backend logs for registration errors
-   - Verify PostgreSQL connectivity
-   - Check SES sending limits (sandbox mode restricts recipients)
-   - Verify SNS SMS spending limit
+- [Application Layer Troubleshooting](../docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
+- [LDAP and Admin-Seed Troubleshooting](../docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED.md)
+Multi-master replication, directory structure, group membership attributes,
+admin user seeding.
+- [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)
+All troubleshooting documents.
+- [Debug Commands](../docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
 
 ### Useful Commands
 
@@ -842,7 +748,8 @@ Service Accounts (no hardcoded AWS credentials)
 best practices
 6. **Password Security**: PostgreSQL and Redis passwords are marked as sensitive
 in Terraform and must be set via environment variables, never in `variables.tfvars`.
-See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for configuration details.
+See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+for configuration details.
 7. **Encrypted Storage**: EBS volumes are encrypted by default
 (configurable via StorageClass from `application_infra`)
 8. **Network Policies**: Network policies restrict pod-to-pod communication
@@ -906,4 +813,4 @@ gateway)
 
 - [Application Infrastructure](../application_infra/README.md)
 - [Backend Infrastructure](../backend_infra/README.md)
-- [Secrets Requirements](../SECRETS_REQUIREMENTS.md)
+- [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)

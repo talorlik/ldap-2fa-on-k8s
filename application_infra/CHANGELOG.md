@@ -58,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   structure across pods (each pod initialized independently with empty directory)
   - Added `openldap_base_dn` variable and computed local in OpenLDAP module for
   LDIF template interpolation
-  - See [LDAP_ADMIN_SEED_TROUBLESHOOTING.md](../application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
+  - See [LDAP and Admin-Seed Troubleshooting](../docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
   for detailed investigation and root cause analysis
 
 - **PhpLdapAdmin and LTB-passwd image mirroring and Helm timeout**
@@ -88,7 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`modules/openldap/main.tf`) and the vendored chart
   (`charts/openldap-stack-ha`) are aligned on `LDAP_CONFIG_PASSWORD`.
   - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) is unchanged.
-  - See [OSIXIA_OPENLDAP_REQUIREMENTS.md](OSIXIA_OPENLDAP_REQUIREMENTS.md).
+  - See [Osixia OpenLDAP Requirements](../docs/auxiliary/application_infra/guides/OSIXIA_OPENLDAP_REQUIREMENTS.md).
 
 - **OpenLDAP secret and chart: environment variable names for passwords**
   - Corrected secret key names in the vendored chart and Terraform to use

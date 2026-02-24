@@ -61,7 +61,7 @@ These are used for application infrastructure components:
 
 Local bash scripts retrieve secrets from AWS Secrets Manager. **Secrets reside in
 the State Account (Account A)** — the same account that holds Terraform state and
-Route53. See the [Two-Account Split Summary](application_infra/CROSS_ACCOUNT_ACCESS.md#two-account-split-summary)
+Route53. See the [Two-Account Split Summary](../application_infra/guides/CROSS_ACCOUNT_ACCESS.md#two-account-split-summary)
 in the Cross-Account Access documentation for a full overview of what lives in
 each account.
 
@@ -668,50 +668,11 @@ them at:
 
 ## Troubleshooting
 
-### AWS Secrets Manager Issues (Local Scripts)
+For AWS Secrets Manager (local scripts), GitHub Secrets, and Terraform
+variable case sensitivity, see:
 
-**Problem:** Local scripts cannot retrieve secrets from AWS Secrets Manager
-
-**Common issues and solutions:**
-
-- **Secret doesn't exist:** Ensure secret named `github-role` or `tf-vars` exists
-in AWS Secrets Manager
-- **Access denied:** Your AWS credentials must have `secretsmanager:GetSecretValue`
-permission for the secrets
-- **Key not found:** Ensure the secret JSON contains the required keys
-- **Invalid JSON:** Verify the secret value is valid JSON format
-- **Wrong region:** Ensure your AWS CLI is configured to the correct region where
-the secrets exist
-
-**Verification:**
-
-```bash
-# Test secret retrieval manually
-aws secretsmanager get-secret-value --secret-id github-role --query SecretString --output text | jq .
-aws secretsmanager get-secret-value --secret-id tf-vars --query SecretString --output text | jq .
-```
-
-### GitHub Secrets Issues
-
-**Problem:** GitHub Actions workflows cannot access secrets
-
-**Common issues and solutions:**
-
-- **Secret not configured:** Ensure all required secrets are set in
-Repository Settings → Secrets and variables → Actions → Secrets
-- **Wrong secret name:** Verify secret names match exactly (case-sensitive)
-- **Insufficient permissions:** Ensure the workflow has access to repository secrets
-- **Secret not available in workflow:** Check that secrets are referenced correctly
-in workflow YAML
-
-### Case Sensitivity Issues
-
-**Problem:** Terraform variables not recognized
-
-**Solution:** Ensure environment variables use lowercase to match `variables.tf`:
-
-- Secret: `TF_VAR_OPENLDAP_ADMIN_PASSWORD` (uppercase in GitHub/AWS)
-- Environment variable: `TF_VAR_openldap_admin_password` (lowercase for Terraform)
+- [Secrets and Variables Troubleshooting](docs/auxiliary/troubleshooting/secrets_and_variables/SECRETS_AND_VARIABLES.md)
+- [Troubleshooting Index](docs/auxiliary/troubleshooting/INDEX.md)
 
 ## Related Documentation
 

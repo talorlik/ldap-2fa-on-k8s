@@ -386,44 +386,8 @@ kubectl get secret postgresql-secret -n 2fa-app -o jsonpath='{.data.password}' |
 
 ## Troubleshooting
 
-### Problem: "Variable not set" error
+For "Variable not set", Secrets Manager retrieval failures, and Terraform
+variable not found, see:
 
-**Solution:** Verify environment variable is exported:
-
-```bash
-env | grep TF_VAR_postgresql_database_password
-```
-
-### Problem: "Failed to retrieve secret from AWS Secrets Manager"
-
-**Solution:**
-
-1. Check AWS credentials are configured
-2. Verify secret exists:
-
-    ```bash
-    aws secretsmanager describe-secret --secret-id tf-vars
-    ```
-
-3. Check IAM permissions for Secrets Manager access
-
-### Problem: "Failed to retrieve TF_VAR_POSTGRESQL_PASSWORD from secret"
-
-**Solution:**
-
-1. Verify key exists in JSON:
-
-    ```bash
-    aws secretsmanager get-secret-value --secret-id tf-vars | jq .
-    ```
-
-2. Check key name matches exactly (case-sensitive)
-3. Verify JSON is valid format
-
-### Problem: Terraform variable not found
-
-**Solution:**
-
-1. Verify environment variable name matches Terraform variable name exactly
-2. Check case sensitivity: `TF_VAR_postgresql_database_password` (lowercase)
-3. Ensure variable is exported before running `terraform plan/apply`
+- [Secrets and Variables Troubleshooting](../docs/auxiliary/troubleshooting/secrets_and_variables/SECRETS_AND_VARIABLES.md)
+- [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)

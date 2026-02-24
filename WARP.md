@@ -94,7 +94,8 @@ from ECR during deployment
   - Redis: bitnami/redis:8.4.0-debian-12-r6 → ECR tag `redis-latest`
   - PostgreSQL: bitnami/postgresql:18.1.0-debian-12-r4 → ECR tag `postgresql-latest`
   - phpLDAPadmin: osixia/phpldapadmin:0.9.0 → ECR tag `phpldapadmin-0.9.0`
-  - LTB Self-Service Password: ltbproject/self-service-password:5.2.3 → ECR tag `ltb-passwd-5.2.3`
+  - LTB Self-Service Password: ltbproject/self-service-password:5.2.3 → ECR tag
+  `ltb-passwd-5.2.3`
 - **2FA Application**: Full-stack application with Python FastAPI backend and
 static HTML/JS/CSS frontend, supporting TOTP and SMS MFA methods
 - **User Signup Management**: Self-service registration with email/phone
@@ -377,7 +378,7 @@ Ensure you have:
 - An existing Route53 hosted zone for your domain
 - **Public ACM certificates** requested in each deployment account and validated
 via DNS records in State Account's Route53 hosted zone
-  - See [Public ACM Certificate Setup and DNS Validation](application_infra/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  - See [Public ACM Certificate Setup and DNS Validation](docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for detailed setup instructions
   - Certificates are browser-trusted (no security warnings) and automatically
   renewed by ACM
@@ -689,7 +690,8 @@ state (with fallback options)
 - `application_infra/OSIXIA_OPENLDAP_REQUIREMENTS.md` - OpenLDAP image requirements
 - `application_infra/SECURITY_IMPROVEMENTS.md` - Security enhancements and best
 practices
-- `application_infra/CROSS_ACCOUNT_ACCESS.md` - Cross-account access documentation
+- `docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md` - Cross-account
+access documentation
 
 ### Application Layer
 
@@ -747,11 +749,12 @@ system
 - `application/PRD_SMS_MAN.md` - Product requirements for SMS management
 - `application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md` - Comprehensive LDAP and
 admin-seed-job troubleshooting guide
-- `application/PASSWORD_FLOW.md` - How passwords flow from secrets to Terraform
-variables to Kubernetes secrets
-- `application/REDIS_ENABLEMENT_SUMMARY.md` - Guide for enabling Redis and SMS 2FA
-- `application/SECRET_DEPENDENCIES.md` - Which components require which secrets
-(PostgreSQL, Redis, LDAP admin) and cross-namespace dependencies
+- `docs/auxiliary/application/guides/PASSWORD_FLOW.md` - How passwords flow from
+secrets to Terraform variables to Kubernetes secrets
+- `docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md` - Guide for
+enabling Redis and SMS 2FA
+- `docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md` - Which components
+require which secrets (PostgreSQL, Redis, LDAP admin) and cross-namespace dependencies
 - `SECRETS_REQUIREMENTS.md` - Comprehensive secrets management documentation
   - AWS Secrets Manager setup for local scripts (role ARNs, ExternalId, passwords)
   - GitHub Repository Secrets setup for workflows
@@ -1067,7 +1070,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - February 2026)
 
-### Script Consolidation, EKS Token Exec Plugin, and Image Mirroring Enhancements (Feb 23, 2026)
+### Script Consolidation, EKS Token Exec, Image Mirroring (Feb 23, 2026)
 
 - **Scripts Consolidated into `scripts/` Directory**:
   - Moved shared scripts from `application_infra/` to centralized `scripts/`
@@ -1429,14 +1432,14 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Updated backend README to reflect current Dockerfile and deployment process
 
 - **Application Documentation**:
-  - [PASSWORD_FLOW.md](application/PASSWORD_FLOW.md) - Documents how passwords flow
-  from GitHub Secrets/AWS Secrets Manager → Terraform environment variables →
-  Terraform variables → Kubernetes secrets
-  - [REDIS_ENABLEMENT_SUMMARY.md](application/REDIS_ENABLEMENT_SUMMARY.md) - Guide
-  for enabling Redis and SMS 2FA, including verification steps and troubleshooting
-  - [SECRET_DEPENDENCIES.md](application/SECRET_DEPENDENCIES.md) - Documents which
-  components require which secrets (PostgreSQL, Redis, LDAP admin) and cross-namespace
-  secret copying requirements
+  - [PASSWORD_FLOW.md](docs/auxiliary/application/guides/PASSWORD_FLOW.md) - Documents
+  how passwords flow from GitHub Secrets/AWS Secrets Manager → Terraform environment
+  variables → Terraform variables → Kubernetes secrets
+  - [REDIS_ENABLEMENT_SUMMARY.md](docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md)
+  Guide for enabling Redis and SMS 2FA, including verification steps and troubleshooting
+  - [SECRET_DEPENDENCIES.md](docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md)
+  Documents which components require which secrets (PostgreSQL, Redis, LDAP admin)
+  and cross-namespace secret copying requirements
 
 ### ArgoCD Module Resource Fix and App Deployment Validation (January 26, 2026)
 
@@ -1775,7 +1778,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Public ACM certificates are requested in Deployment Account (not State Account)
   - Scripts automatically inject `state_account_role_arn` into `variables.tfvars`
   - No ExternalId required for state account role assumption (by design)
-  - Comprehensive cross-account access documentation in `application_infra/CROSS_ACCOUNT_ACCESS.md`
+  - Comprehensive cross-account access documentation in `docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md`
   - Self-assumption support: State Account role can assume itself when needed
 
 ### Route53 Record Module Separation (January 5, 2026)
@@ -2348,186 +2351,18 @@ controller
 
 ### Troubleshooting
 
-> **Comprehensive Guide**: For detailed LDAP and admin-seed-job troubleshooting,
-> see [application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md](application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
-> which documents investigation steps, root causes, and fixes.
+For PVC, Terraform workspace, backend config, SSM, cluster name, OpenLDAP
+passwords, ALB, Route53, IngressClass, certificate, OpenLDAP auth (49), ALB
+ingress group, Route53 state, and admin-seed-job issues, see the consolidated
+troubleshooting docs:
 
-- **PVC stuck in Pending**: Normal until a pod uses it (EBS Auto Mode behavior
-with WaitForFirstConsumer)
-- **Terraform workspace issues**: Ensure workspace exists before selecting
-(format: `region-env`, e.g. `us-east-1-prod`)
-- **Backend config errors**: Re-run `setup-backend.sh` (backend_infra) or
-`setup-application.sh` (application) to regenerate `backend.hcl`
-- **SSM access denied**: Check VPC endpoint security groups and IAM policies
-- **Cluster name not found**: Ensure backend_infra is deployed first and
-`backend.hcl` is configured correctly, or provide `cluster_name` in
-variables.tfvars
-- **OpenLDAP password errors**: The setup script automatically retrieves
-passwords from GitHub secrets. For local use, ensure passwords are exported as
-environment variables (`TF_VAR_OPENLDAP_ADMIN_PASSWORD`,
-`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) before running the script
-- **ALB not created**: Check Ingress resources have proper annotations, ACM
-certificate is validated, and IngressClass/IngressClassParams exist
-- **Route53 DNS not resolving**: Ensure Route53 A records point to ALB DNS name
-and NS records are configured at registrar
-- **IngressClass not found**: Ensure ALB module is deployed (via `use_alb =
-true` variable)
-- **Certificate not applied**: Certificate ARN is configured in
-IngressClassParams, not in Ingress annotations
-
-### OpenLDAP Authentication Issues (Error 49: Invalid Credentials)**
-
-1. **Root Cause**: OpenLDAP was initialized without proper `LDAP_DOMAIN`
-environment variable
-   - Symptoms: `ldap_bind: Invalid credentials (49)` even with correct password
-   - The jp-gouin chart's `global.ldapDomain` doesn't pass through to
-   osixia/openldap container
-   - Must explicitly set `LDAP_DOMAIN`, `LDAP_ADMIN_PASSWORD`, and
-   `LDAP_CONFIG_PASSWORD` in `env:` (or via existingSecret with those keys)
-
-2. **Fix**: Delete PVCs to force re-initialization with correct environment
-variables:
-
-   ```bash
-   kubectl delete pvc -n ldap --all
-   kubectl delete pod -n ldap openldap-stack-ha-0 openldap-stack-ha-1 openldap-stack-ha-2
-   # Wait for pods to restart and PVCs to recreate
-   ```
-
-3. **Verify Fix**:
-
-   ```bash
-   # Check environment variables are set
-   kubectl exec -n ldap openldap-stack-ha-0 -- env | grep LDAP_DOMAIN
-
-   # Test authentication
-   kubectl exec -n ldap openldap-stack-ha-0 -- ldapsearch -x -LLL -H ldap://localhost:389 \
-     -D "cn=admin,dc=ldap,dc=talorlik,dc=internal" -w "<password>" \
-     -b "dc=ldap,dc=talorlik,dc=internal" "(objectClass=*)" dn
-   ```
-
-### ALB Ingress Group Issues (Multiple ALBs Created)**
-
-1. **Root Cause**: AWS Load Balancer Controller creates separate ALBs when
-multiple Ingresses with same `group.name` are created simultaneously
-   - Symptoms: Each Ingress shows different ALB address; one returns 404 while
-   other works
-   - Example: `phpldapadmin` on `k8s-ldap-openldap-xxx` and `passwd` on
-   `talo-tf-us-east-1-talo-ldap-prod-xxx`
-
-2. **Fix**: Delete all ALBs and Ingresses, then recreate cleanly:
-
-   ```bash
-   # Delete all LDAP-related ALBs
-   aws elbv2 describe-load-balancers --region us-east-1 \
-     --query 'LoadBalancers[?contains(LoadBalancerName, `ldap`)].LoadBalancerArn' \
-     --output text | xargs -n1 aws elbv2 delete-load-balancer --region us-east-1 --load-balancer-arn
-
-   # Delete Ingresses
-   kubectl delete ingress -n ldap --all
-
-   # Wait for cleanup (60 seconds)
-   sleep 60
-
-   # Recreate Helm release
-   terraform apply -replace="helm_release.openldap" -var-file="variables.tfvars" -auto-approve
-   ```
-
-3. **Verify Fix**:
-
-   ```bash
-   # Both Ingresses should show same ALB address
-   kubectl get ingress -n ldap
-
-   # Test both sites return 200 OK
-   curl -I https://phpldapadmin.talorlik.com
-   curl -I https://passwd.talorlik.com
-   ```
-
-### Route53 Record State Issues**
-
-1. **Root Cause**: Route53 records reference `local.alb_dns_name` which is empty
-when Ingresses don't exist
-   - Symptoms: Terraform validation error "expected length of alias.0.name to be
-   in the range (1 - 1024), got"
-
-2. **Fix**: Remove records from Terraform state and AWS, then recreate:
-
-   ```bash
-   # Remove from Terraform state
-   terraform state rm aws_route53_record.phpldapadmin aws_route53_record.ltb_passwd
-
-   # Delete from AWS (create delete batch)
-   cat > /tmp/delete-records.json << 'EOF'
-   {
-     "Changes": [
-       {
-         "Action": "DELETE",
-         "ResourceRecordSet": {
-           "Name": "phpldapadmin.talorlik.com",
-           "Type": "A",
-           "AliasTarget": {
-             "HostedZoneId": "Z35SXDOTRQ7X7K",
-             "DNSName": "<old-alb-dns-name>",
-             "EvaluateTargetHealth": true
-           }
-         }
-       },
-       {
-         "Action": "DELETE",
-         "ResourceRecordSet": {
-           "Name": "passwd.talorlik.com",
-           "Type": "A",
-           "AliasTarget": {
-             "HostedZoneId": "Z35SXDOTRQ7X7K",
-             "DNSName": "<old-alb-dns-name>",
-             "EvaluateTargetHealth": true
-           }
-         }
-       }
-     ]
-   }
-   EOF
-   aws route53 change-resource-record-sets --hosted-zone-id <zone-id> --change-batch file:///tmp/delete-records.json
-
-   # Apply Terraform to recreate records
-   terraform apply -auto-approve -var-file="variables.tfvars"
-   ```
-
-### Admin-Seed-Job Issues (Image Pull, LDAP Errors)**
-
-1. **Root Cause: Image tag `latest` doesn't exist in ECR**
-   - Symptoms: `ImagePullBackOff`, `ErrImagePull` for admin-seed-job pod
-   - ECR uses commit-based tags (e.g., `ldap-2fa-backend-<sha>-<run_id>`)
-   - Variable validation now rejects `latest` tag
-
-2. **Root Cause: LDAP directory structure missing on some pods**
-   - Symptoms: `LDAPNoSuchObjectResult - 32 - noSuchObject` for `ou=users`
-   - Multi-master replication doesn't sync initial data; each pod initializes
-   independently
-   - Fixed by adding `customLdifFiles` to create `ou=users`, `ou=groups`, and
-   `cn=admins` on all pods
-
-3. **Root Cause: Wrong group membership attribute**
-   - Symptoms: `attribute 'member' not allowed` when adding user to group
-   - `groupOfUniqueNames` requires `uniqueMember`, not `member`
-   - LDAPClient now detects group objectClass and uses correct attribute
-
-4. **Verification Commands**:
-
-   ```bash
-   # Check directory structure on all pods
-   for pod in openldap-stack-ha-0 openldap-stack-ha-1 openldap-stack-ha-2; do
-     echo "=== $pod ==="
-     kubectl exec -n ldap $pod -- ldapsearch -x -LLL -H ldap://localhost:389 \
-       -D "cn=admin,dc=ldap,dc=talorlik,dc=internal" \
-       -w "$LDAP_ADMIN_PASSWORD" \
-       -b "dc=ldap,dc=talorlik,dc=internal" "(objectClass=*)" dn
-   done
-   ```
-
-See [LDAP_ADMIN_SEED_TROUBLESHOOTING.md](application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
-for complete investigation details, ad-hoc corrections, and permanent code fixes.
+- [Troubleshooting Index](docs/auxiliary/troubleshooting/INDEX.md)
+- [LDAP and Admin-Seed](docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED.md)
+Investigation, root causes, ad-hoc corrections, permanent fixes
+- [Application Infrastructure Deployment](docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+ArgoCD, OpenLDAP, Helm, ECR, ALB
+- [Cross-Account and DNS](docs/auxiliary/troubleshooting/cross_account_dns/CROSS_ACCOUNT_AND_DNS.md)
+Route53, ACM certificates
 
 ## Important Notes
 

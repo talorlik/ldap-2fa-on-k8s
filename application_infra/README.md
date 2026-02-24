@@ -89,7 +89,8 @@ certificate management)
 > the State Account (different from deployment account). When
 > `state_account_role_arn` is configured, Terraform automatically queries these
 > resources from the State Account. See [Cross-Account Access
-> Documentation](./CROSS_ACCOUNT_ACCESS.md) for details.
+> Documentation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
+> for details.
 
 **Current Implementation (Data Sources):**
 
@@ -105,7 +106,7 @@ The code references existing resources using data sources:
   - Certificate must be validated and in `ISSUED` status
   - DNS validation records must be created in Route53 hosted zone in the State
     Account
-  - See [Public ACM Certificate Setup and DNS Validation](./CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  - See [Public ACM Certificate Setup and DNS Validation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
     for setup instructions
 - The certificate must be in the same region as the EKS cluster
 
@@ -115,7 +116,7 @@ The code references existing resources using data sources:
 Terraform configuration)
 - **Public ACM Certificate Setup**: Public ACM certificates must be requested in
   each deployment account and validated using DNS records in the State Account's
-  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](./CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for detailed setup instructions with step-by-step AWS CLI commands.
 - ACM certificate must be requested in each deployment account (development,
   production) as a public ACM certificate (Amazon-issued)
@@ -364,17 +365,9 @@ application_infra/
 │       ├── outputs.tf
 │       ├── providers.tf
 │       └── README.md
-├── CROSS_ACCOUNT_ACCESS.md    # Cross-account Route53/ACM access documentation
-├── OPENLDAP_CHANGELOG.md      # OpenLDAP chart change documentation
-├── OPENLDAP_README.md         # OpenLDAP deployment documentation
-├── OSIXIA_OPENLDAP_REQUIREMENTS.md  # OpenLDAP requirements documentation
-├── PRD_ALB.md                 # ALB configuration PRD
-├── PRD_ArgoCD.md              # ArgoCD Capability configuration PRD
-├── PRD_DOMAIN.md              # Domain configuration PRD
-├── PRD_OPENLDAP.md            # OpenLDAP configuration PRD
-├── SECURITY_IMPROVEMENTS.md   # Security improvements documentation
-├── SILENT_MODE_EXPLANATION.md # ArgoCD external data source silent mode
-└── README.md                  # This file
+├── OPENLDAP_CHANGELOG.md      # OpenLDAP chart change documentation (in repo)
+├── README.md                  # This file
+└── docs/auxiliary/application_infra/  # Design PRDs, guides (see docs/auxiliary/)
 ```
 
 > [!NOTE]
@@ -402,8 +395,8 @@ application_infra/
    - GitHub Actions uses Account A role for backend access and Route53/ACM
      access
    - Terraform provider assumes Account B role for resource deployment
-   - See [Cross-Account Access Documentation](./CROSS_ACCOUNT_ACCESS.md) for
-     details
+   - See [Cross-Account Access Documentation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
+   for details
 3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main
 [README.md](../README.md))
 4. **EKS Cluster**: The EKS cluster must be running with Auto Mode enabled
@@ -412,7 +405,7 @@ out, code uses data sources)
 6. **Public ACM Certificate Setup**: Public ACM certificates must be requested in
    each deployment account and validated using DNS records in the State Account's
    Route53 hosted zone
-   - See [Public ACM Certificate Setup and DNS Validation](./CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+   - See [Public ACM Certificate Setup and DNS Validation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
      for detailed setup instructions with step-by-step AWS CLI commands
    - Each deployment account (development, production) has its own public ACM
      certificate
@@ -425,8 +418,8 @@ out, code uses data sources)
    - Certificate must be validated and in `ISSUED` status
    - DNS validation records must be created in Route53 hosted zone in the State
      Account
-   - See [Cross-Account Access Documentation](./CROSS_ACCOUNT_ACCESS.md) for
-     details
+   - See [Cross-Account Access Documentation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
+   for details
 8. **Domain Registration**: The domain name must be registered (can be with any
 registrar)
 9. **DNS Configuration**: After deployment, point your domain registrar's NS
@@ -435,7 +428,8 @@ records to the Route53 name servers (output from data source)
 variables (see Configuration section)
 11. **AWS Identity Center**: Required for ArgoCD RBAC configuration
 12. **Secrets Configuration**: All required secrets must be configured.
-See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete setup instructions.
+See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+for complete setup instructions.
 13. **GitHub Repository Variables**: The following repository variables must be
 configured:
 
@@ -466,7 +460,7 @@ other cluster resources are created.
   Applications can target the local cluster
 
 See [Create an Argo CD capability (AWS)](https://docs.aws.amazon.com/eks/latest/userguide/create-argocd-capability.html)
-and [PRD_ArgoCD.md](PRD_ArgoCD.md).
+and [PRD_ArgoCD.md](../docs/auxiliary/application_infra/design/PRD_ArgoCD.md).
 
 ### What OpenLDAP Requires (to operate correctly)
 
@@ -489,8 +483,9 @@ not by an Argo CD Application.
    and (when ArgoCD is enabled) ArgoCD module.
 4. **Route53 records** and other resources that depend on OpenLDAP/ALB.
 
-See [TROUBLESHOOTING.md](TROUBLESHOOTING.md#deployment-order-summary) for
-failure handling.
+See [Application Infrastructure Deployment
+Troubleshooting](../docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md#deployment-order-summary)
+for failure handling.
 
 ## Backend State Configuration
 
@@ -579,7 +574,8 @@ cross-account role assumption
   - Automatically injected by GitHub workflows
   - Required when Route53 hosted zone and ACM certificate are in a different account
   - Format: `arn:aws:iam::STATE_ACCOUNT_ID:role/terraform-state-role`
-  - See [Cross-Account Access Documentation](./CROSS_ACCOUNT_ACCESS.md) for details
+  - See [Cross-Account Access Documentation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
+  for details
 
 #### Cluster Name Injection
 
@@ -652,7 +648,7 @@ from AWS Secrets Manager (for local use) or GitHub repository secrets
 > [!NOTE]
 >
 > For complete secrets configuration details, including AWS Secrets Manager setup,
-> GitHub repository secrets, and troubleshooting, see [Secrets Requirements](../SECRETS_REQUIREMENTS.md).
+> GitHub repository secrets, and troubleshooting, see [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md).
 
 #### Route53 and Domain Variables
 
@@ -794,7 +790,7 @@ idc_region                  = "us-east-1"
 
 > [!NOTE]
 >
-> For secrets configuration (passwords), see [Secrets Requirements](../SECRETS_REQUIREMENTS.md).
+> For secrets configuration (passwords), see [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md).
 > The `setup-application-infra.sh` script automatically retrieves passwords from
 > AWS Secrets Manager.
 
@@ -965,8 +961,8 @@ Terraform operations (required for accessing backend_infra remote state)
 
 **Setup Instructions:**
 
-See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for complete configuration
-instructions, including:
+See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+for complete configuration instructions, including:
 
 - AWS Secrets Manager setup (for local scripts)
 - GitHub Repository Secrets setup (for GitHub Actions)
@@ -1269,7 +1265,8 @@ validated via Route53)
 3. **LDAP Internal**: LDAP service is ClusterIP only, not exposed externally
 4. **Sensitive Variables**: Passwords are marked as sensitive in Terraform and
 must be set via environment variables, never in `variables.tfvars`.
-See [Secrets Requirements](../SECRETS_REQUIREMENTS.md) for configuration details.
+See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+for configuration details.
 5. **Encrypted Storage**: EBS volumes are encrypted by default (configurable via
 `storage_class_encrypted`)
 6. **Network Isolation**: Services run in private subnets
@@ -1278,7 +1275,7 @@ communication to secure ports only (443, 636, 8443), with cross-namespace access
 enabled for LDAP service access
 8. **Password Injection**: Passwords are injected at runtime via environment
 variables from AWS Secrets Manager (local scripts) or GitHub Secrets (GitHub Actions),
-ensuring they never appear in version control. See [Secrets Requirements](../SECRETS_REQUIREMENTS.md)
+ensuring they never appear in version control. See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
 for details.
 9. **DNS Validation**: ACM certificate uses DNS validation via Route53, ensuring
 secure certificate provisioning
@@ -1354,81 +1351,19 @@ in the main README.
 
 ## Troubleshooting
 
-### Common Issues
+For ArgoCD and OpenLDAP deployment failures (Helm, ALB, PVC, UIs, capability),
+useful commands, and tips:
 
-1. **Helm Release Fails**
-   - Verify EKS cluster is accessible: `kubectl get nodes`
-   - Check Helm repository is accessible: `helm repo list`
-   - Verify PVC exists: `kubectl get pvc -n ldap`
+- [Application Infrastructure Deployment Troubleshooting](../docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+- [Debug Commands](../docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
 
-2. **ALB Not Created**
-   - Ensure EKS Auto Mode has `elastic_load_balancing.enabled = true`
-   - Check Ingress annotations are correct
-   - Verify ACM certificate validation completed (check Route53 validation
-   records)
-   - Ensure certificate is in the same region as the EKS cluster
+For 2FA application, PostgreSQL, Redis, SES, SNS, and user registration, see:
 
-3. **PVC Not Found**
-   - Verify PVC name matches exactly (case-sensitive)
-   - Check PVC exists: `kubectl get pvc -A`
-   - Ensure PVC is in the same namespace or update namespace in Helm values
+- [Application Layer Troubleshooting](../docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
+- [application/README.md](../application/README.md#troubleshooting)
 
-4. **Cannot Access UIs**
-   - Verify ALB is created: `aws elbv2 describe-load-balancers`
-   - Check DNS resolution: `dig phpldapadmin.${domain_name}` or `nslookup
-   phpldapadmin.${domain_name}`
-   - Verify domain registrar NS records point to Route53 name servers
-   - Verify security groups allow HTTPS traffic
-   - Check Ingress status: `kubectl describe ingress -n ldap`
-   - Verify ACM certificate is validated: `aws acm describe-certificate
-   --certificate-arn <arn>`
-
-5. **ArgoCD Issues**
-   - Check capability status: `aws eks describe-capability`
-   - Verify cluster registration secret: `kubectl get secret -n argocd`
-   - Check Application sync status: `kubectl describe application -n argocd`
-
-> [!NOTE]
->
-> For troubleshooting 2FA application, PostgreSQL, Redis, SES, SNS, and user
-> registration issues, see the [application/README.md](../application/README.md)
-> troubleshooting section.
-
-### Useful Commands
-
-```bash
-# View Helm release values
-helm get values openldap-stack-ha -n ldap
-
-# Check OpenLDAP logs
-kubectl logs -n ldap -l app=openldap
-
-# Check PhpLdapAdmin logs
-kubectl logs -n ldap -l app=phpldapadmin
-
-# Check LTB-passwd logs
-kubectl logs -n ldap -l app=ltb-passwd
-
-# View Ingress details
-kubectl describe ingress -n ldap
-
-# Check ALB target health
-aws elbv2 describe-target-health --target-group-arn <target-group-arn>
-
-# Test LDAP connectivity (from within cluster)
-kubectl run -it --rm ldap-test --image=osixia/openldap --restart=Never -- bash
-ldapsearch -x -H ldap://openldap-stack-ha:389 -b "dc=corp,dc=internal"
-
-# Check ArgoCD capability status
-aws eks describe-capability \
-  --cluster-name <cluster-name> \
-  --capability-name <argocd-capability-name> \
-  --capability-type ARGOCD
-
-# Check ArgoCD applications (if enabled)
-kubectl get application -n argocd
-kubectl describe application -n argocd <app-name>
-```
+See the [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)
+for all troubleshooting documents.
 
 ## Outputs
 

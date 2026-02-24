@@ -146,7 +146,7 @@ The Redis password follows the same pattern as the LDAP admin password:
 
 > [!NOTE]
 >
-> For complete secrets setup instructions, see [Secrets Requirements](../SECRETS_REQUIREMENTS.md).
+> For complete secrets setup instructions, see [Secrets Requirements](../../reference/SECRETS_REQUIREMENTS.md).
 
 Add the following secret to your GitHub repository:
 
@@ -216,7 +216,9 @@ auth:
 
 For implementation details, configuration examples, and technical reference, see:
 
-- [Redis Module Documentation](modules/redis/README.md) - Implementation guide and
-configuration examples
-- [Application README](./README.md) - Complete application overview
-- [Secrets Requirements](../SECRETS_REQUIREMENTS.md) - Secrets configuration instructions
+- [Redis Module Documentation](../../../application/modules/redis/README.md) -
+  Implementation guide and configuration examples
+- [Application README](../../../application/README.md) - Complete application
+  overview
+- [Secrets Requirements](../../reference/SECRETS_REQUIREMENTS.md) - Secrets
+  configuration instructions

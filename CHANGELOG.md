@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **LDAP and Admin-Seed-Job Troubleshooting Guide**
   - Created comprehensive troubleshooting document
-  [application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md](application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
+  [LDAP and Admin-Seed Troubleshooting](docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
   documenting persistent OpenLDAP issues, investigation timeline, root causes,
   ad-hoc manual corrections, and permanent code fixes
   - Includes verification commands, lessons learned, and references
@@ -91,8 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   account activation
   - Signup flow simplified to collect only: name, username, email, phone, and password
   - Email and phone verification still occur during signup as before
-  - Updated documentation: [application/PRD_SIGNUP_MAN.md](application/PRD_SIGNUP_MAN.md),
-  [application/PRD_ADMIN_FUNCS.md](application/PRD_ADMIN_FUNCS.md)
+  - Updated documentation: [PRD Signup Management](docs/auxiliary/application/design/PRD_SIGNUP_MAN.md),
+  [PRD Admin Functions](docs/auxiliary/application/design/PRD_ADMIN_FUNCS.md)
 
 ### Fixed
 
@@ -107,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `LDAP_CONFIG_ADMIN_PASSWORD`) to match the osixia/openldap image. The upstream
   jp-gouin/helm-openldap chart documents `LDAP_CONFIG_ADMIN_PASSWORD` for the
   Bitnami image; this project uses the osixia image. See
-  [application_infra/OSIXIA_OPENLDAP_REQUIREMENTS.md](application_infra/OSIXIA_OPENLDAP_REQUIREMENTS.md).
+  [Osixia OpenLDAP Requirements](docs/auxiliary/application_infra/guides/OSIXIA_OPENLDAP_REQUIREMENTS.md).
   - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) is unchanged.
 
 ## [2026-02-16] - GitHub Actions Support for ArgoCD Module and Workflow Improvements
@@ -272,12 +272,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TF_VAR_OPENLDAP_ADMIN_PASSWORD` as required for backend ldap-admin-secret
 
 - **Application Documentation**
-  - [PASSWORD_FLOW.md](application/PASSWORD_FLOW.md) – Password and MFA flow
-  documentation
-  - [REDIS_ENABLEMENT_SUMMARY.md](application/REDIS_ENABLEMENT_SUMMARY.md) –
+  - [PASSWORD_FLOW.md](docs/auxiliary/application/guides/PASSWORD_FLOW.md) – Password
+  and MFA flow documentation
+  - [REDIS_ENABLEMENT_SUMMARY.md](docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md)
   Redis enablement and SMS OTP summary
-  - [SECRET_DEPENDENCIES.md](application/SECRET_DEPENDENCIES.md) – Which
-  components require which secrets (PostgreSQL, Redis, LDAP admin)
+  - [SECRET_DEPENDENCIES.md](docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md)
+  Which components require which secrets (PostgreSQL, Redis, LDAP admin)
 
 ### Changed
 

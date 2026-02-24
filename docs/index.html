@@ -102,6 +102,7 @@
                         <li><a href="#module-documentation">Module Documentation</a></li>
                         <li><a href="#configuration-documentation">Configuration Documentation</a></li>
                         <li><a href="#security-operations">Security & Operations</a></li>
+                        <li><a href="#auxiliary-documentation">Auxiliary Documentation</a></li>
                     </ul>
                 </li>
                 <li><a href="#access">Accessing the Services</a>
@@ -237,8 +238,8 @@
                 <li><strong>GitHub Account</strong> and repository fork: <a href="https://github.com/talorlik/ldap-2fa-on-k8s.git" target="_blank">ldap-2fa-on-k8s</a></li>
                 <li><strong>AWS SSO/OIDC</strong> configured (see <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a>)</li>
                 <li><strong>Domain and DNS (Account A)</strong>: Route53 hosted zone for your domain must exist in the State Account. All DNS records (including ACM validation CNAMEs) are created here.</li>
-                <li><strong>ACM certificates (Account B)</strong>: Request a public ACM certificate in each Deployment Account. Validation uses CNAME records in Account A's Route53. Certificate must be in <code>ISSUED</code> status and in the same region as the EKS cluster. See <a href="../application_infra/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation">Public ACM Certificate Setup and DNS Validation</a> for step-by-step AWS CLI commands.</li>
-                <li><strong>GitHub Secrets and Variables</strong> configured (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a> for complete details):
+                <li><strong>ACM certificates (Account B)</strong>: Request a public ACM certificate in each Deployment Account. Validation uses CNAME records in Account A's Route53. Certificate must be in <code>ISSUED</code> status and in the same region as the EKS cluster. See <a href="auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation">Public ACM Certificate Setup and DNS Validation</a> for step-by-step AWS CLI commands.</li>
+                <li><strong>GitHub Secrets and Variables</strong> configured (see <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a> for complete details):
                     <ul>
                         <li><strong>Required Secrets:</strong>
                             <ul>
@@ -253,7 +254,7 @@
                                 <li><code>GH_TOKEN</code></li>
                             </ul>
                         </li>
-                        <li><strong>Optional (first admin user seed):</strong> When all are set, a one-time Job seeds the first admin so they can log into the 2FA app with the same username/password as LDAP. Set in GitHub Secrets or AWS <code>tf-vars</code>: <code>ADMIN_SEED_USERNAME</code>, <code>ADMIN_SEED_EMAIL</code>, <code>ADMIN_SEED_FIRST_NAME</code>, <code>ADMIN_SEED_LAST_NAME</code>, <code>ADMIN_SEED_PHONE_COUNTRY_CODE</code>, <code>ADMIN_SEED_PHONE_NUMBER</code>. See <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>.</li>
+                        <li><strong>Optional (first admin user seed):</strong> When all are set, a one-time Job seeds the first admin so they can log into the 2FA app with the same username/password as LDAP. Set in GitHub Secrets or AWS <code>tf-vars</code>: <code>ADMIN_SEED_USERNAME</code>, <code>ADMIN_SEED_EMAIL</code>, <code>ADMIN_SEED_FIRST_NAME</code>, <code>ADMIN_SEED_LAST_NAME</code>, <code>ADMIN_SEED_PHONE_COUNTRY_CODE</code>, <code>ADMIN_SEED_PHONE_NUMBER</code>. See <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>.</li>
                         <li><strong>Required Variables:</strong>
                             <ul>
                                 <li><code>AWS_REGION</code></li>
@@ -273,9 +274,9 @@
                 </li>
                 <li><strong>For Local Deployment:</strong> GitHub CLI (<code>gh</code>), AWS CLI, Terraform, kubectl, and <code>jq</code> installed and configured</li>
                 <li><strong>For Local Deployment:</strong> <strong>Docker</strong> must be installed and running for ECR image mirroring. The <code>scripts/mirror-images-to-ecr.sh</code> script requires Docker to pull images from Docker Hub and push them to ECR. This step is automatically executed by <code>setup-application-infra.sh</code> before Terraform operations.</li>
-                <li><strong>For Local Deployment:</strong> AWS Secrets Manager configured with <code>github-role</code>, <code>tf-vars</code>, and <code>external-id</code> secrets (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>)</li>
+                <li><strong>For Local Deployment:</strong> AWS Secrets Manager configured with <code>github-role</code>, <code>tf-vars</code>, and <code>external-id</code> secrets (see <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>)</li>
             </ul>
-            <p><strong>For detailed prerequisites and setup:</strong> <a href="../README.md#prerequisites">Prerequisites</a> | <a href="../README.md#secrets-configuration">Secrets Configuration</a> | <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
+            <p><strong>For detailed prerequisites and setup:</strong> <a href="../README.md#prerequisites">Prerequisites</a> | <a href="../README.md#secrets-configuration">Secrets Configuration</a> | <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
         </div>
         <h3 id="deployment-options">Deployment Options</h3>
         <div class="deployment-options">
@@ -412,9 +413,9 @@
                     <li>References infrastructure outputs from <code>application_infra</code> remote state (including LDAP host, base DN, admin DN—used by the admin-seed Job and not hardcoded)</li>
                 </ul>
                 <p><strong>Note:</strong> Application components require infrastructure to be deployed first (Steps 1-3 completed). The script automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, deployment will fail with a clear error message. Backend and frontend image tags are read from Helm values (updated by the build workflows); the build workflows push only the computed tag (no <code>:latest</code>).</p>
-                <p><strong>First admin seed (optional):</strong> If you set all <code>ADMIN_SEED_*</code> keys in <code>tf-vars</code> (or GitHub Secrets), Terraform creates a one-time Job that seeds the first admin user with the same username/password as the LDAP admin, email/phone pre-verified, and membership in the LDAP admins group. See <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a> and <a href="../application/README.md">Application README</a>.</p>
+                <p><strong>First admin seed (optional):</strong> If you set all <code>ADMIN_SEED_*</code> keys in <code>tf-vars</code> (or GitHub Secrets), Terraform creates a one-time Job that seeds the first admin user with the same username/password as the LDAP admin, email/phone pre-verified, and membership in the LDAP admins group. See <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a> and <a href="../application/README.md">Application README</a>.</p>
                 <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
-                <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled in <code>variables.tfvars</code>) or manually using Helm charts. For manual deployment instructions, see <a href="../application/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a>.</p>
+                <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled in <code>variables.tfvars</code>) or manually using Helm charts. For manual deployment instructions, see <a href="auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a>.</p>
                 <p><strong>After Step 5:</strong> If ArgoCD Applications are enabled, ArgoCD will automatically detect the git changes (from the build workflows in Step 4) and sync the deployments. The container images are already in ECR, so ArgoCD can successfully pull and deploy them.</p>
                 <h5 id="local-step-6">Manual Deployment of 2FA Applications (Optional)</h5>
                 <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-3 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), <code>aws</code> CLI, and optionally <code>docker</code> for manual builds.</p>
@@ -698,7 +699,7 @@ terraform apply</code></pre>
                     </li>
                     <li><strong>ArgoCD will automatically deploy</strong> the applications from Git</li>
                 </ol>
-                <p><strong>For detailed deployment instructions:</strong> <a href="../application/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a></p>
+                <p><strong>For detailed deployment instructions:</strong> <a href="auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a></p>
                 <p><strong>For backend and frontend documentation:</strong> <a href="../application/backend/README.md">Backend API Documentation</a> | <a href="../application/frontend/README.md">Frontend Application Documentation</a></p>
                 <h5 id="local-destroy">Destroying Infrastructure (Local)</h5>
                 <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order: Application → Application Infrastructure → Backend Infrastructure → State.</p>
@@ -966,7 +967,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                             <ul>
                                 <li>Route53 hosted zone in State Account; ACM certificate in Deployment Account (ALB and cert must be in same account)</li>
                                 <li>Automatically accessed via <code>state_account_role_arn</code> for Route53 (injected by scripts/workflows)</li>
-                                <li>See <a href="../application_infra/CROSS_ACCOUNT_ACCESS.md">Cross-Account Access Documentation</a> for configuration details</li>
+                                <li>See <a href="auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md">Cross-Account Access Documentation</a> for configuration details</li>
                             </ul>
                         </li>
                         <li><strong>Local:</strong> <code>cd application_infra && ./setup-application-infra.sh</code></li>
@@ -991,7 +992,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li><strong>Local:</strong> <code>cd application && ./setup-application.sh</code></li>
                         <li><strong>GitHub Actions:</strong> "Application Provisioning" workflow</li>
                         <li><strong>See:</strong> <a href="../application/README.md">Application Deployment README</a> for complete deployment guide</li>
-                        <li><strong>Note:</strong> The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled) or manually using Helm charts. See <a href="../application/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a> for manual deployment instructions.</li>
+                        <li><strong>Note:</strong> The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled) or manually using Helm charts. See <a href="auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a> for manual deployment instructions.</li>
                     </ul>
                 </li>
             </ol>
@@ -1039,7 +1040,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
         </div>
         <h3 id="project-structure">Project Structure</h3>
         <pre><code>ldap-2fa-on-k8s/
-├── SECRETS_REQUIREMENTS.md  # Secrets management documentation (AWS Secrets Manager & GitHub Secrets)
+├── docs/auxiliary/   # Auxiliary documentation (reference, application, application_infra, troubleshooting)
 ├── tf_backend_state/      # Terraform state backend infrastructure (S3) - Account A
 ├── backend_infra/         # Core AWS infrastructure (VPC, EKS, VPC endpoints, IRSA) - Account B
 │   └── monitor-deployments.sh   # Backend-infra deployment monitoring
@@ -1171,47 +1172,47 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <p>Complete frontend SPA documentation: architecture, features, deployment, development, security, and troubleshooting</p>
             </div>
             <div class="doc-item">
-                <a href="../application/PRD_2FA_APP.md">2FA Application PRD</a>
+                <a href="auxiliary/application/design/PRD_2FA_APP.md">2FA Application PRD</a>
                 <p>Product requirements for the 2FA application (API specs, frontend architecture, Swagger UI)</p>
             </div>
             <div class="doc-item">
-                <a href="../application/PRD_SIGNUP_MAN.md">User Signup Management PRD</a>
+                <a href="auxiliary/application/design/PRD_SIGNUP_MAN.md">User Signup Management PRD</a>
                 <p>Self-service user registration with email/phone verification and profile state management</p>
             </div>
             <div class="doc-item">
-                <a href="../application/PRD_ADMIN_FUNCS.md">Admin Functions PRD</a>
+                <a href="auxiliary/application/design/PRD_ADMIN_FUNCS.md">Admin Functions PRD</a>
                 <p>Admin dashboard, group CRUD operations, user management, and approval workflows</p>
             </div>
             <div class="doc-item">
-                <a href="../application/PRD_SMS_MAN.md">SMS OTP Management PRD</a>
+                <a href="auxiliary/application/design/PRD_SMS_MAN.md">SMS OTP Management PRD</a>
                 <p>Redis-based SMS OTP storage with TTL-based automatic expiration</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/OPENLDAP_README.md">OpenLDAP README</a>
+                <a href="auxiliary/application_infra/guides/OPENLDAP_README.md">OpenLDAP README</a>
                 <p>OpenLDAP configuration and TLS setup</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/OSIXIA_OPENLDAP_REQUIREMENTS.md">Osixia OpenLDAP Requirements</a>
+                <a href="auxiliary/application_infra/guides/OSIXIA_OPENLDAP_REQUIREMENTS.md">Osixia OpenLDAP Requirements</a>
                 <p>OpenLDAP image requirements and configuration details</p>
             </div>
             <div class="doc-item">
-                <a href="../application/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a>
+                <a href="auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a>
                 <p>Complete step-by-step guide for deploying backend and frontend 2FA applications</p>
             </div>
             <div class="doc-item">
-                <a href="../application/SECRET_DEPENDENCIES.md">Secret Dependencies</a>
+                <a href="auxiliary/application/guides/SECRET_DEPENDENCIES.md">Secret Dependencies</a>
                 <p>Which components require which secrets (PostgreSQL, Redis, LDAP admin)</p>
             </div>
             <div class="doc-item">
-                <a href="../application/PASSWORD_FLOW.md">Password and MFA Flow</a>
+                <a href="auxiliary/application/guides/PASSWORD_FLOW.md">Password and MFA Flow</a>
                 <p>Password and MFA flow documentation</p>
             </div>
             <div class="doc-item">
-                <a href="../application/REDIS_ENABLEMENT_SUMMARY.md">Redis Enablement Summary</a>
+                <a href="auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md">Redis Enablement Summary</a>
                 <p>Redis enablement and SMS OTP summary</p>
             </div>
             <div class="doc-item">
-                <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>
+                <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>
                 <p>Complete guide for managing secrets via GitHub and AWS Secrets Manager</p>
             </div>
         </div>
@@ -1281,30 +1282,41 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
         <h3 id="configuration-documentation">Configuration Documentation</h3>
         <div class="doc-grid">
             <div class="doc-item">
-                <a href="../application_infra/PRD_ALB.md">ALB Configuration PRD</a>
+                <a href="auxiliary/application_infra/design/PRD_ALB.md">ALB Configuration PRD</a>
                 <p>Application Load Balancer configuration details</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/PRD_ArgoCD.md">ArgoCD Capability Configuration PRD</a>
+                <a href="auxiliary/application_infra/design/PRD_ArgoCD.md">ArgoCD Capability Configuration PRD</a>
                 <p>GitOps deployment configuration</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/PRD_DOMAIN.md">Domain Configuration PRD</a>
+                <a href="auxiliary/application_infra/design/PRD_DOMAIN.md">Domain Configuration PRD</a>
                 <p>Route53 and domain setup</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/PRD_OPENLDAP.md">OpenLDAP Deployment PRD</a>
+                <a href="auxiliary/application_infra/design/PRD_OPENLDAP.md">OpenLDAP Deployment PRD</a>
                 <p>OpenLDAP deployment requirements and configuration</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/CROSS_ACCOUNT_ACCESS.md">Cross-Account Access Documentation</a>
+                <a href="auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md">Cross-Account Access Documentation</a>
                 <p>Route53 and ACM certificate cross-account access configuration</p>
             </div>
+        </div>
+        <h3 id="auxiliary-documentation">Auxiliary Documentation</h3>
+        <div class="card">
+            <p>Additional design docs, guides, and troubleshooting live under
+            <code>docs/auxiliary/</code> in a hierarchical layout:</p>
+            <ul>
+                <li><strong>Reference:</strong> <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>, <a href="auxiliary/reference/DEBUG_OUTPUT.md">Debug Output</a></li>
+                <li><strong>Application:</strong> design (PRDs), deployment, guides (password flow, Redis, secret dependencies)</li>
+                <li><strong>Application infrastructure:</strong> design (PRDs), guides (cross-account, OpenLDAP, security, silent mode)</li>
+                <li><strong>Troubleshooting:</strong> <a href="auxiliary/troubleshooting/INDEX.md">Troubleshooting Index</a> (application layer, backend, cross-account/DNS, deployment, frontend, LDAP admin seed, secrets/variables, reference commands)</li>
+            </ul>
         </div>
         <h3 id="security-operations">Security & Operations</h3>
         <div class="doc-grid">
             <div class="doc-item">
-                <a href="../application_infra/SECURITY_IMPROVEMENTS.md">Security Improvements</a>
+                <a href="auxiliary/application_infra/guides/SECURITY_IMPROVEMENTS.md">Security Improvements</a>
                 <p>Security enhancements and best practices</p>
             </div>
             <div class="doc-item">
@@ -1362,7 +1374,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <li>SMS: user requests a code on the MFA step; 6-digit OTP is sent via AWS SNS; user enters it in the same verification code field.</li>
                 <li>User profile management with edit restrictions for verified fields</li>
                 <li>Admin dashboard for user management, group CRUD operations, and approval workflows (visible to LDAP admin group members only)</li>
-                <li><strong>First admin (optional):</strong> You can seed the first admin so they use the same username/password as the LDAP admin; set <code>ADMIN_SEED_*</code> secrets (see <a href="../SECRETS_REQUIREMENTS.md">Secrets Requirements</a>). The seeded admin does not have MFA pre-configured; they follow the same two-step login flow and set up Authenticator or use SMS like any other user.</li>
+                <li><strong>First admin (optional):</strong> You can seed the first admin so they use the same username/password as the LDAP admin; set <code>ADMIN_SEED_*</code> secrets (see <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>). The seeded admin does not have MFA pre-configured; they follow the same two-step login flow and set up Authenticator or use SMS like any other user.</li>
                 <li><strong>Interactive API Documentation</strong> (always enabled):
                     <ul>
                         <li><code>/api/docs</code> - Swagger UI for interactive API exploration and testing</li>
@@ -1455,7 +1467,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <li><strong>ECR Image Support</strong>: All modules (OpenLDAP, PostgreSQL, Redis) use ECR images instead of Docker Hub to prevent rate limiting</li>
                 <li><strong>Kubeconfig Auto-Update</strong>: Automatic kubeconfig updates prevent stale cluster endpoints and DNS lookup errors</li>
             </ul>
-            <p><strong>For detailed security documentation:</strong> <a href="../application_infra/SECURITY_IMPROVEMENTS.md">Security Improvements</a></p>
+            <p><strong>For detailed security documentation:</strong> <a href="auxiliary/application_infra/guides/SECURITY_IMPROVEMENTS.md">Security Improvements</a></p>
         </div>
     </section>
     <!-- Contributing & Support -->
@@ -1512,7 +1524,7 @@ source ./scripts/assume-github-role.sh</code></pre>
                 <li><a href="../backend_infra/README.md#troubleshooting">Backend Infrastructure Troubleshooting</a></li>
                 <li><a href="../application_infra/README.md#troubleshooting">Application Infrastructure Troubleshooting</a></li>
                 <li><a href="../application/README.md#troubleshooting">Application Troubleshooting</a></li>
-                <li><strong><a href="../application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md">LDAP and Admin-Seed-Job Troubleshooting Guide</a></strong> - Comprehensive guide for OpenLDAP multi-master replication issues, directory structure initialization, group membership attributes, and admin user seeding</li>
+                <li><strong><a href="auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md">LDAP and Admin-Seed-Job Troubleshooting Guide</a></strong> - Comprehensive guide for OpenLDAP multi-master replication issues, directory structure initialization, group membership attributes, and admin user seeding</li>
             </ul>
         </div>
         <h3 id="repository">Repository</h3>

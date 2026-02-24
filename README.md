@@ -78,11 +78,11 @@ Configuration](#github-repository-configuration))
 - **ACM certificates (Account B)**: Request a public ACM certificate in each
   Deployment Account. Validation uses CNAME records in Account A's Route53.
   Certificate must be in `ISSUED` status and in the same region as the EKS
-  cluster. See [Public ACM Certificate Setup and DNS Validation](application_infra/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  cluster.   See [Public ACM Certificate Setup and DNS Validation](docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for step-by-step AWS CLI commands.
 - **Docker (for Local Deployment)**: Docker must be installed and running for
-  ECR image mirroring. The `scripts/mirror-images-to-ecr.sh` script requires Docker to
-  pull images from Docker Hub and push them to ECR. This step is automatically
+  ECR image mirroring. The `scripts/mirror-images-to-ecr.sh` script requires Docker
+  to pull images from Docker Hub and push them to ECR. This step is automatically
   executed by `setup-application-infra.sh` before Terraform operations.
 - **jq (for Local Deployment)**: The `jq` command-line tool is required for
   JSON parsing in the image mirroring script (with fallback to sed for
@@ -1132,9 +1132,10 @@ The 2FA application supports two multi-factor authentication methods:
 For detailed API specifications, frontend architecture, and implementation details,
 see:
 
-- [2FA Application PRD](application/PRD_2FA_APP.md) - Complete API and frontend
-specifications
-- [SMS OTP Management PRD](application/PRD_SMS_MAN.md) - Redis-based SMS OTP
+- [2FA Application PRD](docs/auxiliary/application/design/PRD_2FA_APP.md)
+Complete API and frontend specifications
+- [SMS OTP Management PRD](docs/auxiliary/application/design/PRD_SMS_MAN.md)
+Redis-based SMS OTP
 storage implementation
 - [SNS Module Documentation](application/modules/sns/README.md) - SMS 2FA
 infrastructure setup
@@ -1181,24 +1182,24 @@ endpoints, and ECR documentation
 
 ### Application Documentation
 
-- [2FA Application PRD](application/PRD_2FA_APP.md) - Product requirements for
-the 2FA application (API specs, frontend architecture)
-- [User Signup Management PRD](application/PRD_SIGNUP_MAN.md) - Self-service
-user registration with email/phone verification
-- [Admin Functions PRD](application/PRD_ADMIN_FUNCS.md) - Admin dashboard, group
-management, and approval workflows
-- [SMS OTP Management PRD](application/PRD_SMS_MAN.md) - Redis-based SMS OTP
-storage with TTL
-- [OpenLDAP Deployment PRD](application_infra/PRD_OPENLDAP.md) - OpenLDAP deployment
-requirements and configuration
-- [Security Improvements](application_infra/SECURITY_IMPROVEMENTS.md) - Security
-enhancements and best practices
-- [Secret Dependencies](application/SECRET_DEPENDENCIES.md) - Which components
-require which secrets (PostgreSQL, Redis, LDAP admin)
-- [Password and MFA Flow](application/PASSWORD_FLOW.md) - Password and MFA flow
-documentation
-- [Redis Enablement Summary](application/REDIS_ENABLEMENT_SUMMARY.md) - Redis
-enablement and SMS OTP summary
+- [2FA Application PRD](docs/auxiliary/application/design/PRD_2FA_APP.md)
+Product requirements for the 2FA application (API specs, frontend architecture)
+- [User Signup Management PRD](docs/auxiliary/application/design/PRD_SIGNUP_MAN.md)
+Self-service user registration with email/phone verification
+- [Admin Functions PRD](docs/auxiliary/application/design/PRD_ADMIN_FUNCS.md)
+Admin dashboard, group management, and approval workflows
+- [SMS OTP Management PRD](docs/auxiliary/application/design/PRD_SMS_MAN.md)
+Redis-based SMS OTP storage with TTL
+- [OpenLDAP Deployment PRD](docs/auxiliary/application_infra/design/PRD_OPENLDAP.md)
+OpenLDAP deployment requirements and configuration
+- [Security Improvements](docs/auxiliary/application_infra/guides/SECURITY_IMPROVEMENTS.md)
+Security enhancements and best practices
+- [Secret Dependencies](docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md)
+Which components require which secrets (PostgreSQL, Redis, LDAP admin)
+- [Password and MFA Flow](docs/auxiliary/application/guides/PASSWORD_FLOW.md)
+Password and MFA flow documentation
+- [Redis Enablement Summary](docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md)
+Redis enablement and SMS OTP summary
 
 ### Module Documentation
 
@@ -1277,7 +1278,7 @@ repository root (e.g. `./scripts/assume-github-role.sh`) or from workflow steps
 that reference `../scripts/...`.
 
 | Script | Purpose |
-|--------|--------|
+| -------- | -------- |
 | `scripts/assume-github-role.sh` | Assume AWS roles (State, Dev, Prod). Used by ArgoCD module and manually. |
 | `scripts/get-eks-token.sh` | EKS auth token for Terraform Kubernetes/Helm exec plugin; avoids token timeout during long runs. |
 | `scripts/mirror-images-to-ecr.sh` | Mirror Docker Hub images (OpenLDAP, Redis, PostgreSQL, etc.) to ECR. |
@@ -1296,7 +1297,7 @@ environment, retrieves credentials from AWS Secrets Manager, updates kubeconfig,
 and produces a report suitable for agent investigation or manual review.
 
 | Location | Scope |
-|----------|--------|
+| ---------- | -------- |
 | `backend_infra/monitor-deployments.sh` | Backend infrastructure (EKS, VPC, ECR, etc.) |
 | `application_infra/monitor-deployments.sh` | Application infrastructure (ArgoCD, OpenLDAP, ALB, ingress) |
 | `application/monitor-deployments.sh` | Application layer (PostgreSQL, Redis, 2FA app, ingress, ALB) |
@@ -1371,10 +1372,16 @@ access
 
 ## Troubleshooting
 
-See the individual README files for troubleshooting guides:
+A consolidated troubleshooting index and guides are in
+[docs/auxiliary/troubleshooting](docs/auxiliary/troubleshooting/INDEX.md):
 
-- [Backend Infrastructure Troubleshooting](backend_infra/README.md#troubleshooting)
-- [Application Infrastructure Troubleshooting](application_infra/README.md#troubleshooting)
+- [Troubleshooting Index](docs/auxiliary/troubleshooting/INDEX.md) - Links to all
+  troubleshooting documents (deployment, LDAP/admin-seed, application layer,
+  frontend, cross-account/DNS, secrets, Terraform state, debug commands).
+- [Backend Infrastructure](backend_infra/README.md#troubleshooting) - EKS cluster,
+  SSM, IRSA, SNS (summary; details in the index).
+- [Application Infrastructure](application_infra/README.md#troubleshooting) - ArgoCD,
+  OpenLDAP, ALB (summary; details in the index).
 
 ## License
 

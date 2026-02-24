@@ -224,42 +224,12 @@ All communication uses secure ports, so everything works automatically!
 
 ## Troubleshooting
 
-If services cannot communicate after applying network policies:
-
-1. **Check Policy Status**:
-
-   ```bash
-   kubectl get networkpolicies -n ldap
-   ```
-
-2. **Verify Service Ports**:
-
-   ```bash
-   # Check what ports your services are using
-   kubectl get services -n ldap
-   kubectl describe service <service-name> -n ldap
-   ```
-
-   Ensure services use secure ports (443, 636, 8443).
-
-3. **Test Connectivity**:
-
-   ```bash
-   # Test HTTPS connectivity
-   kubectl exec -n ldap <pod-name> -- nc -zv <service-name> 443
-
-   # Test LDAPS connectivity
-   kubectl exec -n ldap <pod-name> -- nc -zv <service-name> 636
-   ```
-
-4. **Check Service Configuration**:
-   - Ensure services are configured to use HTTPS (not HTTP)
-   - Ensure LDAP services use LDAPS (not LDAP)
-   - Verify service ports match allowed ports (443, 636, 8443)
-
-5. **Check Policy Logs**:
-   Network policies are enforced by the CNI plugin. Check CNI logs if policies
-   aren't working.
+If services cannot communicate after applying network policies, check
+policy status (`kubectl get networkpolicies -n ldap`), verify service ports
+(443, 636, 8443), test connectivity with `nc -zv`, and ensure services use
+HTTPS/LDAPS. For the full checklist and CNI notes, see the [Troubleshooting
+Index](../../../docs/auxiliary/troubleshooting/INDEX.md) (module-specific
+section).
 
 ## Adding New Secure Ports
 

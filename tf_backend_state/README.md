@@ -61,8 +61,8 @@ workflows. Configure them at:
     - **⚠️ Note**: For local script execution, ensure the same role ARN is
       stored in AWS Secrets Manager secret 'github-role' with key
       'AWS_STATE_ACCOUNT_ROLE_ARN'. See [Secrets
-      Requirements](../SECRETS_REQUIREMENTS.md) for complete setup
-      instructions.
+      Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md) for complete
+      setup instructions.
 
 2. `GH_TOKEN`
 
@@ -369,65 +369,11 @@ S3
 
 ## Troubleshooting
 
-### "Resource not accessible by integration" error
+For "Resource not accessible by integration", S3 access denied, OIDC issues,
+Secrets Manager, bucket name conflicts, and state file not found, see:
 
-- **Cause**: `GH_TOKEN` doesn't have proper permissions or doesn't exist
-- **Solution**: Create a PAT with `repo` scope and store it as `GH_TOKEN` secret
-
-### "Access Denied" when accessing S3
-
-- **Cause**: The IAM principal doesn't have S3 permissions, or there's a
-mismatch between the caller and the bucket policy
-- **Solution**:
-  - The bucket policy automatically uses the current caller's ARN via
-  `data.aws_caller_identity.current.arn`. Verify this matches your expectations:
-    - Run `aws sts get-caller-identity` to see your current ARN
-    - Ensure the caller has S3 permissions for the state bucket
-  - For GitHub Actions: Verify the IAM role ARN used in `AWS_STATE_ACCOUNT_ROLE_ARN`
-  secret matches the assumed role
-  - Check that the OIDC trust relationship is correctly configured (for GitHub
-  Actions)
-
-### OIDC Authentication Issues
-
-- **Cause**: GitHub OIDC provider not configured correctly or role trust policy
-incorrect
-- **Solution**:
-  - Verify OIDC Identity Provider exists in Account A
-  - Check role trust policy includes correct repository name
-  - Ensure `AWS_STATE_ACCOUNT_ROLE_ARN` secret contains the correct role ARN
-  (for GitHub Actions)
-
-### AWS Secrets Manager Issues (Local Scripts)
-
-- **Cause**: Local scripts cannot retrieve secret from AWS Secrets Manager
-- **Common issues and solutions**:
-  - **Secret doesn't exist**: Ensure secret named `github-role` exists in
-  AWS Secrets Manager
-  - **Access denied**: Your AWS credentials must have `secretsmanager:GetSecretValue`
-  permission for the `github-role` secret
-  - **Key not found**: Ensure the secret JSON contains key `AWS_STATE_ACCOUNT_ROLE_ARN`
-  - **Invalid JSON**: Verify the secret value is valid JSON format
-  - **Wrong region**: Ensure your AWS CLI is configured to the correct region
-  where the secret exists
-- **Verification**:
-
-  ```bash
-  # Test secret retrieval manually
-  aws secretsmanager get-secret-value --secret-id github-role --query SecretString --output text | jq .
-  ```
-
-### Bucket name conflicts
-
-- **Cause**: Another account is using the same prefix
-- **Solution**: Use a more unique prefix in `variables.tfvars`
-
-### State file not found during destroy
-
-- **Cause**: The state file wasn't uploaded or the bucket name variable is
-incorrect
-- **Solution**: Verify `BACKEND_BUCKET_NAME` variable exists and contains the
-correct bucket name
+- [Terraform State and Backend Troubleshooting](../docs/auxiliary/troubleshooting/secrets_and_variables/TERRAFORM_STATE.md)
+- [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)
 
 ## Important Notes
 

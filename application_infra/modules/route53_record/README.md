@@ -319,45 +319,17 @@ recommended to keep it enabled for production deployments.
 
 ## Troubleshooting
 
-### Record Creation Fails with "ALB DNS name must be available"
+For record creation failures (ALB DNS name must be available), record
+pointing to wrong ALB, and cross-account access, see:
 
-**Cause**: The ALB has not been provisioned yet, or the ALB data source cannot
-find the ALB.
-
-**Solution**:
-
-1. Ensure the OpenLDAP module has been deployed (creates Ingress resources)
-2. Verify the ALB exists: `aws elbv2 describe-load-balancers --region <region>`
-3. Check the ALB data source in `main.tf` is correctly configured
-4. Verify the ALB name matches `local.alb_load_balancer_name`
-
-### Record Points to Wrong ALB
-
-**Cause**: The `alb_dns_name` variable is incorrect or points to a different ALB.
-
-**Solution**:
-
-1. Verify the ALB data source is querying the correct ALB
-2. Check the ALB name in `main.tf` matches the actual ALB name
-3. Ensure the ALB zone_id matches the region where the ALB is deployed
-
-### Cross-Account Access Issues
-
-**Cause**: The state account provider is not configured correctly, or the role
-cannot be assumed.
-
-**Solution**:
-
-1. Verify `state_account_role_arn` is set in `variables.tfvars`
-2. Check the state account role trust relationship allows the current identity
-3. Ensure the state account provider is correctly configured in `providers.tf`
-4. Verify the provider is passed to the module in `main.tf`
+- [Cross-Account and DNS Troubleshooting](../../../docs/auxiliary/troubleshooting/cross_account_dns/CROSS_ACCOUNT_AND_DNS.md)
+- [Troubleshooting Index](../../../docs/auxiliary/troubleshooting/INDEX.md)
 
 ## Related Documentation
 
 - [AWS Route53 Alias Records](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-choosing-alias-non-alias.html)
 - [Application Load Balancer Zone IDs](https://docs.aws.amazon.com/general/latest/gr/elb.html)
-- [Cross-Account Access Documentation](../CROSS_ACCOUNT_ACCESS.md)
+- [Cross-Account Access Documentation](../../../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
 - [Application Infrastructure README](../README.md)
 
 ## Examples

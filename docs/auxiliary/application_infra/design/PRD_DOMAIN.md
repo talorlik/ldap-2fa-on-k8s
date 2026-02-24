@@ -114,11 +114,12 @@ and TLS certificate setup for the LDAP 2FA application infrastructure.
 
 For implementation details, setup instructions, and technical reference, see:
 
-- [Route53 Record Module Documentation](modules/route53_record/README.md) - Implementation
-guide and configuration examples
-- [Cross-Account Access Documentation](./CROSS_ACCOUNT_ACCESS.md) - Public ACM certificate
-setup instructions with step-by-step AWS CLI commands
-- [Application Infrastructure README](./README.md) - Complete infrastructure overview
+- [Route53 Record Module Documentation](../../../application_infra/modules/route53_record/README.md)
+Implementation guide and configuration examples
+- [Cross-Account Access Documentation](../guides/CROSS_ACCOUNT_ACCESS.md)
+Public ACM certificate setup instructions with step-by-step AWS CLI commands
+- [Application Infrastructure README](../../../application_infra/README.md)
+Complete infrastructure overview
 
 Below is a linear Terraform-centric setup.
 
@@ -153,5 +154,5 @@ ALB needs an ACM cert in the same region as the ALB / EKS cluster.
 > - Certificates are automatically renewed by ACM (no manual intervention required)
 > - Browser-trusted certificates (no security warnings)
 >
-> See [Public ACM Certificate Setup and DNS Validation](./CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+> See [Public ACM Certificate Setup and DNS Validation](../guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
 > for detailed setup instructions with step-by-step AWS CLI commands.

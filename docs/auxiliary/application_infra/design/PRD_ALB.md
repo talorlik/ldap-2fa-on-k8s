@@ -117,8 +117,9 @@ host-based routing.
 
 For implementation details, configuration examples, and technical reference, see:
 
-- [ALB Module Documentation](modules/alb/README.md) - Implementation guide and
-configuration examples
-- [Application Infrastructure README](./README.md) - Complete infrastructure overview
-- [Cross-Account Access Documentation](./CROSS_ACCOUNT_ACCESS.md) - Certificate
-setup instructions
+- [ALB Module Documentation](../../../application_infra/modules/alb/README.md) -
+  Implementation guide and configuration examples
+- [Application Infrastructure README](../../../application_infra/README.md) -
+  Complete infrastructure overview
+- [Cross-Account Access Documentation](../guides/CROSS_ACCOUNT_ACCESS.md) -
+  Certificate setup instructions
