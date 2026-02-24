@@ -50,6 +50,23 @@ spec:
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName | quote }}
       {{- end }}
+      {{- if .Values.customLdifFiles }}
+      initContainers:
+        - name: copy-custom-ldif
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              cp -a /configmap-ldif/. /custom-ldif-out/ &&
+              chown -R 911:911 /custom-ldif-out
+          volumeMounts:
+            - name: custom-ldif-files
+              mountPath: /configmap-ldif
+              readOnly: true
+            - name: custom-ldif-files-writable
+              mountPath: /custom-ldif-out
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: {{ include "openldap.image" . }}
@@ -122,7 +139,7 @@ spec:
               mountPath: /container/service/slapd/assets/certs
               subPath: certs
             {{- if .Values.customLdifFiles }}
-            - name: custom-ldif-files
+            - name: custom-ldif-files-writable
               mountPath: /container/service/slapd/assets/config/bootstrap/ldif/custom
             {{- end }}
             {{- with .Values.extraVolumeMounts }}
@@ -133,6 +150,8 @@ spec:
         - name: custom-ldif-files
           configMap:
             name: {{ template "openldap.fullname" . }}-customldif
+        - name: custom-ldif-files-writable
+          emptyDir: {}
         {{- end }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
