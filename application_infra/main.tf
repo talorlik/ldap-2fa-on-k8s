@@ -231,24 +231,19 @@ module "openldap" {
 
   tags = local.tags
 
-  # When ArgoCD is enabled, deploy it before OpenLDAP per PRD and AWS guidance
-  depends_on = concat(
-    [
-      kubernetes_storage_class_v1.this,
-      module.alb,
-      time_sleep.openldap_pre_deploy,
-    ],
-    var.enable_argocd ? [module.argocd[0]] : []
-  )
+  # When ArgoCD is enabled, deploy it before OpenLDAP per PRD and AWS guidance.
+  # ArgoCD/ALB/StorageClass ordering is enforced via time_sleep.openldap_pre_deploy.
+  depends_on = [time_sleep.openldap_pre_deploy]
 }
 
-# Optional delay after ALB/StorageClass so cluster is ready before OpenLDAP Helm install
+# Optional delay after ALB/StorageClass (and ArgoCD when enabled) so cluster is ready before OpenLDAP Helm install
 resource "time_sleep" "openldap_pre_deploy" {
   create_duration = var.openldap_pre_deploy_delay_seconds > 0 ? "${var.openldap_pre_deploy_delay_seconds}s" : "0s"
 
   depends_on = [
     kubernetes_storage_class_v1.this,
     module.alb,
+    module.argocd,
   ]
 }
 
