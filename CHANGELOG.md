@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-02-25] - ArgoCD Single Wait and OpenLDAP Pre-deploy in Module
+
+### Changed
+
+- **Application infrastructure**: ArgoCD module now uses a single readiness wait
+  (default 5m30s) instead of two sequential sleeps; OpenLDAP pre-deploy delay
+  (3m) moved into the OpenLDAP module as its first resource. See
+  [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
+
 ## [2026-02-24] - ArgoCD IAM Revert and IngressClassParams Troubleshooting
 
 ### Changed

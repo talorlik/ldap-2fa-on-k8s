@@ -1,3 +1,9 @@
+# First resource in the module: wait for cluster readiness (ALB/StorageClass/ArgoCD
+# are guaranteed by root module depends_on) before creating any OpenLDAP resources.
+resource "time_sleep" "pre_deploy" {
+  create_duration = "3m"
+}
+
 locals {
   # Determine values template path
   values_template_path = var.values_template_path != null ? var.values_template_path : "${path.module}/../../helm/openldap-values.tpl.yaml"
@@ -34,7 +40,7 @@ locals {
   )
 }
 
-# Create namespace for OpenLDAP
+# Create namespace for OpenLDAP (after pre_deploy delay)
 resource "kubernetes_namespace" "openldap" {
   metadata {
     name = var.namespace
@@ -53,6 +59,8 @@ resource "kubernetes_namespace" "openldap" {
       metadata[0].annotations,
     ]
   }
+
+  depends_on = [time_sleep.pre_deploy]
 }
 
 # Create Kubernetes secret for OpenLDAP passwords
@@ -98,8 +106,8 @@ resource "helm_release" "openldap" {
   namespace        = kubernetes_namespace.openldap.metadata[0].name
   create_namespace = false
 
-  atomic          = true
-  cleanup_on_fail = true
+  atomic          = var.helm_atomic
+  cleanup_on_fail = var.helm_atomic
   recreate_pods   = true
   force_update    = true
   wait            = true

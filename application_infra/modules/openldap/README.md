@@ -20,6 +20,9 @@ the osixia/openldap image
 communication
 - **ECR Image Support**: Uses ECR images instead of Docker Hub
 (images mirrored via `scripts/mirror-images-to-ecr.sh`)
+- **Pre-deploy delay**: Applies a 3m delay as the first resource in the module
+(after root depends on StorageClass, ALB, and ArgoCD) so the cluster is ready
+before creating namespace and Helm release.
 
 ## Usage
 
@@ -53,9 +56,11 @@ module "openldap" {
 
   tags = local.tags
 
+  # When ArgoCD is enabled, include module.argocd so OpenLDAP runs after ArgoCD.
   depends_on = [
     kubernetes_storage_class_v1.this,
     module.alb,
+    module.argocd,
   ]
 }
 ```
@@ -94,6 +99,8 @@ module "openldap" {
 | alb_target_type | ALB target type: ip or instance | `string` | `"ip"` | no |
 | alb_ssl_policy | ALB SSL policy for HTTPS listeners | `string` | (from parent) | no |
 | helm_release_name | Helm release name | `string` | `"openldap-stack-ha"` | no |
+| helm_timeout | Helm install/upgrade timeout (seconds) | `number` | `1200` | no |
+| helm_atomic | If true, release is atomic (uninstall on failure). Set false for debugging. | `bool` | `true` | no |
 | values_template_path | Path to the OpenLDAP values template file | `string` | `null` | no |
 | enable_network_policies | Whether to enable network policies for the OpenLDAP namespace | `bool` | `true` | no |
 | tags | Tags to apply to resources | `map(string)` | `{}` | no |
@@ -123,7 +130,12 @@ module "openldap" {
 - `kubernetes_storage_class_v1` - StorageClass for PVCs
 - `module.alb` - ALB module for ingress (if using ALB). ACM certificate is
   inherited from IngressClassParams (not passed to this module).
+- `module.argocd` - When ArgoCD is enabled, the root should pass it in
+  `depends_on` so OpenLDAP runs after the ArgoCD capability.
 - ECR repository (for container images, created by `backend_infra`)
+
+The module applies a 3m pre-deploy delay (`time_sleep.pre_deploy`) as its
+first resource before creating the namespace and Helm release.
 
 > [!NOTE]
 >

@@ -60,18 +60,17 @@ ClusterRoleBinding so Terraform creates them first.
    ArgoCD (CREATING then ACTIVE). AWS also creates an EKS access entry for the
    capability IAM role; we do not create that entry.
 2. **Sleep** (`time_sleep.wait_for_argocd`) – waits for capability to be ACTIVE
-3. **Sleep** (`time_sleep.wait_after_argocd_propagation`) – short wait (e.g. 30s)
-   so access entry and ArgoCD SAs can fully propagate
-4. **ClusterRoleBinding for service accounts**
+   and for access entry and ArgoCD SAs to propagate (e.g. 5m30s)
+3. **ClusterRoleBinding for service accounts**
    (`kubernetes_manifest.argocd_application_controller_clusterrolebinding`) –
    binds ClusterRole to ArgoCD SAs (argocd-application-controller, etc.); must
    be after capability because those SAs are created by the capability
-5. **Access policy association**
+4. **Access policy association**
    (`aws_eks_access_policy_association.argocd_capability_cluster_admin`) –
    associates cluster-admin policy with the **auto-created** access entry
    (entry must exist first, hence after capability)
-6. **Cluster registration secret** (`kubernetes_secret.argocd_local_cluster`)
-7. **External data** (`data.external.argocd_capability`) – queries server URL
+5. **Cluster registration secret** (`kubernetes_secret.argocd_local_cluster`)
+6. **External data** (`data.external.argocd_capability`) – queries server URL
    and status
 
 The **EKS access entry** for the capability IAM role is created automatically by

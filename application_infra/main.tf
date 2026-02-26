@@ -26,9 +26,8 @@ module "argocd" {
   enable_ecr_access         = var.argocd_enable_ecr_access
   delete_propagation_policy = var.argocd_delete_propagation_policy
 
-  wait_iam_propagation_duration         = var.argocd_wait_iam_propagation_duration
-  wait_capability_ready_duration        = var.argocd_wait_capability_ready_duration
-  wait_after_capability_propagation_duration = var.argocd_wait_after_capability_propagation_duration
+  wait_iam_propagation_duration  = var.argocd_wait_iam_propagation_duration
+  wait_capability_ready_duration = var.argocd_wait_capability_ready_duration
 }
 
 locals {
@@ -216,6 +215,7 @@ module "openldap" {
   phpldapadmin_image_tag = var.phpldapadmin_image_tag
   ltb_passwd_image_tag   = var.ltb_passwd_image_tag
   helm_timeout           = var.openldap_helm_timeout
+  helm_atomic            = var.openldap_helm_atomic
   replica_count          = var.openldap_replica_count
 
   # Use derived values from locals to ensure non-null values
@@ -233,15 +233,8 @@ module "openldap" {
 
   tags = local.tags
 
-  # When ArgoCD is enabled, deploy it before OpenLDAP per PRD and AWS guidance.
-  # ArgoCD/ALB/StorageClass ordering is enforced via time_sleep.openldap_pre_deploy.
-  depends_on = [time_sleep.openldap_pre_deploy]
-}
-
-# Optional delay after ALB/StorageClass (and ArgoCD when enabled) so cluster is ready before OpenLDAP Helm install
-resource "time_sleep" "openldap_pre_deploy" {
-  create_duration = var.openldap_pre_deploy_delay_seconds > 0 ? "${var.openldap_pre_deploy_delay_seconds}s" : "0s"
-
+  # OpenLDAP module runs after StorageClass, ALB, and ArgoCD (when enabled).
+  # The module applies a 3m pre-deploy delay internally before creating resources.
   depends_on = [
     kubernetes_storage_class_v1.this,
     module.alb,

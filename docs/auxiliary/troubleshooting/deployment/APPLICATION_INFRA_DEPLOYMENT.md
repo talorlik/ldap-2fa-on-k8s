@@ -23,6 +23,11 @@ OpenLDAP via the Application Infra Provisioning workflow or local Terraform.
      `terraform plan -var-file=variables.tfvars` again to see what
      remains and whether the same error would recur.
 
+4. **OpenLDAP pod crash-loop**
+   - If `kubectl get events` shows "Back-off restarting failed container
+     openldap-stack-ha", the real cause is in the container logs. See
+     **§7 OpenLDAP Container Crash-Loop** and run the log commands there.
+
 ## ArgoCD Deployment Failures
 
 ### 1. EKS Capability Not Available or Permissions
@@ -67,7 +72,7 @@ creating the capability; sometimes that is not enough.
   succeeds once the access entry exists.
 - If it persists, increase the wait in `variables.tfvars`:
   `argocd_wait_iam_propagation_duration = "3m"` and/or
-  `argocd_wait_capability_ready_duration = "8m"` (defaults 2m and 5m).
+  `argocd_wait_capability_ready_duration = "8m"` (defaults 2m and 5m30s).
 
 ### 3. Capability Stuck in CREATING with AccessDenied in Health
 
@@ -100,13 +105,12 @@ cluster and stays in CREATING.
 
 2. **Re-run Terraform apply** so that
    `aws_eks_access_policy_association.argocd_capability_cluster_admin` runs
-   (it depends on the capability and a propagation sleep). If the first apply
-   failed or timed out before that resource, a second apply often succeeds.
+   (it depends on the capability and a single readiness wait). If the first
+   apply failed or timed out before that resource, a second apply often succeeds.
 
-3. **Increase wait durations** in `variables.tfvars` so the access entry and
+3. **Increase wait duration** in `variables.tfvars` so the access entry and
    propagation are ready before association: e.g.
-   `argocd_wait_capability_ready_duration = "8m"` and
-   `argocd_wait_after_capability_propagation_duration = "1m"`, then re-apply.
+   `argocd_wait_capability_ready_duration = "8m"`, then re-apply.
 
 **If policies are already associated** (e.g. `AmazonEKSClusterAdminPolicy` and
 ArgoCD policies appear in `list-associated-access-policies`) but the capability
@@ -366,7 +370,36 @@ or GitHub Secrets, not in `variables.tfvars`.
 lowercase `TF_VAR_*` variables. Locally, export the same env vars or use
 a `.env` file that is loaded before Terraform.
 
-### 6. OpenLDAP Container Crash-Loop (Back-off restarting)
+### 6. No Resources in Namespace ldap (Atomic Rollback)
+
+**Symptom:** `kubectl get pods -n ldap` (or other resources) shows "No
+resources found" or "There are no resources in namespace ldap". The
+namespace may still exist but is empty.
+
+**Cause:** The OpenLDAP Helm release is deployed with `atomic = true`
+and `cleanup_on_fail = true`. When the release fails (e.g. pods never
+become ready within the timeout, or the main container crash-loops),
+Helm uninstalls the release and removes all resources it created
+(StatefulSet, pods, PVCs, services, etc.). The namespace is created by
+Terraform and is left in place, so you see an empty namespace.
+
+**Fixes:**
+
+1. **Debug by leaving failed resources in place:** Set
+   `openldap_helm_atomic = false` in `variables.tfvars`, then run
+   `terraform apply` again. On failure, Helm will not uninstall; pods
+   and other resources stay so you can run `kubectl logs` and
+   `kubectl describe` (see section 7 below). After finding and fixing
+   the root cause, set `openldap_helm_atomic = true` again for normal
+   operation.
+
+2. **Fix the underlying failure:** The original failure is usually an
+   OpenLDAP container crash-loop. Follow **§7 OpenLDAP Container
+   Crash-Loop** to get logs and address the cause (secrets, permissions,
+   replication). Then re-apply; with atomic re-enabled, the next deploy
+   should succeed.
+
+### 7. OpenLDAP Container Crash-Loop (Back-off restarting)
 
 **Symptom:** Events show "Back-off restarting failed container
 openldap-stack-ha" for pod `openldap-stack-ha-0` (or other replicas).
@@ -418,7 +451,7 @@ still starting or unhealthy, leaving the workload with no node to run on.
 **Fixes:**
 
 1. **Stabilize OpenLDAP first:** Fix the OpenLDAP container crash (see
-   section 6) so pods become Ready. Unhealthy or not-ready pods can make
+   section 7) so pods become Ready. Unhealthy or not-ready pods can make
    consolidation decisions worse.
 
 2. **PodDisruptionBudget (PDB):** The OpenLDAP chart ships a PDB
@@ -451,13 +484,16 @@ still starting or unhealthy, leaving the workload with no node to run on.
   with slow node provisioning), increase `openldap_helm_timeout` in
   `variables.tfvars` (seconds; default 1200). For example, set to 1800
   for 30 minutes.
+- **Debugging empty ldap namespace:** If the release failed and the
+  namespace is empty (atomic rollback), set `openldap_helm_atomic =
+  false` in `variables.tfvars`, re-apply, then inspect pod logs (see §7).
+  Set back to `true` after fixing the root cause.
 - **OpenLDAP replica count:** For first deploy or small clusters, set
   `openldap_replica_count = 1` in `variables.tfvars` to reduce resource
   use and replication bootstrap issues; then change to 3 for HA.
-- **Pre-deploy delay:** On first deploy you can set
-  `openldap_pre_deploy_delay_seconds = 30` (or 60) so the cluster has
-  time after ALB/StorageClass before the OpenLDAP Helm install. Set to
-  0 after the cluster is stable.
+- **Pre-deploy delay:** The OpenLDAP module applies a fixed 3m delay (first
+  resource in the module) after StorageClass/ALB/ArgoCD are ready before
+  creating namespace and Helm release.
 - **ArgoCD waits:** If capability or RBAC steps fail, increase
   `argocd_wait_iam_propagation_duration` and/or
   `argocd_wait_capability_ready_duration` in `variables.tfvars` (e.g.
@@ -476,13 +512,14 @@ still starting or unhealthy, leaving the workload with no node to run on.
 Terraform applies resources in this general order:
 
 1. **ArgoCD** (if `enable_argocd = true`): IAM role, namespace, 2m
-   wait, EKS capability, 5m wait, then external data and Kubernetes
-   resources (ClusterRole, ClusterRoleBinding, access policy
+   wait, EKS capability, single 5m30s wait, then external data and
+   Kubernetes resources (ClusterRole, ClusterRoleBinding, access policy
    association, cluster secret).
 2. **StorageClass** and **ALB** (IngressClass/IngressClassParams;
    optional 2m wait if `wait_for_crd = true`).
-3. **OpenLDAP**: namespace, secret, Helm release (and optional network
-   policies). OpenLDAP depends on StorageClass, ALB, and (when ArgoCD
+3. **OpenLDAP**: 3m pre-deploy delay (first resource in the module),
+   then namespace, secret, Helm release (and optional network policies).
+   The OpenLDAP module depends on StorageClass, ALB, and (when ArgoCD
    is enabled) the ArgoCD module, so ArgoCD is always created first when
    both are enabled.
 4. **Route53** and other resources that depend on OpenLDAP (e.g. ALB

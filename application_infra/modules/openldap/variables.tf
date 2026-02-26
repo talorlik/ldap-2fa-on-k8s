@@ -159,6 +159,12 @@ variable "helm_timeout" {
   default     = 1200
 }
 
+variable "helm_atomic" {
+  description = "If true, Helm install/upgrade is atomic (rollback/uninstall on failure). Set to false when debugging so failed releases leave resources in place for inspection."
+  type        = bool
+  default     = true
+}
+
 variable "replica_count" {
   description = "Number of OpenLDAP StatefulSet replicas. Use 1 for first deploy or small clusters, then scale to 3 for HA."
   type        = number

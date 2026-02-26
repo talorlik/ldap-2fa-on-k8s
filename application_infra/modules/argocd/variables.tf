@@ -93,15 +93,9 @@ variable "wait_iam_propagation_duration" {
 }
 
 variable "wait_capability_ready_duration" {
-  description = "Duration to wait after EKS capability creation before creating dependent resources (e.g. 5m, 8m). Increase if access policy association or RBAC fails with AccessDenied."
+  description = "Duration to wait after EKS capability creation before creating dependent resources (capability ACTIVE + access entry/SA propagation). Use e.g. 5m30s or 8m. Increase if access policy association or RBAC fails with AccessDenied."
   type        = string
-  default     = "5m"
-}
-
-variable "wait_after_capability_propagation_duration" {
-  description = "Short sleep after capability is ACTIVE to allow access entry and ArgoCD SAs to propagate before ClusterRoleBinding and access policy association (e.g. 30s, 1m)."
-  type        = string
-  default     = "30s"
+  default     = "5m30s"
 }
 
 # IAM Policy Resources (core integrations: EKS, Secrets Manager, CodeConnections, KMS)

@@ -1526,8 +1526,9 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Added explicit ArgoCD namespace creation (`kubernetes_namespace_v1.argocd`)
   with proper lifecycle management
   - Increased IAM propagation wait time from 30s to 60s for more reliable role assumption
-  - Added 5-minute wait (`time_sleep.wait_for_argocd`) for ArgoCD capability provisioning
-  before dependent resources
+  - Added single wait (`time_sleep.wait_for_argocd`, default 5m30s) for ArgoCD
+  capability provisioning before dependent resources (later consolidated from
+  two sequential sleeps into one)
   - Moved `time_sleep` resources into ArgoCD module for better encapsulation
   - Fixed cluster registration secret data format:
     - Removed unnecessary base64 encoding for `name`, `server`, and `project` fields

@@ -467,8 +467,9 @@ and [PRD_ArgoCD.md](../docs/auxiliary/application_infra/design/PRD_ArgoCD.md).
 - **StorageClass** (for PVCs); created by this Terraform
 - **ALB module** (when `use_alb = true`): IngressClass and IngressClassParams
   so the chart's Ingress resources get an ALB
-- **Optional**: `openldap_pre_deploy_delay_seconds` after ALB/StorageClass for
-  first-time cluster readiness
+- **Pre-deploy delay**: The OpenLDAP module applies a 3m delay (first resource
+  in the module) after StorageClass/ALB/ArgoCD are ready before creating
+  namespace and Helm release
 
 OpenLDAP does **not** require ArgoCD. It is installed by Terraform via Helm,
 not by an Argo CD Application.
@@ -479,8 +480,8 @@ not by an Argo CD Application.
    then cluster secret and RBAC (ClusterRole, ClusterRoleBinding, access
    policy).
 2. **StorageClass** and **ALB** (optional wait if `wait_for_crd = true`).
-3. **OpenLDAP**: namespace, secret, Helm release; depends on StorageClass, ALB,
-   and (when ArgoCD is enabled) ArgoCD module.
+3. **OpenLDAP**: 3m pre-deploy delay, then namespace, secret, Helm release;
+   module depends on StorageClass, ALB, and (when ArgoCD is enabled) ArgoCD.
 4. **Route53 records** and other resources that depend on OpenLDAP/ALB.
 
 See [Application Infrastructure Deployment

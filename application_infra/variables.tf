@@ -90,18 +90,17 @@ variable "openldap_helm_timeout" {
   default     = 1200
 }
 
+variable "openldap_helm_atomic" {
+  description = "If true, OpenLDAP Helm install/upgrade is atomic (uninstall on failure). Set to false when debugging so failed releases leave resources in place for kubectl logs/describe."
+  type        = bool
+  default     = true
+}
+
 variable "openldap_replica_count" {
   description = "OpenLDAP StatefulSet replica count. Use 1 for first deploy or to reduce resource use, then 3 for HA."
   type        = number
   default     = 3
 }
-
-variable "openldap_pre_deploy_delay_seconds" {
-  description = "Seconds to wait after StorageClass and ALB are ready before installing OpenLDAP. Use 30-60 on first deploy to let IngressClassParams settle. 0 disables."
-  type        = number
-  default     = 0
-}
-
 
 ##################### Storage ##########################
 
@@ -358,15 +357,9 @@ variable "argocd_wait_iam_propagation_duration" {
 }
 
 variable "argocd_wait_capability_ready_duration" {
-  description = "Duration to wait after ArgoCD capability creation (e.g. 5m, 8m). Increase if access policy or RBAC fails."
+  description = "Duration to wait after ArgoCD capability creation before dependent resources (e.g. 5m30s, 8m). Increase if access policy or RBAC fails."
   type        = string
-  default     = "5m"
-}
-
-variable "argocd_wait_after_capability_propagation_duration" {
-  description = "Short sleep after capability is ACTIVE before ClusterRoleBinding and access policy association (e.g. 30s, 1m)."
-  type        = string
-  default     = "30s"
+  default     = "5m30s"
 }
 
 ##################### Network Policies ##########################

@@ -220,20 +220,13 @@ resource "aws_eks_capability" "argocd" {
   ]
 }
 
-# Wait for ArgoCD capability to be fully deployed and ACTIVE
-# This ensures proper deployment ordering when ArgoCD is enabled
+# Wait for ArgoCD capability to be fully deployed (ACTIVE) and for the auto-created
+# access entry and ArgoCD SAs to propagate before creating ClusterRoleBinding and
+# associating the access policy (single sleep, default 5m30s).
 resource "time_sleep" "wait_for_argocd" {
   create_duration = var.wait_capability_ready_duration
 
   depends_on = [aws_eks_capability.argocd]
-}
-
-# Short sleep after capability is ACTIVE so access entry and ArgoCD SAs can propagate
-# before we create ClusterRoleBinding and associate the access policy
-resource "time_sleep" "wait_after_argocd_propagation" {
-  create_duration = var.wait_after_capability_propagation_duration
-
-  depends_on = [time_sleep.wait_for_argocd]
 }
 
 # External data source to query ArgoCD capability details via AWS CLI
@@ -351,7 +344,7 @@ data "external" "argocd_capability" {
   ]
 
   query      = { wait_for = aws_eks_capability.argocd.arn }
-  depends_on = [time_sleep.wait_after_argocd_propagation]
+  depends_on = [time_sleep.wait_for_argocd]
 }
 
 # ClusterRole for ArgoCD application-controller
@@ -444,7 +437,7 @@ resource "kubernetes_manifest" "argocd_application_controller_clusterrolebinding
   }
 
   depends_on = [
-    time_sleep.wait_after_argocd_propagation,
+    time_sleep.wait_for_argocd,
     kubernetes_manifest.argocd_application_controller_clusterrole
   ]
 }
@@ -456,9 +449,8 @@ resource "kubernetes_manifest" "argocd_application_controller_clusterrolebinding
 # that are automatically associated), which is required for ArgoCD to sync applications and manage resources
 # across all namespaces, including cluster-scoped resources like runtimeclasses.node.k8s.io
 #
-# IMPORTANT: This must depend on time_sleep.wait_after_argocd_propagation (after capability is ACTIVE
-# and a short propagation sleep) because the capability auto-creates the access entry asynchronously.
-# If we associate a policy before the access entry exists, it can cause AccessDenied.
+# IMPORTANT: Must depend on time_sleep.wait_for_argocd so the capability's
+# auto-created access entry exists before we associate the policy (avoids AccessDenied).
 resource "aws_eks_access_policy_association" "argocd_capability_cluster_admin" {
   cluster_name  = var.cluster_name
   principal_arn = aws_iam_role.argocd_capability.arn
@@ -468,7 +460,7 @@ resource "aws_eks_access_policy_association" "argocd_capability_cluster_admin" {
     type = "cluster"
   }
 
-  depends_on = [time_sleep.wait_after_argocd_propagation]
+  depends_on = [time_sleep.wait_for_argocd]
 }
 
 # ClusterRoleBinding for IAM role-based authentication (kept for backward compatibility)
@@ -526,5 +518,5 @@ resource "kubernetes_secret" "argocd_local_cluster" {
 
   type = "Opaque"
 
-  depends_on = [time_sleep.wait_after_argocd_propagation]
+  depends_on = [time_sleep.wait_for_argocd]
 }

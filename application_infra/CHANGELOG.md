@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [2026-02-25] - ArgoCD Single Sleep and OpenLDAP Pre-deploy in Module
+
+### Changed
+
+- **OpenLDAP Module: Pre-deploy Delay Moved into Module (3m)**
+  - Moved `time_sleep.openldap_pre_deploy` from root into the OpenLDAP module
+  as `time_sleep.pre_deploy`, the first resource in the module (3m fixed).
+  - Root `module.openldap` now depends on StorageClass, ALB, and ArgoCD
+  directly; the module applies the delay internally before creating namespace
+  and Helm release.
+  - Removed root variable `openldap_pre_deploy_delay_seconds`.
+
+- **ArgoCD Module: Single Sleep for Capability Readiness**
+  - Removed redundant `time_sleep.wait_after_argocd_propagation`; it ran
+  immediately after `time_sleep.wait_for_argocd` with no other work in between.
+  - All dependent resources now depend only on `time_sleep.wait_for_argocd`.
+  - `wait_capability_ready_duration` default set to `5m30s` (was 5m + 30s
+  separate sleeps). Removed variable `wait_after_capability_propagation_duration`.
+
 ## [2026-02-24] - ArgoCD IAM Revert and IngressClassParams Import Guidance
 
 ### Changed

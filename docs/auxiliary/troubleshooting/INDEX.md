@@ -21,6 +21,9 @@ Kubernetes project. Documents are grouped by area.
   ECR, PVC, ALB, Karpenter).
 - [Backend Infrastructure](backend_infrastructure/BACKEND_INFRASTRUCTURE.md) -
   EKS backend (cluster access, SSM, kubectl, IRSA, SNS).
+- [EKS Access Entry](../application_infra/guides/EKS_ACCESS_ENTRY.md) - Add an
+  access entry for your IAM user/role to an EKS cluster (create + associate
+  policy or Kubernetes groups).
 
 ## LDAP and Seeding
 
