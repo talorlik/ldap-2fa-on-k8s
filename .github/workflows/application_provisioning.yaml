@@ -251,7 +251,7 @@ jobs:
             echo "::error::Run the 'Backend Build and Push' workflow first to build and push the backend image."
             exit 1
           fi
-          
+
           BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | sed 's/^"//' | sed "s/^'//" | sed 's/"$//' | sed "s/'$//" | tr -d '\r')
           if [ -z "$BACKEND_IMAGE_TAG" ] || [ "$BACKEND_IMAGE_TAG" = "latest" ]; then
             echo "::error::Could not extract valid backend image tag from $BACKEND_VALUES_FILE"
@@ -269,7 +269,7 @@ jobs:
             echo "::error::Run the 'Frontend Build and Push' workflow first to build and push the frontend image."
             exit 1
           fi
-          
+
           FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | sed 's/^"//' | sed "s/^'//" | sed 's/"$//' | sed "s/'$//" | tr -d '\r')
           if [ -z "$FRONTEND_IMAGE_TAG" ] || [ "$FRONTEND_IMAGE_TAG" = "latest" ]; then
             echo "::error::Could not extract valid frontend image tag from $FRONTEND_VALUES_FILE"

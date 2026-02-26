@@ -189,6 +189,7 @@ const App = {
     setupTopBar() {
         const userMenuBtn = document.getElementById('user-menu-btn');
         const userDropdown = document.getElementById('user-dropdown');
+        if (!userMenuBtn || !userDropdown) return;
 
         // Toggle dropdown
         userMenuBtn.addEventListener('click', (e) => {
@@ -328,7 +329,7 @@ const App = {
         const form = document.getElementById('forgot-password-form');
         const resultContainer = document.getElementById('forgot-password-result');
 
-        if (!link || !forgotPanel) return;
+    if (!link || !forgotPanel || !form) return;
 
         link.addEventListener('click', (e) => {
             e.preventDefault();
@@ -475,6 +476,7 @@ const App = {
     setupLoginForm() {
         const form = document.getElementById('login-form');
         const resultContainer = document.getElementById('login-result');
+        if (!form || !resultContainer) return;
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -685,6 +687,7 @@ const App = {
         const form = document.getElementById('signup-form');
         const resultContainer = document.getElementById('signup-result');
         const verificationPanel = document.getElementById('verification-status');
+        if (!form || !resultContainer) return;
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -762,6 +765,7 @@ const App = {
         const resendPhoneBtn = document.getElementById('resend-phone-btn');
         const verifyPhoneBtn = document.getElementById('verify-phone-btn');
         const phoneCodeInput = document.getElementById('phone-verify-code');
+        if (!resendEmailBtn || !resendPhoneBtn || !verifyPhoneBtn) return;
 
         // Resend email verification
         resendEmailBtn.addEventListener('click', async () => {
@@ -923,6 +927,7 @@ const App = {
      */
     setupProfile() {
         const form = document.getElementById('profile-form');
+        if (!form) return;
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1030,6 +1035,7 @@ const App = {
         const statusFilter = document.getElementById('users-status-filter');
         const groupFilter = document.getElementById('users-group-filter');
         const refreshBtn = document.getElementById('users-refresh-btn');
+        if (!searchInput || !statusFilter || !groupFilter || !refreshBtn) return;
 
         // Search
         let searchTimeout;
@@ -1148,6 +1154,7 @@ const App = {
     setupAdminGroups() {
         const searchInput = document.getElementById('groups-search');
         const createBtn = document.getElementById('create-group-btn');
+        if (!searchInput || !createBtn) return;
 
         // Search
         let searchTimeout;
