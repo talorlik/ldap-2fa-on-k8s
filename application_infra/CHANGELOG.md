@@ -13,7 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
-## [2026-02-26] - OpenLDAP Custom LDIF Mount Fix
+## [2026-02-26] - OpenLDAP Custom LDIF Mount Fix and Headless Host Output
+
+### Added
+
+- **OpenLDAP headless host output**
+  - OpenLDAP module and root now expose `ldap_headless_host` (e.g.
+  `openldap-stack-ha-headless.ldap.svc.cluster.local`) for StatefulSet pod DNS
+  addressing. The 2FA application admin-seed job uses this so `seed_admin.py`
+  can connect to OpenLDAP replicas by pod hostname, fixing "invalid server
+  address" when using the ClusterIP service host for replica connections.
 
 ### Changed
 

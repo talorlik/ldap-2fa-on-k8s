@@ -112,7 +112,8 @@ module "openldap" {
 | namespace | Kubernetes namespace for OpenLDAP |
 | secret_name | Name of the Kubernetes secret for OpenLDAP passwords |
 | helm_release_name | Name of the Helm release |
-| ldap_host | OpenLDAP service host (Kubernetes DNS) |
+| ldap_host | OpenLDAP ClusterIP service host (Kubernetes DNS) |
+| ldap_headless_host | OpenLDAP headless service host (for StatefulSet pod DNS) |
 | ldap_base_dn | LDAP base DN derived from openldap_ldap_domain |
 | ldap_admin_dn | LDAP admin bind DN |
 | ldap_admin_group_dn | LDAP admin group DN (for 2FA app admin role) |

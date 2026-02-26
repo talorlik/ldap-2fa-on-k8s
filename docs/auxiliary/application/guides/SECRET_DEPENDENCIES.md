@@ -133,11 +133,13 @@ will fail to:
 - Store email verification tokens
 - Perform any database operations
 
-#### 3.3 `redis-secret` (Conditional)
+#### 3.3 `redis-secret` (Required for login and SMS 2FA)
 
 **Usage:**
 
-- Backend application uses this only if SMS 2FA is enabled (`redis.enabled: true`)
+- Backend requires Redis for login challenge storage and (when enabled) SMS OTP
+  storage (`redis.enabled: true`). Without it, login/start and MFA steps
+  return 503.
 - Secret key: `redis-password`
 - Referenced in `backend/helm/ldap-2fa-backend/templates/deployment.yaml`:
 
@@ -151,12 +153,11 @@ will fail to:
   {{- end }}
   ```
 
-**Critical (when SMS enabled):** Without this secret, the backend cannot:
+**Critical:** Without this secret, the backend cannot:
 
-- Connect to Redis for SMS OTP storage
-- Store SMS verification codes
-- Retrieve SMS verification codes
-- SMS 2FA functionality will fail
+- Store or retrieve login challenges (all login flows fail with 503)
+- Connect to Redis for SMS OTP storage (when SMS 2FA is enabled)
+- Complete any two-step login (TOTP or SMS)
 
 #### 3.4 `admin-seed-secret` (Optional)
 
@@ -219,11 +220,12 @@ admin user
 - **Error:** `Invalid credentials` or `LDAP bind failed`
 - **Impact:** Cannot authenticate users, cannot create users, LDAP operations fail
 
-### Missing `redis-secret` in backend namespace (when SMS enabled)
+### Missing `redis-secret` in backend namespace
 
-- **Symptom:** Backend pods start but SMS 2FA fails
+- **Symptom:** Login and MFA endpoints return 503 "Storage unavailable"
 - **Error:** `NOAUTH Authentication required` or Redis connection errors
-- **Impact:** SMS 2FA functionality broken, but other features work
+- **Impact:** All login flows fail (login/start and verify require Redis); SMS OTP
+  also fails when SMS 2FA is enabled
 
 ### Missing secrets in PostgreSQL/Redis namespaces
 

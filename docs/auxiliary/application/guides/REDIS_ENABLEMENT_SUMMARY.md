@@ -31,8 +31,9 @@
 ### ✅ Backend Code
 
 - Redis client implementation exists (`app/redis/client.py`)
-- SMS OTP endpoints support Redis (`routes.py`)
-- Automatic fallback to in-memory storage if Redis unavailable
+- SMS OTP and login challenge endpoints use Redis only (`routes.py`)
+- Redis is required; no in-memory fallback (login and SMS return 503 if Redis
+  unavailable)
 - All Redis environment variables configured in ConfigMap
 
 ### ✅ Infrastructure Dependencies
@@ -160,8 +161,8 @@ kubectl exec -n 2fa-app -l app.kubernetes.io/name=ldap-2fa-backend -- env | grep
 For Redis connection issues, SMS not sending, and related application-layer
 issues, see:
 
-- [Application Layer Troubleshooting](../docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
-- [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)
+- [Application Layer Troubleshooting](../../troubleshooting/application_layer/APPLICATION_LAYER.md)
+- [Troubleshooting Index](../../troubleshooting/INDEX.md)
 
 ## Rollback
 
@@ -186,14 +187,14 @@ If you need to disable Redis/SMS 2FA:
     helm upgrade ldap-2fa-backend ./helm/ldap-2fa-backend
     ```
 
-3. **Backend will automatically fallback to in-memory storage** for any pending
-SMS codes
+3. **Backend requires Redis**; login and SMS OTP endpoints return 503 if Redis is
+unavailable. There is no in-memory fallback.
 
 ## Notes
 
 - Redis infrastructure remains deployed even if backend disables it
 (controlled by Terraform `enable_redis`)
-- Backend gracefully falls back to in-memory storage if Redis is unavailable
+- Backend requires Redis for login challenges and SMS OTP; no fallback
 - SMS 2FA requires AWS SNS to be configured and working
 - Redis persistence ensures OTP codes survive pod restarts
 - TTL-based expiration automatically cleans up expired codes

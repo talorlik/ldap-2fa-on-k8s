@@ -1406,7 +1406,11 @@ configuration)
 - `argocd_project_name`: ArgoCD project name used for cluster registration
 - **LDAP connection (from OpenLDAP module)** for use by the 2FA application so
 LDAP settings are not hardcoded:
-  - `ldap_host`: OpenLDAP service DNS (e.g. `openldap-stack-ha.ldap.svc.cluster.local`)
+  - `ldap_host`: OpenLDAP ClusterIP service DNS (e.g.
+  `openldap-stack-ha.ldap.svc.cluster.local`)
+  - `ldap_headless_host`: OpenLDAP headless service DNS for StatefulSet pod
+  addressing (e.g. `openldap-stack-ha-headless.ldap.svc.cluster.local`); used by
+  admin-seed job for replica connections
   - `ldap_base_dn`: Base DN derived from `openldap_ldap_domain`
   - `ldap_admin_dn`: Admin bind DN
   - `ldap_admin_group_dn`: Admin group DN (for 2FA app admin role)

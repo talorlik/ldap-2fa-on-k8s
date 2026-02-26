@@ -176,7 +176,7 @@
         <div class="card">
             <ul>
                 <li><strong>PostgreSQL</strong> (Bitnami Helm chart, OCI registry) for user registration data and email verification token storage with persistent EBS-backed storage</li>
-                <li><strong>Redis</strong> (Bitnami Helm chart) for SMS OTP code storage with TTL-based automatic expiration and shared state across replicas</li>
+                <li><strong>Redis</strong> (Bitnami Helm chart) for SMS OTP code and login challenge storage with TTL-based automatic expiration and shared state across replicas (required; no in-memory fallback)</li>
                 <li><strong>AWS SES</strong> for email verification and notifications with IRSA-based access (no hardcoded credentials)</li>
                 <li><strong>AWS SNS</strong> for SMS-based 2FA verification (optional, requires SNS VPC endpoint enabled in backend infrastructure)</li>
             </ul>
@@ -986,7 +986,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <li><strong>Deploy Application</strong>
                     <ul>
                         <li><strong>Purpose:</strong> Deploys the 2FA application components, including PostgreSQL, Redis, SES, SNS, ArgoCD Applications, and the 2FA application (backend/frontend)</li>
-                        <li><strong>Components:</strong> PostgreSQL (user registration data), Redis (SMS OTP storage), AWS SES (email verification), AWS SNS (SMS 2FA), ArgoCD Applications (GitOps), Route53 record (for 2FA app), Backend application (Python FastAPI), Frontend application (HTML/JS/CSS + nginx)</li>
+                        <li><strong>Components:</strong> PostgreSQL (user registration data), Redis (SMS OTP and login challenge storage), AWS SES (email verification), AWS SNS (SMS 2FA), ArgoCD Applications (GitOps), Route53 record (for 2FA app), Backend application (Python FastAPI), Frontend application (HTML/JS/CSS + nginx)</li>
                         <li><strong>Account:</strong> Deployment Account (Account B)</li>
                         <li><strong>Prerequisites:</strong> Application infrastructure (Step 3) must be deployed first, including StorageClass, ArgoCD Capability, and ALB DNS name. <strong>Container images must be built and pushed to ECR before deployment</strong> (see Build Container Images step above).</li>
                         <li><strong>Local:</strong> <code>cd application && ./setup-application.sh</code></li>
@@ -1132,7 +1132,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     </ul>
                 </li>
                 <li><strong>PostgreSQL</strong> (Bitnami Helm chart) for user registration and verification token storage</li>
-                <li><strong>Redis</strong> (Bitnami Helm chart) for SMS OTP code storage with TTL-based expiration</li>
+                <li><strong>Redis</strong> (Bitnami Helm chart) for SMS OTP and login challenge storage with TTL-based expiration (required)</li>
                 <li><strong>AWS SES</strong> integration for email verification and notifications (IRSA-based)</li>
                 <li><strong>AWS SNS</strong> integration for SMS-based 2FA verification (optional, requires VPC endpoint)</li>
                 <li><strong>ArgoCD Applications</strong> for GitOps-driven backend and frontend deployments</li>
@@ -1185,7 +1185,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             </div>
             <div class="doc-item">
                 <a href="auxiliary/application/design/PRD_SMS_MAN.md">SMS OTP Management PRD</a>
-                <p>Redis-based SMS OTP storage with TTL-based automatic expiration</p>
+                <p>Redis-based SMS OTP and login challenge storage with TTL-based automatic expiration (required)</p>
             </div>
             <div class="doc-item">
                 <a href="auxiliary/application_infra/guides/OPENLDAP_README.md">OpenLDAP README</a>
@@ -1209,7 +1209,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             </div>
             <div class="doc-item">
                 <a href="auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md">Redis Enablement Summary</a>
-                <p>Redis enablement and SMS OTP summary</p>
+                <p>Redis (required) for SMS OTP and login challenges; verification steps</p>
             </div>
             <div class="doc-item">
                 <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>
@@ -1248,7 +1248,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             </div>
             <div class="doc-item">
                 <a href="../application/modules/redis/README.md">Redis Module</a>
-                <p>SMS OTP code storage</p>
+                <p>SMS OTP and login challenge storage (required)</p>
             </div>
             <div class="doc-item">
                 <a href="../application/modules/ses/README.md">SES Module</a>

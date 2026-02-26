@@ -2149,8 +2149,9 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - TTL-based automatic expiration for OTP codes
 - **Redis Client Module (`app/redis/`)**:
   - `RedisOTPClient` class with TTL-aware storage operations
-  - Automatic fallback to in-memory storage when Redis is disabled
-  - Methods: `store_code()`, `get_code()`, `delete_code()`, `code_exists()`
+  - Redis required for SMS OTP and login challenge storage (no in-memory fallback)
+  - Methods: `store_code()`, `get_code()`, `delete_code()`, `code_exists()`,
+  and login challenge helpers
   - Connection health checking and error handling
   - Lazy initialization with connection pooling
 

@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG.md](../application_infra/CHANGELOG.md).
 
-## [2026-02-26] - Frontend Form Post and QR Code Library
+## [2026-02-26] - Frontend Form Post, QR Code Library, and Redis Required
 
 ### Fixed
 
@@ -24,6 +24,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   yet have those DOM elements (e.g. during init or tab switch).
   - QRCode.js CDN version set to `1.4.4` (from `1.5.3`) for reliable form
   posting and QR display during TOTP enrollment.
+
+### Changed
+
+- **Login and Redis**
+  - Login flow now stores all challenges in Redis only (no in-memory fallback).
+  - `POST /api/auth/login/start` returns 503 "Storage unavailable" if Redis is
+    down; TOTP setup, login verify, and SMS send/verify also require Redis and
+    return 503 when Redis is unavailable.
+  - Backend README, Redis client docstrings, and application docs updated to
+    state Redis is required for SMS OTP and login challenge storage.
+
+- **Admin-seed job: LDAP headless host**
+  - Admin-seed job now receives `LDAP_HEADLESS_HOST` from application_infra
+  outputs. `seed_admin.py` uses this to build OpenLDAP replica pod DNS names
+  (e.g. `openldap-stack-ha-0.openldap-stack-ha-headless.ldap.svc.cluster.local`),
+  fixing "invalid server address" when connecting to replicas. Previously the
+  job used the ClusterIP service host, which does not resolve to individual pods.
 
 ## [2025-02-23] - Admin-Seed, Image Tags, and LDAP Fixes
 

@@ -46,9 +46,8 @@ class MFAMethod(str, Enum):
     SMS = "sms"
 
 
-# In-memory fallback storage for SMS verification codes (used when Redis is disabled)
-# Structure: {username: {"code": "...", "expires_at": timestamp, "phone_number": "..."}}
-# Note: When Redis is enabled, codes are stored in Redis with automatic TTL expiration
+# SMS OTP and login challenges are stored in Redis only (required; no in-memory fallback).
+# See app/redis/client.py for RedisOTPClient and login challenge helpers.
 
 
 # ============================================================================

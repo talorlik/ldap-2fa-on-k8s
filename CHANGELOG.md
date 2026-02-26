@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2026-02-26] - Frontend Form Fix and OpenLDAP Custom LDIF Mount
+## [2026-02-26] - Frontend Form Fix, OpenLDAP LDIF Mount, and Redis Enforcement
 
 ### Changed
 
@@ -13,8 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   null guards added for form/setup handlers so forms post correctly. See
   [application/CHANGELOG.md](application/CHANGELOG.md).
 - **Application infrastructure**: OpenLDAP chart custom LDIF bootstrap now uses
-  a read-only mount and startup copy so osixia cleanup works correctly. See
-  [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
+  a read-only mount and startup copy so osixia cleanup works correctly.
+  OpenLDAP module and root now expose `ldap_headless_host` for admin-seed and
+  other consumers. See [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
+- **2FA backend**: Login mechanism corrected; Redis is now required for all
+  challenge storage (SMS OTP and login challenges). In-memory fallback removed;
+  endpoints return 503 when Redis is unavailable. Documentation updated
+  (REDIS_ENABLEMENT_SUMMARY, PRD_SMS_MAN, Redis module README, DEBUG_COMMANDS,
+  docs/index.html, WARP.md).
+- **Admin-seed job**: Uses LDAP headless host from application_infra outputs
+  (`LDAP_HEADLESS_HOST`) so OpenLDAP replica connections use correct pod DNS.
+  See [application/CHANGELOG.md](application/CHANGELOG.md).
 
 ## [2026-02-25] - ArgoCD Single Wait and OpenLDAP Pre-deploy in Module
 

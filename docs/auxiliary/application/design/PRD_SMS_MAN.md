@@ -86,8 +86,8 @@ The SMS OTP storage solution must provide:
 | ID | Requirement |
 | ---- | ------------- |
 | REQ-4.1 | Backend must support Redis client for OTP storage |
-| REQ-4.2 | Backend must support graceful fallback to in-memory storage |
-| REQ-4.3 | Backend must handle Redis connection failures gracefully |
+| REQ-4.2 | Backend must require Redis for OTP and login challenges (in-memory fallback removed as of 2026-02) |
+| REQ-4.3 | Backend must handle Redis connection failures gracefully (e.g. return 503 when Redis unavailable) |
 | REQ-4.4 | Backend must support configurable Redis connection settings |
 | REQ-4.5 | Backend must support feature flag to enable/disable Redis |
 

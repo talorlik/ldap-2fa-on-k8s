@@ -172,8 +172,9 @@ README](../../application_infra/README.md#ecr-image-mirroring-automatic).
 | Key Pattern | Value | TTL | Description |
 | ------------- | ------- | ----- | ------------- |
 | `sms_otp:{username}` | JSON data | 300s | SMS verification code |
+| `sms_otp:login_challenge:{challenge_token}` | JSON data | 300s | Login challenge (user_id, username, remember_me) for two-step auth |
 
-Example value:
+Example value for `sms_otp:{username}`:
 
 ```json
 {

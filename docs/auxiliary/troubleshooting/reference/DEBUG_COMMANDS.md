@@ -419,6 +419,34 @@ kubectl exec -n 2fa-app <backend-pod> -- python3 -c \
   "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/api/healthz').read().decode())"
 ```
 
+### Redis (Required for Login and SMS OTP)
+
+The backend requires Redis for login challenges and SMS OTP storage. If Redis is
+unavailable, login/start and SMS endpoints return 503. Use these to verify
+Redis connectivity and keys:
+
+```bash
+# Redis pods and secret
+kubectl get pods -n redis -l app.kubernetes.io/name=redis
+kubectl get secret redis-secret -n redis
+kubectl get secret redis-secret -n 2fa-app
+
+# Test Redis from a backend pod (REDIS_PASSWORD from env)
+kubectl exec -n 2fa-app -l app.kubernetes.io/name=ldap-2fa-backend -- \
+  python3 -c "
+import os
+import redis
+r = redis.Redis(host=os.environ.get('REDIS_HOST','redis-master.redis.svc.cluster.local'),
+  port=int(os.environ.get('REDIS_PORT',6379)),
+  password=os.environ.get('REDIS_PASSWORD',''), decode_responses=True)
+r.ping()
+print('Redis OK')
+"
+
+# List login challenge and SMS OTP keys (password from secret)
+kubectl exec -n redis redis-master-0 -- redis-cli -a \"$(kubectl get secret redis-secret -n redis -o jsonpath='{.data.redis-password}' | base64 -d)\" KEYS \"sms_otp:*\"
+```
+
 ## EKS Cluster-Level Logs & Events
 
 ### Cluster Info & Status
