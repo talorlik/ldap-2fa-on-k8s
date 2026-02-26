@@ -71,6 +71,14 @@ spec:
         - name: {{ .Chart.Name }}
           image: {{ include "openldap.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.customLdifFiles }}
+          command:
+            - sh
+            - -c
+            - |
+              cp /tmp/custom-ldif-files/* /container/service/slapd/assets/config/bootstrap/ldif/custom/ 2>/dev/null || true
+              exec /container/tool/run
+          {{- end }}
           {{- if .Values.containerSecurityContext.enabled }}
           securityContext:
             {{- omit .Values.containerSecurityContext "enabled" | toYaml | nindent 12 }}
@@ -140,7 +148,8 @@ spec:
               subPath: certs
             {{- if .Values.customLdifFiles }}
             - name: custom-ldif-files-writable
-              mountPath: /container/service/slapd/assets/config/bootstrap/ldif/custom
+              mountPath: /tmp/custom-ldif-files
+              readOnly: true
             {{- end }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
