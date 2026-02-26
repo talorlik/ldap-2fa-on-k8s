@@ -68,7 +68,7 @@ system administration
 ### Infrastructure
 
 - ✅ PostgreSQL database for user data
-- ✅ Redis for SMS OTP storage (with in-memory fallback)
+- ✅ Redis for SMS OTP and login challenge storage (required; no in-memory fallback)
 - ✅ Async/await architecture for high performance
 - ✅ Health check endpoints for Kubernetes
 - ✅ Comprehensive logging
@@ -124,7 +124,7 @@ system administration
 - **`mfa/totp.py`**: TOTP generation and verification logic
 - **`sms/client.py`**: AWS SNS integration for SMS delivery
 - **`email/client.py`**: AWS SES integration for email delivery
-- **`redis/client.py`**: Redis client for OTP storage with in-memory fallback
+- **`redis/client.py`**: Redis client for OTP and login challenge storage (shared across replicas)
 
 ## Installation
 
@@ -132,7 +132,7 @@ system administration
 
 - Python 3.11+ (tested with Python 3.15.0a5)
 - PostgreSQL 12+
-- Redis (optional, for SMS OTP storage)
+- Redis (required, for SMS OTP and login challenge storage)
 - LDAP server (OpenLDAP or compatible)
 - AWS account with SES and SNS configured (for email/SMS)
 
@@ -334,7 +334,7 @@ with only a password (no full URL in the secret).
 
 | Variable | Default | Description |
 | ---------- | --------- | ------------- |
-| `REDIS_ENABLED` | `false` | Enable Redis for OTP storage |
+| `REDIS_ENABLED` | `true` | Redis is required for OTP and login challenge storage |
 | `REDIS_HOST` | `redis-master.redis.svc.cluster.local` | Redis hostname |
 | `REDIS_PORT` | `6379` | Redis port |
 | `REDIS_PASSWORD` | `` | Redis password |

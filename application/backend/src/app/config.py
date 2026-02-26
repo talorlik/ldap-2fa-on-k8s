@@ -62,8 +62,8 @@ class Settings(BaseSettings):
         "Your verification code is: {code}. It expires in 5 minutes."
     )
 
-    # Redis Configuration (for SMS OTP storage)
-    redis_enabled: bool = os.getenv("REDIS_ENABLED", "false").lower() == "true"
+    # Redis Configuration (required for SMS OTP and login challenge storage)
+    redis_enabled: bool = os.getenv("REDIS_ENABLED", "true").lower() == "true"
     redis_host: str = os.getenv("REDIS_HOST", "redis-master.redis.svc.cluster.local")
     redis_port: int = int(os.getenv("REDIS_PORT", "6379"))
     redis_password: str = os.getenv("REDIS_PASSWORD", "")

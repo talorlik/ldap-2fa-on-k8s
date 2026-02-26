@@ -26,6 +26,9 @@ PostgreSQL, failed repeatedly with the following symptoms:
    for `ou=users`, `ou=groups`, and `cn=admins`
 4. **Inconsistent Data Across Pods**: Multi-master replication not syncing properly
 5. **Group Membership Attribute Error**: Wrong attribute used for `groupOfUniqueNames`
+6. **Invalid Server Address (Headless Service DNS)**: Pod hostnames constructed
+   using ClusterIP service instead of headless service, causing `invalid server
+   address` on every LDAP replica
 
 ## Investigation Timeline
 
@@ -141,6 +144,158 @@ kubectl exec -n ldap openldap-stack-ha-0 -- ldapsearch -x -LLL \
 # Output: groupOfUniqueNames
 ```
 
+### Phase 5: Headless Service DNS Investigation
+
+**Observation**: Admin-seed-job failed (status `Failed`, 0/1 completions).
+Pod had already been cleaned up (TTL-based), so no logs were available.
+
+```bash
+# Check job status across all namespaces
+kubectl get job -A
+
+# Describe the job (shows environment, image, and pod status)
+kubectl describe job admin-seed-job -n 2fa-app
+
+# Pod was already cleaned up — no logs available
+kubectl logs job/admin-seed-job -n 2fa-app --all-containers=true
+# error: timed out waiting for the condition
+```
+
+**Action**: Verified all infrastructure was healthy:
+
+```bash
+# All services running
+kubectl get pods -n 2fa-app      # backend + frontend running
+kubectl get pods -n ldap-2fa     # postgresql-0 running
+kubectl get pods -n ldap         # openldap-stack-ha-{0,1,2} running
+
+# All secrets present with non-empty values
+kubectl get secret admin-seed-secret -n 2fa-app \
+  -o jsonpath='{.data}' | python3 -c \
+  "import sys,json,base64; data=json.load(sys.stdin); \
+   [print(f'{k}: (set, {len(base64.b64decode(v))} bytes)') for k,v in data.items()]"
+kubectl get secret ldap-admin-secret -n 2fa-app \
+  -o jsonpath='{.data}' | python3 -c \
+  "import sys,json,base64; data=json.load(sys.stdin); \
+   [print(f'{k}: (set, {len(base64.b64decode(v))} bytes)') for k,v in data.items()]"
+kubectl get secret postgresql-secret -n 2fa-app \
+  -o jsonpath='{.data}' | python3 -c \
+  "import sys,json,base64; data=json.load(sys.stdin); \
+   [print(f'{k}: (set, {len(base64.b64decode(v))} bytes)') for k,v in data.items()]"
+```
+
+**Action**: Reproduced the failure by running a debug pod with the exact same
+image and environment as the seed job:
+
+```bash
+kubectl run admin-seed-debug \
+  --image=<ECR_REGISTRY>/<ECR_REPO>:<BACKEND_IMAGE_TAG> \
+  --namespace=2fa-app --restart=Never \
+  --overrides='{
+    "spec": {
+      "containers": [{
+        "name": "admin-seed-debug",
+        "image": "<ECR_REGISTRY>/<ECR_REPO>:<BACKEND_IMAGE_TAG>",
+        "command": ["python", "-m", "app.seed_admin"],
+        "envFrom": [
+          {"secretRef": {"name": "admin-seed-secret"}},
+          {"secretRef": {"name": "ldap-admin-secret"}}
+        ],
+        "env": [
+          {"name": "DATABASE_HOST", "value": "postgresql.ldap-2fa.svc.cluster.local"},
+          {"name": "DATABASE_PORT", "value": "5432"},
+          {"name": "DATABASE_USER", "value": "ldap2fa"},
+          {"name": "DATABASE_NAME", "value": "ldap2fa"},
+          {"name": "DATABASE_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "postgresql-secret", "key": "password"}}},
+          {"name": "LDAP_HOST", "value": "openldap-stack-ha.ldap.svc.cluster.local"},
+          {"name": "LDAP_PORT", "value": "389"},
+          {"name": "LDAP_BASE_DN", "value": "dc=ldap,dc=talorlik,dc=internal"},
+          {"name": "LDAP_ADMIN_DN", "value": "cn=admin,dc=ldap,dc=talorlik,dc=internal"},
+          {"name": "LDAP_ADMIN_GROUP_DN", "value": "cn=admins,ou=groups,dc=ldap,dc=talorlik,dc=internal"},
+          {"name": "LDAP_USER_SEARCH_BASE", "value": "ou=users"},
+          {"name": "LDAP_GROUP_SEARCH_BASE", "value": "ou=groups"},
+          {"name": "LDAP_REPLICA_COUNT", "value": "3"}
+        ]
+      }]
+    }
+  }'
+
+# Wait for pod to complete, then read logs
+sleep 15 && kubectl logs admin-seed-debug -n 2fa-app
+```
+
+**Finding**: Every LDAP pod connection failed with `invalid server address`:
+
+```text
+LDAP error ensuring directory structure: invalid server address
+[openldap-stack-ha-0.openldap-stack-ha.ldap.svc.cluster.local] Failed ...
+[openldap-stack-ha-1.openldap-stack-ha.ldap.svc.cluster.local] Failed ...
+[openldap-stack-ha-2.openldap-stack-ha.ldap.svc.cluster.local] Failed ...
+```
+
+**Action**: Checked services in the `ldap` namespace:
+
+```bash
+kubectl get svc -n ldap
+```
+
+Revealed two services:
+
+- `openldap-stack-ha` — ClusterIP (`172.20.x.x`), the regular service
+- `openldap-stack-ha-headless` — ClusterIP `None`, the **headless** service
+
+**Action**: Confirmed DNS resolution from within the cluster:
+
+```bash
+kubectl run dns-test \
+  --image=<BACKEND_IMAGE> \
+  --namespace=2fa-app --restart=Never \
+  --command -- python -c "
+import socket
+for i in range(3):
+    h = f'openldap-stack-ha-{i}.openldap-stack-ha-headless.ldap.svc.cluster.local'
+    try:
+        ip = socket.getaddrinfo(h, 389)[0][4][0]
+        print(f'OK: {h} -> {ip}')
+    except Exception as e:
+        print(f'FAIL: {h} -> {e}')
+print()
+for i in range(3):
+    h_bad = f'openldap-stack-ha-{i}.openldap-stack-ha.ldap.svc.cluster.local'
+    try:
+        ip = socket.getaddrinfo(h_bad, 389)[0][4][0]
+        print(f'OK: {h_bad} -> {ip}')
+    except Exception as e:
+        print(f'FAIL: {h_bad} -> {e}')
+"
+sleep 10 && kubectl logs dns-test -n 2fa-app
+```
+
+Result:
+
+```text
+OK: openldap-stack-ha-0.openldap-stack-ha-headless.ldap.svc.cluster.local -> 10.0.6.194
+OK: openldap-stack-ha-1.openldap-stack-ha-headless.ldap.svc.cluster.local -> 10.0.3.192
+OK: openldap-stack-ha-2.openldap-stack-ha-headless.ldap.svc.cluster.local -> 10.0.25.80
+
+FAIL: openldap-stack-ha-0.openldap-stack-ha.ldap.svc.cluster.local -> Name or service not known
+FAIL: openldap-stack-ha-1.openldap-stack-ha.ldap.svc.cluster.local -> Name or service not known
+FAIL: openldap-stack-ha-2.openldap-stack-ha.ldap.svc.cluster.local -> Name or service not known
+```
+
+**Root Cause**: `_get_pod_hostnames()` in `seed_admin.py` constructed pod DNS
+names using the ClusterIP service (`openldap-stack-ha`), but Kubernetes
+StatefulSet pod DNS requires the **headless** service
+(`openldap-stack-ha-headless`). The Helm chart creates the headless service
+with the naming convention `{release}-headless`.
+
+**Cleanup**: Always delete debug pods after investigation:
+
+```bash
+kubectl delete pod admin-seed-debug -n 2fa-app --grace-period=0
+kubectl delete pod dns-test -n 2fa-app --grace-period=0
+```
+
 ## Root Causes
 
 ### 1. OpenLDAP Multi-Master Replication Not Working
@@ -173,7 +328,25 @@ groups, but `groupOfUniqueNames` requires `uniqueMember`.
 The original `seed_admin.py` called `ldap_client.create_user()` which fails
 if the user already exists, instead of updating the existing user.
 
-### 5. Image Tag Defaulting to "latest"
+### 5. Pod Hostnames Using ClusterIP Service Instead of Headless Service
+
+The `_get_pod_hostnames()` function in `seed_admin.py` derived StatefulSet pod
+DNS names from `LDAP_HOST` (the ClusterIP service), producing:
+
+```text
+openldap-stack-ha-{i}.openldap-stack-ha.ldap.svc.cluster.local  (wrong)
+```
+
+Kubernetes StatefulSet pods are only addressable via the headless service:
+
+```text
+openldap-stack-ha-{i}.openldap-stack-ha-headless.ldap.svc.cluster.local  (correct)
+```
+
+The `ldap3` library raised `invalid server address` because DNS resolution
+failed for the non-existent ClusterIP-based hostnames.
+
+### 6. Image Tag Defaulting to "latest"
 
 The `backend_image_tag` variable defaulted to `"latest"` which doesn't exist
 in ECR since build workflows use commit-based tags.
@@ -321,7 +494,31 @@ customLdifFiles:
     uniqueMember: cn=admin,${openldap_base_dn}
 ```
 
-### 4. Image Tag Validation (commit 6205806)
+### 4. Headless Service DNS Fix
+
+**Files**:
+
+- `application/backend/src/app/seed_admin.py`
+- `application_infra/modules/openldap/outputs.tf`
+- `application_infra/outputs.tf`
+- `application/main.tf`
+
+Fixed `_get_pod_hostnames()` to construct pod DNS names using the headless
+service. The function now:
+
+1. Reads `LDAP_HEADLESS_HOST` env var if set (explicit, preferred)
+2. Falls back to deriving from `LDAP_HOST` by appending `-headless` to the
+   service name component (standard Helm naming convention)
+
+Terraform changes:
+
+- Added `ldap_headless_host` output to the OpenLDAP module
+  (`{release}-headless.{namespace}.svc.cluster.local`)
+- Forwarded through `application_infra` outputs
+- Passed as `LDAP_HEADLESS_HOST` env var to the `kubernetes_job.admin_seed`
+  resource in `application/main.tf`
+
+### 5. Image Tag Validation (commit 6205806)
 
 **Files**: `application/variables.tf`, `application/main.tf`,
 `application/setup-application.sh`, `.github/workflows/application_provisioning.yaml`
@@ -433,6 +630,17 @@ uniqueMember: uid=admin,ou=users,dc=ldap,dc=talorlik,dc=internal
 6. **Test Across All Replicas**: When using multi-master replication, verify
    data exists on all pods, not just the one returned by the service.
 
+7. **StatefulSet Pod DNS Requires Headless Service**: Individual StatefulSet
+   pods are only addressable via the headless service
+   (`{pod}.{headless-svc}.{ns}.svc.cluster.local`), not the ClusterIP service.
+   When a Helm chart creates both, pass the headless service hostname
+   explicitly rather than assuming the service name matches `LDAP_HOST`.
+
+8. **Reproduce With Debug Pods When Logs Are Gone**: When a Job pod has been
+   cleaned up (TTL or backoff), run a one-off debug pod with the same image,
+   `envFrom`, and `env` to reproduce the error and capture logs. Always
+   clean up debug pods afterwards.
+
 ## Related Files
 
 - `application/backend/src/app/ldap/client.py` - LDAPClient with group
@@ -442,7 +650,8 @@ uniqueMember: uid=admin,ou=users,dc=ldap,dc=talorlik,dc=internal
   with customLdifFiles
 - `application_infra/modules/openldap/main.tf` - OpenLDAP module
 - `application/variables.tf` - Image tag validation
-- `application/main.tf` - Admin-seed job definition
+- `application/main.tf` - Admin-seed job definition (includes `LDAP_HEADLESS_HOST`)
+- `application_infra/outputs.tf` - Exposes `ldap_headless_host` from OpenLDAP module
 
 ## References
 

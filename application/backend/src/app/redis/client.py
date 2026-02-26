@@ -1,7 +1,7 @@
-"""Redis client for SMS OTP operations.
+"""Redis client for shared storage (SMS OTP and login challenges).
 
-Provides a centralized, TTL-aware storage for SMS verification codes,
-replacing the in-memory dictionary approach.
+All backend storage is in Redis so that single- and multi-replica deployments
+behave the same. In-memory storage is not used.
 """
 
 import json
@@ -24,13 +24,11 @@ class RedisOTPClient:
     """
 
     def __init__(self) -> None:
-        """Initialize the Redis OTP client."""
+        """Initialize the Redis client (always attempt connection; Redis is required)."""
         self._settings = get_settings()
         self._client: Optional[redis.Redis] = None
         self._connected = False
-
-        if self._settings.redis_enabled:
-            self._initialize_client()
+        self._initialize_client()
 
     def _initialize_client(self) -> None:
         """Initialize the Redis client connection."""
@@ -102,10 +100,6 @@ class RedisOTPClient:
         Returns:
             True if successful, False otherwise
         """
-        if not self.is_enabled:
-            logger.debug("Redis not enabled, skipping store_code")
-            return False
-
         if not self.is_connected:
             logger.error("Redis not connected, cannot store code")
             return False
@@ -134,10 +128,6 @@ class RedisOTPClient:
         Returns:
             Dictionary with 'code' and 'phone_number' keys, or None if not found
         """
-        if not self.is_enabled:
-            logger.debug("Redis not enabled, skipping get_code")
-            return None
-
         if not self.is_connected:
             logger.error("Redis not connected, cannot get code")
             return None
@@ -169,10 +159,6 @@ class RedisOTPClient:
         Returns:
             True if successful, False otherwise
         """
-        if not self.is_enabled:
-            logger.debug("Redis not enabled, skipping delete_code")
-            return False
-
         if not self.is_connected:
             logger.error("Redis not connected, cannot delete code")
             return False
@@ -186,6 +172,66 @@ class RedisOTPClient:
             logger.error("Failed to delete OTP code: %s", e)
             return False
 
+    def _get_login_challenge_key(self, challenge_token: str) -> str:
+        """Redis key for a login challenge (shared across replicas)."""
+        return f"{self._settings.redis_key_prefix}login_challenge:{challenge_token}"
+
+    _LOGIN_CHALLENGE_TTL_SECONDS = 300  # 5 minutes
+
+    def store_login_challenge(
+        self,
+        challenge_token: str,
+        user_id: str,
+        username: str,
+        remember_me: bool = False,
+    ) -> bool:
+        """Store login challenge for two-step auth (shared across backend replicas)."""
+        if not self.is_connected:
+            return False
+        try:
+            key = self._get_login_challenge_key(challenge_token)
+            value = json.dumps({
+                "user_id": user_id,
+                "username": username,
+                "remember_me": remember_me,
+            })
+            self._client.setex(key, self._LOGIN_CHALLENGE_TTL_SECONDS, value)
+            logger.debug("Stored login challenge for %s", username)
+            return True
+        except redis.RedisError as e:
+            logger.error("Failed to store login challenge: %s", e)
+            return False
+
+    def get_login_challenge(self, challenge_token: str) -> Optional[dict]:
+        """Get login challenge data if not expired."""
+        if not self.is_connected:
+            return None
+        try:
+            key = self._get_login_challenge_key(challenge_token)
+            value = self._client.get(key)
+            if value is None:
+                return None
+            data = json.loads(value)
+            return data
+        except redis.RedisError as e:
+            logger.error("Failed to get login challenge: %s", e)
+            return None
+        except json.JSONDecodeError as e:
+            logger.error("Failed to decode login challenge: %s", e)
+            return None
+
+    def delete_login_challenge(self, challenge_token: str) -> bool:
+        """Remove login challenge after successful verify."""
+        if not self.is_connected:
+            return False
+        try:
+            key = self._get_login_challenge_key(challenge_token)
+            deleted = self._client.delete(key)
+            return deleted > 0
+        except redis.RedisError as e:
+            logger.error("Failed to delete login challenge: %s", e)
+            return False
+
     def code_exists(self, username: str) -> bool:
         """Check if valid OTP code exists for user.
 
@@ -195,9 +241,6 @@ class RedisOTPClient:
         Returns:
             True if code exists, False otherwise
         """
-        if not self.is_enabled:
-            return False
-
         if not self.is_connected:
             return False
 
@@ -217,7 +260,7 @@ class RedisOTPClient:
         Returns:
             TTL in seconds, -1 if no expiry, -2 if key doesn't exist
         """
-        if not self.is_enabled or not self.is_connected:
+        if not self.is_connected:
             return -2
 
         try:
@@ -233,13 +276,6 @@ class RedisOTPClient:
         Returns:
             Dictionary with health status information
         """
-        if not self.is_enabled:
-            return {
-                "enabled": False,
-                "connected": False,
-                "status": "disabled",
-            }
-
         try:
             if self._client and self._client.ping():
                 info = self._client.info("server")
@@ -251,105 +287,40 @@ class RedisOTPClient:
                 }
         except redis.RedisError as e:
             return {
-                "enabled": True,
                 "connected": False,
                 "status": "unhealthy",
                 "error": str(e),
             }
 
         return {
-            "enabled": True,
             "connected": False,
             "status": "disconnected",
         }
 
 
-# In-memory fallback storage when Redis is disabled
-_inmemory_sms_codes: dict[str, dict] = {}
+def store_login_challenge(
+    challenge_token: str,
+    user_id: str,
+    username: str,
+    remember_me: bool = False,
+) -> bool:
+    """Store login challenge in Redis. Returns True if stored, False if Redis unavailable."""
+    client = get_otp_client()
+    return client.store_login_challenge(
+        challenge_token, user_id, username, remember_me
+    )
 
 
-class InMemoryOTPStorage:
-    """In-memory fallback storage for SMS OTP codes.
-
-    Used when Redis is disabled, maintaining backward compatibility.
-    """
-
-    @staticmethod
-    def store_code(
-        username: str,
-        code: str,
-        phone_number: str,
-        expires_at: float,
-    ) -> bool:
-        """Store code in memory with expiration timestamp."""
-        _inmemory_sms_codes[username] = {
-            "code": code,
-            "phone_number": phone_number,
-            "expires_at": expires_at,
-        }
-        return True
-
-    @staticmethod
-    def get_code(username: str) -> Optional[dict]:
-        """Get code from memory."""
-        return _inmemory_sms_codes.get(username)
-
-    @staticmethod
-    def delete_code(username: str) -> bool:
-        """Delete code from memory."""
-        if username in _inmemory_sms_codes:
-            del _inmemory_sms_codes[username]
-            return True
-        return False
-
-    @staticmethod
-    def code_exists(username: str) -> bool:
-        """Check if code exists in memory."""
-        return username in _inmemory_sms_codes
+def get_login_challenge(challenge_token: str) -> Optional[dict]:
+    """Get login challenge from Redis. Returns None if not found or Redis unavailable."""
+    client = get_otp_client()
+    return client.get_login_challenge(challenge_token)
 
 
-# Login challenge storage (in-memory, short-lived tokens for two-step login)
-_login_challenges: dict[str, dict] = {}
-_LOGIN_CHALLENGE_TTL_SECONDS = 300  # 5 minutes
-
-
-class InMemoryLoginChallengeStorage:
-    """In-memory storage for login challenge tokens (post username/password, pre-MFA)."""
-
-    @staticmethod
-    def store(
-        challenge_token: str,
-        user_id: str,
-        username: str,
-        remember_me: bool = False,
-    ) -> None:
-        """Store a login challenge with TTL."""
-        import time
-        _login_challenges[challenge_token] = {
-            "user_id": user_id,
-            "username": username,
-            "remember_me": remember_me,
-            "expires_at": time.time() + _LOGIN_CHALLENGE_TTL_SECONDS,
-        }
-
-    @staticmethod
-    def get(challenge_token: str) -> Optional[dict]:
-        """Get challenge data if valid and not expired."""
-        import time
-        data = _login_challenges.get(challenge_token)
-        if not data or time.time() > data["expires_at"]:
-            if challenge_token in _login_challenges:
-                del _login_challenges[challenge_token]
-            return None
-        return data
-
-    @staticmethod
-    def delete(challenge_token: str) -> bool:
-        """Remove a challenge token."""
-        if challenge_token in _login_challenges:
-            del _login_challenges[challenge_token]
-            return True
-        return False
+def delete_login_challenge(challenge_token: str) -> bool:
+    """Delete login challenge from Redis. Returns True if deleted or key absent."""
+    client = get_otp_client()
+    return client.delete_login_challenge(challenge_token)
 
 
 @lru_cache

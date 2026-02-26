@@ -5,10 +5,12 @@ LDAP 2FA application.
 
 ## Purpose
 
-This module replaces the in-memory SMS OTP storage with Redis, providing:
+This module replaces the in-memory SMS OTP and login challenge storage with
+Redis, providing:
 
 - **TTL-based expiration**: Automatic cleanup of expired OTP codes
-- **Shared state**: OTP codes accessible from any backend replica
+- **Shared state**: OTP codes and login challenge tokens accessible from any
+  backend replica (required for two-step login when replicas > 1)
 - **Persistence**: Data survives pod restarts via RDB snapshots
 - **Horizontal scaling**: Enable multiple backend replicas
 - **ECR Image Support**: Uses ECR images instead of Docker Hub

@@ -24,7 +24,12 @@ from app.email import EmailClient
 from app.ldap import LDAPClient
 from app.mfa import TOTPManager
 from app.redis import get_otp_client, RedisOTPClient
-from app.redis.client import InMemoryOTPStorage, InMemoryLoginChallengeStorage
+from app.redis.client import (
+    delete_login_challenge,
+    get_login_challenge,
+    get_otp_client,
+    store_login_challenge,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1303,12 +1308,16 @@ async def login_start(
     )
 
     challenge_token = secrets.token_urlsafe(32)
-    InMemoryLoginChallengeStorage.store(
+    if not store_login_challenge(
         challenge_token,
         str(user.id),
         user.username,
         remember_me=getattr(request, "remember_me", False),
-    )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Storage unavailable. Please try again.",
+        )
 
     return LoginStartResponse(
         challenge_token=challenge_token,
@@ -1334,7 +1343,7 @@ async def login_totp_setup(
     """
     Generate TOTP secret for a user who has not yet enrolled. Call after login/start when totp_enrolled is False.
     """
-    challenge = InMemoryLoginChallengeStorage.get(request.challenge_token)
+    challenge = get_login_challenge(request.challenge_token)
     if not challenge:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1376,7 +1385,7 @@ async def login_verify(
     """
     Step 2: Verify MFA code and return JWT. Consumes the challenge token.
     """
-    challenge = InMemoryLoginChallengeStorage.get(request.challenge_token)
+    challenge = get_login_challenge(request.challenge_token)
     if not challenge:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1404,46 +1413,29 @@ async def login_verify(
             )
     elif request.mfa_method == MFAMethod.SMS:
         otp_client = get_otp_client()
-        sms_code_data = None
-        if otp_client.is_enabled and otp_client.is_connected:
-            sms_code_data = otp_client.get_code(username)
-            if not sms_code_data:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="No verification code sent. Please request a code first.",
-                )
-            if not hmac.compare_digest(request.verification_code, sms_code_data["code"]):
-                logger.warning("Login verify failed for %s: Invalid SMS code", username)
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid verification code",
-                )
-            otp_client.delete_code(username)
-        else:
-            sms_code_data = InMemoryOTPStorage.get_code(username)
-            if not sms_code_data:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="No verification code sent. Please request a code first.",
-                )
-            if time.time() > sms_code_data["expires_at"]:
-                InMemoryOTPStorage.delete_code(username)
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Verification code expired. Please request a new one.",
-                )
-            if not hmac.compare_digest(request.verification_code, sms_code_data["code"]):
-                logger.warning("Login verify failed for %s: Invalid SMS code", username)
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid verification code",
-                )
-            InMemoryOTPStorage.delete_code(username)
+        if not otp_client.is_connected:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Storage unavailable. Please try again.",
+            )
+        sms_code_data = otp_client.get_code(username)
+        if not sms_code_data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No verification code sent. Please request a code first.",
+            )
+        if not hmac.compare_digest(request.verification_code, sms_code_data["code"]):
+            logger.warning("Login verify failed for %s: Invalid SMS code", username)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid verification code",
+            )
+        otp_client.delete_code(username)
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid mfa_method")
 
     remember_me = challenge.get("remember_me", False)
-    InMemoryLoginChallengeStorage.delete(request.challenge_token)
+    delete_login_challenge(request.challenge_token)
 
     ldap_client = LDAPClient()
     is_admin = ldap_client.is_admin(username)
@@ -1544,63 +1536,30 @@ async def login(
             )
 
     elif user.mfa_method == "sms":
-        # Verify SMS code (from Redis or in-memory fallback)
+        # Verify SMS code (Redis only)
         otp_client = get_otp_client()
-        sms_code_data = None
-
-        if otp_client.is_enabled and otp_client.is_connected:
-            # Use Redis for OTP retrieval
-            sms_code_data = otp_client.get_code(request.username)
-
-            if not sms_code_data:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="No verification code sent. Please request a code first.",
-                )
-
-            # Redis handles TTL expiration automatically, but we still get None if expired
-            if not hmac.compare_digest(
-                request.verification_code, sms_code_data["code"]
-            ):
-                logger.warning(
-                    f"Login failed for {request.username}: Invalid SMS code"
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid verification code",
-                )
-
-            # Delete code after successful verification
-            otp_client.delete_code(request.username)
-        else:
-            # Fallback to in-memory storage
-            sms_code_data = InMemoryOTPStorage.get_code(request.username)
-
-            if not sms_code_data:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="No verification code sent. Please request a code first.",
-                )
-
-            if time.time() > sms_code_data["expires_at"]:
-                InMemoryOTPStorage.delete_code(request.username)
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Verification code expired. Please request a new one.",
-                )
-
-            if not hmac.compare_digest(
-                request.verification_code, sms_code_data["code"]
-            ):
-                logger.warning(
-                    f"Login failed for {request.username}: Invalid SMS code"
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid verification code",
-                )
-
-            InMemoryOTPStorage.delete_code(request.username)
+        if not otp_client.is_connected:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Storage unavailable. Please try again.",
+            )
+        sms_code_data = otp_client.get_code(request.username)
+        if not sms_code_data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No verification code sent. Please request a code first.",
+            )
+        if not hmac.compare_digest(
+            request.verification_code, sms_code_data["code"]
+        ):
+            logger.warning(
+                f"Login failed for {request.username}: Invalid SMS code"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid verification code",
+            )
+        otp_client.delete_code(request.username)
 
     # Check if user is admin
     is_admin = ldap_client.is_admin(request.username)
@@ -1646,7 +1605,7 @@ async def send_sms_code(
         )
 
     if request.challenge_token:
-        challenge = InMemoryLoginChallengeStorage.get(request.challenge_token)
+        challenge = get_login_challenge(request.challenge_token)
         if not challenge:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1707,29 +1666,24 @@ async def send_sms_code(
             detail=f"Failed to send SMS: {message}",
         )
 
-    # Store code for verification (Redis or in-memory fallback)
+    # Store code for verification (Redis only)
     otp_client = get_otp_client()
-    if otp_client.is_enabled and otp_client.is_connected:
-        # Use Redis for OTP storage
-        stored = otp_client.store_code(
-            username=user.username,
-            code=code,
-            phone_number=user.full_phone_number,
-            ttl_seconds=settings.sms_code_expiry_seconds,
+    if not otp_client.is_connected:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Storage unavailable. Please try again.",
         )
-        if not stored:
-            logger.error("Failed to store OTP code in Redis for %s", user.username)
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Failed to store verification code. Please try again.",
-            )
-    else:
-        # Fallback to in-memory storage
-        InMemoryOTPStorage.store_code(
-            username=user.username,
-            code=code,
-            phone_number=user.full_phone_number,
-            expires_at=time.time() + settings.sms_code_expiry_seconds,
+    stored = otp_client.store_code(
+        username=user.username,
+        code=code,
+        phone_number=user.full_phone_number,
+        ttl_seconds=settings.sms_code_expiry_seconds,
+    )
+    if not stored:
+        logger.error("Failed to store OTP code for %s", user.username)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Failed to store verification code. Please try again.",
         )
 
     logger.info("SMS code sent to user %s", user.username)

@@ -592,9 +592,15 @@ const App = {
         if (!this.loginChallenge || this.loginChallenge.totp_enrolled) return;
         if (document.getElementById('mfa-step-secret').textContent) return; // already fetched
 
+        const qrDiv = document.getElementById('mfa-step-qr');
+        const secretEl = document.getElementById('mfa-step-secret');
+        const setupErrorEl = document.getElementById('mfa-step-totp-setup-error');
+
+        setupErrorEl.classList.add('hidden');
+        setupErrorEl.textContent = '';
+
         try {
             const response = await API.loginTotpSetup(this.loginChallenge.challenge_token);
-            const qrDiv = document.getElementById('mfa-step-qr');
             qrDiv.innerHTML = '';
             if (typeof QRCode !== 'undefined') {
                 const canvas = document.createElement('canvas');
@@ -605,9 +611,15 @@ const App = {
                     color: { dark: '#1e293b', light: '#ffffff' },
                 });
             }
-            document.getElementById('mfa-step-secret').textContent = response.secret;
+            secretEl.textContent = response.secret;
         } catch (error) {
-            this.showStatus(error.message || 'Failed to load setup', 'error');
+            const isUnauthorized = error.statusCode === 401;
+            const message = isUnauthorized
+                ? 'Your login session expired or is invalid. Please click Back and sign in again.'
+                : (error.message || 'Failed to load setup.');
+            setupErrorEl.textContent = message;
+            setupErrorEl.classList.remove('hidden');
+            this.showStatus(message, 'error');
         }
     },
 
@@ -629,6 +641,11 @@ const App = {
             document.getElementById('login-form').classList.remove('hidden');
             document.getElementById('mfa-step-secret').textContent = '';
             document.getElementById('mfa-step-qr').innerHTML = '';
+            const setupErrorEl = document.getElementById('mfa-step-totp-setup-error');
+            if (setupErrorEl) {
+                setupErrorEl.textContent = '';
+                setupErrorEl.classList.add('hidden');
+            }
             codeInput.value = '';
         });
 

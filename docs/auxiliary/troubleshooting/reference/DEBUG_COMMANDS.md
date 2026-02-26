@@ -307,6 +307,88 @@ kubectl get secret ldap-admin-secret -n 2fa-app \
 kubectl delete job admin-seed-job -n 2fa-app
 ```
 
+### Reproduce Failure with Debug Pod
+
+When the seed job pod has been cleaned up (TTL expiry, backoff limit), run a
+one-off pod with the same image and environment to reproduce the error:
+
+```bash
+# Create a debug pod that mirrors the seed job's configuration
+kubectl run admin-seed-debug \
+  --image=<ECR_REGISTRY>/<ECR_REPO>:<BACKEND_IMAGE_TAG> \
+  --namespace=2fa-app --restart=Never \
+  --overrides='{
+    "spec": {
+      "containers": [{
+        "name": "admin-seed-debug",
+        "image": "<ECR_REGISTRY>/<ECR_REPO>:<BACKEND_IMAGE_TAG>",
+        "command": ["python", "-m", "app.seed_admin"],
+        "envFrom": [
+          {"secretRef": {"name": "admin-seed-secret"}},
+          {"secretRef": {"name": "ldap-admin-secret"}}
+        ],
+        "env": [
+          {"name": "DATABASE_HOST", "value": "postgresql.ldap-2fa.svc.cluster.local"},
+          {"name": "DATABASE_PORT", "value": "5432"},
+          {"name": "DATABASE_USER", "value": "ldap2fa"},
+          {"name": "DATABASE_NAME", "value": "ldap2fa"},
+          {"name": "DATABASE_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "postgresql-secret", "key": "password"}}},
+          {"name": "LDAP_HOST", "value": "openldap-stack-ha.ldap.svc.cluster.local"},
+          {"name": "LDAP_PORT", "value": "389"},
+          {"name": "LDAP_BASE_DN", "value": "dc=ldap,dc=talorlik,dc=internal"},
+          {"name": "LDAP_ADMIN_DN", "value": "cn=admin,dc=ldap,dc=talorlik,dc=internal"},
+          {"name": "LDAP_ADMIN_GROUP_DN", "value": "cn=admins,ou=groups,dc=ldap,dc=talorlik,dc=internal"},
+          {"name": "LDAP_USER_SEARCH_BASE", "value": "ou=users"},
+          {"name": "LDAP_GROUP_SEARCH_BASE", "value": "ou=groups"},
+          {"name": "LDAP_REPLICA_COUNT", "value": "3"},
+          {"name": "LDAP_HEADLESS_HOST", "value": "openldap-stack-ha-headless.ldap.svc.cluster.local"}
+        ]
+      }]
+    }
+  }'
+
+# Wait and read logs
+sleep 15 && kubectl logs admin-seed-debug -n 2fa-app
+
+# Clean up
+kubectl delete pod admin-seed-debug -n 2fa-app --grace-period=0
+```
+
+### Verify StatefulSet Pod DNS Resolution (Headless Service)
+
+StatefulSet pods are only addressable via the headless service. Use this to
+confirm DNS works for individual pods:
+
+```bash
+kubectl run dns-test \
+  --image=<BACKEND_IMAGE> \
+  --namespace=2fa-app --restart=Never \
+  --command -- python -c "
+import socket
+for i in range(3):
+    h = f'openldap-stack-ha-{i}.openldap-stack-ha-headless.ldap.svc.cluster.local'
+    try:
+        ip = socket.getaddrinfo(h, 389)[0][4][0]
+        print(f'OK: {h} -> {ip}')
+    except Exception as e:
+        print(f'FAIL: {h} -> {e}')
+"
+sleep 10 && kubectl logs dns-test -n 2fa-app
+kubectl delete pod dns-test -n 2fa-app --grace-period=0
+```
+
+### Verify Secrets (Non-Empty, Without Revealing Values)
+
+```bash
+for secret in admin-seed-secret ldap-admin-secret postgresql-secret; do
+  echo "=== $secret ==="
+  kubectl get secret $secret -n 2fa-app \
+    -o jsonpath='{.data}' | python3 -c \
+    "import sys,json,base64; data=json.load(sys.stdin); \
+     [print(f'  {k}: ({len(base64.b64decode(v))} bytes)') for k,v in data.items()]"
+done
+```
+
 ### Check ECR Images (Verify Image Tag Exists)
 
 ```bash
