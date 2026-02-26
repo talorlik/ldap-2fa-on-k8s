@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-02-26] - Frontend Form Fix and OpenLDAP Custom LDIF Mount
+
+### Changed
+
+- **2FA frontend**: Form submission fix and QRCode.js version set to 1.4.4;
+  null guards added for form/setup handlers so forms post correctly. See
+  [application/CHANGELOG.md](application/CHANGELOG.md).
+- **Application infrastructure**: OpenLDAP chart custom LDIF bootstrap now uses
+  a read-only mount and startup copy so osixia cleanup works correctly. See
+  [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
+
 ## [2026-02-25] - ArgoCD Single Wait and OpenLDAP Pre-deploy in Module
 
 ### Changed

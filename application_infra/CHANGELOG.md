@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [2026-02-26] - OpenLDAP Custom LDIF Mount Fix
+
+### Changed
+
+- **OpenLDAP chart (osixia): Custom LDIF bootstrap mount**
+  - Resolved mount directory issue so osixia cleanup of configuration files
+  works correctly during startup. Custom LDIF volume is now mounted read-only
+  at `/tmp/custom-ldif-files`; the container entrypoint copies files from there
+  into `/container/service/slapd/assets/config/bootstrap/ldif/custom/` before
+  running `/container/tool/run`. The bootstrap custom directory is no longer
+  a direct volume mount, avoiding conflicts with osixia's startup cleanup.
+  - See [OPENLDAP_CHANGELOG.md](OPENLDAP_CHANGELOG.md) [5.0.2].
+
 ## [2026-02-26] - Log Capture, Busybox ECR, Network Policy LDAP Port
 
 ### Added

@@ -119,7 +119,7 @@ performance and smaller bundle size
 ### External Libraries
 
 - **QRCode.js** (CDN): QR code generation for TOTP enrollment
-  - CDN: `https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js`
+  - CDN: `https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js`
   - Used for: Generating QR codes from TOTP `otpauth://` URIs
 
 ### Browser APIs Used
@@ -473,7 +473,9 @@ with a separate backend:
 
 - **Application State**: Global `App` object with state management
 - **Initialization**: `App.init()` sets up all event listeners
-- **Form Handlers**: Login, signup, enrollment, profile, admin forms
+- **Form Handlers**: Login, signup, enrollment, profile, admin forms; each
+  handler checks that required DOM elements exist before attaching listeners,
+  so form submission works correctly on all views and during init
 - **UI Management**: Show/hide sections, modals, status messages
 - **Session Management**: JWT token validation and session restoration
 - **XSS Protection**: `escapeHtml()` function for safe HTML rendering

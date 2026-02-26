@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG.md](../application_infra/CHANGELOG.md).
 
+## [2026-02-26] - Frontend Form Post and QR Code Library
+
+### Fixed
+
+- **2FA frontend form submission**
+  - Added null checks in `main.js` before attaching form and UI handlers
+  (login, signup, enrollment, profile, forgot-password, top bar, admin users,
+  admin groups) so submission works correctly when the current view does not
+  yet have those DOM elements (e.g. during init or tab switch).
+  - QRCode.js CDN version set to `1.4.4` (from `1.5.3`) for reliable form
+  posting and QR display during TOTP enrollment.
+
 ## [2025-02-23] - Admin-Seed, Image Tags, and LDAP Fixes
 
 ### Added

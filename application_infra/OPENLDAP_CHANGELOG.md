@@ -3,6 +3,31 @@
 All notable changes to the vendored OpenLDAP Helm chart are documented in this
 file.
 
+## [5.0.2] - 2026-02-26 — Custom LDIF read-only mount and startup copy
+
+### Summary
+
+- **Custom LDIF bootstrap**: When `customLdifFiles` is set, the main container
+  no longer mounts the custom LDIF volume directly on the osixia bootstrap path
+  `/container/service/slapd/assets/config/bootstrap/ldif/custom`. That
+  direct mount conflicted with osixia's cleanup of configuration files during
+  startup. The volume is now mounted read-only at `/tmp/custom-ldif-files`, and
+  a custom command copies files from there into the bootstrap custom directory
+  before running `exec /container/tool/run`, so startup runs correctly.
+
+### Templates: `statefulset.yaml`
+
+- When `customLdifFiles` is set, the main container has a custom `command`:
+  copy `/tmp/custom-ldif-files/*` into
+  `/container/service/slapd/assets/config/bootstrap/ldif/custom/`, then
+  `exec /container/tool/run`.
+- Volume mount for custom LDIF changed from
+  `mountPath: /container/service/slapd/assets/config/bootstrap/ldif/custom` to
+  `mountPath: /tmp/custom-ldif-files` with `readOnly: true` (same volume
+  populated by the copy-custom-ldif init container).
+
+---
+
 ## [5.0.1] - 2026-02-26 — Init container image override (busybox from ECR)
 
 ### Summary
