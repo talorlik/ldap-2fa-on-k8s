@@ -50,6 +50,7 @@ const API = {
         const url = `${this.basePath}${endpoint}`;
 
         const defaultOptions = {
+            credentials: 'omit',
             headers: {
                 'Content-Type': 'application/json',
             },

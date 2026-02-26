@@ -36,9 +36,26 @@ const App = {
     loginChallenge: null, // { challenge_token, totp_enrolled, sms_available }
 
     /**
+     * Remove login credentials from the URL so they never appear in Referer or
+     * browser history. Strips password always; strips username only when password
+     * is present (login leak). Leaves token/username for email verification links.
+     */
+    stripCredentialsFromUrl() {
+        const url = new URL(window.location.href);
+        if (!url.searchParams.has('password')) return;
+        url.searchParams.delete('password');
+        if (url.searchParams.has('username')) {
+            url.searchParams.delete('username');
+        }
+        const clean = url.pathname + url.search + url.hash;
+        window.history.replaceState({}, document.title, clean);
+    },
+
+    /**
      * Initialize the application
      */
     async init() {
+        this.stripCredentialsFromUrl();
         this.setupTabs();
         this.setupLoginForm();
         this.setupForgotPassword();
@@ -1016,7 +1033,7 @@ const App = {
             const groupsContainer = document.getElementById('profile-groups');
             if (profile.groups && profile.groups.length > 0) {
                 groupsContainer.innerHTML = profile.groups.map(g =>
-                    `<span class="group-badge">${g.name}</span>`
+                    `<span class="group-badge">${escapeHtml(g.name)}</span>`
                 ).join('');
             } else {
                 groupsContainer.innerHTML = '<span class="no-groups">No groups assigned</span>';
@@ -1101,19 +1118,19 @@ const App = {
             } else {
                 tableBody.innerHTML = response.users.map(user => `
                     <tr>
-                        <td>${user.first_name} ${user.last_name}</td>
-                        <td>${user.username}</td>
-                        <td>${user.email}</td>
-                        <td><span class="status-badge status-${user.status}">${user.status.toUpperCase()}</span></td>
-                        <td>${user.groups.map(g => `<span class="group-badge-small">${g.name}</span>`).join(' ') || '-'}</td>
+                        <td>${escapeHtml(user.first_name)} ${escapeHtml(user.last_name)}</td>
+                        <td>${escapeHtml(user.username)}</td>
+                        <td>${escapeHtml(user.email)}</td>
+                        <td><span class="status-badge status-${escapeHtml(user.status)}">${escapeHtml(user.status.toUpperCase())}</span></td>
+                        <td>${user.groups.map(g => `<span class="group-badge-small">${escapeHtml(g.name)}</span>`).join(' ') || '-'}</td>
                         <td>${new Date(user.created_at).toLocaleDateString()}</td>
                         <td class="action-buttons">
                             ${user.status === 'complete' ? `
-                                <button class="btn btn-primary btn-xs" onclick="App.showApproveModal('${user.id}', '${user.username}')">Approve</button>
-                                <button class="btn btn-danger btn-xs" onclick="App.confirmAction('Reject this user?', () => App.rejectUser('${user.id}'))">Reject</button>
+                                <button class="btn btn-primary btn-xs" onclick="App.showApproveModal('${escapeHtml(user.id)}', '${escapeHtml(user.username)}')">Approve</button>
+                                <button class="btn btn-danger btn-xs" onclick="App.confirmAction('Reject this user?', () => App.rejectUser('${escapeHtml(user.id)}'))">Reject</button>
                             ` : ''}
                             ${user.status === 'active' ? `
-                                <button class="btn btn-danger btn-xs" onclick="App.confirmAction('Revoke this user?', () => App.revokeUser('${user.id}'))">Revoke</button>
+                                <button class="btn btn-danger btn-xs" onclick="App.confirmAction('Revoke this user?', () => App.revokeUser('${escapeHtml(user.id)}'))">Revoke</button>
                             ` : ''}
                         </td>
                     </tr>
@@ -1140,7 +1157,7 @@ const App = {
 
             // Keep first option, update rest
             filterSelect.innerHTML = '<option value="">All Groups</option>' +
-                response.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+                response.groups.map(g => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)}</option>`).join('');
 
             filterSelect.value = currentValue;
         } catch (error) {
@@ -1211,17 +1228,17 @@ const App = {
             } else {
                 tableBody.innerHTML = response.groups.map(group => `
                     <tr>
-                        <td><strong>${group.name}</strong></td>
-                        <td>${group.description || '-'}</td>
+                        <td><strong>${escapeHtml(group.name)}</strong></td>
+                        <td>${escapeHtml(group.description || '-')}</td>
                         <td>
-                            <a href="#" onclick="App.showGroupMembers('${group.id}', '${group.name}'); return false;">
+                            <a href="#" onclick="App.showGroupMembers('${escapeHtml(group.id)}', '${escapeHtml(group.name)}'); return false;">
                                 ${group.member_count} members
                             </a>
                         </td>
                         <td>${new Date(group.created_at).toLocaleDateString()}</td>
                         <td class="action-buttons">
-                            <button class="btn btn-secondary btn-xs" onclick="App.showGroupModal('${group.id}')">Edit</button>
-                            <button class="btn btn-danger btn-xs" onclick="App.confirmAction('Delete this group?', () => App.deleteGroup('${group.id}'))">Delete</button>
+                            <button class="btn btn-secondary btn-xs" onclick="App.showGroupModal('${escapeHtml(group.id)}')">Edit</button>
+                            <button class="btn btn-danger btn-xs" onclick="App.confirmAction('Delete this group?', () => App.deleteGroup('${escapeHtml(group.id)}'))">Delete</button>
                         </td>
                     </tr>
                 `).join('');
@@ -1382,8 +1399,8 @@ const App = {
             } else {
                 membersList.innerHTML = group.members.map(m => `
                     <div class="member-item">
-                        <span class="member-name">${m.full_name}</span>
-                        <span class="member-username">@${m.username}</span>
+                        <span class="member-name">${escapeHtml(m.full_name)}</span>
+                        <span class="member-username">@${escapeHtml(m.username)}</span>
                     </div>
                 `).join('');
             }
@@ -1417,8 +1434,8 @@ const App = {
             } else {
                 groupsList.innerHTML = response.groups.map(g => `
                     <label class="checkbox-option">
-                        <input type="checkbox" name="approve_group" value="${g.id}">
-                        <span>${g.name}</span>
+                        <input type="checkbox" name="approve_group" value="${escapeHtml(g.id)}">
+                        <span>${escapeHtml(g.name)}</span>
                     </label>
                 `).join('');
             }

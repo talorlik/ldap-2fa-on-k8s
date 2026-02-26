@@ -59,7 +59,8 @@
 
         <!-- Login Tab (username and password only; MFA step shown after) -->
         <section id="login-tab" class="tab-content active">
-            <form id="login-form" class="auth-form">
+            <form id="login-form" class="auth-form" method="post" action=""
+                  onsubmit="return false;">
                 <div class="form-group">
                     <label for="login-username">Username</label>
                     <input type="text" id="login-username" name="username" required
