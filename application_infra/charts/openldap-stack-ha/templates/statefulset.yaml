@@ -53,7 +53,7 @@ spec:
       {{- if .Values.customLdifFiles }}
       initContainers:
         - name: copy-custom-ldif
-          image: busybox:1.36
+          image: {{ .Values.customLdifInitImage | default "busybox:1.36" }}
           command:
             - sh
             - -c

@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
 > are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
 
+## [2026-02-26] - Log Capture, Busybox ECR, Network Policy LDAP Port
+
+### Added
+
+- **Capturing logs before rollback**: New guide
+  [CAPTURING_LOGS_BEFORE_ROLLBACK.md](../docs/auxiliary/troubleshooting/application_infra/CAPTURING_LOGS_BEFORE_ROLLBACK.md)
+  and script `scripts/capture-openldap-logs.sh`. When OpenLDAP deploy fails with
+  atomic rollback, logs are lost. The guide explains setting `openldap_helm_atomic
+  = false` for debugging so failed releases stay in place; the script dumps pod
+  logs and describe output to a timestamped directory.
+- **Busybox from ECR**: OpenLDAP chart init container (copy-custom-ldif) now
+  supports `customLdifInitImage` so busybox can be mirrored to ECR and used
+  instead of Docker Hub (`busybox:1.36`), avoiding rate limits. Mirror script
+  `scripts/mirror-images-to-ecr.sh` adds `busybox:1.36` as tag `busybox-1.36`.
+  New variable `openldap_busybox_image_tag` (default `busybox-1.36`).
+- **Network policy port 389**: LDAP plain port 389 added to
+  `namespace-secure-communication` policy (ingress/egress) so internal LDAP
+  traffic is allowed once policies are created.
+
+### Changed
+
+- **OpenLDAP chart**: Version 5.0.1; new optional value `customLdifInitImage`.
+  See [OPENLDAP_CHANGELOG.md](OPENLDAP_CHANGELOG.md).
+- **variables.tfvars**: Commented example for `openldap_helm_atomic = false`
+  for debugging.
+
 ## [2026-02-25] - ArgoCD Single Sleep and OpenLDAP Pre-deploy in Module
 
 ### Changed

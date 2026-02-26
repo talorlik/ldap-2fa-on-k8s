@@ -48,6 +48,9 @@ startupProbe:
   successThreshold: 1
   failureThreshold: 60
 
+# Init container for custom LDIF copy (avoids Docker Hub busybox rate limit)
+customLdifInitImage: "${ecr_registry}/${ecr_repository}:${busybox_image_tag}"
+
 # Pass ldapDomain and existingSecret to subcharts via global
 global:
   ldapDomain: "${openldap_ldap_domain}"

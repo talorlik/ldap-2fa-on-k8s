@@ -53,6 +53,10 @@ global:
 # Additional environment variables passed to osixia/openldap
 env: {}
 
+# Init container image for copy-custom-ldif (when customLdifFiles is set).
+# When set (e.g. ECR image), used instead of Docker Hub busybox to avoid rate limits.
+customLdifInitImage: ""
+
 # Custom LDIF files to bootstrap the directory (mounted at osixia bootstrap path)
 # customLdifFiles:
 #   01-init-ous.ldif: |-

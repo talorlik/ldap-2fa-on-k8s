@@ -3,6 +3,27 @@
 All notable changes to the vendored OpenLDAP Helm chart are documented in this
 file.
 
+## [5.0.1] - 2026-02-26 — Init container image override (busybox from ECR)
+
+### Summary
+
+- **customLdifInitImage**: New optional value. When set (e.g. to an ECR image
+  such as `account.dkr.ecr.region.amazonaws.com/repo:busybox-1.36`), the
+  copy-custom-ldif init container uses this image instead of Docker Hub
+  `busybox:1.36`, avoiding Docker Hub rate limits in CI/production.
+- Default remains `busybox:1.36` when the value is empty.
+
+### Templates: `statefulset.yaml`
+
+- Init container image for `copy-custom-ldif` is now
+  `{{ .Values.customLdifInitImage | default "busybox:1.36" }}`.
+
+### Values: `values.yaml`
+
+- Added `customLdifInitImage: ""`.
+
+---
+
 ## [5.0.0] - 2026-02-22 — Vendored Chart for osixia/openldap
 
 ### Summary

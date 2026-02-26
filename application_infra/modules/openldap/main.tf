@@ -28,6 +28,7 @@ locals {
       openldap_image_tag     = var.openldap_image_tag
       phpldapadmin_image_tag = var.phpldapadmin_image_tag
       ltb_passwd_image_tag   = var.ltb_passwd_image_tag
+      busybox_image_tag      = var.busybox_image_tag
       openldap_replica_count = var.replica_count
       # ALB configuration - IngressClassParams handles scheme and ipAddressType
       ingress_class_name     = var.use_alb && var.ingress_class_name != null ? var.ingress_class_name : "alb"

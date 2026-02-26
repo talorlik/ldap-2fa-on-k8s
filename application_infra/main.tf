@@ -214,6 +214,7 @@ module "openldap" {
   openldap_image_tag     = var.openldap_image_tag
   phpldapadmin_image_tag = var.phpldapadmin_image_tag
   ltb_passwd_image_tag   = var.ltb_passwd_image_tag
+  busybox_image_tag      = var.openldap_busybox_image_tag
   helm_timeout           = var.openldap_helm_timeout
   helm_atomic            = var.openldap_helm_atomic
   replica_count          = var.openldap_replica_count

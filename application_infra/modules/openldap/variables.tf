@@ -153,6 +153,12 @@ variable "ltb_passwd_image_tag" {
   default     = "ltb-passwd-5.2.3"
 }
 
+variable "busybox_image_tag" {
+  description = "Busybox image tag in ECR (used by OpenLDAP chart init container for custom LDIF copy)"
+  type        = string
+  default     = "busybox-1.36"
+}
+
 variable "helm_timeout" {
   description = "Helm release install/upgrade timeout in seconds. Increase on slow clusters or when using Karpenter (node provisioning delay)."
   type        = number

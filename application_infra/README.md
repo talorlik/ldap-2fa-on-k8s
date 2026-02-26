@@ -206,7 +206,10 @@ configuration (see Storage Configuration section below)
   pods at startup (fixes multi-master replication data sync issues)
 - **ECR Images**: Uses ECR images instead of Docker Hub (images mirrored via
   `scripts/mirror-images-to-ecr.sh`)
-  - Image tags: `redis-latest`, `postgresql-latest`, `openldap-1.5.0`
+  - Image tags: `redis-latest`, `postgresql-latest`, `openldap-1.5.0`,
+    `phpldapadmin-0.9.0`, `ltb-passwd-5.2.3`, `busybox-1.36` (init container)
+  - Backend/frontend Helm test pods (`test-connection`) still use Docker Hub
+    `busybox`; optional to mirror and override in application layer if desired.
 - **Route53 Records**: Route53 record creation has been moved to the dedicated
   `route53_record` module (see Route53 Record Module section above)
 - **Helm Release Safety**: Comprehensive Helm release attributes (atomic,

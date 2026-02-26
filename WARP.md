@@ -72,8 +72,8 @@ provisioning and built-in EBS CSI driver (Kubernetes 1.35)
 secure pod-to-AWS-service authentication
 - **Networking**: Single NAT gateway (cost optimization), IGW, VPC endpoints for
 SSM, STS (IRSA), and SNS (SMS 2FA) access
-- **Storage**: StorageClass created in application layer (gp3, encrypted), PVCs
-created by Helm chart
+- **Storage**: StorageClass created in application infrastructure layer (gp3, encrypted),
+PVCs created by Helm chart
 - **Container Registry**: ECR repository for Docker images with lifecycle
 policies (immutable tags). All third-party images (Redis, PostgreSQL, OpenLDAP)
 are automatically mirrored from Docker Hub to ECR during deployment
@@ -133,6 +133,7 @@ ldap-2fa-on-k8s/
 │       ├── backend_infra_destroying.yaml
 │       ├── backend_infra_provisioning.yaml
 │       ├── frontend_build_push.yaml
+│       ├── releasing_terraform_lock.yaml
 │       ├── tfstate_infra_destroying.yaml
 │       └── tfstate_infra_provisioning.yaml
 ├── application_infra/          # Application infrastructure - Account B
@@ -152,22 +153,14 @@ ldap-2fa-on-k8s/
 │   ├── destroy-application-infra.sh
 │   ├── main.tf
 │   ├── monitor-deployments.sh  # Monitor application_infra deployments
-│   ├── CROSS_ACCOUNT_ACCESS.md
 │   ├── OPENLDAP_CHANGELOG.md
-│   ├── OPENLDAP_README.md
-│   ├── OSIXIA_OPENLDAP_REQUIREMENTS.md
 │   ├── outputs.tf
-│   ├── PRD_ALB.md
-│   ├── PRD_ArgoCD.md
-│   ├── PRD_DOMAIN.md
-│   ├── PRD_OPENLDAP.md
 │   ├── providers.tf
 │   ├── setup-application-infra.sh
-│   ├── SECURITY_IMPROVEMENTS.md
-│   ├── SILENT_MODE_EXPLANATION.md
 │   ├── tfstate-backend-values-template.hcl
 │   ├── variables.tf
 │   ├── variables.tfvars
+│   ├── CHANGELOG.md
 │   └── README.md
 ├── application/                # 2FA Application - Account B
 │   ├── backend/                # 2FA Backend (Python FastAPI)
@@ -201,15 +194,6 @@ ldap-2fa-on-k8s/
 │   ├── variables.tfvars
 │   ├── tfstate-backend-values-template.hcl
 │   ├── CHANGELOG.md
-│   ├── DEPLOY_2FA_APPS.md
-│   ├── LDAP_ADMIN_SEED_TROUBLESHOOTING.md
-│   ├── PASSWORD_FLOW.md
-│   ├── REDIS_ENABLEMENT_SUMMARY.md
-│   ├── SECRET_DEPENDENCIES.md
-│   ├── PRD_2FA_APP.md
-│   ├── PRD_ADMIN_FUNCS.md
-│   ├── PRD_SIGNUP_MAN.md
-│   ├── PRD_SMS_MAN.md
 │   └── README.md
 ├── backend_infra/              # Core AWS infrastructure - Account B
 │   ├── modules/
@@ -228,12 +212,17 @@ ldap-2fa-on-k8s/
 │   ├── monitor-deployments.sh  # Monitor backend_infra deployments
 │   ├── setup-backend.sh
 │   └── README.md
-├── docs/                        # GitHub Pages documentation
+├── docs/                        # GitHub Pages and auxiliary documentation
 │   ├── index.html
 │   ├── dark-theme.css
 │   ├── light-theme.css
 │   ├── header_banner.png
-│   └── favicon.ico
+│   ├── favicon.ico
+│   └── auxiliary/               # Auxiliary documentation
+│       ├── application/         # Application docs (deployment, design, guides)
+│       ├── application_infra/   # Infra docs (design, guides)
+│       ├── reference/           # SECRETS_REQUIREMENTS.md
+│       └── troubleshooting/     # INDEX.md + categorized troubleshooting guides
 ├── tf_backend_state/            # Terraform state backend (S3) - Account A
 │   ├── main.tf
 │   ├── outputs.tf
@@ -253,7 +242,6 @@ ldap-2fa-on-k8s/
 ├── LICENSE
 ├── README.md
 ├── WARP.md
-├── SECRETS_REQUIREMENTS.md
 ├── repomix.config.json
 ├── repomix_instructions.md
 └── repomix_output.md
@@ -388,7 +376,7 @@ via DNS records in State Account's Route53 hosted zone
   role ARNs
   - `external-id`: Contains `AWS_ASSUME_EXTERNAL_ID`
   - `tf-vars`: Contains OpenLDAP, PostgreSQL, and Redis passwords
-  - See `SECRETS_REQUIREMENTS.md` for detailed setup instructions
+  - See `docs/auxiliary/reference/SECRETS_REQUIREMENTS.md` for detailed setup instructions
 
 **Deploy Application Infrastructure (OpenLDAP, ALB, ArgoCD Capability):**
 
@@ -641,10 +629,11 @@ confirmations
 
 ### Application Infrastructure Layer
 
-- `application/variables.tfvars` - Configure:
+- `application_infra/variables.tfvars` - Configure:
   - Domain name, ALB settings, storage class
   - ArgoCD Capability configuration (enable_argocd, Identity Center settings)
-  - OpenLDAP secret configuration (openldap_secret_name, openldap_namespace)
+  - OpenLDAP configuration (openldap_secret_name, replica_count, helm_timeout,
+  helm_atomic)
   - OpenLDAP passwords retrieved automatically by setup-application-infra.sh from
   AWS Secrets Manager
 - `application_infra/setup-application-infra.sh` - Setup script for infrastructure
@@ -666,12 +655,11 @@ LDAP directory structure via customLdifFiles
 - `application_infra/providers.tf` - Retrieves cluster name from backend_infra remote
 state (with fallback options)
 - `application_infra/main.tf` - Creates:
+  - ArgoCD Capability (if enabled, deployed first)
   - StorageClass for persistent storage
-  - OpenLDAP module invocation (Helm release, secrets, Ingress)
-  - Route53 records for phpldapadmin and ltb_passwd
   - ALB module (IngressClass and IngressClassParams)
-  - Network policies
-  - ArgoCD Capability (if enabled)
+  - OpenLDAP module invocation (Helm release, secrets, Ingress, network policies)
+  - Route53 records for phpldapadmin and ltb_passwd
 - `application_infra/modules/` - Infrastructure Terraform modules:
   - `alb/` - IngressClass and IngressClassParams for EKS Auto Mode ALB
   - `argocd/` - AWS EKS managed ArgoCD Capability
@@ -682,16 +670,26 @@ state (with fallback options)
   - `route53_record/` - Route53 A (alias) record creation
 - `application_infra/CHANGELOG.md` - Infrastructure-specific changelog
 - `application_infra/OPENLDAP_CHANGELOG.md` - OpenLDAP chart change documentation
-- `application_infra/PRD_ALB.md` - Comprehensive ALB implementation guide
-- `application_infra/PRD_DOMAIN.md` - Domain and DNS configuration
-- `application_infra/PRD_OPENLDAP.md` - OpenLDAP deployment requirements
-- `application_infra/PRD_ArgoCD.md` - ArgoCD Capability documentation
-- `application_infra/OPENLDAP_README.md` - OpenLDAP configuration and TLS setup
-- `application_infra/OSIXIA_OPENLDAP_REQUIREMENTS.md` - OpenLDAP image requirements
-- `application_infra/SECURITY_IMPROVEMENTS.md` - Security enhancements and best
-practices
+- `docs/auxiliary/application_infra/design/PRD_ALB.md` - Comprehensive ALB
+implementation guide
+- `docs/auxiliary/application_infra/design/PRD_DOMAIN.md` - Domain and DNS
+configuration
+- `docs/auxiliary/application_infra/design/PRD_OPENLDAP.md` - OpenLDAP deployment
+requirements
+- `docs/auxiliary/application_infra/design/PRD_ArgoCD.md` - ArgoCD Capability
+documentation
+- `docs/auxiliary/application_infra/guides/OPENLDAP_README.md` - OpenLDAP
+configuration and TLS setup
+- `docs/auxiliary/application_infra/guides/OSIXIA_OPENLDAP_REQUIREMENTS.md` -
+OpenLDAP image requirements
+- `docs/auxiliary/application_infra/guides/SECURITY_IMPROVEMENTS.md` - Security
+enhancements and best practices
 - `docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md` - Cross-account
 access documentation
+- `docs/auxiliary/application_infra/guides/EKS_ACCESS_ENTRY.md` - EKS access
+entry documentation
+- `docs/auxiliary/application_infra/guides/SILENT_MODE_EXPLANATION.md` - Silent
+mode explanation
 
 ### Application Layer
 
@@ -742,20 +740,24 @@ access documentation
   - `nginx.conf` - nginx configuration (listens on port 8080)
   - `README.md` - Comprehensive frontend application documentation
 - `application/CHANGELOG.md` - Application-specific changelog
-- `application/PRD_2FA_APP.md` - Product requirements document for 2FA application
-- `application/PRD_SIGNUP_MAN.md` - Product requirements document for signup management
-system
-- `application/PRD_ADMIN_FUNCS.md` - Product requirements for admin functions
-- `application/PRD_SMS_MAN.md` - Product requirements for SMS management
-- `application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md` - Comprehensive LDAP and
-admin-seed-job troubleshooting guide
+- `docs/auxiliary/application/design/PRD_2FA_APP.md` - Product requirements
+document for 2FA application
+- `docs/auxiliary/application/design/PRD_SIGNUP_MAN.md` - Product requirements
+document for signup management system
+- `docs/auxiliary/application/design/PRD_ADMIN_FUNCS.md` - Product requirements
+for admin functions
+- `docs/auxiliary/application/design/PRD_SMS_MAN.md` - Product requirements for
+SMS management
+- `docs/auxiliary/application/deployment/DEPLOY_2FA_APPS.md` - 2FA application
+deployment guide
 - `docs/auxiliary/application/guides/PASSWORD_FLOW.md` - How passwords flow from
 secrets to Terraform variables to Kubernetes secrets
 - `docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md` - Guide for
 enabling Redis and SMS 2FA
 - `docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md` - Which components
 require which secrets (PostgreSQL, Redis, LDAP admin) and cross-namespace dependencies
-- `SECRETS_REQUIREMENTS.md` - Comprehensive secrets management documentation
+- `docs/auxiliary/reference/SECRETS_REQUIREMENTS.md` - Comprehensive secrets
+management documentation
   - AWS Secrets Manager setup for local scripts (role ARNs, ExternalId, passwords)
   - GitHub Repository Secrets setup for workflows
   - ExternalId configuration for cross-account role assumption security
@@ -781,23 +783,17 @@ require which secrets (PostgreSQL, Redis, LDAP admin) and cross-namespace depend
 - **ALB**: `alb_dns_name`, `alb_ingress_class_name`,
 `alb_ingress_class_params_name`, `alb_scheme`, `alb_ip_address_type`,
 `alb_load_balancer_name`
-- **OpenLDAP**: `openldap_namespace`, `openldap_secret_name`,
-`openldap_helm_release_name`, `openldap_alb_dns_name`,
-`phpldapadmin_route53_record`, `ltb_passwd_route53_record`
+- **StorageClass**: `storage_class_name`
 - **LDAP Connection**: `ldap_host`, `ldap_base_dn`, `ldap_admin_dn`,
 `ldap_admin_group_dn`, `ldap_user_search_base`, `ldap_group_search_base`
 - **Route53**: `route53_acm_cert_arn`, `route53_domain_name`, `route53_zone_id`,
 `route53_name_servers`
 - **Network Policies**: `network_policy_name`, `network_policy_namespace`,
 `network_policy_uid`
-- **ArgoCD** (if enabled): `argocd_capability_arn`, `argocd_capability_id`,
-`argocd_server_url`
-- **SNS** (if enabled): `sns_topic_arn`, `sns_topic_name`, `sns_iam_role_arn`,
-`sns_iam_role_name`
-- **SES** (if enabled): `ses_iam_role_arn`, `ses_iam_role_name`,
-`ses_email_identity_arn`
-- **PostgreSQL** (if enabled): `postgresql_service_name`, `postgresql_port`
-- **Redis** (if enabled): `redis_service_name`, `redis_port`
+- **ArgoCD** (if enabled): `argocd_server_url`, `argocd_capability_name`,
+`argocd_capability_status`, `argocd_capability_error`, `argocd_iam_role_arn`,
+`argocd_iam_role_name`, `local_cluster_secret_name`, `argocd_namespace`,
+`argocd_project_name`
 
 ## Important Patterns
 
@@ -857,7 +853,8 @@ not plain-text in Helm values
 - **Web UIs**: phpLDAPadmin and ltb-passwd exposed via ALB with separate Ingress
 resources
 - **LDAP service**: ClusterIP (internal only) for secure cluster-internal access
-- **Route53 DNS**: Module creates A (alias) records pointing to ALB
+- **Route53 DNS**: Separate route53_record module creates A (alias) records pointing
+to ALB
 - Hostnames configurable via variables:
   - `phpldapadmin_host` (default: `phpldapadmin.talorlik.com`)
   - `ltb_passwd_host` (default: `passwd.talorlik.com`)
@@ -894,7 +891,7 @@ resources
   - Helm chart includes: Deployment, Service, Ingress
 - Deployment method:
   - Direct Helm deployment via Terraform (default)
-  - Or via ArgoCD GitOps (if `enable_argocd = true`)
+  - Or via ArgoCD GitOps (if `enable_argocd_apps = true`)
 
 **ALB Configuration:**
 
@@ -953,8 +950,8 @@ Deployment order matters:
 1. Terraform backend state infrastructure (S3 bucket)
 2. Backend infrastructure (VPC → EKS → VPC Endpoints → ECR)
 3. Application infrastructure (Existing Route53 zone + ACM cert lookup →
-StorageClass → ALB module → OpenLDAP Helm release → Route53 A records →
-Network policies → ArgoCD Capability)
+ArgoCD Capability (if enabled) → StorageClass → ALB module → OpenLDAP Helm
+release → Route53 A records → Network policies)
 4. Application (PostgreSQL → Redis → SES → SNS → 2FA backend/frontend Helm
 releases → Route53 A record for twofa_app → ArgoCD Applications)
 
@@ -1008,6 +1005,11 @@ SES, SNS)
 - `application_destroying.yaml` - Destroy application (requires confirmation:
 type 'yes')
 
+**Utility Workflows:**
+
+- `releasing_terraform_lock.yaml` - Force-unlock Terraform state after a crash
+or interrupted run (requires lock ID input)
+
 **Application CI/CD Workflows:**
 
 - `backend_build_push.yaml` - Build and push 2FA backend Docker image to ECR
@@ -1047,7 +1049,10 @@ deployment)
 
 - `ADMIN_SEED_USERNAME` - Admin username for seed (optional)
 - `ADMIN_SEED_EMAIL` - Admin email for seed (optional)
-- `ADMIN_SEED_PHONE` - Admin phone for seed in E.164 format (optional)
+- `ADMIN_SEED_FIRST_NAME` - Admin first name for seed (optional)
+- `ADMIN_SEED_LAST_NAME` - Admin last name for seed (optional)
+- `ADMIN_SEED_PHONE_COUNTRY_CODE` - Phone country code e.g. +1 (optional)
+- `ADMIN_SEED_PHONE_NUMBER` - Phone number for seed (optional)
 
 > [!NOTE]
 >
@@ -1069,6 +1074,47 @@ deployment)
 workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - February 2026)
+
+### ArgoCD Wait, OpenLDAP Pre-deploy, IAM Revert, Lock Release (Feb 24-26, 2026)
+
+- **ArgoCD Module: Single Sleep for Capability Readiness**:
+  - Consolidated two sequential `time_sleep` resources into one
+  (`time_sleep.wait_for_argocd`, default 330s)
+  - Removed redundant `wait_after_capability_propagation_duration` variable
+  - All dependent resources now depend only on `time_sleep.wait_for_argocd`
+
+- **OpenLDAP Module: Pre-deploy Delay Moved into Module**:
+  - OpenLDAP module now includes a 3m internal pre-deploy delay as its first
+  resource (`time_sleep.pre_deploy`)
+  - Root `module.openldap` depends on StorageClass, ALB, and ArgoCD directly;
+  the module applies the delay internally
+  - Removed root variable `openldap_pre_deploy_delay_seconds`
+
+- **ArgoCD Module: IAM Reverted to Single Inline Policy**:
+  - Removed dependency on AWS managed policy `AmazonEKSCapabilityArgoCD`
+  (policy does not exist or is not attachable in some regions/accounts)
+  - ArgoCD capability role now uses only one inline policy with EKS, Secrets
+  Manager, KMS, CodeConnections (incl. UseConnection), and optional
+  ECR/CodeCommit when enabled
+
+- **ALB Module: IngressClassParams Import Guidance**:
+  - When apply fails with "resource already exists" for IngressClassParams,
+  import the existing resource via `terraform import`
+  - Troubleshooting section added to `docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md`
+
+- **Terraform Lock Release Workflow**:
+  - New `releasing_terraform_lock.yaml` workflow to force-unlock Terraform state
+  after a crash or interrupted run
+  - Supports all three layers: backend_infra, application_infra, application
+  - Requires lock ID input from the failed Terraform operation
+
+- **Documentation Restructured**:
+  - All PRDs, guides, and troubleshooting docs moved to `docs/auxiliary/`
+  hierarchy
+  - `SECRETS_REQUIREMENTS.md` moved to `docs/auxiliary/reference/`
+  - New troubleshooting categories: `application_layer/`, `backend_infrastructure/`,
+  `frontend/`, `secrets_and_variables/`, `reference/`
+  - Troubleshooting index at `docs/auxiliary/troubleshooting/INDEX.md`
 
 ### Script Consolidation, EKS Token Exec, Image Mirroring (Feb 23, 2026)
 
@@ -1141,7 +1187,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Added step to ensure `get-eks-token.sh` is executable in workflows
   - Workflows now use exec-based EKS token retrieval for Kubernetes operations
 
-### OpenLDAP Chart Vendoring and Directory Structure Initialization (Unreleased)
+### OpenLDAP Chart Vendoring and Directory Structure Initialization (Feb 23, 2026)
 
 - **OpenLDAP Module ACM and Chart Configuration**:
   - OpenLDAP Terraform module no longer accepts `acm_cert_arn` variable
@@ -1160,8 +1206,8 @@ workflow or `setup-backend.sh` script (required for build workflows)
   (each pod initialized independently)
   - Added `openldap_base_dn` variable and computed local in OpenLDAP module for
   LDIF template interpolation
-  - See `application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md` for detailed investigation
-  and root cause analysis
+  - See `docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md`
+  for detailed investigation and root cause analysis
 
 - **LDAPClient Group Membership Handling**:
   - Added methods to detect group objectClass and use correct membership attribute
@@ -1176,7 +1222,8 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - ECR uses commit-based tags; backend build workflow updates Helm values automatically
 
 - **LDAP and Admin-Seed-Job Troubleshooting Guide**:
-  - Created comprehensive `application/LDAP_ADMIN_SEED_TROUBLESHOOTING.md` documenting:
+  - Created comprehensive `docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md`
+  documenting:
     - Persistent OpenLDAP issues and investigation timeline
     - Root causes and ad-hoc manual corrections
     - Permanent code fixes and verification commands
@@ -2294,15 +2341,20 @@ with different selections
    - Script automatically retrieves credentials and configurations
    - Requires double confirmation (type 'yes' then 'DESTROY')
    - Handles Kubernetes environment setup automatically
-2. **Backend Infrastructure**:
+2. **Application Infrastructure**:
+   - Run `./destroy-application-infra.sh` from the `application_infra/` directory
+   - Script automatically retrieves credentials and configurations
+   - Requires double confirmation (type 'yes' then 'DESTROY')
+3. **Backend Infrastructure**:
    - Run `./destroy-backend.sh` from the `backend_infra/` directory
    - Script automatically retrieves credentials and configurations
    - Requires double confirmation (type 'yes' then 'DESTROY')
-3. **Backend State**:
+4. **Backend State**:
    - Use GitHub Actions workflow "TF Backend State Destroying" (recommended)
    - Or manually destroy using Terraform commands after assuming IAM role
-4. **Destroy Order**: Always destroy in reverse order of creation:
-   - Application layer → Backend infrastructure → Backend state
+5. **Destroy Order**: Always destroy in reverse order of creation:
+   - Application → Application infrastructure → Backend infrastructure → Backend
+   state
 
 ### Developing 2FA Application
 
@@ -2339,7 +2391,7 @@ with different selections
 1. Add resources to `application/main.tf` or create a new module in
 `application/modules/`
 2. Update Helm values template if needed
-(`application/helm/openldap-values.tpl.yaml`)
+(`application_infra/helm/openldap-values.tpl.yaml`)
 3. Ensure proper `depends_on` relationships (e.g., Helm release, data sources)
 4. For IRSA-enabled resources:
    - Create IAM role with trust policy for EKS OIDC provider
@@ -2401,7 +2453,7 @@ on first startup
 
 ### Storage Configuration
 
-- **StorageClass**: Created by application Terraform
+- **StorageClass**: Created by application infrastructure Terraform
 (`kubernetes_storage_class_v1` resource)
   - Name pattern: `${prefix}-${region}-${storage_class_name}-${env}` (e.g.,
   `talo-tf-us-east-1-gp3-ldap-prod`)

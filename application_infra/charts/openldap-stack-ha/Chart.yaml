@@ -1,7 +1,7 @@
 apiVersion: v2
 name: openldap-stack-ha
 description: OpenLDAP Stack HA with phpLDAPadmin and LTB-passwd (vendored for osixia/openldap)
-version: 5.0.0
+version: 5.0.1
 appVersion: 1.5.0
 home: https://www.openldap.org
 keywords:

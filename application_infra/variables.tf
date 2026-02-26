@@ -102,6 +102,12 @@ variable "openldap_replica_count" {
   default     = 3
 }
 
+variable "openldap_busybox_image_tag" {
+  description = "Busybox image tag in ECR for OpenLDAP chart init container (copy-custom-ldif). Set by mirror-images-to-ecr.sh as busybox-1.36."
+  type        = string
+  default     = "busybox-1.36"
+}
+
 ##################### Storage ##########################
 
 variable "storage_class_name" {

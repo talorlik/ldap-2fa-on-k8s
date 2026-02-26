@@ -16,9 +16,19 @@ resource "kubernetes_network_policy_v1" "namespace_secure_communication" {
     pod_selector {}
     policy_types = ["Ingress", "Egress"]
 
-    # Ingress: Allow traffic from any pod in the same namespace on secure ports
+    # Ingress: Allow traffic from any pod in the same namespace on LDAP and secure ports
     ingress {
       # Allow from any pod in the same namespace
+      from {
+        pod_selector {}
+      }
+      ports {
+        port     = "389"
+        protocol = "TCP"
+      }
+    }
+
+    ingress {
       from {
         pod_selector {}
       }
@@ -49,10 +59,20 @@ resource "kubernetes_network_policy_v1" "namespace_secure_communication" {
       }
     }
 
-    # Ingress: Allow traffic from any pod in other namespaces on secure ports
+    # Ingress: Allow traffic from any pod in other namespaces on LDAP and secure ports
     # This enables cross-namespace communication for LDAP service access
     ingress {
       # Allow from any pod in any namespace
+      from {
+        namespace_selector {}
+      }
+      ports {
+        port     = "389"
+        protocol = "TCP"
+      }
+    }
+
+    ingress {
       from {
         namespace_selector {}
       }
@@ -82,9 +102,19 @@ resource "kubernetes_network_policy_v1" "namespace_secure_communication" {
       }
     }
 
-    # Egress: Allow traffic to any pod in the same namespace on secure ports
+    # Egress: Allow traffic to any pod in the same namespace on LDAP and secure ports
     egress {
       # Allow to any pod in the same namespace
+      to {
+        pod_selector {}
+      }
+      ports {
+        port     = "389"
+        protocol = "TCP"
+      }
+    }
+
+    egress {
       to {
         pod_selector {}
       }
@@ -156,6 +186,6 @@ resource "kubernetes_network_policy_v1" "namespace_secure_communication" {
 
 # Note: We don't need a separate default deny policy because:
 # 1. The namespace_secure_communication policy above applies to all pods
-# 2. It only allows specific secure ports (443, 636, 8443)
+# 2. It only allows specific ports (389 LDAP, 443/636/8443 TLS)
 # 3. All other ports are implicitly denied
 # 4. This approach is simpler and avoids policy conflicts

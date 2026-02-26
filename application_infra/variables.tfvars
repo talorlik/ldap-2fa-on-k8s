@@ -13,6 +13,8 @@ prefix = "talo-tf"
 # OpenLDAP domain (e.g., ldap.talorlik.internal)
 openldap_ldap_domain = "ldap.talorlik.internal"
 openldap_secret_name = "openldap-secret"
+# Set to false when debugging crash-loop so failed release stays for kubectl logs (see CAPTURING_LOGS_BEFORE_ROLLBACK.md)
+openldap_helm_atomic = false
 
 ##################### Storage ##########################
 # StorageClass configuration for OpenLDAP PVC
