@@ -4,8 +4,8 @@ output "redis_enabled" {
 }
 
 output "redis_host" {
-  description = "Redis service hostname"
-  value       = var.enable_redis ? "redis-master.${var.namespace}.svc.cluster.local" : ""
+  description = "Redis service hostname (Bitnami chart: release-name-master)"
+  value       = var.enable_redis ? "${local.name}-master.${var.namespace}.svc.cluster.local" : ""
 }
 
 output "redis_port" {
@@ -30,5 +30,5 @@ output "redis_password_secret_key" {
 
 output "redis_connection_url" {
   description = "Redis connection URL (without password)"
-  value       = var.enable_redis ? "redis://redis-master.${var.namespace}.svc.cluster.local:6379/0" : ""
+  value       = var.enable_redis ? "redis://${local.name}-master.${var.namespace}.svc.cluster.local:6379/0" : ""
 }

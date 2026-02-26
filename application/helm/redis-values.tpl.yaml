@@ -2,6 +2,9 @@
 # Used by Terraform to configure Bitnami Redis deployment
 # for SMS OTP code storage
 # Based on official Bitnami Redis Helm chart values structure
+#
+# Service name is <release-name>-master (e.g. talo-tf-us-east-1-redis-prod-master).
+# Backend REDIS_HOST is set from Terraform (module.redis.redis_host) via ArgoCD.
 
 # Override default image to use ECR repository
 image:

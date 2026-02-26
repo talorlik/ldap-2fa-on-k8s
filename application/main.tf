@@ -57,6 +57,17 @@ locals {
     }
   ] : []
 
+  # Backend Helm parameters: ALB (ingress) plus Redis host when Redis is enabled.
+  # Redis host must match the Bitnami chart service name (release-name-master).
+  argocd_helm_parameters_backend = concat(
+    local.argocd_helm_alb_parameters_backend,
+    var.enable_redis ? [{
+      name         = "redis.host"
+      value        = module.redis[0].redis_host
+      force_string = true
+    }] : []
+  )
+
   argocd_helm_alb_parameters_frontend = local.alb_load_balancer_name != "" && local.alb_ingress_class_name != "" ? [
     {
       name         = "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/load-balancer-name"
@@ -572,8 +583,8 @@ module "argocd_app_backend" {
     sync_options = ["CreateNamespace=true"]
   } : null
 
-  helm_config = length(local.argocd_helm_alb_parameters_backend) > 0 ? {
-    parameters = local.argocd_helm_alb_parameters_backend
+  helm_config = length(local.argocd_helm_parameters_backend) > 0 ? {
+    parameters = local.argocd_helm_parameters_backend
   } : null
 
   depends_on = [
