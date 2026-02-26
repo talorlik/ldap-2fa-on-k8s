@@ -74,11 +74,14 @@ def _get_pod_hostnames() -> list[str]:
     """
     Derive individual StatefulSet pod hostnames from LDAP_HOST and LDAP_REPLICA_COUNT.
 
-    LDAP_HOST is the Kubernetes service name, e.g.:
+    LDAP_HOST is the Kubernetes ClusterIP service name, e.g.:
         openldap-stack-ha.ldap.svc.cluster.local
-    Pod DNS names follow the pattern:
-        {statefulset}-{i}.{service}.{namespace}.svc.cluster.local
-    For the jp-gouin/helm-openldap chart, statefulset name == service name.
+    StatefulSet pod DNS names require the **headless** service and follow the pattern:
+        {statefulset}-{i}.{headless-service}.{namespace}.svc.cluster.local
+
+    The headless service host can be provided explicitly via LDAP_HEADLESS_HOST.
+    If not set, it is derived from LDAP_HOST by appending "-headless" to the
+    service name component (standard Helm naming convention).
 
     Returns empty list if LDAP_REPLICA_COUNT is 0 or unset.
     """
@@ -88,10 +91,18 @@ def _get_pod_hostnames() -> list[str]:
 
     settings = get_settings()
     service_host = settings.ldap_host  # e.g. openldap-stack-ha.ldap.svc.cluster.local
-    # Extract service name (first component)
+    # Extract service name (first component) and domain suffix
     service_name = service_host.split(".", 1)[0]
-    # Pod hostname: {service_name}-{i}.{full_service_host}
-    return [f"{service_name}-{i}.{service_host}" for i in range(replica_count)]
+    domain = service_host.split(".", 1)[1]  # e.g. ldap.svc.cluster.local
+
+    # StatefulSet pods are addressed via the headless service, not the ClusterIP service.
+    headless_host = os.environ.get("LDAP_HEADLESS_HOST", "").strip()
+    if not headless_host:
+        # Derive from LDAP_HOST: standard Helm convention is {release}-headless
+        headless_host = f"{service_name}-headless.{domain}"
+
+    # Pod hostname: {service_name}-{i}.{headless_service_host}
+    return [f"{service_name}-{i}.{headless_host}" for i in range(replica_count)]
 
 
 def _create_ldap_client_for_host(host: str) -> LDAPClient:

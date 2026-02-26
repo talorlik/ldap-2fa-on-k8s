@@ -15,8 +15,13 @@ output "helm_release_name" {
 
 # LDAP connection config for 2FA app and other consumers (no hardcoding)
 output "ldap_host" {
-  description = "OpenLDAP service host (Kubernetes DNS)"
+  description = "OpenLDAP ClusterIP service host (Kubernetes DNS)"
   value       = "${helm_release.openldap.name}.${kubernetes_namespace.openldap.metadata[0].name}.svc.cluster.local"
+}
+
+output "ldap_headless_host" {
+  description = "OpenLDAP headless service host (for StatefulSet pod DNS addressing)"
+  value       = "${helm_release.openldap.name}-headless.${kubernetes_namespace.openldap.metadata[0].name}.svc.cluster.local"
 }
 
 output "ldap_base_dn" {

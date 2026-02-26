@@ -114,6 +114,11 @@ output "ldap_host" {
   value       = module.openldap.ldap_host
 }
 
+output "ldap_headless_host" {
+  description = "OpenLDAP headless service host (for StatefulSet pod DNS addressing)"
+  value       = module.openldap.ldap_headless_host
+}
+
 output "ldap_base_dn" {
   description = "LDAP base DN"
   value       = module.openldap.ldap_base_dn

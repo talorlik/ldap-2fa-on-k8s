@@ -20,6 +20,7 @@ locals {
 
   # LDAP config from application_infra (OpenLDAP deployment) for admin-seed Job
   ldap_host              = try(data.terraform_remote_state.application_infra[0].outputs.ldap_host, "")
+  ldap_headless_host     = try(data.terraform_remote_state.application_infra[0].outputs.ldap_headless_host, "")
   ldap_base_dn           = try(data.terraform_remote_state.application_infra[0].outputs.ldap_base_dn, "")
   ldap_admin_dn          = try(data.terraform_remote_state.application_infra[0].outputs.ldap_admin_dn, "")
   ldap_admin_group_dn    = try(data.terraform_remote_state.application_infra[0].outputs.ldap_admin_group_dn, "")
@@ -528,6 +529,12 @@ resource "kubernetes_job" "admin_seed" {
           env {
             name  = "LDAP_REPLICA_COUNT"
             value = tostring(var.ldap_replica_count)
+          }
+          # Headless service host for StatefulSet pod DNS addressing.
+          # Pod DNS: {pod}-{i}.{headless-svc}.{ns}.svc.cluster.local
+          env {
+            name  = "LDAP_HEADLESS_HOST"
+            value = local.ldap_headless_host
           }
         }
       }
