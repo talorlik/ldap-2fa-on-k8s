@@ -93,9 +93,9 @@ variable "wait_iam_propagation_duration" {
 }
 
 variable "wait_capability_ready_duration" {
-  description = "Duration to wait after EKS capability creation before creating dependent resources (capability ACTIVE + access entry/SA propagation). Use e.g. 5m30s or 8m. Increase if access policy association or RBAC fails with AccessDenied."
+  description = "Duration to wait after EKS capability creation before creating dependent resources (capability ACTIVE + access entry/SA propagation). Use a single unit only, e.g. 330s or 8m. Increase if access policy association or RBAC fails with AccessDenied."
   type        = string
-  default     = "5m30s"
+  default     = "330s"
 }
 
 # IAM Policy Resources (core integrations: EKS, Secrets Manager, CodeConnections, KMS)

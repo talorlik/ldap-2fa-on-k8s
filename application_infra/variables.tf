@@ -357,9 +357,9 @@ variable "argocd_wait_iam_propagation_duration" {
 }
 
 variable "argocd_wait_capability_ready_duration" {
-  description = "Duration to wait after ArgoCD capability creation before dependent resources (e.g. 5m30s, 8m). Increase if access policy or RBAC fails."
+  description = "Duration to wait after ArgoCD capability creation before dependent resources (single unit only, e.g. 330s or 8m). Increase if access policy or RBAC fails."
   type        = string
-  default     = "5m30s"
+  default     = "330s"
 }
 
 ##################### Network Policies ##########################

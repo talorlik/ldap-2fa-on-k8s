@@ -60,7 +60,7 @@ ClusterRoleBinding so Terraform creates them first.
    ArgoCD (CREATING then ACTIVE). AWS also creates an EKS access entry for the
    capability IAM role; we do not create that entry.
 2. **Sleep** (`time_sleep.wait_for_argocd`) – waits for capability to be ACTIVE
-   and for access entry and ArgoCD SAs to propagate (e.g. 5m30s)
+   and for access entry and ArgoCD SAs to propagate (e.g. 330s)
 3. **ClusterRoleBinding for service accounts**
    (`kubernetes_manifest.argocd_application_controller_clusterrolebinding`) –
    binds ClusterRole to ArgoCD SAs (argocd-application-controller, etc.); must

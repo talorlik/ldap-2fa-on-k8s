@@ -222,7 +222,7 @@ resource "aws_eks_capability" "argocd" {
 
 # Wait for ArgoCD capability to be fully deployed (ACTIVE) and for the auto-created
 # access entry and ArgoCD SAs to propagate before creating ClusterRoleBinding and
-# associating the access policy (single sleep, default 5m30s).
+# associating the access policy (single sleep, default 330s).
 resource "time_sleep" "wait_for_argocd" {
   create_duration = var.wait_capability_ready_duration
 

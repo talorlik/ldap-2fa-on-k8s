@@ -72,7 +72,7 @@ creating the capability; sometimes that is not enough.
   succeeds once the access entry exists.
 - If it persists, increase the wait in `variables.tfvars`:
   `argocd_wait_iam_propagation_duration = "3m"` and/or
-  `argocd_wait_capability_ready_duration = "8m"` (defaults 2m and 5m30s).
+  `argocd_wait_capability_ready_duration = "8m"` (defaults 2m and 330s).
 
 ### 3. Capability Stuck in CREATING with AccessDenied in Health
 
@@ -512,7 +512,7 @@ still starting or unhealthy, leaving the workload with no node to run on.
 Terraform applies resources in this general order:
 
 1. **ArgoCD** (if `enable_argocd = true`): IAM role, namespace, 2m
-   wait, EKS capability, single 5m30s wait, then external data and
+   wait, EKS capability, single 330s wait, then external data and
    Kubernetes resources (ClusterRole, ClusterRoleBinding, access policy
    association, cluster secret).
 2. **StorageClass** and **ALB** (IngressClass/IngressClassParams;

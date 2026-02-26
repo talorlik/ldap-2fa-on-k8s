@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Application infrastructure**: ArgoCD module now uses a single readiness wait
-  (default 5m30s) instead of two sequential sleeps; OpenLDAP pre-deploy delay
+  (default 330s) instead of two sequential sleeps; OpenLDAP pre-deploy delay
   (3m) moved into the OpenLDAP module as its first resource. See
   [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
 
