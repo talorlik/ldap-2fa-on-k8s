@@ -227,9 +227,8 @@ All communication uses secure ports, so everything works automatically!
 If services cannot communicate after applying network policies, check
 policy status (`kubectl get networkpolicies -n ldap`), verify service ports
 (443, 636, 8443), test connectivity with `nc -zv`, and ensure services use
-HTTPS/LDAPS. For the full checklist and CNI notes, see the [Troubleshooting
-Index](../../../docs/auxiliary/troubleshooting/INDEX.md) (module-specific
-section).
+HTTPS/LDAPS. For the full checklist and CNI notes, see the [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
+(module-specific section).
 
 ## Adding New Secure Ports
 

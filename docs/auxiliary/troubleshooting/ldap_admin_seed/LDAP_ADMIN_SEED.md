@@ -662,7 +662,7 @@ uniqueMember: uid=admin,ou=users,dc=ldap,dc=talorlik,dc=internal
 
 ## Related Documentation
 
-- [Troubleshooting Index](../INDEX.md)
-- [Application Infrastructure Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md)
-- [Debug Commands](../reference/DEBUG_COMMANDS.md)
-- [Application Layer Troubleshooting](../application_layer/APPLICATION_LAYER.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
+- [Application Infrastructure Deployment](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+- [Debug Commands](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
+- [Application Layer Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)

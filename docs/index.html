@@ -4,12 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LDAP 2FA on Kubernetes - Documentation</title>
+    <meta name="description" content="Documentation for LDAP authentication with two-factor authentication (2FA), self-service password management, and GitOps on Amazon EKS. Deploy with Terraform.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/index.html">
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="LDAP 2FA on Kubernetes - Documentation">
+    <meta property="og:description" content="LDAP authentication with 2FA, self-service password management, and GitOps on Amazon EKS. Deploy with Terraform.">
+    <meta property="og:url" content="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/index.html">
+    <meta property="og:image" content="https://github.com/talorlik/ldap-2fa-on-k8s/raw/main/docs/header_banner.png">
+    <meta property="og:locale" content="en">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="LDAP 2FA on Kubernetes - Documentation">
+    <meta name="twitter:description" content="LDAP authentication with 2FA, self-service password management, and GitOps on Amazon EKS.">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="light-theme.css" id="theme-stylesheet">
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "name": "LDAP 2FA on Kubernetes - Documentation",
+        "description": "Documentation for LDAP authentication with two-factor authentication (2FA), self-service password management, and GitOps on Amazon EKS. Deploy with Terraform.",
+        "url": "https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/index.html",
+        "inLanguage": "en",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/index.html"
+        }
+    }
+    </script>
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <!-- Sticky Navigation -->
-    <nav class="navbar">
+    <nav class="navbar" aria-label="Main documentation navigation">
         <div class="nav-container">
             <a href="#hero" class="nav-logo">LDAP 2FA on K8s</a>
             <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
@@ -31,6 +60,7 @@
             </ul>
         </div>
     </nav>
+    <main id="main-content">
     <!-- Hero Section -->
     <section id="hero" class="hero">
         <div class="hero-content">
@@ -160,8 +190,8 @@
             <ul>
                 <li><strong>Full-stack 2FA application</strong> with Python FastAPI backend and static HTML/JS/CSS frontend
                     <ul>
-                        <li><strong>Backend:</strong> <a href="../application/backend/README.md">Comprehensive FastAPI backend API</a> with LDAP integration, PostgreSQL, Redis, AWS SES/SNS, and complete documentation</li>
-                        <li><strong>Frontend:</strong> <a href="../application/frontend/README.md">Modern SPA frontend</a> with vanilla JavaScript, responsive design, and full feature documentation</li>
+                        <li><strong>Backend:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/backend/README.md">Comprehensive FastAPI backend API</a> with LDAP integration, PostgreSQL, Redis, AWS SES/SNS, and complete documentation</li>
+                        <li><strong>Frontend:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/frontend/README.md">Modern SPA frontend</a> with vanilla JavaScript, responsive design, and full feature documentation</li>
                     </ul>
                 </li>
                 <li><strong>Dual MFA methods</strong>: TOTP (authenticator apps) and SMS (AWS SNS)</li>
@@ -236,10 +266,10 @@
                     <p class="card-note"><strong>Account A</strong> holds state, secrets, and DNS. <strong>Account B</strong> holds infrastructure and ACM certificates (ALB and certificate must be in the same account).</p>
                 </li>
                 <li><strong>GitHub Account</strong> and repository fork: <a href="https://github.com/talorlik/ldap-2fa-on-k8s.git" target="_blank">ldap-2fa-on-k8s</a></li>
-                <li><strong>AWS SSO/OIDC</strong> configured (see <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a>)</li>
+                <li><strong>AWS SSO/OIDC</strong> configured (see <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#github-repository-configuration">GitHub Repository Configuration</a>)</li>
                 <li><strong>Domain and DNS (Account A)</strong>: Route53 hosted zone for your domain must exist in the State Account. All DNS records (including ACM validation CNAMEs) are created here.</li>
-                <li><strong>ACM certificates (Account B)</strong>: Request a public ACM certificate in each Deployment Account. Validation uses CNAME records in Account A's Route53. Certificate must be in <code>ISSUED</code> status and in the same region as the EKS cluster. See <a href="auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation">Public ACM Certificate Setup and DNS Validation</a> for step-by-step AWS CLI commands.</li>
-                <li><strong>GitHub Secrets and Variables</strong> configured (see <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a> for complete details):
+                <li><strong>ACM certificates (Account B)</strong>: Request a public ACM certificate in each Deployment Account. Validation uses CNAME records in Account A's Route53. Certificate must be in <code>ISSUED</code> status and in the same region as the EKS cluster. See <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation">Public ACM Certificate Setup and DNS Validation</a> for step-by-step AWS CLI commands.</li>
+                <li><strong>GitHub Secrets and Variables</strong> configured (see <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a> for complete details):
                     <ul>
                         <li><strong>Required Secrets:</strong>
                             <ul>
@@ -254,7 +284,7 @@
                                 <li><code>GH_TOKEN</code></li>
                             </ul>
                         </li>
-                        <li><strong>Optional (first admin user seed):</strong> When all are set, a one-time Job seeds the first admin so they can log into the 2FA app with the same username/password as LDAP. Set in GitHub Secrets or AWS <code>tf-vars</code>: <code>ADMIN_SEED_USERNAME</code>, <code>ADMIN_SEED_EMAIL</code>, <code>ADMIN_SEED_FIRST_NAME</code>, <code>ADMIN_SEED_LAST_NAME</code>, <code>ADMIN_SEED_PHONE_COUNTRY_CODE</code>, <code>ADMIN_SEED_PHONE_NUMBER</code>. See <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>.</li>
+                        <li><strong>Optional (first admin user seed):</strong> When all are set, a one-time Job seeds the first admin so they can log into the 2FA app with the same username/password as LDAP. Set in GitHub Secrets or AWS <code>tf-vars</code>: <code>ADMIN_SEED_USERNAME</code>, <code>ADMIN_SEED_EMAIL</code>, <code>ADMIN_SEED_FIRST_NAME</code>, <code>ADMIN_SEED_LAST_NAME</code>, <code>ADMIN_SEED_PHONE_COUNTRY_CODE</code>, <code>ADMIN_SEED_PHONE_NUMBER</code>. See <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>.</li>
                         <li><strong>Required Variables:</strong>
                             <ul>
                                 <li><code>AWS_REGION</code></li>
@@ -274,9 +304,9 @@
                 </li>
                 <li><strong>For Local Deployment:</strong> GitHub CLI (<code>gh</code>), AWS CLI, Terraform, kubectl, and <code>jq</code> installed and configured</li>
                 <li><strong>For Local Deployment:</strong> <strong>Docker</strong> must be installed and running for ECR image mirroring. The <code>scripts/mirror-images-to-ecr.sh</code> script requires Docker to pull images from Docker Hub and push them to ECR. This step is automatically executed by <code>setup-application-infra.sh</code> before Terraform operations.</li>
-                <li><strong>For Local Deployment:</strong> AWS Secrets Manager configured with <code>github-role</code>, <code>tf-vars</code>, and <code>external-id</code> secrets (see <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>)</li>
+                <li><strong>For Local Deployment:</strong> AWS Secrets Manager configured with <code>github-role</code>, <code>tf-vars</code>, and <code>external-id</code> secrets (see <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>)</li>
             </ul>
-            <p><strong>For detailed prerequisites and setup:</strong> <a href="../README.md#prerequisites">Prerequisites</a> | <a href="../README.md#secrets-configuration">Secrets Configuration</a> | <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
+            <p><strong>For detailed prerequisites and setup:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#prerequisites">Prerequisites</a> | <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#secrets-configuration">Secrets Configuration</a> | <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a></p>
         </div>
         <h3 id="deployment-options">Deployment Options</h3>
         <div class="deployment-options">
@@ -413,9 +443,9 @@
                     <li>References infrastructure outputs from <code>application_infra</code> remote state (including LDAP host, base DN, admin DN—used by the admin-seed Job and not hardcoded)</li>
                 </ul>
                 <p><strong>Note:</strong> Application components require infrastructure to be deployed first (Steps 1-3 completed). The script automatically validates that the ArgoCD capability status is "ACTIVE" before proceeding with deployment. If the capability is not ACTIVE, deployment will fail with a clear error message. Backend and frontend image tags are read from Helm values (updated by the build workflows); the build workflows push only the computed tag (no <code>:latest</code>).</p>
-                <p><strong>First admin seed (optional):</strong> If you set all <code>ADMIN_SEED_*</code> keys in <code>tf-vars</code> (or GitHub Secrets), Terraform creates a one-time Job that seeds the first admin user with the same username/password as the LDAP admin, email/phone pre-verified, and membership in the LDAP admins group. See <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a> and <a href="../application/README.md">Application README</a>.</p>
+                <p><strong>First admin seed (optional):</strong> If you set all <code>ADMIN_SEED_*</code> keys in <code>tf-vars</code> (or GitHub Secrets), Terraform creates a one-time Job that seeds the first admin user with the same username/password as the LDAP admin, email/phone pre-verified, and membership in the LDAP admins group. See <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a> and <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md">Application README</a>.</p>
                 <p><strong>Deploying 2FA Applications (Backend and Frontend):</strong></p>
-                <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled in <code>variables.tfvars</code>) or manually using Helm charts. For manual deployment instructions, see <a href="auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a>.</p>
+                <p>The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled in <code>variables.tfvars</code>) or manually using Helm charts. For manual deployment instructions, see <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a>.</p>
                 <p><strong>After Step 5:</strong> If ArgoCD Applications are enabled, ArgoCD will automatically detect the git changes (from the build workflows in Step 4) and sync the deployments. The container images are already in ECR, so ArgoCD can successfully pull and deploy them.</p>
                 <h5 id="local-step-6">Manual Deployment of 2FA Applications (Optional)</h5>
                 <p><strong>Prerequisites:</strong> Infrastructure must be deployed (Steps 1-3 completed). Required tools: <code>kubectl</code> configured to access your EKS cluster, <code>helm</code> (v3.x), <code>aws</code> CLI, and optionally <code>docker</code> for manual builds.</p>
@@ -699,8 +729,8 @@ terraform apply</code></pre>
                     </li>
                     <li><strong>ArgoCD will automatically deploy</strong> the applications from Git</li>
                 </ol>
-                <p><strong>For detailed deployment instructions:</strong> <a href="auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a></p>
-                <p><strong>For backend and frontend documentation:</strong> <a href="../application/backend/README.md">Backend API Documentation</a> | <a href="../application/frontend/README.md">Frontend Application Documentation</a></p>
+                <p><strong>For detailed deployment instructions:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a></p>
+                <p><strong>For backend and frontend documentation:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/backend/README.md">Backend API Documentation</a> | <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/frontend/README.md">Frontend Application Documentation</a></p>
                 <h5 id="local-destroy">Destroying Infrastructure (Local)</h5>
                 <p><strong>⚠️ Warning:</strong> Destroy operations are permanent and cannot be undone. Always destroy in reverse order: Application → Application Infrastructure → Backend Infrastructure → State.</p>
                 <ol>
@@ -726,7 +756,7 @@ terraform plan -var-file="variables.tfvars" -destroy -out terraform.tfplan
 terraform apply -auto-approve terraform.tfplan</code></pre>
                     </li>
                 </ol>
-                <p><strong>For detailed local setup instructions:</strong> <a href="../README.md#method-2-local-development">Local Development Setup</a> | <a href="../tf_backend_state/README.md#option-2-local-execution">Terraform Backend State Local Execution</a></p>
+                <p><strong>For detailed local setup instructions:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#method-2-local-development">Local Development Setup</a> | <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/tf_backend_state/README.md#option-2-local-execution">Terraform Backend State Local Execution</a></p>
             </div>
             <div class="deployment-card">
                 <h4 id="github-actions-deployment">GitHub Actions Deployment</h4>
@@ -892,7 +922,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         </ul>
                     </li>
                 </ol>
-                <p><strong>For detailed GitHub Actions setup:</strong> <a href="../README.md#github-repository-configuration">GitHub Repository Configuration</a> | <a href="../README.md#method-1-github-actions-cicd">GitHub Actions Deployment</a></p>
+                <p><strong>For detailed GitHub Actions setup:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#github-repository-configuration">GitHub Repository Configuration</a> | <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#method-1-github-actions-cicd">GitHub Actions Deployment</a></p>
             </div>
         </div>
         <h3 id="deployment-comparison">Deployment Comparison</h3>
@@ -943,7 +973,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li><strong>Account:</strong> State Account (Account A)</li>
                         <li><strong>Local:</strong> <code>cd tf_backend_state && ./set-state.sh</code> (or <code>./tf_backend_state/set-state.sh</code> from repo root; scripts change to their directory automatically)</li>
                         <li><strong>GitHub Actions:</strong> "TF Backend State Provisioning" workflow (defaults <code>AWS_REGION</code> to <code>us-east-1</code> when not set)</li>
-                        <li><strong>See:</strong> <a href="../tf_backend_state/README.md">Terraform Backend State README</a></li>
+                        <li><strong>See:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/tf_backend_state/README.md">Terraform Backend State README</a></li>
                     </ul>
                 </li>
                 <li><strong>Deploy Backend Infrastructure</strong>
@@ -954,7 +984,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li><strong>Prerequisites:</strong> Terraform backend state must be deployed first</li>
                         <li><strong>Local:</strong> <code>cd backend_infra && ./setup-backend.sh</code></li>
                         <li><strong>GitHub Actions:</strong> "Backend Infra Provisioning" workflow</li>
-                        <li><strong>See:</strong> <a href="../backend_infra/README.md">Backend Infrastructure README</a></li>
+                        <li><strong>See:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/README.md">Backend Infrastructure README</a></li>
                     </ul>
                 </li>
                 <li><strong>Deploy Application Infrastructure</strong>
@@ -967,12 +997,12 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                             <ul>
                                 <li>Route53 hosted zone in State Account; ACM certificate in Deployment Account (ALB and cert must be in same account)</li>
                                 <li>Automatically accessed via <code>state_account_role_arn</code> for Route53 (injected by scripts/workflows)</li>
-                                <li>See <a href="auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md">Cross-Account Access Documentation</a> for configuration details</li>
+                                <li>See <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md">Cross-Account Access Documentation</a> for configuration details</li>
                             </ul>
                         </li>
                         <li><strong>Local:</strong> <code>cd application_infra && ./setup-application-infra.sh</code></li>
                         <li><strong>GitHub Actions:</strong> "Application Infra Provisioning" workflow</li>
-                        <li><strong>See:</strong> <a href="../application_infra/README.md">Application Infrastructure README</a> | <a href="../application/README.md">Application Deployment README</a></li>
+                        <li><strong>See:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md">Application Infrastructure README</a> | <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md">Application Deployment README</a></li>
                     </ul>
                 </li>
                 <li><strong>Build Container Images</strong>
@@ -991,13 +1021,13 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li><strong>Prerequisites:</strong> Application infrastructure (Step 3) must be deployed first, including StorageClass, ArgoCD Capability, and ALB DNS name. <strong>Container images must be built and pushed to ECR before deployment</strong> (see Build Container Images step above).</li>
                         <li><strong>Local:</strong> <code>cd application && ./setup-application.sh</code></li>
                         <li><strong>GitHub Actions:</strong> "Application Provisioning" workflow</li>
-                        <li><strong>See:</strong> <a href="../application/README.md">Application Deployment README</a> for complete deployment guide</li>
-                        <li><strong>Note:</strong> The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled) or manually using Helm charts. See <a href="auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a> for manual deployment instructions.</li>
+                        <li><strong>See:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md">Application Deployment README</a> for complete deployment guide</li>
+                        <li><strong>Note:</strong> The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled) or manually using Helm charts. See <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a> for manual deployment instructions.</li>
                     </ul>
                 </li>
             </ol>
             <p><strong>Destroy Order:</strong> Always destroy in <strong>reverse order</strong>: Application → Application Infrastructure → Backend Infrastructure → State</p>
-            <p><strong>For detailed deployment information:</strong> <a href="../README.md#deployment-methods">Deployment Methods</a> | <a href="../README.md#deployment-overview">Deployment Overview</a></p>
+            <p><strong>For detailed deployment information:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#deployment-methods">Deployment Methods</a> | <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#deployment-overview">Deployment Overview</a></p>
         </div>
     </section>
     <!-- Architecture -->
@@ -1025,7 +1055,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     </ul>
                 </li>
             </ul>
-            <p><strong>For detailed architecture documentation:</strong> <a href="../README.md#multi-account-architecture">Multi-Account Architecture</a> | <a href="../tf_backend_state/README.md">Terraform Backend State README</a></p>
+            <p><strong>For detailed architecture documentation:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#multi-account-architecture">Multi-Account Architecture</a> | <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/tf_backend_state/README.md">Terraform Backend State README</a></p>
         </div>
         <h3 id="how-it-works">How It Works</h3>
         <div class="card">
@@ -1092,7 +1122,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             <ul>
                 <li><strong>OpenLDAP Stack HA</strong> deployed via vendored Helm chart
                     (<code>application_infra/charts/openldap-stack-ha</code>, version 5.0.0,
-                    osixia/openldap:1.5.0; see <a href="../application_infra/OPENLDAP_CHANGELOG.md">OPENLDAP_CHANGELOG.md</a>) with:
+                    osixia/openldap:1.5.0; see <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/OPENLDAP_CHANGELOG.md">OPENLDAP_CHANGELOG.md</a>) with:
                     <ul>
                         <li>OpenLDAP StatefulSet (3 replicas for high availability)</li>
                         <li>PhpLdapAdmin web interface</li>
@@ -1116,15 +1146,15 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <li><strong>Route53 DNS</strong> records for phpldapadmin and ltb-passwd subdomains pointing to ALB</li>
                 <li><strong>Persistent Storage</strong> using EBS-backed StorageClass (shared by all namespaces)</li>
             </ul>
-            <p><strong>For detailed infrastructure documentation:</strong> <a href="../application_infra/README.md">Application Infrastructure README</a></p>
+            <p><strong>For detailed infrastructure documentation:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md">Application Infrastructure README</a></p>
         </div>
         <h3 id="application-components">Application Components</h3>
         <div class="card">
             <ul>
                 <li><strong>2FA Application</strong> with LDAP authentication integration:
                     <ul>
-                        <li>Python FastAPI backend with TOTP and SMS MFA support (<a href="../application/backend/README.md">Backend Documentation</a>)</li>
-                        <li>Static HTML/JS/CSS frontend with modern UI (<a href="../application/frontend/README.md">Frontend Documentation</a>)</li>
+                        <li>Python FastAPI backend with TOTP and SMS MFA support (<a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/backend/README.md">Backend Documentation</a>)</li>
+                        <li>Static HTML/JS/CSS frontend with modern UI (<a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/frontend/README.md">Frontend Documentation</a>)</li>
                         <li>Single domain routing (<code>app.&lt;domain&gt;</code>) with path-based access</li>
                         <li>Self-service user registration with email/phone verification</li>
                         <li>Admin dashboard for user management and group operations</li>
@@ -1138,8 +1168,8 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <li><strong>ArgoCD Applications</strong> for GitOps-driven backend and frontend deployments</li>
                 <li><strong>Route53 DNS</strong> record for 2FA application subdomain (<code>app.&lt;domain&gt;</code>)</li>
             </ul>
-            <p><strong>For detailed application documentation:</strong> <a href="../application/README.md">Application Deployment README</a></p>
-            <p><strong>Note:</strong> Application components require infrastructure to be deployed first. See <a href="../application_infra/README.md">Application Infrastructure README</a> for infrastructure deployment.</p>
+            <p><strong>For detailed application documentation:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md">Application Deployment README</a></p>
+            <p><strong>Note:</strong> Application components require infrastructure to be deployed first. See <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md">Application Infrastructure README</a> for infrastructure deployment.</p>
         </div>
     </section>
     <!-- Documentation Index -->
@@ -1148,157 +1178,157 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
         <h3 id="infrastructure-documentation">Infrastructure Documentation</h3>
         <div class="doc-grid">
             <div class="doc-item">
-                <a href="../tf_backend_state/README.md">Terraform Backend State</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/tf_backend_state/README.md">Terraform Backend State</a>
                 <p>S3 state management and GitHub variable configuration</p>
             </div>
             <div class="doc-item">
-                <a href="../backend_infra/README.md">Backend Infrastructure</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/README.md">Backend Infrastructure</a>
                 <p>VPC, EKS, IRSA, VPC endpoints, and ECR documentation</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/README.md">Application Infrastructure</a>
-                <a href="../application/README.md">Application Deployment</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md">Application Infrastructure</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md">Application Deployment</a>
                 <p>OpenLDAP, 2FA app, ALB, ArgoCD, and deployment instructions</p>
             </div>
         </div>
         <h3 id="application-documentation">Application Documentation</h3>
         <div class="doc-grid">
             <div class="doc-item">
-                <a href="../application/backend/README.md">Backend API Documentation</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/backend/README.md">Backend API Documentation</a>
                 <p>Comprehensive FastAPI backend documentation: architecture, installation, configuration, API endpoints, deployment, and security</p>
             </div>
             <div class="doc-item">
-                <a href="../application/frontend/README.md">Frontend Application Documentation</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/frontend/README.md">Frontend Application Documentation</a>
                 <p>Complete frontend SPA documentation: architecture, features, deployment, development, security, and troubleshooting</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application/design/PRD_2FA_APP.md">2FA Application PRD</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_2FA_APP.md">2FA Application PRD</a>
                 <p>Product requirements for the 2FA application (API specs, frontend architecture, Swagger UI)</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application/design/PRD_SIGNUP_MAN.md">User Signup Management PRD</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_SIGNUP_MAN.md">User Signup Management PRD</a>
                 <p>Self-service user registration with email/phone verification and profile state management</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application/design/PRD_ADMIN_FUNCS.md">Admin Functions PRD</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_ADMIN_FUNCS.md">Admin Functions PRD</a>
                 <p>Admin dashboard, group CRUD operations, user management, and approval workflows</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application/design/PRD_SMS_MAN.md">SMS OTP Management PRD</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_SMS_MAN.md">SMS OTP Management PRD</a>
                 <p>Redis-based SMS OTP and login challenge storage with TTL-based automatic expiration (required)</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application_infra/guides/OPENLDAP_README.md">OpenLDAP README</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/OPENLDAP_README.md">OpenLDAP README</a>
                 <p>OpenLDAP configuration and TLS setup</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application_infra/guides/OSIXIA_OPENLDAP_REQUIREMENTS.md">Osixia OpenLDAP Requirements</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/OSIXIA_OPENLDAP_REQUIREMENTS.md">Osixia OpenLDAP Requirements</a>
                 <p>OpenLDAP image requirements and configuration details</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a>
                 <p>Complete step-by-step guide for deploying backend and frontend 2FA applications</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application/guides/SECRET_DEPENDENCIES.md">Secret Dependencies</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md">Secret Dependencies</a>
                 <p>Which components require which secrets (PostgreSQL, Redis, LDAP admin)</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application/guides/PASSWORD_FLOW.md">Password and MFA Flow</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/PASSWORD_FLOW.md">Password and MFA Flow</a>
                 <p>Password and MFA flow documentation</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md">Redis Enablement Summary</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md">Redis Enablement Summary</a>
                 <p>Redis (required) for SMS OTP and login challenges; verification steps</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>
                 <p>Complete guide for managing secrets via GitHub and AWS Secrets Manager</p>
             </div>
         </div>
         <h3 id="module-documentation">Module Documentation</h3>
         <div class="doc-grid">
             <div class="doc-item">
-                <a href="../application_infra/modules/alb/README.md">ALB Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/alb/README.md">ALB Module</a>
                 <p>EKS Auto Mode ALB configuration</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/modules/argocd/README.md">ArgoCD Capability Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/argocd/README.md">ArgoCD Capability Module</a>
                 <p>AWS managed ArgoCD setup</p>
             </div>
             <div class="doc-item">
-                <a href="../application/modules/argocd_app/README.md">ArgoCD Application Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/argocd_app/README.md">ArgoCD Application Module</a>
                 <p>GitOps application deployment</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/modules/cert-manager/README.md">cert-manager Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/cert-manager/README.md">cert-manager Module</a>
                 <p>TLS certificate management (module exists, not currently used)</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/modules/network-policies/README.md">Network Policies Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/network-policies/README.md">Network Policies Module</a>
                 <p>Pod-to-pod security</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/modules/openldap/README.md">OpenLDAP Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/openldap/README.md">OpenLDAP Module</a>
                 <p>LDAP directory service deployment</p>
             </div>
             <div class="doc-item">
-                <a href="../application/modules/postgresql/README.md">PostgreSQL Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/postgresql/README.md">PostgreSQL Module</a>
                 <p>User data and verification token storage</p>
             </div>
             <div class="doc-item">
-                <a href="../application/modules/redis/README.md">Redis Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/redis/README.md">Redis Module</a>
                 <p>SMS OTP and login challenge storage (required)</p>
             </div>
             <div class="doc-item">
-                <a href="../application/modules/ses/README.md">SES Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/ses/README.md">SES Module</a>
                 <p>Email verification and notifications</p>
             </div>
             <div class="doc-item">
-                <a href="../application/modules/sns/README.md">SNS Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/sns/README.md">SNS Module</a>
                 <p>SMS 2FA integration</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/modules/route53/README.md">Route53 Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/route53/README.md">Route53 Module</a>
                 <p>Route53 hosted zone management</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/modules/route53_record/README.md">Route53 Record Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/route53_record/README.md">Route53 Record Module</a>
                 <p>Route53 A (alias) records for ALB</p>
             </div>
             <div class="doc-item">
-                <a href="../backend_infra/modules/endpoints/README.md">VPC Endpoints Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/modules/endpoints/README.md">VPC Endpoints Module</a>
                 <p>Private AWS service access</p>
             </div>
             <div class="doc-item">
-                <a href="../backend_infra/modules/ecr/README.md">ECR Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/modules/ecr/README.md">ECR Module</a>
                 <p>Container registry setup</p>
             </div>
             <div class="doc-item">
-                <a href="../backend_infra/modules/ebs/README.md">EBS Module</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/modules/ebs/README.md">EBS Module</a>
                 <p>EBS storage configuration</p>
             </div>
         </div>
         <h3 id="configuration-documentation">Configuration Documentation</h3>
         <div class="doc-grid">
             <div class="doc-item">
-                <a href="auxiliary/application_infra/design/PRD_ALB.md">ALB Configuration PRD</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/design/PRD_ALB.md">ALB Configuration PRD</a>
                 <p>Application Load Balancer configuration details</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application_infra/design/PRD_ArgoCD.md">ArgoCD Capability Configuration PRD</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/design/PRD_ArgoCD.md">ArgoCD Capability Configuration PRD</a>
                 <p>GitOps deployment configuration</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application_infra/design/PRD_DOMAIN.md">Domain Configuration PRD</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/design/PRD_DOMAIN.md">Domain Configuration PRD</a>
                 <p>Route53 and domain setup</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application_infra/design/PRD_OPENLDAP.md">OpenLDAP Deployment PRD</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/design/PRD_OPENLDAP.md">OpenLDAP Deployment PRD</a>
                 <p>OpenLDAP deployment requirements and configuration</p>
             </div>
             <div class="doc-item">
-                <a href="auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md">Cross-Account Access Documentation</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md">Cross-Account Access Documentation</a>
                 <p>Route53 and ACM certificate cross-account access configuration</p>
             </div>
         </div>
@@ -1306,36 +1336,36 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
         <div class="card">
             <p>Design docs, guides, and troubleshooting under <code>docs/auxiliary/</code>:</p>
             <ul>
-                <li><strong>Reference:</strong> <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>, <a href="auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md">Debug Commands</a> (copy-paste commands for OpenLDAP, ArgoCD, admin-seed, 2FA backend, EKS)</li>
+                <li><strong>Reference:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>, <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md">Debug Commands</a> (copy-paste commands for OpenLDAP, ArgoCD, admin-seed, 2FA backend, EKS)</li>
                 <li><strong>Application:</strong> design (PRDs), deployment, guides (password flow, Redis, secret dependencies)</li>
                 <li><strong>Application infrastructure:</strong> design (PRDs), guides (cross-account, OpenLDAP, security)</li>
-                <li><strong>Troubleshooting:</strong> <a href="auxiliary/troubleshooting/INDEX.md">Troubleshooting Index</a></li>
+                <li><strong>Troubleshooting:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md">Troubleshooting Index</a></li>
             </ul>
         </div>
         <h3 id="security-operations">Security & Operations</h3>
         <div class="doc-grid">
             <div class="doc-item">
-                <a href="auxiliary/application_infra/guides/SECURITY_IMPROVEMENTS.md">Security Improvements</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/SECURITY_IMPROVEMENTS.md">Security Improvements</a>
                 <p>Security enhancements and best practices</p>
             </div>
             <div class="doc-item">
-                <a href="../CHANGELOG.md">Project Changelog</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/CHANGELOG.md">Project Changelog</a>
                 <p>All project changes including latest features and improvements</p>
             </div>
             <div class="doc-item">
-                <a href="../backend_infra/CHANGELOG.md">Backend Infrastructure Changelog</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/CHANGELOG.md">Backend Infrastructure Changelog</a>
                 <p>Backend infrastructure changes (VPC, EKS, IRSA, VPC endpoints)</p>
             </div>
             <div class="doc-item">
-                <a href="../application_infra/CHANGELOG.md">Application Infrastructure Changelog</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md">Application Infrastructure Changelog</a>
                 <p>OpenLDAP, ALB, ArgoCD Capability, and infrastructure changes</p>
             </div>
             <div class="doc-item">
-                <a href="../application/CHANGELOG.md">Application Changelog</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md">Application Changelog</a>
                 <p>2FA app, PostgreSQL, Redis, SES, SNS, and ArgoCD Applications changes</p>
             </div>
             <div class="doc-item">
-                <a href="../tf_backend_state/CHANGELOG.md">Terraform Backend State Changelog</a>
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/tf_backend_state/CHANGELOG.md">Terraform Backend State Changelog</a>
                 <p>S3 state management changes (v1.0.0 with file-based locking)</p>
             </div>
         </div>
@@ -1373,7 +1403,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <li>SMS: user requests a code on the MFA step; 6-digit OTP is sent via AWS SNS; user enters it in the same verification code field.</li>
                 <li>User profile management with edit restrictions for verified fields</li>
                 <li>Admin dashboard for user management, group CRUD operations, and approval workflows (visible to LDAP admin group members only)</li>
-                <li><strong>First admin (optional):</strong> You can seed the first admin so they use the same username/password as the LDAP admin; set <code>ADMIN_SEED_*</code> secrets (see <a href="auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>). The seeded admin does not have MFA pre-configured; they follow the same two-step login flow and set up Authenticator or use SMS like any other user.</li>
+                <li><strong>First admin (optional):</strong> You can seed the first admin so they use the same username/password as the LDAP admin; set <code>ADMIN_SEED_*</code> secrets (see <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>). The seeded admin does not have MFA pre-configured; they follow the same two-step login flow and set up Authenticator or use SMS like any other user.</li>
                 <li><strong>Interactive API Documentation</strong> (always enabled):
                     <ul>
                         <li><code>/api/docs</code> - Swagger UI for interactive API exploration and testing</li>
@@ -1382,7 +1412,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     </ul>
                 </li>
             </ul>
-            <p><strong>Documentation:</strong> <a href="../application/backend/README.md">Backend API Documentation</a> | <a href="../application/frontend/README.md">Frontend Application Documentation</a></p>
+            <p><strong>Documentation:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/backend/README.md">Backend API Documentation</a> | <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/frontend/README.md">Frontend Application Documentation</a></p>
         </div>
         <h3 id="phpldapadmin-access">PhpLdapAdmin</h3>
         <div class="card">
@@ -1466,7 +1496,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <li><strong>ECR Image Support</strong>: All modules (OpenLDAP, PostgreSQL, Redis) use ECR images instead of Docker Hub to prevent rate limiting</li>
                 <li><strong>Kubeconfig Auto-Update</strong>: Automatic kubeconfig updates prevent stale cluster endpoints and DNS lookup errors</li>
             </ul>
-            <p><strong>For detailed security documentation:</strong> <a href="auxiliary/application_infra/guides/SECURITY_IMPROVEMENTS.md">Security Improvements</a></p>
+            <p><strong>For detailed security documentation:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/SECURITY_IMPROVEMENTS.md">Security Improvements</a></p>
         </div>
     </section>
     <!-- Contributing & Support -->
@@ -1514,17 +1544,17 @@ source ./scripts/assume-github-role.sh</code></pre>
                 <li>No argument - Interactive prompt for account selection</li>
             </ul>
             <p><strong>Note:</strong> The script must be <strong>sourced</strong> for credentials to persist. Use <code>source ./scripts/assume-github-role.sh [option]</code> or <code>eval $(./scripts/assume-github-role.sh [option])</code>.</p>
-            <p><strong>For detailed documentation:</strong> See <a href="../README.md#operations--monitoring">Operations &amp; Monitoring</a> in the main README.</p>
+            <p><strong>For detailed documentation:</strong> See <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#operations--monitoring">Operations &amp; Monitoring</a> in the main README.</p>
         </div>
         <h3 id="troubleshooting">Troubleshooting</h3>
         <div class="card">
-            <p><strong><a href="auxiliary/troubleshooting/INDEX.md">Troubleshooting Index</a></strong> – Central index (deployment, application layer, LDAP admin seed, secrets, debug commands).</p>
-            <p>Copy-paste commands: <a href="auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md">Debug Commands</a>. ArgoCD capability IAM: see Debug Commands (ArgoCD section) and the ArgoCD module README.</p>
+            <p><strong><a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md">Troubleshooting Index</a></strong> – Central index (deployment, application layer, LDAP admin seed, secrets, debug commands).</p>
+            <p>Copy-paste commands: <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md">Debug Commands</a>. ArgoCD capability IAM: see Debug Commands (ArgoCD section) and the ArgoCD module README.</p>
             <ul>
-                <li><a href="../backend_infra/README.md#troubleshooting">Backend Infrastructure</a></li>
-                <li><a href="../application_infra/README.md#troubleshooting">Application Infrastructure</a></li>
-                <li><a href="../application/README.md#troubleshooting">Application</a></li>
-                <li><a href="auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md">LDAP and Admin-Seed-Job</a></li>
+                <li><a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/README.md#troubleshooting">Backend Infrastructure</a></li>
+                <li><a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md#troubleshooting">Application Infrastructure</a></li>
+                <li><a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md#troubleshooting">Application</a></li>
+                <li><a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md">LDAP and Admin-Seed-Job</a></li>
             </ul>
         </div>
         <h3 id="repository">Repository</h3>
@@ -1543,75 +1573,7 @@ source ./scripts/assume-github-role.sh</code></pre>
         <p>&copy; 2025 Tal Orlik. Licensed under MIT License.</p>
         <p>LDAP Authentication with 2FA on Kubernetes (EKS)</p>
     </footer>
-    <script>
-        // Theme management
-        const themeStylesheet = document.getElementById('theme-stylesheet');
-        const themeToggle = document.getElementById('themeToggle');
-        const sunIcon = document.getElementById('sunIcon');
-        const moonIcon = document.getElementById('moonIcon');
-        // Get saved theme or default to light
-        const currentTheme = localStorage.getItem('theme') || 'light';
-        function setTheme(theme) {
-            if (theme === 'dark') {
-                themeStylesheet.href = 'dark-theme.css';
-                // Show sun icon (to switch to light theme)
-                sunIcon.classList.remove('hidden');
-                moonIcon.classList.add('hidden');
-                themeToggle.setAttribute('aria-label', 'Switch to light theme');
-                themeToggle.setAttribute('title', 'Switch to light theme');
-                localStorage.setItem('theme', 'dark');
-            } else {
-                themeStylesheet.href = 'light-theme.css';
-                // Show moon icon (to switch to dark theme)
-                sunIcon.classList.add('hidden');
-                moonIcon.classList.remove('hidden');
-                themeToggle.setAttribute('aria-label', 'Switch to dark theme');
-                themeToggle.setAttribute('title', 'Switch to dark theme');
-                localStorage.setItem('theme', 'light');
-            }
-        }
-        // Initialize theme on page load
-        setTheme(currentTheme);
-        // Toggle theme on button click
-        themeToggle.addEventListener('click', () => {
-            const newTheme = themeStylesheet.href.includes('dark-theme.css') ? 'light' : 'dark';
-            setTheme(newTheme);
-        });
-        // Mobile menu toggle
-        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-        const navMenu = document.getElementById('navMenu');
-        mobileMenuToggle.addEventListener('click', () => {
-            navMenu.classList.toggle('active');
-        });
-        // Close mobile menu when clicking on a link
-        const navLinks = document.querySelectorAll('.nav-menu a');
-        navLinks.forEach(link => {
-            link.addEventListener('click', () => {
-                navMenu.classList.remove('active');
-            });
-        });
-        // Active section highlighting
-        const sections = document.querySelectorAll('section[id]');
-        const navLinksArray = Array.from(navLinks);
-        function highlightActiveSection() {
-            const scrollY = window.pageYOffset;
-            sections.forEach(section => {
-                const sectionHeight = section.offsetHeight;
-                const sectionTop = section.offsetTop - 150;
-                const sectionId = section.getAttribute('id');
-                if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
-                    navLinksArray.forEach(link => {
-                        link.classList.remove('active');
-                        if (link.getAttribute('href') === `#${sectionId}`) {
-                            link.classList.add('active');
-                        }
-                    });
-                }
-            });
-        }
-        window.addEventListener('scroll', highlightActiveSection);
-        window.addEventListener('load', highlightActiveSection);
-    </script>
+    </main>
     <!-- Scroll to Top Button -->
     <button id="scrollToTopButton" class="scroll-to-top" aria-label="Scroll to top" title="Scroll to top">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1620,54 +1582,6 @@ source ./scripts/assume-github-role.sh</code></pre>
             <line x1="12" y1="8" x2="12" y2="16"></line>
         </svg>
     </button>
-    <script>
-        // Initialize scroll to top button after DOM is ready
-        function initScrollToTop() {
-            const scrollToTopButton = document.getElementById('scrollToTopButton');
-            if (!scrollToTopButton) {
-                console.error('Scroll to top button not found');
-                return;
-            }
-            // Check scroll position on load
-            function checkScroll() {
-                if (window.pageYOffset > 100 || document.documentElement.scrollTop > 100) {
-                    scrollToTopButton.classList.add('visible');
-                } else {
-                    scrollToTopButton.classList.remove('visible');
-                }
-            }
-            // Initial check
-            checkScroll();
-            // Handle scroll events
-            window.addEventListener('scroll', checkScroll);
-            // Handle click
-            scrollToTopButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-            });
-        }
-        // Initialize when DOM is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initScrollToTop);
-        } else {
-            initScrollToTop();
-        }
-        // Smooth scroll for anchor links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            });
-        });
-    </script>
+    <script src="main.js"></script>
 </body>
 </html>

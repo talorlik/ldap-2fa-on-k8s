@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > This changelog contains infrastructure-related changes (OpenLDAP, ALB, Route53,
 > ArgoCD Capability, StorageClass, Network Policies). Application changes
 > (PostgreSQL, Redis, SES, SNS, 2FA application backend/frontend, ArgoCD Applications)
-> are documented in [application/CHANGELOG.md](../application/CHANGELOG.md).
+> are documented in [application/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md).
 
 ## [2026-02-26] - OpenLDAP Custom LDIF Mount Fix and Headless Host Output
 
@@ -33,14 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   into `/container/service/slapd/assets/config/bootstrap/ldif/custom/` before
   running `/container/tool/run`. The bootstrap custom directory is no longer
   a direct volume mount, avoiding conflicts with osixia's startup cleanup.
-  - See [OPENLDAP_CHANGELOG.md](OPENLDAP_CHANGELOG.md) [5.0.2].
+  - See [OPENLDAP_CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/OPENLDAP_CHANGELOG.md)
+  [5.0.2].
 
 ## [2026-02-26] - Log Capture, Busybox ECR, Network Policy LDAP Port
 
 ### Added
 
 - **Capturing logs before rollback**: New guide
-  [CAPTURING_LOGS_BEFORE_ROLLBACK.md](../docs/auxiliary/troubleshooting/application_infra/CAPTURING_LOGS_BEFORE_ROLLBACK.md)
+  [CAPTURING_LOGS_BEFORE_ROLLBACK](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/application_infra/CAPTURING_LOGS_BEFORE_ROLLBACK.md)
   and script `scripts/capture-openldap-logs.sh`. When OpenLDAP deploy fails with
   atomic rollback, logs are lost. The guide explains setting `openldap_helm_atomic
   = false` for debugging so failed releases stay in place; the script dumps pod
@@ -57,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **OpenLDAP chart**: Version 5.0.1; new optional value `customLdifInitImage`.
-  See [OPENLDAP_CHANGELOG.md](OPENLDAP_CHANGELOG.md).
+  See [OPENLDAP_CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/OPENLDAP_CHANGELOG.md).
 - **variables.tfvars**: Commented example for `openldap_helm_atomic = false`
   for debugging.
 
@@ -98,7 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added comment and troubleshooting steps when apply fails with "resource
   ... already exists" for `kubernetes_manifest.ingressclassparams_alb`. Import
   the existing resource into state so Terraform can manage/update it; see
-  [APPLICATION_INFRA_DEPLOYMENT.md](../docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+  [APPLICATION_INFRA_DEPLOYMENT](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
   (section "ALB / IngressClassParams Failures").
 
 ### Documentation
@@ -141,8 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   applicable).
   - Chart is vendored locally at `application_infra/charts/openldap-stack-ha`
   (version 5.0.0, osixia/openldap:1.5.0). READMEs and module documentation
-  reference [OPENLDAP_CHANGELOG.md](OPENLDAP_CHANGELOG.md) for chart change
-  details.
+  reference [OPENLDAP_CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/OPENLDAP_CHANGELOG.md)
+  for chart change details.
 
 ### Added
 
@@ -156,7 +157,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   structure across pods (each pod initialized independently with empty directory)
   - Added `openldap_base_dn` variable and computed local in OpenLDAP module for
   LDIF template interpolation
-  - See [LDAP and Admin-Seed Troubleshooting](../docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
+  - See [LDAP and Admin-Seed Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
   for detailed investigation and root cause analysis
 
 - **PhpLdapAdmin and LTB-passwd image mirroring and Helm timeout**
@@ -186,7 +187,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`modules/openldap/main.tf`) and the vendored chart
   (`charts/openldap-stack-ha`) are aligned on `LDAP_CONFIG_PASSWORD`.
   - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) is unchanged.
-  - See [Osixia OpenLDAP Requirements](../docs/auxiliary/application_infra/guides/OSIXIA_OPENLDAP_REQUIREMENTS.md).
+  - See [Osixia OpenLDAP Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/OSIXIA_OPENLDAP_REQUIREMENTS.md).
 
 - **OpenLDAP secret and chart: environment variable names for passwords**
   - Corrected secret key names in the vendored chart and Terraform to use
@@ -818,8 +819,8 @@ admin-seed Job and can use them for manual Helm or other automation.
 > [!NOTE]
 >
 > ArgoCD Application CRDs are created by the `application/` Terraform configuration.
-> See [application/CHANGELOG.md](../application/CHANGELOG.md) for ArgoCD Application
-> changes.
+> See [application/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md)
+> for ArgoCD Application changes.
 
 ### Changed
 

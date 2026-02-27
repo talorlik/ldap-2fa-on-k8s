@@ -2,8 +2,7 @@
 
 This module deploys OpenLDAP Stack HA using Helm, including phpLDAPadmin and
 ltb-passwd web interfaces, with ALB ingress. Route53 DNS records are created by
-the dedicated `route53_record` module (see [Route53 Record Module
-Documentation](../route53_record/README.md)).
+the dedicated `route53_record` module (see [Route53 Record Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/route53_record/README.md)).
 
 ## Features
 
@@ -142,8 +141,9 @@ first resource before creating the namespace and Helm release.
 >
 > Route53 DNS records for phpLDAPadmin and ltb-passwd are created by the dedicated
 > `route53_record` module in `application_infra/main.tf`. The Route53 record for
-> the 2FA application is created in `application/main.tf`. See [Route53 Record Module
-> Documentation](../route53_record/README.md) for details.
+> the 2FA application is created in `application/main.tf`.
+> See [Route53 Record Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/route53_record/README.md)
+> for details.
 
 ## High Availability Configuration
 
@@ -218,8 +218,8 @@ image:
   pullPolicy: IfNotPresent
 ```
 
-For more information about image mirroring, see the [Application Infrastructure
-README](../README.md#ecr-image-mirroring-automatic).
+For more information about image mirroring,
+see the [Application Infrastructure README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md#ecr-image-mirroring-automatic).
 
 ## Internal LDAP Service
 
@@ -244,7 +244,8 @@ Services in other namespaces can access the LDAP service using:
 - Network policies are applied by default to secure inter-pod communication
 - Route53 DNS records for phpLDAPadmin and ltb-passwd are created by the dedicated
   `route53_record` module in `application_infra/main.tf` (see
-  [Route53 Record Module Documentation](../route53_record/README.md))
+  [Route53 Record Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/route53_record/README.md))
 - Chart is vendored locally at `application_infra/charts/openldap-stack-ha` (version
-  5.0.0, osixia/openldap:1.5.0). See [OPENLDAP_CHANGELOG.md](../../OPENLDAP_CHANGELOG.md).
+  5.0.0, osixia/openldap:1.5.0). See
+[OPENLDAP_CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/OPENLDAP_CHANGELOG.md).
 - Helm release name: `openldap-stack-ha` (configurable)

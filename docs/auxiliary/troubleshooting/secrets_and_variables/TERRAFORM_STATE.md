@@ -57,6 +57,6 @@ and GitHub Actions OIDC used by `tf_backend_state` and workflows.
 
 ## Related Documentation
 
-- [Troubleshooting Index](../INDEX.md)
-- [Secrets and Variables](SECRETS_AND_VARIABLES.md)
-- [tf_backend_state README](../../../tf_backend_state/README.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
+- [Secrets and Variables](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/secrets_and_variables/SECRETS_AND_VARIABLES.md)
+- [tf_backend_state README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/tf_backend_state/README.md)

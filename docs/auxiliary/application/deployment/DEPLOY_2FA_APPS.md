@@ -357,8 +357,8 @@ Once deployed, access the application at:
 For pods not starting, image pull errors, Ingress/ALB conflicting load
 balancer name, backend connectivity (LDAP, PostgreSQL, Redis), and IRSA, see:
 
-- [Application Layer Troubleshooting](../docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
-- [Debug Commands](../docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
+- [Application Layer Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
+- [Debug Commands](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
 
 ## Updating Deployments
 

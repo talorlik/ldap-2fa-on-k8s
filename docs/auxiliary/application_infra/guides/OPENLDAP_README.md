@@ -9,7 +9,7 @@
 > This project uses a **vendored** chart at `application_infra/charts/openldap-stack-ha`
 > (version 5.0.0, osixia/openldap:1.5.0). The upstream jp-gouin/helm-openldap chart
 > was forked and rewritten for osixia compatibility. See
-> [OPENLDAP_CHANGELOG.md](../../../application_infra/OPENLDAP_CHANGELOG.md)
+> [OPENLDAP_CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/OPENLDAP_CHANGELOG.md)
 > for details.
 
 ## 1. What the chart deploys

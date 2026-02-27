@@ -366,7 +366,7 @@ Ensure you have:
 - An existing Route53 hosted zone for your domain
 - **Public ACM certificates** requested in each deployment account and validated
 via DNS records in State Account's Route53 hosted zone
-  - See [Public ACM Certificate Setup and DNS Validation](docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  - See [Public ACM Certificate Setup and DNS Validation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for detailed setup instructions
   - Certificates are browser-trusted (no security warnings) and automatically
   renewed by ACM
@@ -1058,8 +1058,8 @@ deployment)
 >
 > This project uses AWS SSO via GitHub OIDC instead of access keys.
 > Workflows automatically select the appropriate deployment role ARN based on the
-> selected environment. See main [README.md](README.md) for detailed IAM setup
-> instructions.
+> selected environment. See main [README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md)
+> for detailed IAM setup instructions.
 
 ### Required GitHub Variables
 
@@ -1479,14 +1479,15 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Updated backend README to reflect current Dockerfile and deployment process
 
 - **Application Documentation**:
-  - [PASSWORD_FLOW.md](docs/auxiliary/application/guides/PASSWORD_FLOW.md) - Documents
-  how passwords flow from GitHub Secrets/AWS Secrets Manager → Terraform environment
-  variables → Terraform variables → Kubernetes secrets
-  - [REDIS_ENABLEMENT_SUMMARY.md](docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md)
-  Guide for enabling Redis and SMS 2FA, including verification steps and troubleshooting
-  - [SECRET_DEPENDENCIES.md](docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md)
-  Documents which components require which secrets (PostgreSQL, Redis, LDAP admin)
-  and cross-namespace secret copying requirements
+  - [PASSWORD_FLOW](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/PASSWORD_FLOW.md)
+  - Documents how passwords flow from GitHub Secrets/AWS Secrets Manager to
+  Terraform environment variables to Terraform variables to Kubernetes secrets
+  - [REDIS_ENABLEMENT_SUMMARY](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md)
+  - Guide for enabling Redis and SMS 2FA, including verification steps and
+  troubleshooting
+  - [SECRET_DEPENDENCIES](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md)
+  - Documents which components require which secrets (PostgreSQL, Redis, LDAP
+  admin) and cross-namespace secret copying requirements
 
 ### ArgoCD Module Resource Fix and App Deployment Validation (January 26, 2026)
 
@@ -2015,7 +2016,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Handles Helm release deployment with templated values
   - Creates ALB Ingress resources for public access
   - Route53 DNS records now created separately via `route53_record` module
-  - See [OpenLDAP Module Documentation](application/modules/openldap/README.md)
+  - See [OpenLDAP Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/openldap/README.md)
   for details
 - **Kubernetes Secrets for All Components**:
   - **OpenLDAP**: Kubernetes secret created by OpenLDAP module for admin/config
@@ -2410,13 +2411,13 @@ passwords, ALB, Route53, IngressClass, certificate, OpenLDAP auth (49), ALB
 ingress group, Route53 state, and admin-seed-job issues, see the consolidated
 troubleshooting docs:
 
-- [Troubleshooting Index](docs/auxiliary/troubleshooting/INDEX.md)
-- [LDAP and Admin-Seed](docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED.md)
-Investigation, root causes, ad-hoc corrections, permanent fixes
-- [Application Infrastructure Deployment](docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
-ArgoCD, OpenLDAP, Helm, ECR, ALB
-- [Cross-Account and DNS](docs/auxiliary/troubleshooting/cross_account_dns/CROSS_ACCOUNT_AND_DNS.md)
-Route53, ACM certificates
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
+- [LDAP and Admin-Seed](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED.md)
+  Investigation, root causes, ad-hoc corrections, permanent fixes
+- [Application Infrastructure Deployment](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+  ArgoCD, OpenLDAP, Helm, ECR, ALB
+- [Cross-Account and DNS](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/cross_account_dns/CROSS_ACCOUNT_AND_DNS.md)
+  Route53, ACM certificates
 
 ## Important Notes
 

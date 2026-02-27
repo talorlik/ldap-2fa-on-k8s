@@ -15,7 +15,7 @@ requirements.
 > replication with the osixia image.
 >
 > For the full list of changes see
-> [OPENLDAP_CHANGELOG.md](../../../application_infra/OPENLDAP_CHANGELOG.md).
+> [OPENLDAP_CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/OPENLDAP_CHANGELOG.md).
 
 ## Functional Requirements
 
@@ -275,11 +275,13 @@ rendered values passed to `helm_release` → chart uses them directly. No
 
 ## Related Documentation
 
-- [OPENLDAP_CHANGELOG.md](../../../application_infra/OPENLDAP_CHANGELOG.md) -
-  Detailed changelog for vendored chart
-- [OPENLDAP_README.md](../guides/OPENLDAP_README.md) - Technical reference for
-  Helm chart configuration
-- [PRD_ALB.md](PRD_ALB.md) - ALB configuration requirements
-- [PRD_DOMAIN.md](PRD_DOMAIN.md) - Route53 and ACM certificate requirements
-- [Application Infrastructure README](../../../application_infra/README.md) -
-  Complete infrastructure overview
+- [OPENLDAP_CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/OPENLDAP_CHANGELOG.md)
+  - Detailed changelog for vendored chart
+- [OPENLDAP_README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/OPENLDAP_README.md)
+  - Technical reference for Helm chart configuration
+- [PRD_ALB](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/design/PRD_ALB.md)
+  - ALB configuration requirements
+- [PRD_DOMAIN](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/design/PRD_DOMAIN.md)
+  - Route53 and ACM certificate requirements
+- [Application Infrastructure README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md)
+  - Complete infrastructure overview

@@ -322,15 +322,15 @@ recommended to keep it enabled for production deployments.
 For record creation failures (ALB DNS name must be available), record
 pointing to wrong ALB, and cross-account access, see:
 
-- [Cross-Account and DNS Troubleshooting](../../../docs/auxiliary/troubleshooting/cross_account_dns/CROSS_ACCOUNT_AND_DNS.md)
-- [Troubleshooting Index](../../../docs/auxiliary/troubleshooting/INDEX.md)
+- [Cross-Account and DNS Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/cross_account_dns/CROSS_ACCOUNT_AND_DNS.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
 
 ## Related Documentation
 
 - [AWS Route53 Alias Records](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-choosing-alias-non-alias.html)
 - [Application Load Balancer Zone IDs](https://docs.aws.amazon.com/general/latest/gr/elb.html)
-- [Cross-Account Access Documentation](../../../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
-- [Application Infrastructure README](../README.md)
+- [Cross-Account Access Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
+- [Application Infrastructure README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md)
 
 ## Examples
 

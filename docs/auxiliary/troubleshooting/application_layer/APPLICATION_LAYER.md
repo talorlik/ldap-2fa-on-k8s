@@ -106,7 +106,7 @@ kubectl get pod -n 2fa-app -o jsonpath='{.items[0].spec.containers[0].env}' | jq
   `kubectl exec -it -n redis redis-master-0 -- redis-cli -a $REDIS_PASSWORD ping`
 
 For Redis connection issues, see also
-[REDIS_ENABLEMENT_SUMMARY.md](../../application/guides/REDIS_ENABLEMENT_SUMMARY.md#troubleshooting).
+[REDIS_ENABLEMENT_SUMMARY](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md#troubleshooting).
 
 ## Admin-Seed-Job Failures
 
@@ -122,8 +122,7 @@ For Redis connection issues, see also
   `uniqueMember`, not `member`. The LDAPClient now auto-detects the group
   objectClass.
 
-For full investigation and fixes, see
-[LDAP and Admin-Seed](../ldap_admin_seed/LDAP_ADMIN_SEED.md).
+For full investigation and fixes, see [LDAP and Admin-Seed](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED.md).
 
 ## SMS 2FA Not Working
 
@@ -147,10 +146,10 @@ For full investigation and fixes, see
 
 ## Related Documentation
 
-- [Troubleshooting Index](../INDEX.md)
-- [LDAP and Admin-Seed](../ldap_admin_seed/LDAP_ADMIN_SEED.md)
-- [Application Infrastructure Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md)
-- [Frontend Troubleshooting](../frontend/FRONTEND.md)
-- [Debug Commands](../reference/DEBUG_COMMANDS.md)
-- [application/README.md](../../../application/README.md)
-- [DEPLOY_2FA_APPS.md](../../application/deployment/DEPLOY_2FA_APPS.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
+- [LDAP and Admin-Seed](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED.md)
+- [Application Infrastructure Deployment](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+- [Frontend Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/frontend/FRONTEND.md)
+- [Debug Commands](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
+- [application/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
+- [DEPLOY_2FA_APPS](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/deployment/DEPLOY_2FA_APPS.md)

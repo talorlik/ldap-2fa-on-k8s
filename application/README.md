@@ -98,7 +98,7 @@ and verification data using the Bitnami Helm chart with persistent EBS-backed st
 > [!NOTE]
 >
 > For detailed PostgreSQL configuration, connection strings, database schema,
-> ECR image setup, and usage examples, see the [PostgreSQL Module Documentation](modules/postgresql/README.md).
+> ECR image setup, and usage examples, see the [PostgreSQL Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/postgresql/README.md).
 
 ### 2. Redis Module
 
@@ -116,7 +116,7 @@ persistent storage.
 > [!NOTE]
 >
 > For detailed Redis architecture, key schema, debugging commands, ECR image setup,
-> and configuration options, see the [Redis Module Documentation](modules/redis/README.md).
+> and configuration options, see the [Redis Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/redis/README.md).
 
 ### 3. SES Module
 
@@ -134,7 +134,7 @@ Route53 integration.
 > [!NOTE]
 >
 > For detailed SES configuration, email verification setup, IRSA configuration,
-> and usage examples, see the [SES Module Documentation](modules/ses/README.md).
+> and usage examples, see the [SES Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/ses/README.md).
 
 ### 4. SNS Module
 
@@ -151,7 +151,7 @@ including topic creation, IRSA configuration, and SMS preferences.
 > [!NOTE]
 >
 > For detailed SNS configuration, SMS setup, IRSA configuration,
-> and usage examples, see the [SNS Module Documentation](modules/sns/README.md).
+> and usage examples, see the [SNS Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/sns/README.md).
 
 ### 5. ArgoCD Application Modules
 
@@ -174,7 +174,7 @@ backend and frontend via GitOps.
 > [!NOTE]
 >
 > For detailed ArgoCD Application configuration, sync policies,
-> and usage examples, see the [ArgoCD Application Module Documentation](modules/argocd_app/README.md).
+> and usage examples, see the [ArgoCD Application Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/argocd_app/README.md).
 
 ### 6. Route53 Record
 
@@ -365,14 +365,14 @@ application/
 ## Prerequisites
 
 1. **Backend Infrastructure**: The backend infrastructure must be deployed first
-   (see [backend_infra/README.md](../backend_infra/README.md))
+   (see [backend_infra/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/README.md))
 2. **Application Infrastructure**: The application infrastructure must be deployed
-   first (see [application_infra/README.md](../application_infra/README.md))
+   first (see [application_infra/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md))
    - This provides StorageClass, ArgoCD Capability, and ALB DNS name
 3. **Multi-Account Setup**: Same as infrastructure (State Account and Deployment
    Account)
 4. **Secrets Configuration**: All required secrets must be configured.
-   See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+   See [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
    for complete setup instructions.
    **First admin seed (optional):** To have the same LDAP admin username/password
    log into the 2FA app, set the admin seed secrets (e.g. `ADMIN_SEED_USERNAME`,
@@ -497,7 +497,7 @@ accidental state conflicts or overwrites.
 > - `TF_VAR_postgresql_database_password`
 > - `TF_VAR_redis_password`
 >
-> See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+> See [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
 > for configuration details.
 
 ## Deployment
@@ -684,20 +684,21 @@ it prompts for region and environment, then produces a report. For backend-infra
 and application-infra monitoring, use `backend_infra/monitor-deployments.sh` and
 `application_infra/monitor-deployments.sh`. Setup and destroy scripts use
 `scripts/set-k8s-env.sh` for Kubernetes env and kubeconfig.
-See [Operations & Monitoring](../README.md#operations--monitoring) in the main README.
+See [Operations &amp; Monitoring](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#operations--monitoring)
+in the main README.
 
 ## Troubleshooting
 
 Consolidated troubleshooting for the application layer (2FA app, PostgreSQL,
 Redis, admin-seed, Ingress/ALB, SES, SNS) and for LDAP/admin-seed in detail:
 
-- [Application Layer Troubleshooting](../docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
-- [LDAP and Admin-Seed Troubleshooting](../docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED.md)
-Multi-master replication, directory structure, group membership attributes,
-admin user seeding.
-- [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)
-All troubleshooting documents.
-- [Debug Commands](../docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
+- [Application Layer Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
+- [LDAP and Admin-Seed Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED.md)
+  Multi-master replication, directory structure, group membership attributes,
+  admin user seeding.
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
+  All troubleshooting documents.
+- [Debug Commands](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
 
 ### Useful Commands
 
@@ -748,7 +749,7 @@ Service Accounts (no hardcoded AWS credentials)
 best practices
 6. **Password Security**: PostgreSQL and Redis passwords are marked as sensitive
 in Terraform and must be set via environment variables, never in `variables.tfvars`.
-See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+See [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
 for configuration details.
 7. **Encrypted Storage**: EBS volumes are encrypted by default
 (configurable via StorageClass from `application_infra`)
@@ -786,18 +787,22 @@ gateway)
 
 ## Documentation
 
-- [PostgreSQL Module](modules/postgresql/README.md)
-- [Redis Module](modules/redis/README.md)
-- [SES Module](modules/ses/README.md)
-- [SNS Module](modules/sns/README.md)
-- [ArgoCD Application Module](modules/argocd_app/README.md)
-- [Backend Application](backend/README.md)
-- [Frontend Application](frontend/README.md)
-- [Deploy 2FA Apps](DEPLOY_2FA_APPS.md)
-- [2FA Application PRD](PRD_2FA_APP.md) - Complete API and frontend requirements
-- [User Signup Management PRD](PRD_SIGNUP_MAN.md) - Self-service signup system
-- [Admin Functions PRD](PRD_ADMIN_FUNCS.md) - Admin dashboard and user management
-- [SMS OTP Management PRD](PRD_SMS_MAN.md) - Redis-based SMS OTP storage
+- [PostgreSQL Module](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/postgresql/README.md)
+- [Redis Module](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/redis/README.md)
+- [SES Module](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/ses/README.md)
+- [SNS Module](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/sns/README.md)
+- [ArgoCD Application Module](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/argocd_app/README.md)
+- [Backend Application](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/backend/README.md)
+- [Frontend Application](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/frontend/README.md)
+- [Deploy 2FA Apps](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/deployment/DEPLOY_2FA_APPS.md)
+- [2FA Application PRD](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_2FA_APP.md)
+  - Complete API and frontend requirements
+- [User Signup Management PRD](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_SIGNUP_MAN.md)
+  - Self-service signup system
+- [Admin Functions PRD](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_ADMIN_FUNCS.md)
+  - Admin dashboard and user management
+- [SMS OTP Management PRD](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_SMS_MAN.md)
+  - Redis-based SMS OTP storage
 
 ## References
 
@@ -811,6 +816,6 @@ gateway)
 
 ## Related Documentation
 
-- [Application Infrastructure](../application_infra/README.md)
-- [Backend Infrastructure](../backend_infra/README.md)
-- [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+- [Application Infrastructure](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md)
+- [Backend Infrastructure](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/README.md)
+- [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)

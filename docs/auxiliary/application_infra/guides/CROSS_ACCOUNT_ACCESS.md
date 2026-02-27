@@ -598,13 +598,12 @@ After setting up certificates, verify:
 For cross-account, Route53, and ACM certificate issues (empty result, ALB
 certificate not found, certificate validation), see the consolidated guide:
 
-- [Cross-Account and DNS Troubleshooting](../docs/auxiliary/troubleshooting/cross_account_dns/CROSS_ACCOUNT_AND_DNS.md)
+- [Cross-Account and DNS Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/cross_account_dns/CROSS_ACCOUNT_AND_DNS.md)
 
 It covers: Route53 hosted zone and record creation, ACM certificate placement
 in the Deployment Account, ALB CertificateNotFound, and verification steps.
-For full certificate setup, see the [Public ACM Certificate Setup and DNS
-Validation](#public-acm-certificate-setup-and-dns-validation) section above.
-The consolidated guide also covers Route53 record creation, certificate
+For full certificate setup, see the [Public ACM Certificate Setup and DNS Validation](#public-acm-certificate-setup-and-dns-validation)
+section above. The consolidated guide also covers Route53 record creation, certificate
 validation, and ALB certificate checks.
 
 ## Quick Reference: Environment Variables

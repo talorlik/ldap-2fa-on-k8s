@@ -112,8 +112,8 @@ The ECR registry and repository are automatically computed from the `backend_inf
 Terraform state in the parent module (`application/main.tf`). You only need to
 specify the `image_tag` if you want to use a different tag than the default.
 
-For more information about image mirroring, see the [Application Infrastructure
-README](../../application_infra/README.md#ecr-image-mirroring-automatic).
+For more information about image mirroring,
+see the [Application Infrastructure README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md#ecr-image-mirroring-automatic).
 
 ## Requirements
 

@@ -11,11 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **2FA frontend**: Form submission fix and QRCode.js version set to 1.4.4;
   null guards added for form/setup handlers so forms post correctly. See
-  [application/CHANGELOG.md](application/CHANGELOG.md).
+  [application/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md).
 - **Application infrastructure**: OpenLDAP chart custom LDIF bootstrap now uses
   a read-only mount and startup copy so osixia cleanup works correctly.
   OpenLDAP module and root now expose `ldap_headless_host` for admin-seed and
-  other consumers. See [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
+  other consumers. See [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 - **2FA backend**: Login mechanism corrected; Redis is now required for all
   challenge storage (SMS OTP and login challenges). In-memory fallback removed;
   endpoints return 503 when Redis is unavailable. Documentation updated
@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   docs/index.html, WARP.md).
 - **Admin-seed job**: Uses LDAP headless host from application_infra outputs
   (`LDAP_HEADLESS_HOST`) so OpenLDAP replica connections use correct pod DNS.
-  See [application/CHANGELOG.md](application/CHANGELOG.md).
+  See [application/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md).
 
 ## [2026-02-25] - ArgoCD Single Wait and OpenLDAP Pre-deploy in Module
 
@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Application infrastructure**: ArgoCD module now uses a single readiness wait
   (default 330s) instead of two sequential sleeps; OpenLDAP pre-deploy delay
   (3m) moved into the OpenLDAP module as its first resource. See
-  [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
+  [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
 ## [2026-02-24] - ArgoCD IAM Revert and IngressClassParams Troubleshooting
 
@@ -53,10 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `module.alb[0].kubernetes_manifest.ingressclassparams_alb`, import the
   existing resource into state so Terraform can manage/update it.
   - New troubleshooting section "ALB / IngressClassParams Failures" in
-  [APPLICATION_INFRA_DEPLOYMENT.md](docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+  [APPLICATION_INFRA_DEPLOYMENT](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
   with `terraform import` command. ALB module comment added with import
   instructions.
-  - See [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
+  - See [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
 ## [2025-02-23] - LDAP Admin-Seed Fixes and Image Tag Validation
 
@@ -80,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **LDAP and Admin-Seed-Job Troubleshooting Guide**
   - Created comprehensive troubleshooting document
-  [LDAP and Admin-Seed Troubleshooting](docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
+  [LDAP and Admin-Seed Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
   documenting persistent OpenLDAP issues, investigation timeline, root causes,
   ad-hoc manual corrections, and permanent code fixes
   - Includes verification commands, lessons learned, and references
@@ -90,13 +90,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ou=users`, `ou=groups`, and `cn=admins` on all OpenLDAP pods at startup
   - Fixes issue where multi-master replication didn't sync initial directory
   structure (each pod initialized independently with empty directory)
-  - See [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md) for details
+  - See [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md)
+  for details
 
 - **LDAPClient Group Membership Handling**
   - Added methods to detect group objectClass and use correct membership attribute
   (`uniqueMember` for `groupOfUniqueNames`, `member` for `groupOfNames`)
   - Added `update_user()` and `create_or_update_user()` for idempotent operations
-  - See [application/CHANGELOG.md](application/CHANGELOG.md) for details
+  - See [application/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md)
+  for details
 
 - **Image Tag Validation for Admin-Seed Job**
   - Added validation to reject `"latest"` tag (which doesn't exist in ECR)
@@ -114,13 +116,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (cluster registration secret, access policy association, manifests) depend
   on `time_sleep.wait_for_argocd` so the EKS capability's access entry exists
   before associating policies. See
-  [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
+  [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
 - **StorageClass Volume Binding Mode (EKS Auto Mode)**
   - StorageClass `volume_binding_mode` set to `WaitForFirstConsumer` (was
   `Immediate`). Required for EKS Auto Mode so that PVC provisioning occurs
   after pod scheduling, which triggers node creation. See
-  [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md).
+  [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
 - **Application Infrastructure: OpenLDAP Module ACM and Chart**
   - OpenLDAP Terraform module no longer accepts `acm_cert_arn`; the ACM
@@ -129,14 +131,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   configuration.
   - OpenLDAP chart is vendored at `application_infra/charts/openldap-stack-ha`
   (version 5.0.0, osixia/openldap:1.5.0). See
-  [application_infra/CHANGELOG.md](application_infra/CHANGELOG.md) and
-  [application_infra/OPENLDAP_CHANGELOG.md](application_infra/OPENLDAP_CHANGELOG.md).
+  [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md)
+  and [application_infra/OPENLDAP_CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/OPENLDAP_CHANGELOG.md).
 
 - **Kubernetes Version Upgrade**
   - Upgraded Kubernetes version from 1.34 to 1.35
   - Updated `backend_infra/variables.tfvars` with new Kubernetes version
   - Updated documentation references in `WARP.md`
-  - See [backend_infra/CHANGELOG.md](backend_infra/CHANGELOG.md) for details
+  - See [backend_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/CHANGELOG.md)
+  for details
 
 - **Application: MFA Method Selection Removed from Signup**
   - MFA method selection (TOTP or SMS) has been removed from the user signup process
@@ -144,8 +147,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   account activation
   - Signup flow simplified to collect only: name, username, email, phone, and password
   - Email and phone verification still occur during signup as before
-  - Updated documentation: [PRD Signup Management](docs/auxiliary/application/design/PRD_SIGNUP_MAN.md),
-  [PRD Admin Functions](docs/auxiliary/application/design/PRD_ADMIN_FUNCS.md)
+  - Updated documentation: [PRD Signup Management](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_SIGNUP_MAN.md),
+  [PRD Admin Functions](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_ADMIN_FUNCS.md)
 
 ### Fixed
 
@@ -160,7 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `LDAP_CONFIG_ADMIN_PASSWORD`) to match the osixia/openldap image. The upstream
   jp-gouin/helm-openldap chart documents `LDAP_CONFIG_ADMIN_PASSWORD` for the
   Bitnami image; this project uses the osixia image. See
-  [Osixia OpenLDAP Requirements](docs/auxiliary/application_infra/guides/OSIXIA_OPENLDAP_REQUIREMENTS.md).
+  [Osixia OpenLDAP Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/OSIXIA_OPENLDAP_REQUIREMENTS.md).
   - The Terraform variable name (`TF_VAR_OPENLDAP_CONFIG_PASSWORD`) is unchanged.
 
 ## [2026-02-16] - GitHub Actions Support for ArgoCD Module and Workflow Improvements
@@ -325,11 +328,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TF_VAR_OPENLDAP_ADMIN_PASSWORD` as required for backend ldap-admin-secret
 
 - **Application Documentation**
-  - [PASSWORD_FLOW.md](docs/auxiliary/application/guides/PASSWORD_FLOW.md) – Password
-  and MFA flow documentation
-  - [REDIS_ENABLEMENT_SUMMARY.md](docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md)
+  - [PASSWORD_FLOW](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/PASSWORD_FLOW.md)
+    – Password and MFA flow documentation
+  - [REDIS_ENABLEMENT_SUMMARY](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md)
   Redis enablement and SMS OTP summary
-  - [SECRET_DEPENDENCIES.md](docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md)
+  - [SECRET_DEPENDENCIES](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md)
   Which components require which secrets (PostgreSQL, Redis, LDAP admin)
 
 ### Changed
@@ -449,9 +452,10 @@ code
   - Split outputs, variables, and CHANGELOG files between infrastructure and application
   - Updated GitHub workflows to reference correct directories
   - Updated all documentation references
-  - See [Application Infrastructure CHANGELOG](application_infra/CHANGELOG.md) for
-  infrastructure changes
-  - See [Application CHANGELOG](application/CHANGELOG.md) for application changes
+  - See [Application Infrastructure CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md)
+  for infrastructure changes
+  - See [Application CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md)
+  for application changes
 
 - **Project Structure Reorganization**:
   - Separated application infrastructure from application code

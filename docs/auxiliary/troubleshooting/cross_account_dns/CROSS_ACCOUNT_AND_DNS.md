@@ -86,7 +86,7 @@ State Account.
      validation.
    - Create DNS validation record in Route53 hosted zone (State Account).
    - Wait for certificate status to be `ISSUED`.
-   - See the main [CROSS_ACCOUNT_ACCESS.md](../../../application_infra/CROSS_ACCOUNT_ACCESS.md)
+   - See the main [CROSS_ACCOUNT_ACCESS](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
      document for full setup instructions.
 
 3. **Update Terraform configuration:**
@@ -113,8 +113,8 @@ Ensure the CNAME validation record from ACM is present in the hosted zone.
 
 ## Related Documentation
 
-- [Troubleshooting Index](../INDEX.md)
-- [Application Infrastructure Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md)
-- [Application Infrastructure CROSS_ACCOUNT_ACCESS](../../../application_infra/CROSS_ACCOUNT_ACCESS.md)
-Full cross-account setup guide
-- [Route53 Record Module README](../../../application_infra/modules/route53_record/README.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
+- [Application Infrastructure Deployment](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+- [Application Infrastructure CROSS_ACCOUNT_ACCESS](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
+  - Full cross-account setup guide
+- [Route53 Record Module README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/route53_record/README.md)

@@ -61,7 +61,7 @@ These are used for application infrastructure components:
 
 Local bash scripts retrieve secrets from AWS Secrets Manager. **Secrets reside in
 the State Account (Account A)** — the same account that holds Terraform state and
-Route53. See the [Two-Account Split Summary](../application_infra/guides/CROSS_ACCOUNT_ACCESS.md#two-account-split-summary)
+Route53. See the [Two-Account Split Summary](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#two-account-split-summary)
 in the Cross-Account Access documentation for a full overview of what lives in
 each account.
 
@@ -671,17 +671,18 @@ them at:
 For AWS Secrets Manager (local scripts), GitHub Secrets, and Terraform
 variable case sensitivity, see:
 
-- [Secrets and Variables Troubleshooting](docs/auxiliary/troubleshooting/secrets_and_variables/SECRETS_AND_VARIABLES.md)
-- [Troubleshooting Index](docs/auxiliary/troubleshooting/INDEX.md)
+- [Secrets and Variables Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/secrets_and_variables/SECRETS_AND_VARIABLES.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
 
 ## Related Documentation
 
-- [Main README](README.md) - Project overview and setup instructions
-- [Application Infrastructure README](application_infra/README.md) - Infrastructure
-deployment
-- [Application Deployment README](application/README.md) - Application deployment
-details
-- [Backend Infrastructure README](backend_infra/README.md) - Backend infrastructure
-setup
-- [Terraform Backend State README](tf_backend_state/README.md) - State backend
-configuration
+- [Main README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md)
+  - Project overview and setup instructions
+- [Application Infrastructure README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md)
+  - Infrastructure deployment
+- [Application Deployment README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
+  - Application deployment details
+- [Backend Infrastructure README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/README.md)
+  - Backend infrastructure setup
+- [Terraform Backend State README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/tf_backend_state/README.md)
+  - State backend configuration

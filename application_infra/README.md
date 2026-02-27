@@ -26,8 +26,8 @@ certificate management)
 >
 > The 2FA application (backend and frontend), PostgreSQL, Redis, SES, and SNS
 > are deployed separately via the `application/` directory. See
-> [application/README.md](../application/README.md) for application deployment
-> details.
+> [application/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
+> for application deployment details.
 
 ## Architecture
 
@@ -88,8 +88,7 @@ certificate management)
 > **Cross-Account Access**: Route53 hosted zone and ACM certificate can be in
 > the State Account (different from deployment account). When
 > `state_account_role_arn` is configured, Terraform automatically queries these
-> resources from the State Account. See [Cross-Account Access
-> Documentation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
+> resources from the State Account. See [Cross-Account Access Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
 > for details.
 
 **Current Implementation (Data Sources):**
@@ -106,7 +105,7 @@ The code references existing resources using data sources:
   - Certificate must be validated and in `ISSUED` status
   - DNS validation records must be created in Route53 hosted zone in the State
     Account
-  - See [Public ACM Certificate Setup and DNS Validation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  - See [Public ACM Certificate Setup and DNS Validation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
     for setup instructions
 - The certificate must be in the same region as the EKS cluster
 
@@ -116,7 +115,7 @@ The code references existing resources using data sources:
 Terraform configuration)
 - **Public ACM Certificate Setup**: Public ACM certificates must be requested in
   each deployment account and validated using DNS records in the State Account's
-  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+  Route53 hosted zone. See [Public ACM Certificate Setup and DNS Validation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for detailed setup instructions with step-by-step AWS CLI commands.
 - ACM certificate must be requested in each deployment account (development,
   production) as a public ACM certificate (Amazon-issued)
@@ -152,13 +151,14 @@ ltb_passwd) to create individual DNS records.
 >
 > The Route53 record for the 2FA application (`app.${domain_name}`) is created
 > by the `application/` directory, not `application_infra/`. See
-> [application/README.md](../application/README.md) for details.
+> [application/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
+> for details.
 
 > [!NOTE]
 >
 > For detailed Route53 record module documentation, including cross-account
 > access, ALB zone_id mapping, dependencies, and usage examples, see the
-> [Route53 Record Module Documentation](modules/route53_record/README.md).
+> [Route53 Record Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/route53_record/README.md).
 
 **Key Features:**
 
@@ -194,7 +194,8 @@ Deploys the complete OpenLDAP stack using the
 **Key Configuration:**
 
 - Chart: `openldap-stack-ha` vendored at `charts/openldap-stack-ha` (version 5.0.0,
-  osixia/openldap:1.5.0). See [OPENLDAP_CHANGELOG.md](OPENLDAP_CHANGELOG.md).
+  osixia/openldap:1.5.0). See
+[OPENLDAP_CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/OPENLDAP_CHANGELOG.md).
   Upstream: [jp-gouin/helm-openldap](https://github.com/jp-gouin/helm-openldap)
   (chart is vendored locally, not pulled from repository).
 - Namespace: `ldap` (created automatically)
@@ -220,7 +221,8 @@ configuration (see Storage Configuration section below)
 >
 > The 2FA application (backend and frontend), PostgreSQL, Redis, SES, and SNS
 > are deployed separately via the `application/` directory. See
-> [application/README.md](../application/README.md) for application deployment
+> [application/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
+> for application deployment
 > details.
 
 ### 3. Application Load Balancer (ALB)
@@ -242,7 +244,7 @@ via `compute_config.enabled = true`).
 >
 > For detailed ALB configuration, annotation strategy, EKS Auto Mode vs
 > AWS Load Balancer Controller differences, and implementation details,
-> see the [ALB Module Documentation](modules/alb/README.md).
+> see the [ALB Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/alb/README.md).
 
 ### 4. Storage Configuration
 
@@ -274,7 +276,7 @@ enabling cross-namespace communication for LDAP service access.
 > [!NOTE]
 >
 > For detailed network policy rules, security configuration, and cross-namespace
-> communication setup, see the [Network Policies Module Documentation](modules/network-policies/README.md).
+> communication setup, see the [Network Policies Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/network-policies/README.md).
 
 ### 6. ArgoCD Capability (GitOps)
 
@@ -291,8 +293,8 @@ deployments.
 > For detailed ArgoCD configuration, Identity Center setup, Application CRD creation,
 > and deployment examples, see:
 >
-> - [ArgoCD Module Documentation](modules/argocd/README.md)
-> - [ArgoCD Application Module Documentation](modules/argocd_app/README.md)
+> - [ArgoCD Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/argocd/README.md)
+> - [ArgoCD Application Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/modules/argocd_app/README.md)
 
 ### 7. cert-manager Module
 
@@ -310,7 +312,7 @@ deployments.
 > - Consistent certificate management across services
 >
 > For detailed cert-manager configuration, certificate management, and usage examples,
-> see the [cert-manager Module Documentation](modules/cert-manager/README.md).
+> see the [cert-manager Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/cert-manager/README.md).
 
 ## Module Structure
 
@@ -377,13 +379,13 @@ application_infra/
 >
 > Application components (backend, frontend, PostgreSQL, Redis, SES, SNS, ArgoCD
 > Applications) are deployed separately via the `application/` directory. See
-> [application/README.md](../application/README.md) for application deployment
-> details.
+> [application/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
+> for application deployment details.
 
 ## Prerequisites
 
 1. **Backend Infrastructure**: The backend infrastructure must be deployed first
-(see [backend_infra/README.md](../backend_infra/README.md))
+(see [backend_infra/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/README.md))
 2. **Multi-Account Setup**:
    - **Account A (State Account)**: Stores Terraform state in S3, Route53
      hosted zones, and ACM certificates
@@ -398,17 +400,17 @@ application_infra/
    - GitHub Actions uses Account A role for backend access and Route53/ACM
      access
    - Terraform provider assumes Account B role for resource deployment
-   - See [Cross-Account Access Documentation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
+   - See [Cross-Account Access Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
    for details
 3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main
-[README.md](../README.md))
+[README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md))
 4. **EKS Cluster**: The EKS cluster must be running with Auto Mode enabled
 5. **Route53 Hosted Zone**: Must already exist (the Route53 module is commented
 out, code uses data sources)
 6. **Public ACM Certificate Setup**: Public ACM certificates must be requested in
    each deployment account and validated using DNS records in the State Account's
    Route53 hosted zone
-   - See [Public ACM Certificate Setup and DNS Validation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
+   - See [Public ACM Certificate Setup and DNS Validation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
      for detailed setup instructions with step-by-step AWS CLI commands
    - Each deployment account (development, production) has its own public ACM
      certificate
@@ -421,7 +423,7 @@ out, code uses data sources)
    - Certificate must be validated and in `ISSUED` status
    - DNS validation records must be created in Route53 hosted zone in the State
      Account
-   - See [Cross-Account Access Documentation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
+   - See [Cross-Account Access Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
    for details
 8. **Domain Registration**: The domain name must be registered (can be with any
 registrar)
@@ -431,7 +433,7 @@ records to the Route53 name servers (output from data source)
 variables (see Configuration section)
 11. **AWS Identity Center**: Required for ArgoCD RBAC configuration
 12. **Secrets Configuration**: All required secrets must be configured.
-See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+See [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
 for complete setup instructions.
 13. **GitHub Repository Variables**: The following repository variables must be
 configured:
@@ -463,7 +465,7 @@ other cluster resources are created.
   Applications can target the local cluster
 
 See [Create an Argo CD capability (AWS)](https://docs.aws.amazon.com/eks/latest/userguide/create-argocd-capability.html)
-and [PRD_ArgoCD.md](../docs/auxiliary/application_infra/design/PRD_ArgoCD.md).
+and [PRD_ArgoCD](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/design/PRD_ArgoCD.md).
 
 ### What OpenLDAP Requires (to operate correctly)
 
@@ -487,8 +489,7 @@ not by an Argo CD Application.
    module depends on StorageClass, ALB, and (when ArgoCD is enabled) ArgoCD.
 4. **Route53 records** and other resources that depend on OpenLDAP/ALB.
 
-See [Application Infrastructure Deployment
-Troubleshooting](../docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md#deployment-order-summary)
+See [Application Infrastructure Deployment Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md#deployment-order-summary)
 for failure handling.
 
 ## Backend State Configuration
@@ -578,7 +579,7 @@ cross-account role assumption
   - Automatically injected by GitHub workflows
   - Required when Route53 hosted zone and ACM certificate are in a different account
   - Format: `arn:aws:iam::STATE_ACCOUNT_ID:role/terraform-state-role`
-  - See [Cross-Account Access Documentation](../docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
+  - See [Cross-Account Access Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
   for details
 
 #### Cluster Name Injection
@@ -652,7 +653,7 @@ from AWS Secrets Manager (for local use) or GitHub repository secrets
 > [!NOTE]
 >
 > For complete secrets configuration details, including AWS Secrets Manager setup,
-> GitHub repository secrets, and troubleshooting, see [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md).
+> GitHub repository secrets, and troubleshooting, see [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md).
 
 #### Route53 and Domain Variables
 
@@ -794,7 +795,7 @@ idc_region                  = "us-east-1"
 
 > [!NOTE]
 >
-> For secrets configuration (passwords), see [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md).
+> For secrets configuration (passwords), see [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md).
 > The `setup-application-infra.sh` script automatically retrieves passwords from
 > AWS Secrets Manager.
 
@@ -943,7 +944,7 @@ Terraform operations (required for accessing backend_infra remote state)
 > [!IMPORTANT]
 >
 > **Destroy Order**: Application infrastructure should be destroyed before backend
-> infrastructure. See [Backend Infrastructure README](../backend_infra/README.md)
+> infrastructure. See [Backend Infrastructure README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/README.md)
 > for backend destroy instructions.
 
 ### Step 1: Configure Variables
@@ -965,7 +966,7 @@ Terraform operations (required for accessing backend_infra remote state)
 
 **Setup Instructions:**
 
-See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+See [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
 for complete configuration instructions, including:
 
 - AWS Secrets Manager setup (for local scripts)
@@ -1243,8 +1244,8 @@ kubectl get application -n argocd
 > [!NOTE]
 >
 > The 2FA application is deployed via the `application/` directory, not
-> `application_infra/`. See [application/README.md](../application/README.md) for
-> access details and features.
+> `application_infra/`. See [application/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
+> for access details and features.
 
 ### LDAP Service
 
@@ -1269,7 +1270,7 @@ validated via Route53)
 3. **LDAP Internal**: LDAP service is ClusterIP only, not exposed externally
 4. **Sensitive Variables**: Passwords are marked as sensitive in Terraform and
 must be set via environment variables, never in `variables.tfvars`.
-See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+See [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
 for configuration details.
 5. **Encrypted Storage**: EBS volumes are encrypted by default (configurable via
 `storage_class_encrypted`)
@@ -1279,7 +1280,7 @@ communication to secure ports only (443, 636, 8443), with cross-namespace access
 enabled for LDAP service access
 8. **Password Injection**: Passwords are injected at runtime via environment
 variables from AWS Secrets Manager (local scripts) or GitHub Secrets (GitHub Actions),
-ensuring they never appear in version control. See [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+ensuring they never appear in version control. See [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
 for details.
 9. **DNS Validation**: ACM certificate uses DNS validation via Route53, ensuring
 secure certificate provisioning
@@ -1350,7 +1351,7 @@ Secrets Manager, updates kubeconfig, runs health checks, and produces a
 color-coded report (exit 0 = healthy, 1 = issues). Prerequisites: `jq`, `kubectl`,
 `helm`, AWS CLI; optional: GitHub CLI (`gh`).
 
-**For full details:** See [Operations & Monitoring](../README.md#operations--monitoring)
+**For full details:** See [Operations &amp; Monitoring](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#operations--monitoring)
 in the main README.
 
 ## Troubleshooting
@@ -1358,15 +1359,15 @@ in the main README.
 For ArgoCD and OpenLDAP deployment failures (Helm, ALB, PVC, UIs, capability),
 useful commands, and tips:
 
-- [Application Infrastructure Deployment Troubleshooting](../docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
-- [Debug Commands](../docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
+- [Application Infrastructure Deployment Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+- [Debug Commands](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
 
 For 2FA application, PostgreSQL, Redis, SES, SNS, and user registration, see:
 
-- [Application Layer Troubleshooting](../docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
-- [application/README.md](../application/README.md#troubleshooting)
+- [Application Layer Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
+- [application/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md#troubleshooting)
 
-See the [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)
+See the [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
 for all troubleshooting documents.
 
 ## Outputs
@@ -1420,7 +1421,7 @@ LDAP settings are not hardcoded:
 > [!NOTE]
 >
 > PostgreSQL, Redis, SES, and SNS outputs are provided by the `application/`
-> directory, not `application_infra/`. See [application/README.md](../application/README.md)
+> directory, not `application_infra/`. See [application/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
 > for those outputs.
 
 View all outputs:
@@ -1460,7 +1461,8 @@ the subdomains:
 >
 > The Route53 record for the 2FA application (`app.${domain_name}`) is created
 > by the `application/` directory, not `application_infra/`. See
-> [application/README.md](../application/README.md) for details.
+> [application/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
+> for details.
 
 These records are created after the Helm release and Ingress resources are
 provisioned, ensuring the ALB DNS name is available.

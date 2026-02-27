@@ -389,5 +389,5 @@ kubectl get secret postgresql-secret -n 2fa-app -o jsonpath='{.data.password}' |
 For "Variable not set", Secrets Manager retrieval failures, and Terraform
 variable not found, see:
 
-- [Secrets and Variables Troubleshooting](../docs/auxiliary/troubleshooting/secrets_and_variables/SECRETS_AND_VARIABLES.md)
-- [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)
+- [Secrets and Variables Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/secrets_and_variables/SECRETS_AND_VARIABLES.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)

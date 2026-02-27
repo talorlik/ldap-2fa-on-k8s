@@ -117,9 +117,9 @@ host-based routing.
 
 For implementation details, configuration examples, and technical reference, see:
 
-- [ALB Module Documentation](../../../application_infra/modules/alb/README.md) -
-  Implementation guide and configuration examples
-- [Application Infrastructure README](../../../application_infra/README.md) -
-  Complete infrastructure overview
-- [Cross-Account Access Documentation](../guides/CROSS_ACCOUNT_ACCESS.md) -
-  Certificate setup instructions
+- [ALB Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/alb/README.md)
+  - Implementation guide and configuration examples
+- [Application Infrastructure README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md)
+  - Complete infrastructure overview
+- [Cross-Account Access Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md)
+  - Certificate setup instructions

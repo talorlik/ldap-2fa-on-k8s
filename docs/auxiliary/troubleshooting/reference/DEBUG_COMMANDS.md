@@ -8,16 +8,25 @@ image tags, etc.) are never hard-coded.
 
 ## Prerequisite: Authenticate & Connect to Cluster
 
+Either
+
 ```bash
 # Assume deployment account role
 source ./scripts/assume-github-role.sh prod
+```
 
 OR
 
-# (Need to add access entry for your admin SSO principal on the cluster; see
-# [EKS_ACCESS_ENTRY.md](../../application_infra/guides/EKS_ACCESS_ENTRY.md))
-aws sso login --profile prod
+Need to add access entry for your admin SSO principal on the cluster; see
+[EKS_ACCESS_ENTRY](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/EKS_ACCESS_ENTRY.md)
 
+```bash
+aws sso login --profile prod
+```
+
+Then
+
+```bash
 # Set cluster name from current context (use after kubeconfig is updated)
 export CLUSTER_NAME=$(kubectl config current-context | sed 's/.*\///')
 # Or set explicitly if needed:
@@ -206,11 +215,9 @@ curl -sI https://passwd.talorlik.com --max-time 10 | head -5
 
 When the ArgoCD capability is stuck in CREATING or you see AccessDenied in
 health, use the commands below to inspect capability status, access entry,
-associated policies, and IAM trust. See [Application Infrastructure
-Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md) for fixes (e.g.
-[Capability stuck in CREATING with AccessDenied](../deployment/APPLICATION_INFRA_DEPLOYMENT.md#3-capability-stuck-in-creating-with-accessdenied-in-health),
-[Capability already exists / state out of
-sync](../deployment/APPLICATION_INFRA_DEPLOYMENT.md#4-capability-already-exists-state-out-of-sync)).
+associated policies, and IAM trust. See [Application Infrastructure Deployment](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+for fixes (e.g. [Capability stuck in CREATING with AccessDenied](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md#3-capability-stuck-in-creating-with-accessdenied-in-health),
+[Capability already exists / state out of sync](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md#4-capability-already-exists-state-out-of-sync)).
 
 Set variables from the cluster (run once). Use the same region as your
 kubeconfig.
@@ -281,9 +288,8 @@ aws iam get-role --role-name "$ARGOCD_ROLE_NAME" \
 
 Expected: principal `Service` =
 `capabilities.eks.amazonaws.com`, actions `sts:AssumeRole` and
-`sts:TagSession`. See [Application Infrastructure
-Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md) (sections 3 and 4)
-if policies are correct but capability remains CREATING.
+`sts:TagSession`. See [Application Infrastructure Deployment](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+(sections 3 and 4) if policies are correct but capability remains CREATING.
 
 ### Capability Role Policies (Inline)
 
@@ -298,7 +304,7 @@ aws iam list-role-policies --role-name "$ARGOCD_ROLE_NAME"
 
 Expect one inline policy named `*-policy` (e.g.
 `talo-tf-us-east-1-argocd-role-prod-policy`). No AWS managed policies are
-attached. See the [ArgoCD module README](../../../application_infra/modules/argocd/README.md)
+attached. See the [ArgoCD module README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/argocd/README.md)
 (IAM Policy section) for permissions by service.
 
 ### ArgoCD Namespace and Pods
@@ -740,9 +746,8 @@ aws logs filter-log-events \
 ### EKS Access & IAM Debugging
 
 Use these to inspect access entries and policy associations. For ArgoCD
-capability stuck in CREATING with AccessDenied, see [Application
-Infrastructure Deployment - ArgoCD
-failures](../deployment/APPLICATION_INFRA_DEPLOYMENT.md#argocd-deployment-failures)
+capability stuck in CREATING with AccessDenied,
+see [Application Infrastructure Deployment - ArgoCD failures](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md#argocd-deployment-failures)
 (sections 3 and 4).
 
 ```bash
@@ -771,8 +776,8 @@ aws sts get-caller-identity
 ### EKS Add-ons & Capabilities
 
 For ArgoCD capability status and health (CREATING, AccessDenied), use the
-[ArgoCD Debugging](#argocd-debugging) section above and [Application
-Infrastructure Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+[ArgoCD Debugging](#argocd-debugging) section above and
+[Application Infrastructure Deployment](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
 (ArgoCD failures, state out of sync).
 
 ```bash
@@ -818,8 +823,8 @@ terraform apply -target="$ADMIN_SEED_RESOURCE" \
 
 ## Related Documentation
 
-- [Troubleshooting Index](../INDEX.md)
-- [Application Infrastructure Deployment](../deployment/APPLICATION_INFRA_DEPLOYMENT.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
+- [Application Infrastructure Deployment](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/deployment/APPLICATION_INFRA_DEPLOYMENT.md)
   - ArgoCD: capability stuck in CREATING, AccessDenied in health, access
     entry/policies, state out of sync (sections 3 and 4)
-- [LDAP and Admin-Seed](../ldap_admin_seed/LDAP_ADMIN_SEED.md)
+- [LDAP and Admin-Seed](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED.md)

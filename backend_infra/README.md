@@ -132,7 +132,7 @@ for IRSA, and SNS endpoint (optional, default: disabled) for SMS 2FA.
 > [!NOTE]
 >
 > For detailed VPC endpoints configuration, security setup, IRSA integration,
-> cost considerations, and usage examples, see the [VPC Endpoints Module Documentation](modules/endpoints/README.md).
+> cost considerations, and usage examples, see the [VPC Endpoints Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/modules/endpoints/README.md).
 
 ### 4. ECR Module
 
@@ -142,7 +142,7 @@ configurable lifecycle policies and image tag mutability settings.
 > [!NOTE]
 >
 > For detailed ECR configuration, lifecycle policies, and usage examples,
-> see the [ECR Module Documentation](modules/ecr/README.md).
+> see the [ECR Module Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/modules/ecr/README.md).
 
 ## Module Structure
 
@@ -230,7 +230,7 @@ The workflow will:
 ## Prerequisites
 
 1. **Terraform Backend**: The Terraform state backend must be provisioned first
-(see [tf_backend_state/README.md](../tf_backend_state/README.md))
+(see [tf_backend_state/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/tf_backend_state/README.md))
 2. **Multi-Account Setup**:
    - **Account A (State Account)**: Stores Terraform state in S3
      - GitHub Actions uses `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state
@@ -245,9 +245,9 @@ The workflow will:
        - `dev` environment → uses `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN` (set in
        `deployment_account_role_arn` variable)
 3. **AWS SSO/OIDC**: Configured GitHub OIDC provider and IAM roles (see main
-[README.md](../README.md))
+[README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md))
 4. **Backend Configuration**: Generate `backend.hcl` using the setup scripts
-(see main [README.md](../README.md))
+(see main [README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md))
 5. **GitHub Secrets**: Ensure `AWS_STATE_ACCOUNT_ROLE_ARN`,
 `AWS_PRODUCTION_ACCOUNT_ROLE_ARN`, `AWS_DEVELOPMENT_ACCOUNT_ROLE_ARN`, and
 `AWS_ASSUME_EXTERNAL_ID` are configured in repository secrets
@@ -479,8 +479,8 @@ infrastructure** (EKS, VPC, ECR, etc.). Run it from this directory after
 selecting region and environment; it retrieves credentials from AWS Secrets
 Manager, updates kubeconfig, and produces a report. For application-infra and
 application-layer monitoring, use `application_infra/monitor-deployments.sh` and
-`application/monitor-deployments.sh` respectively. See [Operations &amp;
-Monitoring](../README.md#operations--monitoring) in the main README for details.
+`application/monitor-deployments.sh` respectively. See [Operations &amp; Monitoring](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#operations--monitoring)
+in the main README for details.
 
 The Kubernetes and Helm providers in this module use `scripts/get-eks-token.sh`
 (exec plugin) to generate fresh EKS tokens and avoid timeout during long runs.
@@ -490,19 +490,21 @@ The Kubernetes and Helm providers in this module use `scripts/get-eks-token.sh`
 For common issues (cluster access, SSM, kubectl, IRSA, SNS) and useful
 commands, see the consolidated guide:
 
-- [Backend Infrastructure Troubleshooting](../docs/auxiliary/troubleshooting/backend_infrastructure/BACKEND_INFRASTRUCTURE.md)
+- [Backend Infrastructure Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/backend_infrastructure/BACKEND_INFRASTRUCTURE.md)
 
-See the [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)
+See the [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
 for all troubleshooting documents.
 
 ## Related Documentation
 
-- [Application Infrastructure](../application_infra/README.md) - OpenLDAP, ALB,
-ArgoCD Capability
-- [Application Deployment](../application/README.md) - 2FA app, PostgreSQL, Redis,
-SES, SNS
-- [Terraform Backend State](../tf_backend_state/README.md) - S3 state management
-- [Main README](../README.md) - Project overview and quick start
+- [Application Infrastructure](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md)
+  - OpenLDAP, ALB, ArgoCD Capability
+- [Application Deployment](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
+  - 2FA app, PostgreSQL, Redis, SES, SNS
+- [Terraform Backend State](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/tf_backend_state/README.md)
+  - S3 state management
+- [Main README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md)
+  - Project overview and quick start
 
 ## References
 

@@ -60,9 +60,8 @@ workflows. Configure them at:
     - **Permissions needed**: S3 access to create/manage state bucket
     - **⚠️ Note**: For local script execution, ensure the same role ARN is
       stored in AWS Secrets Manager secret 'github-role' with key
-      'AWS_STATE_ACCOUNT_ROLE_ARN'. See [Secrets
-      Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md) for complete
-      setup instructions.
+      'AWS_STATE_ACCOUNT_ROLE_ARN'. See [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+      for complete setup instructions.
 
 2. `GH_TOKEN`
 
@@ -372,8 +371,8 @@ S3
 For "Resource not accessible by integration", S3 access denied, OIDC issues,
 Secrets Manager, bucket name conflicts, and state file not found, see:
 
-- [Terraform State and Backend Troubleshooting](../docs/auxiliary/troubleshooting/secrets_and_variables/TERRAFORM_STATE.md)
-- [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)
+- [Terraform State and Backend Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/secrets_and_variables/TERRAFORM_STATE.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
 
 ## Important Notes
 
@@ -511,7 +510,7 @@ role will be "assigned" to the Identity Provider through its trust policy.
 
 8. **Update Trust Relationship for Deployment Accounts** (Required for
    Multi-Account Setup):
-   - After creating deployment account roles (see main [README.md](../README.md)),
+   - After creating deployment account roles (see main [README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md)),
    you must update the state account role's Trust Relationship to allow the
    deployment account roles
    - **Important:** The ExternalId security mechanism is still required when the
@@ -608,10 +607,11 @@ The bucket policy in `main.tf` automatically uses the current caller's ARN via
 
 ## Related Documentation
 
-- [Main README](../README.md) - Project overview and quick start
-- [Backend Infrastructure](../backend_infra/README.md) - VPC, EKS, IRSA, and VPC
-endpoints
-- [Application Infrastructure](../application_infra/README.md) - OpenLDAP, ALB,
-ArgoCD Capability
-- [Application](../application/README.md) - 2FA app, PostgreSQL, Redis, SES, SNS
-and supporting services
+- [Main README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md)
+  - Project overview and quick start
+- [Backend Infrastructure](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/README.md)
+  - VPC, EKS, IRSA, and VPC endpoints
+- [Application Infrastructure](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md)
+  - OpenLDAP, ALB, ArgoCD Capability
+- [Application](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
+  - 2FA app, PostgreSQL, Redis, SES, SNS and supporting services

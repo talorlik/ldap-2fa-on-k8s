@@ -712,8 +712,8 @@ try {
 For API calls failing, JWT not persisting, QR code not displaying, SMS
 button, admin features, and styles, see:
 
-- [2FA Frontend Troubleshooting](../docs/auxiliary/troubleshooting/frontend/FRONTEND.md)
-- [Troubleshooting Index](../docs/auxiliary/troubleshooting/INDEX.md)
+- [2FA Frontend Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/frontend/FRONTEND.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
 
 ### Debugging
 
@@ -825,7 +825,7 @@ See main project LICENSE file.
 ## References
 
 - [nginx Documentation](https://nginx.org/en/docs/)
-- [FastAPI Backend Documentation](../backend/README.md)
-- [Application Infrastructure README](../README.md)
+- [FastAPI Backend Documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/backend/README.md)
+- [Application Infrastructure README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md)
 - [MDN Web Docs](https://developer.mozilla.org/)
 - [QRCode.js Documentation](https://github.com/soldair/node-qrcode)

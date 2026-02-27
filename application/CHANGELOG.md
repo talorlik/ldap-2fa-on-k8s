@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > This changelog contains application-related changes (PostgreSQL, Redis, SES, SNS,
 > 2FA application backend/frontend, ArgoCD Applications). Infrastructure changes
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
-> [application_infra/CHANGELOG.md](../application_infra/CHANGELOG.md).
+> [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
 ## [2026-02-26] - Frontend Form Post, QR Code Library, and Redis Required
 
@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **LDAP and Admin-Seed-Job Troubleshooting Guide**
   - Created comprehensive troubleshooting document
-  [LDAP and Admin-Seed Troubleshooting](../docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
+  [LDAP and Admin-Seed Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED_TROUBLESHOOTING.md)
   documenting persistent LDAP issues, investigation timeline, root causes,
   ad-hoc manual corrections, and permanent code fixes
   - Includes verification commands and lessons learned
@@ -158,8 +158,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (country code + number), password, confirm password
   - User model: `mfa_method` and `totp_secret` are set to `None` during signup
   and populated during MFA enrollment at login
-  - Updated documentation: [PRD Signup Management](../docs/auxiliary/application/design/PRD_SIGNUP_MAN.md),
-  [PRD Admin Functions](../docs/auxiliary/application/design/PRD_ADMIN_FUNCS.md)
+  - Updated documentation: [PRD Signup Management](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_SIGNUP_MAN.md),
+  [PRD Admin Functions](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_ADMIN_FUNCS.md)
 
 ## [2025-02-23] - Remember me and Forgot/Reset password
 
@@ -194,8 +194,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Login challenge storage (in-memory) now stores `remember_me` and passes it to
 the verify step for JWT expiry selection.
-- Documentation: [application/README.md](README.md), [PRD 2FA App](../docs/auxiliary/application/design/PRD_2FA_APP.md),
-[application/backend/README.md](backend/README.md), [application/frontend/README.md](frontend/README.md)
+- Documentation: [application/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md),
+  [PRD 2FA App](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/design/PRD_2FA_APP.md),
+  [application/backend/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/backend/README.md),
+  [application/frontend/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/frontend/README.md)
 updated with new endpoints, request/response schemas, config, and frontend API methods.
 
 ## [2026-02-15] - First Admin User Seed and LDAP Config from Application Infra
@@ -239,9 +241,12 @@ updated with new endpoints, request/response schemas, config, and frontend API m
   use by the 2FA application and other consumers.
 
 - **Documentation**
-  [Secrets Requirements](../docs/auxiliary/reference/SECRETS_REQUIREMENTS.md), [application/README.md](README.md),
-  root [README.md](../README.md), and [docs/index.html](../docs/index.html) updated
-  to describe admin seed secrets, script/workflow behavior, and first admin login.
+  [Secrets Requirements](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md),
+  [application/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md),
+  root [README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md),
+  and [docs/index.html](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/index.html)
+  updated to describe admin seed secrets, script/workflow behavior, and first
+  admin login.
 
 ## [2026-02-15] - Shared ALB for 2FA Ingresses (Fix Conflicting Load Balancer Name)
 
@@ -350,11 +355,12 @@ name"**
   start with LDAP credentials
 
 - **Application Documentation**
-  - [PASSWORD_FLOW.md](PASSWORD_FLOW.md) – Password and MFA flow documentation
-  - [REDIS_ENABLEMENT_SUMMARY.md](REDIS_ENABLEMENT_SUMMARY.md) – Redis
-  enablement and SMS OTP summary
-  - [SECRET_DEPENDENCIES.md](SECRET_DEPENDENCIES.md) – Secret dependencies for
-  PostgreSQL, Redis, and LDAP admin across namespaces
+  - [PASSWORD_FLOW](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/PASSWORD_FLOW.md)
+    – Password and MFA flow documentation
+  - [REDIS_ENABLEMENT_SUMMARY](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/REDIS_ENABLEMENT_SUMMARY.md)
+    – Redis enablement and SMS OTP summary
+  - [SECRET_DEPENDENCIES](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md)
+    – Secret dependencies for PostgreSQL, Redis, and LDAP admin across namespaces
 
 ### Changed
 

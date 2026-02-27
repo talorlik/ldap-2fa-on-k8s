@@ -109,6 +109,6 @@ if (token) {
 
 ## Related Documentation
 
-- [Troubleshooting Index](../INDEX.md)
-- [Application Layer Troubleshooting](../application_layer/APPLICATION_LAYER.md)
-- [application/frontend/README.md](../../../application/frontend/README.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
+- [Application Layer Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
+- [application/frontend/README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/frontend/README.md)

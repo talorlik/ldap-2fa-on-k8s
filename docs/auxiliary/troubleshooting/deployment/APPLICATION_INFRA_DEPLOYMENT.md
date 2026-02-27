@@ -53,7 +53,7 @@ OpenLDAP via the Application Infra Provisioning workflow or local Terraform.
   single   inline IAM policy with EKS, Secrets Manager, KMS,
   CodeConnections (incl. UseConnection), and optional ECR/CodeCommit when
   enabled. ECR is enabled from the root via `argocd_enable_ecr_access`.
-  See the [ArgoCD module README](../../../application_infra/modules/argocd/README.md)
+  See the [ArgoCD module README](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/argocd/README.md)
   (IAM Policy section) for permissions by service and variable names.
 
 ### 2. IAM Propagation / Access Entry Timing
@@ -89,9 +89,8 @@ cluster and stays in CREATING.
 
 **Fixes:**
 
-1. **Check associated policies** (copy-paste commands in [Debug
-   Commands - ArgoCD
-   Debugging](../reference/DEBUG_COMMANDS.md#argocd-debugging)):
+1. **Check associated policies** (copy-paste commands in
+[Debug Commands - ArgoCD Debugging](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md#argocd-debugging)):
 
    ```bash
    aws eks list-associated-access-policies \
@@ -119,7 +118,7 @@ still shows AccessDenied in health:
 - **Trust policy:** Ensure the capability IAM role has a trust policy allowing
   `capabilities.eks.amazonaws.com` to assume it (`sts:AssumeRole`,
   `sts:TagSession`). Check in IAM console or use the `aws iam get-role` command
-  in [Debug Commands - ArgoCD Debugging](../reference/DEBUG_COMMANDS.md#argocd-debugging).
+  in [Debug Commands - ArgoCD Debugging](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md#argocd-debugging).
 - **Wait and re-check:** Access and health can take a few minutes to
   propagate. Run `aws eks describe-capability` again after 5–10 minutes and
   check whether `status` becomes ACTIVE and `health.issues` clears.
@@ -136,9 +135,8 @@ state, so Terraform tries to create it and AWS returns "already exists".
 
 **Fix:** Import the existing capability into state. Run from the
 **application_infra** directory (with the same backend and credentials you use
-for apply). Replace cluster and capability names if yours differ. See [Debug
-Commands](../reference/DEBUG_COMMANDS.md#argocd-debugging) for related AWS CLI
-checks (capability status, access entry, policies).
+for apply). Replace cluster and capability names if yours differ. See [Debug Commands](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md#argocd-debugging)
+for related AWS CLI checks (capability status, access entry, policies).
 
 ```bash
 cd application_infra
@@ -549,7 +547,7 @@ run, match it to the sections above for targeted fixes.
 
 ## Related Documentation
 
-- [Troubleshooting Index](../INDEX.md)
-- [Debug Commands](../reference/DEBUG_COMMANDS.md)
-- [LDAP and Admin-Seed](../ldap_admin_seed/LDAP_ADMIN_SEED.md)
-- [Cross-Account and DNS](../cross_account_dns/CROSS_ACCOUNT_AND_DNS.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
+- [Debug Commands](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md)
+- [LDAP and Admin-Seed](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/ldap_admin_seed/LDAP_ADMIN_SEED.md)
+- [Cross-Account and DNS](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/cross_account_dns/CROSS_ACCOUNT_AND_DNS.md)

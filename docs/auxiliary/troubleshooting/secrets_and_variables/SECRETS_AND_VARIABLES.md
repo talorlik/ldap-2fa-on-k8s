@@ -92,9 +92,9 @@ env | grep TF_VAR_postgresql_database_password
 
 ## Related Documentation
 
-- [Troubleshooting Index](../INDEX.md)
-- [Terraform State and Backend](TERRAFORM_STATE.md)
-- [SECRETS_REQUIREMENTS](../../reference/SECRETS_REQUIREMENTS.md) - Full secrets
-  requirements
-- [PASSWORD_FLOW](../../application/guides/PASSWORD_FLOW.md) - PostgreSQL
-  password flow
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
+- [Terraform State and Backend](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/secrets_and_variables/TERRAFORM_STATE.md)
+- [SECRETS_REQUIREMENTS](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md)
+  - Full secrets requirements
+- [PASSWORD_FLOW](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/guides/PASSWORD_FLOW.md)
+  - PostgreSQL password flow

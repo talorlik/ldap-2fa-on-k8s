@@ -32,7 +32,7 @@ The ArgoCD Application module:
 ## Integration with ALB Module
 
 Applications deployed via ArgoCD that include Ingress resources should
-reference the IngressClass created by the [ALB module](../../application_infra/modules/alb/README.md).
+reference the IngressClass created by the [ALB module](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/alb/README.md).
 The ALB module creates an IngressClass and IngressClassParams for EKS Auto Mode
 ALB provisioning.
 
@@ -112,7 +112,7 @@ ingress:
           pathType: Prefix
 ```
 
-For more details on ALB configuration, see the [ALB module documentation](../../application_infra/modules/alb/README.md).
+For more details on ALB configuration, see the [ALB module documentation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/modules/alb/README.md).
 
 ## Usage
 

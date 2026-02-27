@@ -161,8 +161,8 @@ kubectl exec -n 2fa-app -l app.kubernetes.io/name=ldap-2fa-backend -- env | grep
 For Redis connection issues, SMS not sending, and related application-layer
 issues, see:
 
-- [Application Layer Troubleshooting](../../troubleshooting/application_layer/APPLICATION_LAYER.md)
-- [Troubleshooting Index](../../troubleshooting/INDEX.md)
+- [Application Layer Troubleshooting](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/application_layer/APPLICATION_LAYER.md)
+- [Troubleshooting Index](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md)
 
 ## Rollback
 
