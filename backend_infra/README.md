@@ -362,8 +362,9 @@ The infrastructure provides outputs for:
 >
 > The ECR repository name is automatically saved to the GitHub repository variable
 > `ECR_REPOSITORY_NAME` when you provision backend infrastructure using the `setup-backend.sh`
-> script or the `backend_infra_provisioning.yaml` workflow. This variable is required
-> by build workflows (`backend_build_push.yaml` and `frontend_build_push.yaml`)
+> script or the `01-backend_infra_provisioning.yaml` workflow. This variable is
+> required by build workflows (`03-backend_build_push.yaml` and
+> `03-frontend_build_push.yaml`)
 > to push Docker images to ECR.
 
 Use `terraform output` to view all available outputs.

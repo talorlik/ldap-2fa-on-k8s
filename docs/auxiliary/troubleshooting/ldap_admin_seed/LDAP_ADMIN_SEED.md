@@ -521,7 +521,7 @@ Terraform changes:
 ### 5. Image Tag Validation (commit 6205806)
 
 **Files**: `application/variables.tf`, `application/main.tf`,
-`application/setup-application.sh`, `.github/workflows/application_provisioning.yaml`
+`application/setup-application.sh`, `.github/workflows/04-application_provisioning.yaml`
 
 - Variable validation rejects `"latest"` tag
 - Lifecycle precondition on admin-seed job requires non-empty tag
@@ -530,7 +530,7 @@ Terraform changes:
 ### 5. Destroy Script/Workflow Fix (commit b271312)
 
 **Files**: `application/destroy-application.sh`,
-`.github/workflows/application_destroying.yaml`
+`.github/workflows/04-application_destroying.yaml`
 
 Changed fallback from `"latest"` to empty string for destroy operations
 (empty string passes validation and is acceptable for destroy).

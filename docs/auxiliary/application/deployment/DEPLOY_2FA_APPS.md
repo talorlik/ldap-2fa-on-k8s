@@ -6,8 +6,9 @@ applications after the infrastructure has been successfully deployed.
 > [!IMPORTANT]
 >
 > The deployment of the backend and frontend applications **depends
-> on running both** the **Backend Build and Push** (`backend_build_push.yaml`) and
-> **Frontend Build and Push** (`frontend_build_push.yaml`) GitHub Actions workflows
+> on running both** the **Backend Build and Push** (`03-backend_build_push.yaml`)
+> and **Frontend Build and Push** (`03-frontend_build_push.yaml`) GitHub Actions
+> workflows.
 > **BEFORE** deploying the application (Terraform Application Provisioning or
 > `setup-application.sh`). These workflows must be run first to ensure container
 > images are available in ECR before ArgoCD tries to sync or manual Helm deployment

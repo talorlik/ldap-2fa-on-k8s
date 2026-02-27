@@ -54,21 +54,21 @@ Individual secrets (plain text):
 └─────────────────────────┼───────────────────────────────────────┘
                           │
                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              Secret Retrieval & Conversion                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Local Script (setup-application.sh):                           │
-│  1. Retrieve tf-vars secret from AWS Secrets Manager            │
-│  2. Parse JSON: get_secret_key_value()                          │
-│  3. Extract: TF_VAR_POSTGRESQL_PASSWORD_VALUE                   │
-│  4. Export: TF_VAR_postgresql_database_password (lowercase)     │
-│                                                                 │
-│  GitHub Actions (.github/workflows/application_provisioning.yaml):│
-│  1. Read from GitHub Secrets                                    │
-│  2. Export directly: TF_VAR_postgresql_database_password        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│              Secret Retrieval & Conversion                           │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Local Script (setup-application.sh):                                │
+│  1. Retrieve tf-vars secret from AWS Secrets Manager                 │
+│  2. Parse JSON: get_secret_key_value()                               │
+│  3. Extract: TF_VAR_POSTGRESQL_PASSWORD_VALUE                        │
+│  4. Export: TF_VAR_postgresql_database_password (lowercase)          │
+│                                                                      │
+│  GitHub Actions (.github/workflows/04-application_provisioning.yaml):│
+│  1. Read from GitHub Secrets                                         │
+│  2. Export directly: TF_VAR_postgresql_database_password             │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -308,7 +308,7 @@ Backend pods use: ldap-admin-secret
 
 ### Step 1: Read from GitHub Secrets
 
-**File:** `.github/workflows/application_provisioning.yaml` (lines 57-66)
+**File:** `.github/workflows/04-application_provisioning.yaml` (lines 57-66)
 
 ```yaml
 env:

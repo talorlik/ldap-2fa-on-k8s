@@ -382,7 +382,8 @@ helm install ldap-2fa-frontend ./helm/ldap-2fa-frontend \
 
 ### CI/CD Integration
 
-The frontend is built and deployed via GitHub Actions workflow (`frontend_build_push.yaml`):
+The frontend is built and deployed via GitHub Actions workflow
+(`03-frontend_build_push.yaml`):
 
 1. **Build**: Docker image build from `Dockerfile`
 2. **Push**: Image pushed to ECR repository
@@ -391,10 +392,11 @@ The frontend is built and deployed via GitHub Actions workflow (`frontend_build_
 > [!IMPORTANT]
 >
 > **Deployment Dependency:** The frontend application deployment **depends on running
-> both** the **Backend Build and Push** (`backend_build_push.yaml`) and **Frontend
-> Build and Push** (`frontend_build_push.yaml`) workflows. Both workflows must be
-> completed before ArgoCD can sync the applications or manual Helm deployment can
-> succeed. Without both images in ECR, the deployment will fail.
+> both** the **Backend Build and Push** (`03-backend_build_push.yaml`) and
+> **Frontend Build and Push** (`03-frontend_build_push.yaml`) workflows.
+> Both workflows must be completed before ArgoCD can sync the applications or
+> manual Helm deployment can succeed. Without both images in ECR, the deployment
+> will fail.
 
 ## Development
 

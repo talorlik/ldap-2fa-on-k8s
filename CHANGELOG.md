@@ -182,9 +182,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **GitHub Actions Workflow Improvements**
   - Added `jq` installation step to all workflows that use ArgoCD module:
-    - `application_infra_provisioning.yaml`
-    - `application_infra_destroying.yaml`
-    - `application_provisioning.yaml`
+    - `02-application_infra_provisioning.yaml`
+    - `02-application_infra_destroying.yaml`
+    - `04-application_provisioning.yaml`
   - Added step to make `assume-github-role.sh` executable in workflows
   (for local fallback)
   - All workflows now export `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` as environment
@@ -193,9 +193,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **GitHub Actions Workflows: Backend Configuration File Creation**
-  - Fixed `application_provisioning.yaml` to create `application_infra/backend.hcl`
+  - Fixed `04-application_provisioning.yaml` to create `application_infra/backend.hcl`
   before checking ArgoCD capability status
-  - Fixed `application_destroying.yaml` to create both `backend_infra/backend.hcl`
+  - Fixed `04-application_destroying.yaml` to create both `backend_infra/backend.hcl`
   and `application_infra/backend.hcl` before terraform init
   - Ensures backend configuration files exist before Terraform initialization,
   preventing initialization errors
@@ -210,10 +210,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **GitHub Actions: Automatic backend_infra/backend.hcl Creation**
   - Added automatic creation of `backend_infra/backend.hcl` in all relevant workflows:
-    - `application_infra_provisioning.yaml`
-    - `application_infra_destroying.yaml`
-    - `application_provisioning.yaml`
-    - `application_destroying.yaml`
+    - `02-application_infra_provisioning.yaml`
+    - `02-application_infra_destroying.yaml`
+    - `04-application_provisioning.yaml`
+    - `04-application_destroying.yaml`
   - Workflows now create `backend_infra/backend.hcl` from template before Terraform
   operations
   - Required because `application_infra/providers.tf` and `application/providers.tf`
@@ -233,8 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Path, context, and state consistency (scripts and workflows)**
   - **tf_backend_state**: `get-state.sh` and `set-state.sh` now change to the script
   directory before running so Terraform and variables are found whether invoked
-  from repo root or `tf_backend_state/`. TF state workflows (`tfstate_infra_provisioning`,
-  `tfstate_infra_destroying`) set default `AWS_REGION=us-east-1` when repository
+  from repo root or `tf_backend_state/`. TF state workflows (`00-tfstate_infra_provisioning`,
+  `00-tfstate_infra_destroying`) set default `AWS_REGION=us-east-1` when repository
   variable `vars.AWS_REGION` is not set.
   - **application_infra**: `set-k8s-env.sh` uses `BACKEND_PREFIX` (from repository
   variable or `backend_infra/backend.hcl`) and workspace from `TERRAFORM_WORKSPACE`
@@ -403,7 +403,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Application Deployment Validation**
   - Added ACTIVE status check in `application/setup-application.sh` to ensure
   ArgoCD capability is ACTIVE before deploying applications
-  - Added ACTIVE status check in `.github/workflows/application_provisioning.yaml`
+  - Added ACTIVE status check in `.github/workflows/04-application_provisioning.yaml`
   to validate ArgoCD capability status
   - Both scripts and workflows now fail fast with clear error messages if
   ArgoCD capability is not ACTIVE
@@ -437,7 +437,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Application components (PostgreSQL, Redis, SES, SNS, ArgoCD Applications, Route53
   record for 2FA app) moved to `application/`
   - Updated all GitHub workflows to reference correct directories
-  - Created new workflows: `application_provisioning.yaml` and `application_destroying.yaml`
+  - Created new workflows: `04-application_provisioning.yaml` and `04-application_destroying.yaml`
   - Updated all documentation references to reflect new structure
   - Split CHANGELOG files between infrastructure and application changes
 
@@ -473,9 +473,9 @@ code
 ### Added
 
 - **New Application Deployment Workflows**
-  - `application_provisioning.yaml` - Deploys 2FA application and dependencies
+  - `04-application_provisioning.yaml` - Deploys 2FA application and dependencies
   (PostgreSQL, Redis, SES, SNS)
-  - `application_destroying.yaml` - Destroys application deployments
+  - `04-application_destroying.yaml` - Destroys application deployments
   - Application workflows depend on `application_infra` being deployed first
 
 ### Deployment Order
@@ -517,12 +517,12 @@ code
   - References `application_infra` remote state for infrastructure dependencies
 
 - **GitHub Workflows**
-  - Updated `application_infra_provisioning.yaml` and `application_infra_destroying.yaml`:
+  - Updated `02-application_infra_provisioning.yaml` and `02-application_infra_destroying.yaml`:
     - Changed `working-directory` to `./application_infra`
     - Removed PostgreSQL and Redis password secrets (application components)
   - Created new workflows:
-    - `application_provisioning.yaml` - For application deployment
-    - `application_destroying.yaml` - For application destruction
+    - `04-application_provisioning.yaml` - For application deployment
+    - `04-application_destroying.yaml` - For application destruction
 
 - **Documentation Updates**
   - Updated `application_infra/README.md` to focus on infrastructure only
@@ -560,11 +560,11 @@ code
   to GitHub repository variable `ECR_REPOSITORY_NAME`
   - `setup-backend.sh` script automatically retrieves ECR repository name from
   Terraform outputs and saves it to GitHub variables
-  - `backend_infra_provisioning.yaml` workflow automatically sets `ECR_REPOSITORY_NAME`
+  - `01-backend_infra_provisioning.yaml` workflow automatically sets `ECR_REPOSITORY_NAME`
   variable after provisioning
   - Eliminates need for manual GitHub variable configuration
-  - Build workflows (`backend_build_push.yaml` and `frontend_build_push.yaml`) now
-  require `ECR_REPOSITORY_NAME` variable
+  - Build workflows (`03-backend_build_push.yaml` and `03-frontend_build_push.yaml`)
+  now require `ECR_REPOSITORY_NAME` variable
   - Removed redundant PREFIX fallback logic from build workflows for cleaner, more
   maintainable code
 
@@ -851,7 +851,7 @@ code
   - Enhanced script error handling in destroy scripts
 
 - **GitHub Actions Workflow Updates**
-  - Updated `application_infra_provisioning.yaml` with new environment variables
+  - Updated `02-application_infra_provisioning.yaml` with new environment variables
   for Redis, PostgreSQL, and SES
   - Added Docker Buildx setup step for image operations
   - Added "Mirror Docker images to ECR" step (runs after Terraform validate, before
@@ -859,10 +859,10 @@ code
   - Workflow now handles image mirroring automatically
   - Improved credential handling to prevent conflicts between different AWS
     credentials
-  - Updated `application_infra_destroying.yaml` with ExternalId support and
+  - Updated `02-application_infra_destroying.yaml` with ExternalId support and
   improved error handling
-  - Updated `backend_infra_provisioning.yaml` with ExternalId support
-  - Updated `backend_infra_destroying.yaml` with ExternalId support and
+  - Updated `01-backend_infra_provisioning.yaml` with ExternalId support
+  - Updated `01-backend_infra_destroying.yaml` with ExternalId support and
   improved error handling
   - Workflows now pass Redis password via `TF_VAR_redis_password` environment
   variable (from GitHub Secret `TF_VAR_REDIS_PASSWORD`)
@@ -935,13 +935,13 @@ code
   selected environment
 
 - **Workflow updates**
-  - `backend_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
+  - `01-backend_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
   backend, sets environment-based deployment role
-  - `backend_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
+  - `01-backend_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
   backend, sets environment-based deployment role
-  - `application_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
-  backend, sets environment-based deployment role
-  - `application_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
+  - `02-application_infra_provisioning.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN`
+  for backend, sets environment-based deployment role
+  - `02-application_infra_destroying.yaml`: Uses `AWS_STATE_ACCOUNT_ROLE_ARN` for
   backend, sets environment-based deployment role
 
 ## [2025-12-20] - User Signup, Admin Functions, and Infrastructure Modules

@@ -74,14 +74,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `backend_image_tag`
   - Updated `setup-application.sh` to fail early with error if image tag
   extraction fails or returns `"latest"`
-  - Updated `application_provisioning.yaml` workflow with same fail-early behavior
+  - Updated `04-application_provisioning.yaml` workflow with same fail-early behavior
   - Changed variable defaults from `"latest"` to `""` (empty) to force explicit
   setting from Helm values
   - ECR uses commit-based tags (e.g., `ldap-2fa-backend-<sha>-<run_id>`); the
   Backend Build workflow updates Helm values with correct tags
 
 - **Destroy Script/Workflow Image Tag Handling**
-  - Updated `destroy-application.sh` and `application_destroying.yaml` to use
+  - Updated `destroy-application.sh` and `04-application_destroying.yaml` to use
   empty string as fallback when image tag extraction fails (instead of `"latest"`)
   - Empty string passes validation and is acceptable for destroy operations
   since Terraform doesn't need valid tags to destroy resources
@@ -131,9 +131,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and never exposed in outputs)
 
 - **GitHub Actions Workflows: Backend Configuration File Creation**
-  - Fixed `application_provisioning.yaml` to create `application_infra/backend.hcl`
+  - Fixed `04-application_provisioning.yaml` to create `application_infra/backend.hcl`
   before checking ArgoCD capability status
-  - Fixed `application_destroying.yaml` to create both `backend_infra/backend.hcl`
+  - Fixed `04-application_destroying.yaml` to create both `backend_infra/backend.hcl`
   and `application_infra/backend.hcl` before terraform init
   - Ensures backend configuration files exist before Terraform initialization,
   preventing initialization errors
@@ -394,7 +394,7 @@ name"**
 - **ArgoCD Capability Status Validation**
   - Added ACTIVE status check in `setup-application.sh` to ensure ArgoCD capability
   is ACTIVE before deploying applications
-  - Added ACTIVE status check in `.github/workflows/application_provisioning.yaml`
+  - Added ACTIVE status check in `.github/workflows/04-application_provisioning.yaml`
   to validate ArgoCD capability status
   - Both scripts and workflows now fail fast with clear error messages if
   ArgoCD capability is not ACTIVE
@@ -413,7 +413,7 @@ name"**
   - Improved error messages for better troubleshooting guidance
 
 - **GitHub Actions Workflow**
-  - Enhanced `application_provisioning.yaml` with ArgoCD capability status validation
+  - Enhanced `04-application_provisioning.yaml` with ArgoCD capability status validation
   step
   - Workflow now validates ArgoCD capability status before proceeding with application
   deployment
@@ -459,9 +459,9 @@ name"**
   value
 
 - **GitHub Workflows**
-  - Updated `application_provisioning.yaml` to use `APPLICATION_PREFIX` repository
+  - Updated `04-application_provisioning.yaml` to use `APPLICATION_PREFIX` repository
   variable
-  - Updated `application_destroying.yaml` to use `APPLICATION_PREFIX` repository
+  - Updated `04-application_destroying.yaml` to use `APPLICATION_PREFIX` repository
   variable
   - Removed hardcoded path construction (now uses variable value directly)
 

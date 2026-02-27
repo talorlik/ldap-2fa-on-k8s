@@ -103,16 +103,17 @@ ldap-2fa-on-k8s/
 │   │   ├── bug_report.md
 │   │   └── feature_request.md
 │   └── workflows/
-│       ├── application_destroying.yaml
-│       ├── application_infra_destroying.yaml
-│       ├── application_infra_provisioning.yaml
-│       ├── application_provisioning.yaml
-│       ├── backend_build_push.yaml
-│       ├── backend_infra_destroying.yaml
-│       ├── backend_infra_provisioning.yaml
-│       ├── frontend_build_push.yaml
-│       ├── tfstate_infra_destroying.yaml
-│       └── tfstate_infra_provisioning.yaml
+│       ├── 00-tfstate_infra_destroying.yaml
+│       ├── 00-tfstate_infra_provisioning.yaml
+│       ├── 01-backend_infra_destroying.yaml
+│       ├── 01-backend_infra_provisioning.yaml
+│       ├── 02-application_infra_destroying.yaml
+│       ├── 02-application_infra_provisioning.yaml
+│       ├── 03-backend_build_push.yaml
+│       ├── 03-frontend_build_push.yaml
+│       ├── 04-application_destroying.yaml
+│       ├── 04-application_provisioning.yaml
+│       └── releasing_terraform_lock.yaml
 ├── .gitignore
 ├── .markdownlint.json
 ├── .repomixignore
@@ -622,7 +623,7 @@ Deploy infrastructure using GitHub Actions workflows for automated, repeatable d
 
 #### Step 1. Deploy Terraform Backend State Infrastructure
 
-Run the `tfstate_infra_provisioning.yaml` workflow via the GitHub UI.
+Run the `00-tfstate_infra_provisioning.yaml` workflow via the GitHub UI.
 
 > [!NOTE]
 >
@@ -695,7 +696,8 @@ This deploys:
 >
 > **Build workflows must run BEFORE Step 4:** The deployment of the backend and
 > frontend applications **depends on running both** the **Backend Build and Push**
-> (`backend_build_push.yaml`) and **Frontend Build and Push** (`frontend_build_push.yaml`)
+> (`03-backend_build_push.yaml`) and **Frontend Build and Push**
+> (`03-frontend_build_push.yaml`)
 > workflows **BEFORE** completing Step 4. These workflows must be run first
 > (GitHub → Actions → select workflow → Run workflow, choose environment and region)
 > to ensure container images are available in ECR before ArgoCD tries to sync or
@@ -831,8 +833,8 @@ account role ARN
 >
 > **Build workflows must run BEFORE deploying the application:** The deployment
 > of the backend and frontend applications **depends on running both** the
-> **Backend Build and Push** (`backend_build_push.yaml`) and
-> **Frontend Build and Push** (`frontend_build_push.yaml`) workflows
+> **Backend Build and Push** (`03-backend_build_push.yaml`) and
+> **Frontend Build and Push** (`03-frontend_build_push.yaml`) workflows
 > **BEFORE** running `setup-application.sh`. These workflows must be run
 > first (GitHub → Actions → select workflow → Run workflow, choose environment
 > and region) to ensure container images are available in ECR before ArgoCD tries

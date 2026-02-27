@@ -211,9 +211,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **GitHub Actions Workflow Improvements**
   - Added `jq` installation step to all workflows that use ArgoCD module:
-    - `application_infra_provisioning.yaml`
-    - `application_infra_destroying.yaml`
-    - `application_provisioning.yaml`
+    - `02-application_infra_provisioning.yaml`
+    - `02-application_infra_destroying.yaml`
+    - `04-application_provisioning.yaml`
   - Added step to make `assume-github-role.sh` executable in workflows
   (for local fallback)
   - All workflows now export `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` as environment
@@ -248,10 +248,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **GitHub Actions: Automatic backend_infra/backend.hcl Creation**
   - Added automatic creation of `backend_infra/backend.hcl` in all relevant workflows:
-    - `application_infra_provisioning.yaml`
-    - `application_infra_destroying.yaml`
-    - `application_provisioning.yaml`
-    - `application_destroying.yaml`
+    - `02-application_infra_provisioning.yaml`
+    - `02-application_infra_destroying.yaml`
+    - `04-application_provisioning.yaml`
+    - `04-application_destroying.yaml`
   - Workflows now create `backend_infra/backend.hcl` from template before Terraform
   operations
   - Required because `application_infra/providers.tf` reads this file to access
@@ -434,9 +434,9 @@ admin-seed Job and can use them for manual Helm or other automation.
   variable value
 
 - **GitHub Workflows**
-  - Updated `application_infra_provisioning.yaml` to use `APPLICATION_INFRA_PREFIX`
+  - Updated `02-application_infra_provisioning.yaml` to use `APPLICATION_INFRA_PREFIX`
   repository variable
-  - Updated `application_infra_destroying.yaml` to use `APPLICATION_INFRA_PREFIX`
+  - Updated `02-application_infra_destroying.yaml` to use `APPLICATION_INFRA_PREFIX`
   repository variable
   - Changed from `APPLICATION_PREFIX` to `APPLICATION_INFRA_PREFIX` for consistency
 
@@ -463,8 +463,8 @@ admin-seed Job and can use them for manual Helm or other automation.
 ### Changed
 
 - **Build Workflow ECR Repository Name Resolution**
-  - Simplified ECR repository name resolution in `backend_build_push.yaml` and
-  `frontend_build_push.yaml` workflows
+  - Simplified ECR repository name resolution in `03-backend_build_push.yaml` and
+  `03-frontend_build_push.yaml` workflows
   - Removed redundant PREFIX fallback logic for constructing ECR repository names
   - Build workflows now require `ECR_REPOSITORY_NAME` GitHub repository variable
   to be set
@@ -626,8 +626,8 @@ admin-seed Job and can use them for manual Helm or other automation.
   - New variable `deployment_account_external_id` added to `variables.tf`
   - Setup script (`setup-application.sh`) automatically retrieves ExternalId from
   AWS Secrets Manager
-  - GitHub Actions workflow (`application_infra_provisioning.yaml`) updated to use
-  `AWS_ASSUME_EXTERNAL_ID` secret
+  - GitHub Actions workflow (`02-application_infra_provisioning.yaml`) updated
+  to use `AWS_ASSUME_EXTERNAL_ID` secret
   - Deployment account roles must have ExternalId condition in Trust Relationship
   - **Bidirectional Trust Relationships**: Both deployment account roles and state
     account role must trust each other in their respective Trust Relationships
@@ -749,9 +749,9 @@ admin-seed Job and can use them for manual Helm or other automation.
   - Enhanced script error handling in destroy scripts
 
 - **GitHub Actions Workflow Updates**
-  - Updated `application_infra_provisioning.yaml` with ExternalId support and
+  - Updated `02-application_infra_provisioning.yaml` with ExternalId support and
   improved error handling
-  - Updated `application_infra_destroying.yaml` with ExternalId support and
+  - Updated `02-application_infra_destroying.yaml` with ExternalId support and
   improved error handling
   - Workflows now use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state
     operations
@@ -890,9 +890,9 @@ access**
   configuration
 
 - **Updated GitHub Actions workflows for application infrastructure**
-  - `application_infra_provisioning.yaml`: Now uses `AWS_STATE_ACCOUNT_ROLE_ARN`
+  - `02-application_infra_provisioning.yaml`: Now uses `AWS_STATE_ACCOUNT_ROLE_ARN`
   for backend operations
-  - `application_infra_destroying.yaml`: Now uses `AWS_STATE_ACCOUNT_ROLE_ARN`
+  - `02-application_infra_destroying.yaml`: Now uses `AWS_STATE_ACCOUNT_ROLE_ARN`
   for backend operations
   - Both workflows automatically set `deployment_account_role_arn` variable
   based on selected environment:

@@ -1,8 +1,8 @@
 name: 03 - Backend Build and Push
 
-# This workflow can run in parallel with frontend_build_push.yaml since they modify
-# different files (backend vs frontend values.yaml). The git operations include
-# fetch/rebase and retry logic to handle concurrent pushes gracefully.
+# This workflow can run in parallel with 03-frontend_build_push.yaml since they
+# modify different files (backend vs frontend values.yaml). The git operations
+# include fetch/rebase and retry logic to handle concurrent pushes gracefully.
 
 on:
   # push:
@@ -10,7 +10,7 @@ on:
   #     - main
   #   paths:
   #     - 'application/backend/**'
-  #     - '.github/workflows/backend_build_push.yaml'
+  #     - '.github/workflows/03-backend_build_push.yaml'
   workflow_dispatch:
     inputs:
       environment:

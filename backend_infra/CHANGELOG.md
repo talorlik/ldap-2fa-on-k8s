@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`terraform output -raw ecr_repository`)
   - Uses GitHub CLI (`gh variable set`) to create/update the repository variable
   - Includes comprehensive error handling and success messages
-  - `backend_infra_provisioning.yaml` workflow now automatically saves ECR repository
+  - `01-backend_infra_provisioning.yaml` workflow now automatically saves ECR repository
   name to GitHub variable after provisioning
   - Uses `GH_TOKEN` secret for GitHub API access (consistent with tfstate workflow)
   - Variable is automatically created or updated based on whether it already exists
@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Better integration with GitHub repository variables
 
 - **Workflow Automation**
-  - `backend_infra_provisioning.yaml` workflow now includes step to save ECR
+  - `01-backend_infra_provisioning.yaml` workflow now includes step to save ECR
   repository name
   - Automatically creates or updates `ECR_REPOSITORY_NAME` variable after
   successful provisioning
@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New variable `deployment_account_external_id` added to `variables.tf`
   - Setup script (`setup-backend.sh`) automatically retrieves ExternalId from
   AWS Secrets Manager
-  - GitHub Actions workflow (`backend_infra_provisioning.yaml`) updated to use
+  - GitHub Actions workflow (`01-backend_infra_provisioning.yaml`) updated to use
   `AWS_ASSUME_EXTERNAL_ID` secret
   - Deployment account roles must have ExternalId condition in Trust Relationship
   - **Bidirectional Trust Relationships**: Both deployment account roles and state
@@ -92,9 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved user guidance and confirmation prompts
 
 - **GitHub Actions Workflow Updates**
-  - Updated `backend_infra_provisioning.yaml` with ExternalId support and
+  - Updated `01-backend_infra_provisioning.yaml` with ExternalId support and
   improved error handling
-  - Updated `backend_infra_destroying.yaml` with ExternalId support and
+  - Updated `01-backend_infra_destroying.yaml` with ExternalId support and
   improved error handling
   - Workflows now use `AWS_STATE_ACCOUNT_ROLE_ARN` for backend state operations
   - Workflows now use `AWS_ASSUME_EXTERNAL_ID` for cross-account role assumption

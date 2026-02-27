@@ -546,8 +546,8 @@ This script will:
 >
 > **Build workflows must run BEFORE deploying the application:** The deployment
 > of the backend and frontend applications **depends on running both** the
-> **Backend Build and Push** (`backend_build_push.yaml`) and
-> **Frontend Build and Push** (`frontend_build_push.yaml`) workflows
+> **Backend Build and Push** (`03-backend_build_push.yaml`) and
+> **Frontend Build and Push** (`03-frontend_build_push.yaml`) workflows
 > **before** deploying the application (Step 2). These workflows must be run first
 > (GitHub → Actions → select workflow → Run workflow, choose environment and region)
 > to ensure container images are available in ECR before ArgoCD tries to sync or
@@ -602,7 +602,7 @@ The application reads from:
 > [!IMPORTANT]
 >
 > **ArgoCD Capability Status Validation**: The `setup-application.sh` script and
-> `application_provisioning.yaml` workflow automatically validate that
+> `04-application_provisioning.yaml` workflow automatically validate that
 > `argocd_capability_status` is "ACTIVE" before proceeding with deployment. If the
 > status is not ACTIVE, deployment will fail with a clear error message. This
 > ensures that ArgoCD Applications can be properly deployed and managed. The

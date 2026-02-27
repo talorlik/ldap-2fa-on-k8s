@@ -39,14 +39,17 @@ The content is organized as follows:
 ```
 .github/
   workflows/
-    application_infra_destroying.yaml
-    application_infra_provisioning.yaml
-    backend_build_push.yaml
-    backend_infra_destroying.yaml
-    backend_infra_provisioning.yaml
-    frontend_build_push.yaml
-    tfstate_infra_destroying.yaml
-    tfstate_infra_provisioning.yaml
+    00-tfstate_infra_destroying.yaml
+    00-tfstate_infra_provisioning.yaml
+    01-backend_infra_destroying.yaml
+    01-backend_infra_provisioning.yaml
+    02-application_infra_destroying.yaml
+    02-application_infra_provisioning.yaml
+    03-backend_build_push.yaml
+    03-frontend_build_push.yaml
+    04-application_destroying.yaml
+    04-application_provisioning.yaml
+    releasing_terraform_lock.yaml
 application/
   backend/
     helm/
@@ -5254,7 +5257,8 @@ repomix.config.json
 44: }
 ```
 
-## File: .github/workflows/backend_build_push.yaml
+## File: .github/workflows/03-backend_build_push.yaml
+
 ```yaml
   1: name: Backend Build and Push
   2: on:
@@ -5263,7 +5267,7 @@ repomix.config.json
   5:   #     - main
   6:   #   paths:
   7:   #     - 'application/backend/**'
-  8:   #     - '.github/workflows/backend_build_push.yaml'
+  8:   #     - '.github/workflows/03-backend_build_push.yaml'
   9:   workflow_dispatch:
  10:     inputs:
  11:       environment:
@@ -5367,7 +5371,8 @@ repomix.config.json
 109:           echo "ArgoCD will automatically detect the changes and sync the deployment." >> $GITHUB_STEP_SUMMARY
 ```
 
-## File: .github/workflows/frontend_build_push.yaml
+## File: .github/workflows/03-frontend_build_push.yaml
+
 ```yaml
   1: name: Frontend Build and Push
   2: on:
@@ -5376,7 +5381,7 @@ repomix.config.json
   5:   #     - main
   6:   #   paths:
   7:   #     - 'application/frontend/**'
-  8:   #     - '.github/workflows/frontend_build_push.yaml'
+  8:   #     - '.github/workflows/03-frontend_build_push.yaml'
   9:   workflow_dispatch:
  10:     inputs:
  11:       environment:
@@ -5480,7 +5485,8 @@ repomix.config.json
 109:           echo "ArgoCD will automatically detect the changes and sync the deployment." >> $GITHUB_STEP_SUMMARY
 ```
 
-## File: .github/workflows/tfstate_infra_destroying.yaml
+## File: .github/workflows/00-tfstate_infra_destroying.yaml
+
 ```yaml
  1: name: TF Backend State Destroying
  2: on:
@@ -12766,7 +12772,8 @@ repomix.config.json
 85: }
 ```
 
-## File: .github/workflows/tfstate_infra_provisioning.yaml
+## File: .github/workflows/00-tfstate_infra_provisioning.yaml
+
 ```yaml
   1: name: TF Backend State Provisioning
   2: on:
@@ -14267,7 +14274,7 @@ repomix.config.json
  36: BACKEND_FILE="${BACKEND_FILE:-backend.hcl}"
  37: # Check if backend file exists
  38: if [ ! -f "$BACKEND_FILE" ]; then
- 39:     echo "ERROR: $BACKEND_FILE not found. Run ./setup-application.sh or the application_infra_provisioning GitHub workflow first."
+ 39:     echo "ERROR: $BACKEND_FILE not found. Run ./setup-application-infra.sh or the 02-application_infra_provisioning.yaml GitHub workflow first."
  40:     exit 1
  41: fi
  42: # Parse backend configuration
@@ -16946,7 +16953,8 @@ repomix.config.json
 154: }
 ```
 
-## File: .github/workflows/backend_infra_destroying.yaml
+## File: .github/workflows/01-backend_infra_destroying.yaml
+
 ```yaml
  1: name: Backend Infra Destroying
  2: on:
@@ -17049,7 +17057,8 @@ repomix.config.json
 99:         run: terraform apply -auto-approve terraform.tfplan
 ```
 
-## File: .github/workflows/backend_infra_provisioning.yaml
+## File: .github/workflows/01-backend_infra_provisioning.yaml
+
 ```yaml
   1: name: Backend Infra Provisioning
   2: on:
@@ -18286,7 +18295,8 @@ repomix.config.json
 113: variable "ecr_lifecycle_policy" {}
 ```
 
-## File: .github/workflows/application_infra_destroying.yaml
+## File: .github/workflows/02-application_infra_destroying.yaml
+
 ```yaml
   1: name: Application Infra Destroying
   2: # Required GitHub Repository Secrets:
@@ -19159,7 +19169,8 @@ repomix.config.json
 46: }
 ```
 
-## File: .github/workflows/application_infra_provisioning.yaml
+## File: .github/workflows/02-application_infra_provisioning.yaml
+
 ```yaml
   1: name: Application Infra Provisioning
   2: # Required GitHub Repository Secrets:

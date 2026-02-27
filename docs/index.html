@@ -386,7 +386,7 @@
                     <li>Runs Terraform init, workspace select/new, validate, plan, and apply</li>
                 </ul>
                 <h5 id="local-step-4">Step 4: Build Container Images (Required Before Application Deployment)</h5>
-                <p><strong>Important:</strong> Before deploying the application in Step 5, you <strong>must</strong> run both the <strong>Backend Build and Push</strong> and <strong>Frontend Build and Push</strong> workflows to build and push the container images to ECR. These images are required for ArgoCD to sync the applications or for manual Helm deployment.</p>
+                <p><strong>Important:</strong> Before deploying the application in Step 5, you <strong>must</strong> run both the <strong>03 - Backend Build and Push</strong> (<code>03-backend_build_push.yaml</code>) and <strong>03 - Frontend Build and Push</strong> (<code>03-frontend_build_push.yaml</code>) workflows to build and push the container images to ECR. These images are required for ArgoCD to sync the applications or for manual Helm deployment.</p>
                 <p><strong>Why both are required:</strong></p>
                 <ul>
                     <li>Without the backend image, ArgoCD cannot sync the backend application (image pull fails)</li>
@@ -398,7 +398,7 @@
                 <ol>
                     <li><strong>Build and push backend image:</strong>
                         <ul>
-                            <li>Go to GitHub → Actions → "Backend Build and Push"</li>
+                            <li>Go to GitHub → Actions → "03 - Backend Build and Push" (<code>03-backend_build_push.yaml</code>)</li>
                             <li>Click "Run workflow"</li>
                             <li>Select environment (prod or dev)</li>
                             <li>Click "Run workflow"</li>
@@ -407,7 +407,7 @@
                     </li>
                     <li><strong>Build and push frontend image:</strong>
                         <ul>
-                            <li>Go to GitHub → Actions → "Frontend Build and Push"</li>
+                            <li>Go to GitHub → Actions → "03 - Frontend Build and Push" (<code>03-frontend_build_push.yaml</code>)</li>
                             <li>Click "Run workflow"</li>
                             <li>Select environment (prod or dev)</li>
                             <li>Click "Run workflow"</li>
@@ -456,7 +456,7 @@
                 <ol>
                     <li><strong>Build and push backend image:</strong>
                         <ul>
-                            <li>Go to GitHub → Actions → "Backend Build and Push"</li>
+                            <li>Go to GitHub → Actions → "03 - Backend Build and Push" (<code>03-backend_build_push.yaml</code>)</li>
                             <li>Click "Run workflow"</li>
                             <li>Select environment (prod or dev)</li>
                             <li>Click "Run workflow"</li>
@@ -466,7 +466,7 @@
                     </li>
                     <li><strong>Build and push frontend image:</strong>
                         <ul>
-                            <li>Go to GitHub → Actions → "Frontend Build and Push"</li>
+                            <li>Go to GitHub → Actions → "03 - Frontend Build and Push" (<code>03-frontend_build_push.yaml</code>)</li>
                             <li>Click "Run workflow"</li>
                             <li>Select environment (prod or dev)</li>
                             <li>Click "Run workflow"</li>
@@ -764,7 +764,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <h5 id="github-step-1">Step 1: Deploy Terraform Backend State Infrastructure</h5>
                 <ol>
                     <li>Go to GitHub → <strong>Actions</strong> tab</li>
-                    <li>Select <strong>"TF Backend State Provisioning"</strong> workflow</li>
+                    <li>Select <strong>"00 - TF Backend State Provisioning"</strong> workflow (<code>00-tfstate_infra_provisioning.yaml</code>)</li>
                     <li>Click <strong>"Run workflow"</strong> → <strong>"Run workflow"</strong></li>
                     <li>Monitor the workflow execution</li>
                 </ol>
@@ -780,7 +780,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <h5 id="github-step-2">Step 2: Deploy Backend Infrastructure</h5>
                 <ol>
                     <li>Go to GitHub → <strong>Actions</strong> tab</li>
-                    <li>Select <strong>"Backend Infra Provisioning"</strong> workflow</li>
+                    <li>Select <strong>"01 - Backend Infra Provisioning"</strong> workflow (<code>01-backend_infra_provisioning.yaml</code>)</li>
                     <li>Click <strong>"Run workflow"</strong></li>
                     <li>Select <strong>region</strong> (us-east-1: N. Virginia or us-east-2: Ohio)</li>
                     <li>Select <strong>environment</strong> (prod or dev)</li>
@@ -798,7 +798,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <h5 id="github-step-3">Step 3: Deploy Application Infrastructure</h5>
                 <ol>
                     <li>Go to GitHub → <strong>Actions</strong> tab</li>
-                    <li>Select <strong>"Application Infra Provisioning"</strong> workflow</li>
+                    <li>Select <strong>"02 - Application Infra Provisioning"</strong> workflow (<code>02-application_infra_provisioning.yaml</code>)</li>
                     <li>Click <strong>"Run workflow"</strong></li>
                     <li>Select <strong>region</strong> (us-east-1: N. Virginia or us-east-2: Ohio)</li>
                     <li>Select <strong>environment</strong> (prod or dev)</li>
@@ -819,7 +819,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <h5 id="github-step-4">Step 4: Build Container Images (Required Before Application Deployment)</h5>
                 <ol>
                     <li>Go to GitHub → <strong>Actions</strong> tab</li>
-                    <li>Run <strong>"Backend Build and Push"</strong> workflow:
+                    <li>Run <strong>"03 - Backend Build and Push"</strong> workflow (<code>03-backend_build_push.yaml</code>):
                         <ul>
                             <li>Select the workflow</li>
                             <li>Click <strong>"Run workflow"</strong></li>
@@ -827,7 +827,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                             <li>Click <strong>"Run workflow"</strong></li>
                         </ul>
                     </li>
-                    <li>Run <strong>"Frontend Build and Push"</strong> workflow:
+                    <li>Run <strong>"03 - Frontend Build and Push"</strong> workflow (<code>03-frontend_build_push.yaml</code>):
                         <ul>
                             <li>Select the workflow</li>
                             <li>Click <strong>"Run workflow"</strong></li>
@@ -841,7 +841,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <h5 id="github-step-5">Step 5: Deploy Application</h5>
                 <ol>
                     <li>Go to GitHub → <strong>Actions</strong> tab</li>
-                    <li>Select <strong>"Application Provisioning"</strong> workflow</li>
+                    <li>Select <strong>"04 - Application Provisioning"</strong> workflow (<code>04-application_provisioning.yaml</code>)</li>
                     <li>Click <strong>"Run workflow"</strong></li>
                     <li>Select <strong>region</strong> (us-east-1: N. Virginia or us-east-2: Ohio)</li>
                     <li>Select <strong>environment</strong> (prod or dev)</li>
@@ -872,7 +872,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li><strong>Destroy Application:</strong>
                         <ul>
                             <li>Go to GitHub → <strong>Actions</strong> tab</li>
-                            <li>Select <strong>"Application Destroying"</strong> workflow</li>
+                            <li>Select <strong>"04 - Application Destroying"</strong> workflow (<code>04-application_destroying.yaml</code>)</li>
                             <li>Click <strong>"Run workflow"</strong></li>
                             <li>Type <strong>yes</strong> in the confirmation input</li>
                             <li>Select environment (prod or dev) and region</li>
@@ -895,7 +895,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li><strong>Destroy Application Infrastructure:</strong>
                         <ul>
                             <li>Go to GitHub → <strong>Actions</strong> tab</li>
-                            <li>Select <strong>"Application Infra Destroying"</strong> workflow</li>
+                            <li>Select <strong>"02 - Application Infra Destroying"</strong> workflow (<code>02-application_infra_destroying.yaml</code>)</li>
                             <li>Click <strong>"Run workflow"</strong></li>
                             <li>Type <strong>yes</strong> in the confirmation input</li>
                             <li>Select environment (prod or dev) and region</li>
@@ -905,7 +905,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li><strong>Destroy Backend Infrastructure:</strong>
                         <ul>
                             <li>Go to GitHub → <strong>Actions</strong> tab</li>
-                            <li>Select <strong>"Backend Infra Destroying"</strong> workflow</li>
+                            <li>Select <strong>"01 - Backend Infra Destroying"</strong> workflow (<code>01-backend_infra_destroying.yaml</code>)</li>
                             <li>Click <strong>"Run workflow"</strong></li>
                             <li>Type <strong>yes</strong> in the confirmation input</li>
                             <li>Select environment (prod or dev) and region</li>
@@ -915,7 +915,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <li><strong>Destroy State Backend (if needed):</strong>
                         <ul>
                             <li>Go to GitHub → <strong>Actions</strong> tab</li>
-                            <li>Select <strong>"TF Backend State Destroying"</strong> workflow</li>
+                            <li>Select <strong>"00 - TF Backend State Destroying"</strong> workflow (<code>00-tfstate_infra_destroying.yaml</code>)</li>
                             <li>Click <strong>"Run workflow"</strong></li>
                             <li>Type <strong>yes</strong> in the confirmation input</li>
                             <li>Click <strong>"Run workflow"</strong></li>
@@ -972,7 +972,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li><strong>Components:</strong> S3 bucket with versioning, encryption, and file-based locking</li>
                         <li><strong>Account:</strong> State Account (Account A)</li>
                         <li><strong>Local:</strong> <code>cd tf_backend_state && ./set-state.sh</code> (or <code>./tf_backend_state/set-state.sh</code> from repo root; scripts change to their directory automatically)</li>
-                        <li><strong>GitHub Actions:</strong> "TF Backend State Provisioning" workflow (defaults <code>AWS_REGION</code> to <code>us-east-1</code> when not set)</li>
+                        <li><strong>GitHub Actions:</strong> "00 - TF Backend State Provisioning" (<code>00-tfstate_infra_provisioning.yaml</code>); defaults <code>AWS_REGION</code> to <code>us-east-1</code> when not set</li>
                         <li><strong>See:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/tf_backend_state/README.md">Terraform Backend State README</a></li>
                     </ul>
                 </li>
@@ -983,7 +983,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li><strong>Account:</strong> Deployment Account (Account B)</li>
                         <li><strong>Prerequisites:</strong> Terraform backend state must be deployed first</li>
                         <li><strong>Local:</strong> <code>cd backend_infra && ./setup-backend.sh</code></li>
-                        <li><strong>GitHub Actions:</strong> "Backend Infra Provisioning" workflow</li>
+                        <li><strong>GitHub Actions:</strong> "01 - Backend Infra Provisioning" (<code>01-backend_infra_provisioning.yaml</code>)</li>
                         <li><strong>See:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/backend_infra/README.md">Backend Infrastructure README</a></li>
                     </ul>
                 </li>
@@ -1001,7 +1001,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                             </ul>
                         </li>
                         <li><strong>Local:</strong> <code>cd application_infra && ./setup-application-infra.sh</code></li>
-                        <li><strong>GitHub Actions:</strong> "Application Infra Provisioning" workflow</li>
+                        <li><strong>GitHub Actions:</strong> "02 - Application Infra Provisioning" (<code>02-application_infra_provisioning.yaml</code>)</li>
                         <li><strong>See:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/README.md">Application Infrastructure README</a> | <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md">Application Deployment README</a></li>
                     </ul>
                 </li>
@@ -1009,7 +1009,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     <ul>
                         <li><strong>Purpose:</strong> Build and push backend and frontend container images to ECR</li>
                         <li><strong>Required:</strong> Must be completed <strong>BEFORE</strong> deploying the application</li>
-                        <li><strong>Workflows:</strong> "Backend Build and Push" and "Frontend Build and Push" (can run in parallel)</li>
+                        <li><strong>Workflows:</strong> "03 - Backend Build and Push" (<code>03-backend_build_push.yaml</code>) and "03 - Frontend Build and Push" (<code>03-frontend_build_push.yaml</code>) (can run in parallel)</li>
                         <li><strong>Note:</strong> These workflows update Helm values.yaml files with new image tags and commit changes to git</li>
                     </ul>
                 </li>
@@ -1020,7 +1020,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                         <li><strong>Account:</strong> Deployment Account (Account B)</li>
                         <li><strong>Prerequisites:</strong> Application infrastructure (Step 3) must be deployed first, including StorageClass, ArgoCD Capability, and ALB DNS name. <strong>Container images must be built and pushed to ECR before deployment</strong> (see Build Container Images step above).</li>
                         <li><strong>Local:</strong> <code>cd application && ./setup-application.sh</code></li>
-                        <li><strong>GitHub Actions:</strong> "Application Provisioning" workflow</li>
+                        <li><strong>GitHub Actions:</strong> "04 - Application Provisioning" (<code>04-application_provisioning.yaml</code>)</li>
                         <li><strong>See:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/README.md">Application Deployment README</a> for complete deployment guide</li>
                         <li><strong>Note:</strong> The 2FA application backend and frontend can be deployed via ArgoCD Applications (if enabled) or manually using Helm charts. See <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/deployment/DEPLOY_2FA_APPS.md">Deploying the 2FA Application</a> for manual deployment instructions.</li>
                     </ul>
@@ -1096,7 +1096,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             <ul>
                 <li><strong>assume-github-role.sh</strong>: Assume AWS roles (State, Dev, Prod). Used by the ArgoCD module and for manual role switching.</li>
                 <li><strong>get-eks-token.sh</strong>: Used by Terraform Kubernetes and Helm providers (exec plugin) to generate a fresh EKS token on every API call, avoiding token timeout during long operations (e.g. 20-minute Helm timeouts). Supports optional cross-account role assumption via <code>ASSUME_ROLE_ARN</code> and <code>ASSUME_EXTERNAL_ID</code>.</li>
-                <li><strong>mirror-images-to-ecr.sh</strong>: Mirrors Docker Hub images (OpenLDAP, Redis, PostgreSQL, phpldapadmin, ltb-passwd) to ECR. Run by <code>setup-application-infra.sh</code> and application_infra provisioning workflow.</li>
+                <li><strong>mirror-images-to-ecr.sh</strong>: Mirrors Docker Hub images (OpenLDAP, Redis, PostgreSQL, phpldapadmin, ltb-passwd) to ECR. Run by <code>setup-application-infra.sh</code> and the 02 - Application Infra Provisioning workflow (<code>02-application_infra_provisioning.yaml</code>).</li>
                 <li><strong>set-k8s-env.sh</strong>: Sets Kubernetes environment variables and updates kubeconfig from backend_infra Terraform state. Sourced by application_infra and application setup/destroy scripts and workflows.</li>
             </ul>
         </div>

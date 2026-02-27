@@ -73,7 +73,7 @@ BACKEND_FILE="${BACKEND_FILE:-backend.hcl}"
 
 # Check if backend file exists
 if [ ! -f "$BACKEND_FILE" ]; then
-    echo "ERROR: $BACKEND_FILE not found. Run ./setup-application-infra.sh or the application_infra_provisioning GitHub workflow first."
+    echo "ERROR: $BACKEND_FILE not found. Run ./setup-application-infra.sh or the 02-application_infra_provisioning.yaml GitHub workflow first."
     exit 1
 fi
 

@@ -125,17 +125,17 @@ ldap-2fa-on-k8s/
 │   │   ├── bug_report.md
 │   │   └── feature_request.md
 │   └── workflows/
-│       ├── application_destroying.yaml
-│       ├── application_infra_destroying.yaml
-│       ├── application_infra_provisioning.yaml
-│       ├── application_provisioning.yaml
-│       ├── backend_build_push.yaml
-│       ├── backend_infra_destroying.yaml
-│       ├── backend_infra_provisioning.yaml
-│       ├── frontend_build_push.yaml
+│       ├── 04-application_destroying.yaml
+│       ├── 02-application_infra_destroying.yaml
+│       ├── 02-application_infra_provisioning.yaml
+│       ├── 04-application_provisioning.yaml
+│       ├── 03-backend_build_push.yaml
+│       ├── 01-backend_infra_destroying.yaml
+│       ├── 01-backend_infra_provisioning.yaml
+│       ├── 03-frontend_build_push.yaml
 │       ├── releasing_terraform_lock.yaml
-│       ├── tfstate_infra_destroying.yaml
-│       └── tfstate_infra_provisioning.yaml
+│       ├── 00-tfstate_infra_destroying.yaml
+│       └── 00-tfstate_infra_provisioning.yaml
 ├── application_infra/          # Application infrastructure - Account B
 │   ├── charts/                 # Vendored Helm charts
 │   │   └── openldap-stack-ha/  # OpenLDAP 5.0.0 (vendored locally)
@@ -990,19 +990,19 @@ instead of plain-text values in Helm charts
 
 **Infrastructure Workflows:**
 
-- `tfstate_infra_provisioning.yaml` - Create Terraform backend state
-- `tfstate_infra_destroying.yaml` - Destroy Terraform backend state (requires
+- `00-tfstate_infra_provisioning.yaml` - Create Terraform backend state
+- `00-tfstate_infra_destroying.yaml` - Destroy Terraform backend state (requires
 confirmation: type 'yes')
-- `backend_infra_provisioning.yaml` - Create backend infrastructure
-- `backend_infra_destroying.yaml` - Destroy backend infrastructure (requires
+- `01-backend_infra_provisioning.yaml` - Create backend infrastructure
+- `01-backend_infra_destroying.yaml` - Destroy backend infrastructure (requires
 confirmation: type 'yes')
-- `application_infra_provisioning.yaml` - Deploy application infrastructure
+- `02-application_infra_provisioning.yaml` - Deploy application infrastructure
 (OpenLDAP, ALB, ArgoCD Capability, StorageClass)
-- `application_infra_destroying.yaml` - Destroy application infrastructure (requires
+- `02-application_infra_destroying.yaml` - Destroy application infrastructure (requires
 confirmation: type 'yes')
-- `application_provisioning.yaml` - Deploy application (2FA app, PostgreSQL, Redis,
-SES, SNS)
-- `application_destroying.yaml` - Destroy application (requires confirmation:
+- `04-application_provisioning.yaml` - Deploy application (2FA app, PostgreSQL,
+Redis, SES, SNS)
+- `04-application_destroying.yaml` - Destroy application (requires confirmation:
 type 'yes')
 
 **Utility Workflows:**
@@ -1012,8 +1012,8 @@ or interrupted run (requires lock ID input)
 
 **Application CI/CD Workflows:**
 
-- `backend_build_push.yaml` - Build and push 2FA backend Docker image to ECR
-- `frontend_build_push.yaml` - Build and push 2FA frontend Docker image to ECR
+- `03-backend_build_push.yaml` - Build and push 2FA backend Docker image to ECR
+- `03-frontend_build_push.yaml` - Build and push 2FA frontend Docker image to ECR
 
 ### Required GitHub Secrets
 
@@ -1303,9 +1303,9 @@ workflow or `setup-backend.sh` script (required for build workflows)
 
 - **GitHub Actions Workflow Improvements**:
   - Added `jq` installation step to all workflows that use ArgoCD module:
-    - `application_infra_provisioning.yaml`
-    - `application_infra_destroying.yaml`
-    - `application_provisioning.yaml`
+    - `02-application_infra_provisioning.yaml`
+    - `02-application_infra_destroying.yaml`
+    - `04-application_provisioning.yaml`
   - Added step to make `assume-github-role.sh` executable in workflows
   (for local fallback)
   - All workflows now export `DEPLOYMENT_ROLE_ARN` and `EXTERNAL_ID` as environment
@@ -1319,10 +1319,10 @@ workflow or `setup-backend.sh` script (required for build workflows)
 
 - **Fixed GitHub Actions Automatic backend_infra/backend.hcl Creation**:
   - Added automatic creation of `backend_infra/backend.hcl` in all relevant workflows:
-    - `application_infra_provisioning.yaml`
-    - `application_infra_destroying.yaml`
-    - `application_provisioning.yaml`
-    - `application_destroying.yaml`
+    - `02-application_infra_provisioning.yaml`
+    - `02-application_infra_destroying.yaml`
+    - `04-application_provisioning.yaml`
+    - `04-application_destroying.yaml`
   - Workflows now create `backend_infra/backend.hcl` from template before Terraform
   operations
   - Required because `application_infra/providers.tf` and `application/providers.tf`
@@ -1545,7 +1545,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
 - **Application Deployment Validation**:
   - Added ArgoCD capability ACTIVE status check in `application/setup-application.sh`
   before deploying applications
-  - Added ArgoCD capability ACTIVE status check in `.github/workflows/application_provisioning.yaml`
+  - Added ArgoCD capability ACTIVE status check in `.github/workflows/04-application_provisioning.yaml`
   workflow
   - Both scripts and workflows now fail fast with clear error messages if
   ArgoCD capability is not ACTIVE
@@ -1651,9 +1651,9 @@ workflow or `setup-backend.sh` script (required for build workflows)
   (uses `APPLICATION_PREFIX` repository variable)
 
 - **New GitHub Workflows**
-  - Created `application_provisioning.yaml` - Deploys 2FA application and dependencies
-  - Created `application_destroying.yaml` - Destroys application deployments
-  - Updated `application_infra_provisioning.yaml` and `application_infra_destroying.yaml`
+  - Created `04-application_provisioning.yaml` - Deploys 2FA application and dependencies
+  - Created `04-application_destroying.yaml` - Destroys application deployments
+  - Updated `02-application_infra_provisioning.yaml` and `02-application_infra_destroying.yaml`
   - Application workflows depend on application_infra being deployed first
 
 - **Deployment Order (CRITICAL)**
@@ -1720,11 +1720,11 @@ workflow or `setup-backend.sh` script (required for build workflows)
   to GitHub repository variable `ECR_REPOSITORY_NAME`
   - `setup-backend.sh` script automatically retrieves ECR repository name from
   Terraform outputs and saves it to GitHub variables
-  - `backend_infra_provisioning.yaml` workflow automatically sets `ECR_REPOSITORY_NAME`
+  - `01-backend_infra_provisioning.yaml` workflow automatically sets `ECR_REPOSITORY_NAME`
   variable after provisioning
   - Eliminates need for manual GitHub variable configuration
-  - Build workflows (`backend_build_push.yaml` and `frontend_build_push.yaml`) now
-  require `ECR_REPOSITORY_NAME` variable
+  - Build workflows (`03-backend_build_push.yaml` and `03-frontend_build_push.yaml`)
+  now require `ECR_REPOSITORY_NAME` variable
   - Removed redundant PREFIX fallback logic from build workflows for cleaner, more
   maintainable code
 
@@ -1889,7 +1889,7 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - Parses ECR URL to extract registry and repository name
   - Passes ECR configuration to OpenLDAP, Redis, and PostgreSQL modules
 - **GitHub Actions Workflow Updates**:
-  - Added Docker Buildx setup to `application_infra_provisioning.yaml`
+  - Added Docker Buildx setup to `02-application_infra_provisioning.yaml`
   - Integrated `mirror-images-to-ecr.sh` execution before Terraform deployment
   - Follows same multi-account credential flow as local scripts
 - **EKS ECR Permissions**:
@@ -2209,8 +2209,8 @@ signup system, user stories, and API specifications
   - Transactional SMS type for higher delivery priority
   - Cost control via monthly spend limits
 - **GitHub Actions CI/CD workflows**:
-  - `backend_build_push.yaml` - Builds and pushes backend Docker image to ECR
-  - `frontend_build_push.yaml` - Builds and pushes frontend Docker image to ECR
+  - `03-backend_build_push.yaml` - Builds and pushes backend Docker image to ECR
+  - `03-frontend_build_push.yaml` - Builds and pushes frontend Docker image to ECR
   - Triggered on changes to `application/backend/**` and
   `application/frontend/**` paths
 - **Product Requirements Document**: Comprehensive PRD_2FA_APP.md documenting
@@ -2364,7 +2364,7 @@ with different selections
    - Make changes to Python code in `src/`
    - Test locally if possible
    - Commit and push changes to `application/backend/**`
-   - GitHub Actions workflow `backend_build_push.yaml` automatically:
+   - GitHub Actions workflow `03-backend_build_push.yaml` automatically:
      - Builds Docker image
      - Tags with both commit SHA and full tag (SHA + run ID)
      - Pushes to ECR (no `:latest` tag)
@@ -2377,7 +2377,7 @@ with different selections
    - Frontend container runs on port 8080 as non-root user (`appuser`, UID 1000)
    - Kubernetes service exposes port 80 externally (forwards to container port 8080)
    - Commit and push changes to `application/frontend/**`
-   - GitHub Actions workflow `frontend_build_push.yaml` automatically:
+   - GitHub Actions workflow `03-frontend_build_push.yaml` automatically:
      - Builds Docker image
      - Tags with both commit SHA and full tag (SHA + run ID)
      - Pushes to ECR (no `:latest` tag)

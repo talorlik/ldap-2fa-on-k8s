@@ -617,10 +617,11 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 > [!IMPORTANT]
 >
 > **Deployment Dependency:** The backend application deployment **depends on running
-> both** the **Backend Build and Push** (`backend_build_push.yaml`) and **Frontend
-> Build and Push** (`frontend_build_push.yaml`) workflows. Both workflows must be
-> completed before ArgoCD can sync the applications or manual Helm deployment can
-> succeed. Without both images in ECR, the deployment will fail.
+> both** the **Backend Build and Push** (`03-backend_build_push.yaml`) and
+> **Frontend Build and Push** (`03-frontend_build_push.yaml`) workflows.
+> Both workflows must be completed before ArgoCD can sync the applications or
+> manual Helm deployment can succeed. Without both images in ECR, the deployment
+> will fail.
 
 ### Kubernetes Deployment
 

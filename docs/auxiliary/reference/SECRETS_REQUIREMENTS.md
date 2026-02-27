@@ -638,10 +638,10 @@ them at:
 | ------------- | ------ | ------------- | ------------ |
 | `AWS_REGION` | Variable | AWS region where resources will be created | Manual |
 | `BACKEND_PREFIX` | Variable | Prefix for Terraform state file path in S3 bucket | Manual |
-| `BACKEND_BUCKET_NAME` | Variable | Dynamically generated S3 bucket name for Terraform state | **Auto-generated** by `tfstate_infra_provisioning.yaml` workflow |
+| `BACKEND_BUCKET_NAME` | Variable | Dynamically generated S3 bucket name for Terraform state | **Auto-generated** by `00-tfstate_infra_provisioning.yaml` workflow |
 | `APPLICATION_INFRA_PREFIX` | Variable | State file key prefix for application infrastructure (value: `application_infra_state/terraform.tfstate`) | Manual |
 | `APPLICATION_PREFIX` | Variable | State file key prefix for application (value: `application_state/terraform.tfstate`) | Manual |
-| `ECR_REPOSITORY_NAME` | Variable | ECR repository name for Docker image storage | **Auto-generated** by `backend_infra_provisioning.yaml` workflow or `setup-backend.sh` script |
+| `ECR_REPOSITORY_NAME` | Variable | ECR repository name for Docker image storage | **Auto-generated** by `01-backend_infra_provisioning.yaml` workflow or `setup-backend.sh` script |
 
 > [!IMPORTANT]
 >
@@ -650,10 +650,10 @@ them at:
 > - `BACKEND_BUCKET_NAME`: Automatically set after provisioning Terraform backend
 > state infrastructure
 > - `ECR_REPOSITORY_NAME`: Automatically set after provisioning backend infrastructure
->   - Set by `backend_infra_provisioning.yaml` workflow after successful
+>   - Set by `01-backend_infra_provisioning.yaml` workflow after successful
 > Terraform apply
 >   - Set by `setup-backend.sh` script after successful Terraform apply
->   - Required by build workflows (`backend_build_push.yaml` and `frontend_build_push.yaml`)
+>   - Required by build workflows (`03-backend_build_push.yaml` and `03-frontend_build_push.yaml`)
 >   - **⚠️ You don't need to create these manually** - they are created automatically
 >
 > **Manual Variables (Must Be Set):**

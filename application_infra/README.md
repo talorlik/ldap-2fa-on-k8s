@@ -756,11 +756,12 @@ images are automatically mirrored from Docker Hub to ECR by the
 > The `ECR_REPOSITORY_NAME` GitHub repository variable is automatically set when
 > you provision backend infrastructure using:
 >
-> - The `backend_infra_provisioning.yaml` workflow, or
+> - The `01-backend_infra_provisioning.yaml` workflow, or
 > - The `setup-backend.sh` script
 >
-> This variable is required by the build workflows (`backend_build_push.yaml` and
-> `frontend_build_push.yaml`) to push Docker images to ECR. If the variable is not
+> This variable is required by the build workflows
+> (`03-backend_build_push.yaml` and `03-frontend_build_push.yaml`) to push
+> Docker images to ECR. If the variable is not
 > set, the build workflows will fail with a clear error message directing you to
 > provision backend infrastructure first.
 
