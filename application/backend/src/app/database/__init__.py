@@ -10,6 +10,7 @@ from app.database.connection import (
 from app.database.models import (
     Base,
     User,
+    UserMFAMethod,
     VerificationToken,
     ProfileStatus,
     Group,
@@ -24,6 +25,7 @@ __all__ = [
     "AsyncSessionLocal",
     "Base",
     "User",
+    "UserMFAMethod",
     "VerificationToken",
     "ProfileStatus",
     "Group",

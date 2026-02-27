@@ -26,7 +26,7 @@ import bcrypt
 
 from app.config import Settings, get_settings
 from app.database import init_db, close_db
-from app.database.models import User, ProfileStatus
+from app.database.models import User, ProfileStatus, Group, UserGroup
 from app.ldap.client import LDAPClient
 
 # Log only high-level messages; never log secrets or PII
@@ -146,20 +146,31 @@ def _seed_ldap_on_host(
         return False
     logger.info("[%s] LDAP user ensured: %s (%s)", host, username, msg)
 
-    # Step 3: Ensure admins group exists and add user to it
+    # Step 3: Ensure admins and users groups exist, add user to admins
+    users_group_dn = f"cn=users,{admin_group_dn.split(',', 1)[1]}"
+    for group_name, group_dn, group_desc in [
+        ("admins", admin_group_dn, "Administrator group"),
+        ("users", users_group_dn, "Regular users group"),
+    ]:
+        try:
+            groups = ldap.list_groups()
+            if not any((g.get("dn") or "").lower() == group_dn.lower() for g in groups):
+                created, create_msg, _ = ldap.create_group(group_name, group_desc)
+                if not created and "already exists" not in (create_msg or "").lower():
+                    logger.warning("[%s] Could not create %s group: %s", host, group_name, create_msg)
+                else:
+                    logger.info("[%s] %s group ensured", host, group_name)
+        except Exception as e:
+            logger.warning("[%s] %s group check/add failed (non-fatal): %s", host, group_name, type(e).__name__)
+
     try:
-        groups = ldap.list_groups()
-        if not any((g.get("dn") or "").lower() == admin_group_dn.lower() for g in groups):
-            created, create_msg, _ = ldap.create_group("admins", "Administrators")
-            if not created and "already exists" not in (create_msg or "").lower():
-                logger.warning("[%s] Could not create admins group: %s", host, create_msg)
         add_ok, add_msg = ldap.add_user_to_group(username, admin_group_dn)
         if add_ok:
             logger.info("[%s] User %s is in admin group", host, username)
         else:
             logger.warning("[%s] Could not add user to admin group: %s", host, add_msg)
     except Exception as e:
-        logger.warning("[%s] Admin group check/add failed (non-fatal): %s", host, type(e).__name__)
+        logger.warning("[%s] Admin group add failed (non-fatal): %s", host, type(e).__name__)
 
     return True
 
@@ -196,6 +207,39 @@ async def _ensure_ldap_admin_user(
         return _seed_ldap_on_host(ldap, username, password, first_name, last_name, email)
 
 
+async def _upsert_db_groups() -> bool:
+    """Mirror admins and users groups from LDAP to PostgreSQL. Creates Group records if missing."""
+    from sqlalchemy import select
+    from app.database.connection import AsyncSessionLocal
+
+    if AsyncSessionLocal is None:
+        logger.error("Database session factory not initialized")
+        return False
+
+    settings = get_settings()
+    admin_group_dn = settings.ldap_admin_group_dn
+    users_group_dn = f"cn=users,{admin_group_dn.split(',', 1)[1]}"
+
+    groups_to_sync = [
+        ("admins", admin_group_dn, "Administrator group"),
+        ("users", users_group_dn, "Regular users group"),
+    ]
+
+    async with AsyncSessionLocal() as session:
+        for name, ldap_dn, description in groups_to_sync:
+            result = await session.execute(select(Group).where(Group.ldap_dn == ldap_dn))
+            group = result.scalar_one_or_none()
+            if not group:
+                group = Group(name=name, ldap_dn=ldap_dn, description=description)
+                session.add(group)
+                logger.info("Created Group in DB: %s", name)
+            else:
+                logger.debug("Group already exists in DB: %s", name)
+        await session.commit()
+    logger.info("Groups mirrored to PostgreSQL")
+    return True
+
+
 async def _upsert_db_admin(
     username: str,
     password: str,
@@ -221,23 +265,23 @@ async def _upsert_db_admin(
 
         if user:
             if user.status == ProfileStatus.ACTIVE.value:
-                logger.info("Admin user already active, skipping DB update")
-                return True
-            # Update to ACTIVE and verified; do not set MFA (admin uses same login/MFA flow)
-            user.email_verified = True
-            user.phone_verified = True
-            user.status = ProfileStatus.ACTIVE.value
-            user.password_hash = password_hash
-            user.totp_secret = None
-            user.mfa_method = ""
-            user.activated_at = datetime.now(timezone.utc)
-            user.activated_by = "seed"
-            user.first_name = first_name
-            user.last_name = last_name
-            user.email = email.lower()
-            user.phone_country_code = phone_country_code
-            user.phone_number = phone_number
-            session.add(user)
+                logger.info("Admin user already active, skipping profile update")
+            else:
+                # Update to ACTIVE and verified; do not set MFA (admin uses same login/MFA flow)
+                user.email_verified = True
+                user.phone_verified = True
+                user.status = ProfileStatus.ACTIVE.value
+                user.password_hash = password_hash
+                user.totp_secret = None
+                user.mfa_method = ""
+                user.activated_at = datetime.now(timezone.utc)
+                user.activated_by = "seed"
+                user.first_name = first_name
+                user.last_name = last_name
+                user.email = email.lower()
+                user.phone_country_code = phone_country_code
+                user.phone_number = phone_number
+                session.add(user)
         else:
             user = User(
                 username=username,
@@ -256,6 +300,29 @@ async def _upsert_db_admin(
                 activated_by="seed",
             )
             session.add(user)
+
+        await session.flush()
+
+        # Ensure admin is in admins group (UserGroup mirror)
+        settings = get_settings()
+        admin_group_dn = settings.ldap_admin_group_dn
+        result = await session.execute(select(Group).where(Group.ldap_dn == admin_group_dn))
+        admins_group = result.scalar_one_or_none()
+        if admins_group:
+            ug_result = await session.execute(
+                select(UserGroup).where(
+                    UserGroup.user_id == user.id,
+                    UserGroup.group_id == admins_group.id,
+                )
+            )
+            if not ug_result.scalar_one_or_none():
+                user_group = UserGroup(
+                    user_id=user.id,
+                    group_id=admins_group.id,
+                    assigned_by="seed",
+                )
+                session.add(user_group)
+                logger.info("Admin user assigned to admins group (DB)")
 
         await session.commit()
     logger.info("Admin user seeded successfully (DB)")
@@ -293,6 +360,10 @@ async def run_seed() -> int:
             email=email,
         )
         if not ok_ldap:
+            return 1
+
+        ok_groups = await _upsert_db_groups()
+        if not ok_groups:
             return 1
 
         ok_db = await _upsert_db_admin(

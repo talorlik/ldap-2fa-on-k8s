@@ -19,7 +19,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
-from app.database import get_async_session, User, VerificationToken, ProfileStatus, Group, UserGroup
+from app.database import (
+    get_async_session,
+    User,
+    UserMFAMethod,
+    VerificationToken,
+    ProfileStatus,
+    Group,
+    UserGroup,
+)
 from app.email import EmailClient
 from app.ldap import LDAPClient
 from app.mfa import TOTPManager
@@ -260,8 +268,9 @@ class MFAMethodsResponse(BaseModel):
 class UserMFAStatusResponse(BaseModel):
     """Response with user's MFA enrollment status."""
     enrolled: bool = Field(..., description="Whether user is enrolled")
-    mfa_method: Optional[str] = Field(None, description="Enrolled MFA method")
-    phone_number: Optional[str] = Field(None, description="Masked phone")
+    mfa_method: Optional[str] = Field(None, description="Enrolled MFA method (legacy/comma-separated)")
+    mfa_methods: list[str] = Field(default_factory=list, description="List of enrolled methods: totp, sms")
+    phone_number: Optional[str] = Field(None, description="Masked phone for SMS")
 
 
 # Admin models
@@ -285,6 +294,13 @@ class AdminActivateResponse(BaseModel):
 
 
 # Profile Models
+class ProfileMFAMethodItem(BaseModel):
+    """Single MFA method in profile."""
+    id: str = Field(..., description="Method record ID")
+    method: str = Field(..., description="totp or sms")
+    phone_number: Optional[str] = Field(None, description="Masked phone for SMS method")
+
+
 class ProfileResponse(BaseModel):
     """User profile response model."""
     id: str = Field(..., description="User ID")
@@ -296,7 +312,11 @@ class ProfileResponse(BaseModel):
     phone_number: str = Field(..., description="Phone number")
     email_verified: bool = Field(..., description="Email verified")
     phone_verified: bool = Field(..., description="Phone verified")
-    mfa_method: str = Field(..., description="MFA method")
+    mfa_method: str = Field(..., description="MFA method (legacy: comma-separated list)")
+    mfa_methods: list[ProfileMFAMethodItem] = Field(
+        default_factory=list,
+        description="Enrolled 2FA methods",
+    )
     status: str = Field(..., description="Profile status")
     created_at: str = Field(..., description="Creation date")
     groups: list[dict] = Field(default_factory=list, description="User's groups")
@@ -309,6 +329,19 @@ class ProfileUpdateRequest(BaseModel):
     email: Optional[EmailStr] = Field(None)
     phone_country_code: Optional[str] = Field(None)
     phone_number: Optional[str] = Field(None)
+    current_password: Optional[str] = Field(None, min_length=1)
+    new_password: Optional[str] = Field(None, min_length=8)
+    confirm_password: Optional[str] = Field(None, min_length=8)
+
+    @model_validator(mode="after")
+    def password_change_valid(self):
+        """When changing password, all three fields required and must match."""
+        pw_fields = (self.current_password, self.new_password, self.confirm_password)
+        if any(pw_fields) and not all(pw_fields):
+            raise ValueError("Password change requires current_password, new_password, and confirm_password")
+        if self.new_password and self.confirm_password and self.new_password != self.confirm_password:
+            raise ValueError("New password and confirmation do not match")
+        return self
 
     @field_validator("phone_country_code")
     @classmethod
@@ -326,6 +359,52 @@ class ProfileUpdateRequest(BaseModel):
                 raise ValueError("Phone number must contain 5-15 digits")
             return cleaned
         return v
+
+
+class RequestEmailChangeRequest(BaseModel):
+    """Request to change email; sends verification to the new address."""
+    new_email: EmailStr = Field(..., description="New email address")
+
+
+class ChangePasswordRequest(BaseModel):
+    """Request to change password (authenticated user)."""
+    current_password: str = Field(..., min_length=1, description="Current password")
+    new_password: str = Field(..., min_length=8, description="New password")
+    confirm_password: str = Field(..., min_length=8, description="Confirm new password")
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        """Validate that new and confirm passwords match."""
+        if self.new_password != self.confirm_password:
+            raise ValueError("New password and confirmation do not match")
+        return self
+
+
+class ChangePasswordResponse(BaseModel):
+    """Response after changing password."""
+    success: bool = Field(..., description="Whether password was changed")
+    message: str = Field(..., description="Response message")
+
+
+class RequestPhoneChangeRequest(BaseModel):
+    """Request to change phone; sends verification code to the new number."""
+    phone_country_code: str = Field(..., description="Country code (e.g. +1)")
+    phone_number: str = Field(..., min_length=5, max_length=15, description="Phone number")
+
+    @field_validator("phone_country_code")
+    @classmethod
+    def validate_country_code(cls, v):
+        if not re.match(r"^\+\d{1,4}$", v):
+            raise ValueError("Country code must be in format +X or +XX")
+        return v
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, v):
+        cleaned = re.sub(r"[\s-]", "", v)
+        if not re.match(r"^\d{5,15}$", cleaned):
+            raise ValueError("Phone number must contain 5-15 digits")
+        return cleaned
 
 
 # Group Models
@@ -451,13 +530,72 @@ async def _get_user_by_id(session: AsyncSession, user_id: uuid.UUID) -> Optional
     return result.scalar_one_or_none()
 
 
+async def _get_user_with_mfa(
+    session: AsyncSession, username: str
+) -> Optional[User]:
+    """Get user by username with mfa_methods loaded."""
+    result = await session.execute(
+        select(User)
+        .where(User.username == username.lower())
+        .options(selectinload(User.mfa_methods))
+    )
+    return result.scalar_one_or_none()
+
+
+async def _get_user_by_id_with_mfa(
+    session: AsyncSession, user_id: uuid.UUID
+) -> Optional[User]:
+    """Get user by id with mfa_methods loaded."""
+    result = await session.execute(
+        select(User)
+        .where(User.id == user_id)
+        .options(selectinload(User.mfa_methods))
+    )
+    return result.scalar_one_or_none()
+
+
+def _user_totp_secret(user: User) -> Optional[str]:
+    """Get first TOTP secret from user's MFA methods (or legacy field)."""
+    if user.mfa_methods:
+        for m in user.mfa_methods:
+            if m.method == "totp" and m.totp_secret:
+                return m.totp_secret
+    if user.totp_secret:
+        return user.totp_secret
+    return None
+
+
+def _user_has_sms(user: User) -> bool:
+    """Whether user has SMS as an enrolled method."""
+    if user.mfa_methods:
+        return any(m.method == "sms" for m in user.mfa_methods)
+    return user.mfa_method == "sms"
+
+
+def _user_has_totp(user: User) -> bool:
+    """Whether user has TOTP as an enrolled method."""
+    if user.mfa_methods:
+        return any(m.method == "totp" for m in user.mfa_methods)
+    return bool(user.totp_secret)
+
+
+def _user_mfa_methods_summary(user: User) -> list[str]:
+    """List of enrolled method names (e.g. ['totp', 'sms'])."""
+    if user.mfa_methods:
+        return list(dict.fromkeys(m.method for m in user.mfa_methods))
+    if user.mfa_method:
+        return [user.mfa_method]
+    return []
+
+
 async def _create_verification_token(
     session: AsyncSession,
     user_id: uuid.UUID,
     token_type: str,
     expiry_hours: int = 24,
+    target_value: Optional[str] = None,
 ) -> str:
-    """Create a verification token."""
+    """Create a verification token. target_value used for email/phone change flows."""
     # Invalidate existing tokens of the same type
     result = await session.execute(
         select(VerificationToken).where(
@@ -470,7 +608,7 @@ async def _create_verification_token(
         old_token.used = True
 
     # Create new token
-    if token_type in ("email", "password_reset"):
+    if token_type in ("email", "password_reset", "eml_chg"):
         token = str(uuid.uuid4())
     else:
         token = _generate_verification_code(6)
@@ -480,6 +618,7 @@ async def _create_verification_token(
         token_type=token_type,
         token=token,
         expires_at=datetime.now(timezone.utc) + timedelta(hours=expiry_hours),
+        target_value=target_value,
     )
     session.add(verification_token)
     await session.flush()
@@ -740,7 +879,7 @@ async def verify_email(
     request: VerifyEmailRequest,
     session: AsyncSession = Depends(get_async_session),
 ) -> VerificationResponse:
-    """Verify user's email address."""
+    """Verify user's email address (signup or profile email change)."""
     user = await _get_user_by_username(session, request.username)
     if not user:
         raise HTTPException(
@@ -748,18 +887,11 @@ async def verify_email(
             detail="User not found",
         )
 
-    if user.email_verified:
-        return VerificationResponse(
-            success=True,
-            message="Email already verified",
-            profile_status=user.status,
-        )
-
-    # Find valid token
+    # Find valid token (signup "email" or profile "eml_chg")
     result = await session.execute(
         select(VerificationToken).where(
             VerificationToken.user_id == user.id,
-            VerificationToken.token_type == "email",
+            VerificationToken.token_type.in_(["email", "eml_chg"]),
             VerificationToken.token == request.token,
             VerificationToken.used == False,
         )
@@ -778,8 +910,9 @@ async def verify_email(
             detail="Verification token has expired. Please request a new one.",
         )
 
-    # Mark as verified
     token.used = True
+    if token.token_type == "eml_chg" and token.target_value:
+        user.email = token.target_value.lower()
     user.email_verified = True
     user.update_status_if_complete()
 
@@ -806,7 +939,7 @@ async def verify_phone(
     request: VerifyPhoneRequest,
     session: AsyncSession = Depends(get_async_session),
 ) -> VerificationResponse:
-    """Verify user's phone number."""
+    """Verify user's phone number (signup or profile phone change)."""
     user = await _get_user_by_username(session, request.username)
     if not user:
         raise HTTPException(
@@ -814,18 +947,11 @@ async def verify_phone(
             detail="User not found",
         )
 
-    if user.phone_verified:
-        return VerificationResponse(
-            success=True,
-            message="Phone already verified",
-            profile_status=user.status,
-        )
-
-    # Find valid token
+    # Find valid token (signup "phone" or profile "phn_chg") by code
     result = await session.execute(
         select(VerificationToken).where(
             VerificationToken.user_id == user.id,
-            VerificationToken.token_type == "phone",
+            VerificationToken.token_type.in_(["phone", "phn_chg"]),
             VerificationToken.used == False,
         ).order_by(VerificationToken.created_at.desc())
     )
@@ -843,15 +969,17 @@ async def verify_phone(
             detail="Verification code has expired. Please request a new one.",
         )
 
-    # Constant-time comparison
     if not hmac.compare_digest(request.code, token.token):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid verification code",
         )
 
-    # Mark as verified
     token.used = True
+    if token.token_type == "phn_chg" and token.target_value and "|" in token.target_value:
+        parts = token.target_value.split("|", 1)
+        user.phone_country_code = parts[0].strip()
+        user.phone_number = parts[1].strip()
     user.phone_verified = True
     user.update_status_if_complete()
 
@@ -1081,13 +1209,14 @@ async def get_profile_status(
     session: AsyncSession = Depends(get_async_session),
 ) -> ProfileStatusResponse:
     """Get user's profile status."""
-    user = await _get_user_by_username(session, username)
+    user = await _get_user_with_mfa(session, username)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
 
+    methods_str = ", ".join(m.upper() for m in _user_mfa_methods_summary(user))
     return ProfileStatusResponse(
         username=user.username,
         email=_mask_email(user.email),
@@ -1095,7 +1224,7 @@ async def get_profile_status(
         status=user.status,
         email_verified=user.email_verified,
         phone_verified=user.phone_verified,
-        mfa_method=user.mfa_method,
+        mfa_method=methods_str or (user.mfa_method or ""),
         created_at=user.created_at.isoformat(),
     )
 
@@ -1120,17 +1249,18 @@ async def get_mfa_status(
     session: AsyncSession = Depends(get_async_session),
 ) -> UserMFAStatusResponse:
     """Get user's MFA enrollment status."""
-    user = await _get_user_by_username(session, username)
+    user = await _get_user_with_mfa(session, username)
     if not user:
         return UserMFAStatusResponse(enrolled=False)
 
-    phone_number = None
-    if user.mfa_method == "sms":
-        phone_number = user.masked_phone
+    methods = _user_mfa_methods_summary(user)
+    enrolled = len(methods) > 0
+    phone_number = user.masked_phone if _user_has_sms(user) else None
 
     return UserMFAStatusResponse(
-        enrolled=user.totp_secret is not None or user.mfa_method == "sms",
-        mfa_method=user.mfa_method,
+        enrolled=enrolled,
+        mfa_method=", ".join(m.upper() for m in methods) if methods else None,
+        mfa_methods=methods,
         phone_number=phone_number,
     )
 
@@ -1153,11 +1283,12 @@ async def enroll(
     session: AsyncSession = Depends(get_async_session),
 ) -> EnrollResponse:
     """
-    Enroll or re-enroll for MFA (for active users only).
+    Enroll or re-enroll for MFA (for active users only). Adds a method to
+    user_mfa_methods (or updates existing row for that method).
     """
     settings = get_settings()
 
-    user = await _get_user_by_username(session, request.username)
+    user = await _get_user_with_mfa(session, request.username)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1193,11 +1324,24 @@ async def enroll(
             username=user.username,
         )
 
-        user.mfa_method = "totp"
-        user.totp_secret = secret
+        # Add or update TOTP row in user_mfa_methods
+        existing_totp = next(
+            (m for m in user.mfa_methods if m.method == "totp"),
+            None,
+        )
+        if existing_totp:
+            existing_totp.totp_secret = secret
+        else:
+            session.add(
+                UserMFAMethod(
+                    user_id=user.id,
+                    method="totp",
+                    totp_secret=secret,
+                )
+            )
         await session.commit()
 
-        logger.info("User %s re-enrolled for TOTP MFA", user.username)
+        logger.info("User %s enrolled for TOTP MFA", user.username)
 
         return EnrollResponse(
             success=True,
@@ -1221,19 +1365,31 @@ async def enroll(
                 detail=error,
             )
 
-        user.mfa_method = "sms"
-        if request.phone_number:
-            # Parse the new phone number
-            if request.phone_number.startswith("+"):
-                # Extract country code (assume 1-4 digits after +)
-                match = re.match(r"^(\+\d{1,4})(\d+)$", request.phone_number)
-                if match:
-                    user.phone_country_code = match.group(1)
-                    user.phone_number = match.group(2)
+        phone_cc, phone_num = user.phone_country_code, user.phone_number
+        if request.phone_number and request.phone_number.startswith("+"):
+            match = re.match(r"^(\+\d{1,4})(\d+)$", request.phone_number)
+            if match:
+                phone_cc, phone_num = match.group(1), match.group(2)
 
+        existing_sms = next(
+            (m for m in user.mfa_methods if m.method == "sms"),
+            None,
+        )
+        if existing_sms:
+            existing_sms.phone_country_code = phone_cc
+            existing_sms.phone_number = phone_num
+        else:
+            session.add(
+                UserMFAMethod(
+                    user_id=user.id,
+                    method="sms",
+                    phone_country_code=phone_cc,
+                    phone_number=phone_num,
+                )
+            )
         await session.commit()
 
-        logger.info("User %s re-enrolled for SMS MFA", user.username)
+        logger.info("User %s enrolled for SMS MFA", user.username)
 
         return EnrollResponse(
             success=True,
@@ -1262,7 +1418,7 @@ async def login_start(
     """
     Step 1: Validate username and password. Returns a challenge token and MFA options.
     """
-    user = await _get_user_by_username(session, request.username)
+    user = await _get_user_with_mfa(session, request.username)
 
     if not user:
         raise HTTPException(
@@ -1299,9 +1455,10 @@ async def login_start(
         )
 
     settings = get_settings()
-    totp_enrolled = user.totp_secret is not None
+    totp_enrolled = _user_has_totp(user)
     sms_available = bool(
         settings.enable_sms_2fa
+        and _user_has_sms(user)
         and user.phone_country_code
         and user.phone_number
     )
@@ -1349,11 +1506,11 @@ async def login_totp_setup(
             detail="Invalid or expired login session. Please log in again.",
         )
 
-    user = await _get_user_by_id(session, uuid.UUID(challenge["user_id"]))
+    user = await _get_user_by_id_with_mfa(session, uuid.UUID(challenge["user_id"]))
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
 
-    if user.totp_secret:
+    if _user_has_totp(user):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Authenticator app is already set up.",
@@ -1365,8 +1522,13 @@ async def login_totp_setup(
         secret=secret,
         username=user.username,
     )
-    user.mfa_method = "totp"
-    user.totp_secret = secret
+    session.add(
+        UserMFAMethod(
+            user_id=user.id,
+            method="totp",
+            totp_secret=secret,
+        )
+    )
     await session.commit()
 
     return LoginTotpSetupResponse(otpauth_uri=otpauth_uri, secret=secret)
@@ -1391,20 +1553,21 @@ async def login_verify(
             detail="Invalid or expired login session. Please log in again.",
         )
 
-    user = await _get_user_by_id(session, uuid.UUID(challenge["user_id"]))
+    user = await _get_user_by_id_with_mfa(session, uuid.UUID(challenge["user_id"]))
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
 
     username = user.username
+    totp_secret = _user_totp_secret(user)
 
     if request.mfa_method == MFAMethod.TOTP:
-        if not user.totp_secret:
+        if not totp_secret:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Authenticator app not set up. Please complete setup first.",
             )
         totp_manager = TOTPManager()
-        if not totp_manager.verify_totp(user.totp_secret, request.verification_code):
+        if not totp_manager.verify_totp(totp_secret, request.verification_code):
             logger.warning("Login verify failed for %s: Invalid TOTP", username)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1478,7 +1641,7 @@ async def login(
     """
     Authenticate user with username, password, and verification code (legacy one-step).
     """
-    user = await _get_user_by_username(session, request.username)
+    user = await _get_user_with_mfa(session, request.username)
 
     # Check if user exists
     if not user:
@@ -1518,23 +1681,22 @@ async def login(
             detail="Invalid username or password",
         )
 
-    # Verify MFA code
-    if user.mfa_method == "totp":
-        if not user.totp_secret:
+    # Verify MFA code (legacy one-step: try TOTP first if enrolled, else SMS)
+    totp_secret = _user_totp_secret(user)
+    if _user_has_totp(user):
+        if not totp_secret:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="TOTP not configured",
             )
-
         totp_manager = TOTPManager()
-        if not totp_manager.verify_totp(user.totp_secret, request.verification_code):
+        if not totp_manager.verify_totp(totp_secret, request.verification_code):
             logger.warning("Login failed for %s: Invalid TOTP", request.username)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid verification code",
             )
-
-    elif user.mfa_method == "sms":
+    elif _user_has_sms(user):
         # Verify SMS code (Redis only)
         otp_client = get_otp_client()
         if not otp_client.is_connected:
@@ -1559,6 +1721,11 @@ async def login(
                 detail="Invalid verification code",
             )
         otp_client.delete_code(request.username)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No MFA method enrolled. Please complete enrollment.",
+        )
 
     # Check if user is admin
     is_admin = ldap_client.is_admin(request.username)
@@ -1610,7 +1777,7 @@ async def send_sms_code(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired login session. Please log in again.",
             )
-        user = await _get_user_by_id(session, uuid.UUID(challenge["user_id"]))
+        user = await _get_user_by_id_with_mfa(session, uuid.UUID(challenge["user_id"]))
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         if not (user.phone_country_code and user.phone_number):
@@ -1618,9 +1785,14 @@ async def send_sms_code(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No phone number on file for SMS.",
             )
+        if not _user_has_sms(user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User not enrolled for SMS MFA",
+            )
         # User already passed step 1 (username + password); challenge is sufficient
     elif request.username and request.password:
-        user = await _get_user_by_username(session, request.username)
+        user = await _get_user_with_mfa(session, request.username)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1640,7 +1812,7 @@ async def send_sms_code(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid username or password",
                 )
-        if user.mfa_method != "sms":
+        if not _user_has_sms(user):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User not enrolled for SMS MFA",
@@ -1752,7 +1924,7 @@ async def admin_list_users(
         )
 
     # Build query
-    query = select(User)
+    query = select(User).options(selectinload(User.mfa_methods))
     if status_filter:
         query = query.where(User.status == status_filter)
     query = query.order_by(User.created_at.desc())
@@ -1771,7 +1943,7 @@ async def admin_list_users(
             "status": u.status,
             "email_verified": u.email_verified,
             "phone_verified": u.phone_verified,
-            "mfa_method": u.mfa_method,
+            "mfa_method": ", ".join(m.upper() for m in _user_mfa_methods_summary(u)) or (u.mfa_method or ""),
             "created_at": u.created_at.isoformat(),
             "activated_at": u.activated_at.isoformat() if u.activated_at else None,
             "activated_by": u.activated_by,
@@ -2024,6 +2196,126 @@ async def admin_reject_user(
 # Profile Endpoints
 # ============================================================================
 
+@router.post(
+    "/profile/request-email-change",
+    response_model=VerificationResponse,
+    responses={
+        400: {"description": "Email already in use"},
+        401: {"description": "Not authenticated"},
+    },
+)
+async def request_email_change(
+    request: RequestEmailChangeRequest,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> VerificationResponse:
+    """
+    Request to change email. Sends a verification link to the new address.
+    User must complete verification (click link), then the new email is applied.
+    """
+    current = await _get_current_user(authorization, session)
+    user = await _get_user_by_username(session, current["username"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    new_email = request.new_email.strip().lower()
+    if new_email == user.email:
+        return VerificationResponse(
+            success=True,
+            message="Email unchanged",
+            profile_status=user.status,
+        )
+    existing = await _get_user_by_email(session, new_email)
+    if existing and existing.id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already in use",
+        )
+
+    settings = get_settings()
+    if not settings.enable_email_verification:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email verification is not enabled",
+        )
+    try:
+        email_token = await _create_verification_token(
+            session, user.id, "eml_chg",
+            settings.email_verification_expiry_hours,
+            target_value=new_email,
+        )
+        email_client = EmailClient()
+        success, msg = email_client.send_verification_email(
+            to_email=new_email,
+            token=email_token,
+            username=user.username,
+            first_name=user.first_name,
+        )
+        await session.commit()
+        if not success:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=msg)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("Failed to send email change verification: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification email",
+        )
+    return VerificationResponse(
+        success=True,
+        message="Verification email sent to your new address",
+        profile_status=user.status,
+    )
+
+
+@router.post(
+    "/profile/request-phone-change",
+    response_model=VerificationResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+    },
+)
+async def request_phone_change(
+    request: RequestPhoneChangeRequest,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> VerificationResponse:
+    """
+    Request to change phone. Sends a verification code to the new number.
+    User must submit the code via verify-phone, then the new phone is applied.
+    """
+    current = await _get_current_user(authorization, session)
+    user = await _get_user_by_username(session, current["username"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    full_phone = f"{request.phone_country_code}{request.phone_number}"
+    target_value = f"{request.phone_country_code}|{request.phone_number}"
+    try:
+        phone_token = await _create_verification_token(
+            session, user.id, "phn_chg", expiry_hours=1, target_value=target_value,
+        )
+        sms_client = _get_sms_client()
+        success, msg, _ = sms_client.send_verification_code(full_phone, phone_token)
+        await session.commit()
+        if not success:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=msg)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("Failed to send phone change verification: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification code",
+        )
+    return VerificationResponse(
+        success=True,
+        message="Verification code sent to your new number",
+        profile_status=user.status,
+    )
+
+
 @router.get(
     "/profile/{username}",
     response_model=ProfileResponse,
@@ -2048,7 +2340,7 @@ async def get_profile(
             detail="You can only view your own profile",
         )
 
-    user = await _get_user_by_username(session, username)
+    user = await _get_user_with_mfa(session, username)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -2067,6 +2359,24 @@ async def get_profile(
         for ug in user_groups if ug.group
     ]
 
+    methods_summary = _user_mfa_methods_summary(user)
+    mfa_methods_list = []
+    for m in user.mfa_methods or []:
+        phone_number = None
+        if m.method == "sms":
+            if m.phone_country_code and m.phone_number:
+                full = f"{m.phone_country_code}{m.phone_number}"
+                phone_number = "*" * max(0, len(full) - 4) + full[-4:] if len(full) > 4 else full
+            else:
+                phone_number = user.masked_phone
+        mfa_methods_list.append(
+            ProfileMFAMethodItem(
+                id=str(m.id),
+                method=m.method,
+                phone_number=phone_number,
+            )
+        )
+
     return ProfileResponse(
         id=str(user.id),
         username=user.username,
@@ -2077,7 +2387,8 @@ async def get_profile(
         phone_number=user.phone_number,
         email_verified=user.email_verified,
         phone_verified=user.phone_verified,
-        mfa_method=user.mfa_method,
+        mfa_method=", ".join(m.upper() for m in methods_summary) if methods_summary else (user.mfa_method or ""),
+        mfa_methods=mfa_methods_list,
         status=user.status,
         created_at=user.created_at.isoformat() if user.created_at else "",
         groups=groups,
@@ -2102,62 +2413,109 @@ async def update_profile(
     """
     Update user profile.
 
-    - Users can only update their own profile
-    - Email can only be changed if not verified
-    - Phone can only be changed if not verified
+    - Users can only update their own profile (when logged in).
+    - Email and phone can only be changed when not yet verified (e.g. after signup).
+    - To change email or phone after verification, use request-email-change /
+      request-phone-change, complete verification, then submit the profile form again.
     """
     current = await _get_current_user(authorization, session)
 
-    # Check authorization - users can only update their own profile
     if current["username"] != username.lower():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only update your own profile",
         )
 
-    user = await _get_user_by_username(session, username)
+    user = await _get_user_with_mfa(session, username)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
 
-    # Update allowed fields
     if request.first_name is not None:
         user.first_name = request.first_name
 
     if request.last_name is not None:
         user.last_name = request.last_name
 
-    # Email can only be changed if not verified
-    if request.email is not None:
-        if user.email_verified:
+    # Password change: verify current, sync to LDAP and DB
+    if request.current_password and request.new_password and request.confirm_password:
+        if user.status != ProfileStatus.ACTIVE.value:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Email cannot be changed after verification",
+                detail="Account must be active to change password",
             )
-        # Check if email is already taken
-        existing = await _get_user_by_email(session, request.email)
-        if existing and existing.id != user.id:
+        ldap_client = LDAPClient()
+        if not ldap_client.user_exists(user.username):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already in use",
+                detail="Account is not active in LDAP. Please contact support.",
             )
-        user.email = request.email.lower()
+        auth_ok, _ = ldap_client.authenticate(user.username, request.current_password)
+        if not auth_ok:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Current password is incorrect",
+            )
+        success, msg = ldap_client.change_password(user.username, request.new_password)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update password. Please try again.",
+            )
+        user.password_hash = _hash_password(request.new_password)
 
-    # Phone can only be changed if not verified
-    if request.phone_country_code is not None or request.phone_number is not None:
-        if user.phone_verified:
+    # Email: only change if not verified; otherwise use request-email-change flow
+    if request.email is not None:
+        if user.email_verified and request.email.strip().lower() != user.email:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Phone cannot be changed after verification",
+                detail="Verify your new email first using the link we sent, then save again.",
             )
-        if request.phone_country_code is not None:
-            user.phone_country_code = request.phone_country_code
-        if request.phone_number is not None:
-            user.phone_number = request.phone_number
+        if not user.email_verified:
+            new_email = request.email.strip().lower()
+            if new_email != user.email:
+                existing = await _get_user_by_email(session, new_email)
+                if existing and existing.id != user.id:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Email already in use",
+                    )
+                user.email = new_email
+
+    # Phone: only change if not verified; otherwise use request-phone-change flow
+    if request.phone_country_code is not None or request.phone_number is not None:
+        new_code = request.phone_country_code if request.phone_country_code is not None else user.phone_country_code
+        new_number = request.phone_number if request.phone_number is not None else user.phone_number
+        if user.phone_verified and (new_code != user.phone_country_code or new_number != user.phone_number):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Verify your new phone first with the code we sent, then save again.",
+            )
+        if not user.phone_verified:
+            if request.phone_country_code is not None:
+                user.phone_country_code = request.phone_country_code
+            if request.phone_number is not None:
+                user.phone_number = request.phone_number
 
     await session.commit()
+
+    # Sync profile changes to LDAP for active users (LDAP has givenName, sn, mail)
+    if user.status == ProfileStatus.ACTIVE.value:
+        try:
+            ldap_client = LDAPClient()
+            success, msg = ldap_client.update_user(
+                username=user.username,
+                password=None,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                email=user.email,
+            )
+            if not success:
+                logger.warning("Failed to sync profile to LDAP for %s: %s", user.username, msg)
+        except Exception as e:
+            logger.warning("LDAP sync failed for profile update: %s", type(e).__name__)
 
     # Get user's groups for response
     result = await session.execute(
@@ -2173,6 +2531,24 @@ async def update_profile(
 
     logger.info("Profile updated for user %s", username)
 
+    methods_summary = _user_mfa_methods_summary(user)
+    mfa_methods_list = []
+    for m in user.mfa_methods or []:
+        phone_number = None
+        if m.method == "sms":
+            if m.phone_country_code and m.phone_number:
+                full = f"{m.phone_country_code}{m.phone_number}"
+                phone_number = "*" * max(0, len(full) - 4) + full[-4:] if len(full) > 4 else full
+            else:
+                phone_number = user.masked_phone
+        mfa_methods_list.append(
+            ProfileMFAMethodItem(
+                id=str(m.id),
+                method=m.method,
+                phone_number=phone_number,
+            )
+        )
+
     return ProfileResponse(
         id=str(user.id),
         username=user.username,
@@ -2183,11 +2559,285 @@ async def update_profile(
         phone_number=user.phone_number,
         email_verified=user.email_verified,
         phone_verified=user.phone_verified,
-        mfa_method=user.mfa_method,
+        mfa_method=", ".join(m.upper() for m in methods_summary) if methods_summary else (user.mfa_method or ""),
+        mfa_methods=mfa_methods_list,
         status=user.status,
         created_at=user.created_at.isoformat() if user.created_at else "",
         groups=groups,
     )
+
+
+@router.post(
+    "/profile/{username}/change-password",
+    response_model=ChangePasswordResponse,
+    responses={
+        400: {"description": "Validation error (passwords do not match, etc.)"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not authorized"},
+        404: {"description": "User not found"},
+    },
+)
+async def change_password(
+    username: str,
+    request: ChangePasswordRequest,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> ChangePasswordResponse:
+    """
+    Change the authenticated user's password in OpenLDAP.
+
+    Requires current password verification. New and confirm passwords must match.
+    """
+    current = await _get_current_user(authorization, session)
+
+    if current["username"] != username.lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only change your own password",
+        )
+
+    user = await _get_user_with_mfa(session, username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    ldap_client = LDAPClient()
+    if not ldap_client.user_exists(user.username):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account is not active in LDAP. Please contact support.",
+        )
+
+    auth_success, _ = ldap_client.authenticate(user.username, request.current_password)
+    if not auth_success:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect",
+        )
+
+    success, msg = ldap_client.change_password(user.username, request.new_password)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update password. Please try again.",
+        )
+
+    user.password_hash = _hash_password(request.new_password)
+    await session.commit()
+
+    logger.info("Password changed for user %s via profile", user.username)
+
+    return ChangePasswordResponse(
+        success=True,
+        message="Your password has been changed successfully.",
+    )
+
+
+# ============================================================================
+# Profile MFA methods (add/remove; at least one required)
+# ============================================================================
+
+class ProfileAddMFAMethodRequest(BaseModel):
+    """Request to add an MFA method from profile (authenticated)."""
+    mfa_method: MFAMethod = Field(..., description="totp or sms")
+    phone_number: Optional[str] = Field(None, description="Phone for SMS (optional; uses profile phone)")
+
+
+class ProfileAddMFAMethodResponse(BaseModel):
+    """Response after adding TOTP (QR/secret) or SMS."""
+    success: bool = Field(..., description="Whether the method was added")
+    message: str = Field(..., description="Response message")
+    mfa_method: str = Field(..., description="totp or sms")
+    otpauth_uri: Optional[str] = Field(None, description="TOTP otpauth URI for QR")
+    secret: Optional[str] = Field(None, description="TOTP secret for manual entry")
+    phone_number: Optional[str] = Field(None, description="Masked phone for SMS")
+
+
+@router.get(
+    "/profile/{username}/mfa-methods",
+    response_model=list[ProfileMFAMethodItem],
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not authorized"},
+        404: {"description": "User not found"},
+    },
+)
+async def list_profile_mfa_methods(
+    username: str,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> list[ProfileMFAMethodItem]:
+    """List enrolled MFA methods for the user (same user or admin)."""
+    current = await _get_current_user(authorization, session)
+    if current["username"] != username.lower() and not current["is_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view your own MFA methods",
+        )
+    user = await _get_user_with_mfa(session, username)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    out = []
+    for m in user.mfa_methods or []:
+        phone_number = None
+        if m.method == "sms":
+            if m.phone_country_code and m.phone_number:
+                full = f"{m.phone_country_code}{m.phone_number}"
+                phone_number = "*" * max(0, len(full) - 4) + full[-4:] if len(full) > 4 else full
+            else:
+                phone_number = user.masked_phone
+        out.append(
+            ProfileMFAMethodItem(id=str(m.id), method=m.method, phone_number=phone_number)
+        )
+    return out
+
+
+@router.post(
+    "/profile/{username}/mfa-methods",
+    response_model=ProfileAddMFAMethodResponse,
+    responses={
+        400: {"description": "Bad request (e.g. method already added)"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not authorized"},
+        404: {"description": "User not found"},
+    },
+)
+async def add_profile_mfa_method(
+    username: str,
+    request: ProfileAddMFAMethodRequest,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> ProfileAddMFAMethodResponse:
+    """Add an MFA method from profile (authenticated). At least one method must remain when disabling others."""
+    current = await _get_current_user(authorization, session)
+    if current["username"] != username.lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage your own MFA methods",
+        )
+    user = await _get_user_with_mfa(session, username)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    settings = get_settings()
+    if request.mfa_method == MFAMethod.SMS and not settings.enable_sms_2fa:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="SMS 2FA is not enabled",
+        )
+
+    existing = next((m for m in (user.mfa_methods or []) if m.method == request.mfa_method.value), None)
+    if existing:
+        if request.mfa_method == MFAMethod.TOTP:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Authenticator app is already added. Remove it first to re-enroll.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="SMS is already added.",
+        )
+
+    if request.mfa_method == MFAMethod.TOTP:
+        totp_manager = TOTPManager()
+        secret = totp_manager.generate_secret()
+        otpauth_uri = totp_manager.generate_otpauth_uri(
+            secret=secret,
+            username=user.username,
+        )
+        session.add(
+            UserMFAMethod(
+                user_id=user.id,
+                method="totp",
+                totp_secret=secret,
+            )
+        )
+        await session.commit()
+        logger.info("User %s added TOTP from profile", user.username)
+        return ProfileAddMFAMethodResponse(
+            success=True,
+            message="Scan the QR code with your authenticator app.",
+            mfa_method="totp",
+            otpauth_uri=otpauth_uri,
+            secret=secret,
+        )
+    else:
+        # SMS: use profile phone
+        if not (user.phone_country_code and user.phone_number):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Add a phone number in your profile first.",
+            )
+        session.add(
+            UserMFAMethod(
+                user_id=user.id,
+                method="sms",
+                phone_country_code=user.phone_country_code,
+                phone_number=user.phone_number,
+            )
+        )
+        await session.commit()
+        logger.info("User %s added SMS from profile", user.username)
+        return ProfileAddMFAMethodResponse(
+            success=True,
+            message="SMS 2FA added. Codes will be sent to your profile phone.",
+            mfa_method="sms",
+            phone_number=user.masked_phone,
+        )
+
+
+@router.delete(
+    "/profile/{username}/mfa-methods/{method}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        400: {"description": "Cannot remove last method"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not authorized"},
+        404: {"description": "User or method not found"},
+    },
+)
+async def remove_profile_mfa_method(
+    username: str,
+    method: str,
+    authorization: Optional[str] = Header(None),
+    session: AsyncSession = Depends(get_async_session),
+) -> None:
+    """Remove an MFA method. At least one method must remain."""
+    current = await _get_current_user(authorization, session)
+    if current["username"] != username.lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage your own MFA methods",
+        )
+    user = await _get_user_with_mfa(session, username)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    method_lower = method.lower()
+    if method_lower not in ("totp", "sms"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Method must be totp or sms",
+        )
+
+    to_remove = next((m for m in (user.mfa_methods or []) if m.method == method_lower), None)
+    if not to_remove:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="MFA method not enrolled",
+        )
+
+    if len(user.mfa_methods or []) <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one 2FA method must remain. Add another method before removing this one.",
+        )
+
+    await session.delete(to_remove)
+    await session.commit()
+    logger.info("User %s removed %s MFA method", user.username, method_lower)
 
 
 # ============================================================================
@@ -2723,11 +3373,27 @@ async def admin_replace_user_groups(
     if user.status == ProfileStatus.ACTIVE.value:
         for ug in current_assignments:
             if ug.group:
-                ldap_client.remove_user_from_group(user.username, ug.group.ldap_dn)
+                success, msg = ldap_client.remove_user_from_group(
+                    user.username, ug.group.ldap_dn
+                )
+                if not success:
+                    logger.warning(
+                        "Failed to remove %s from LDAP group: %s",
+                        user.username,
+                        msg,
+                    )
 
     # Delete all current assignments
     for ug in current_assignments:
         await session.delete(ug)
+
+    # If removing all groups: delete from LDAP and set status to COMPLETE
+    # (user can no longer log in until admin re-assigns groups and re-activates)
+    if not request.group_ids and user.status == ProfileStatus.ACTIVE.value:
+        success, message = ldap_client.delete_user(user.username)
+        if not success:
+            logger.warning("Failed to delete LDAP user: %s", message)
+        user.status = ProfileStatus.COMPLETE.value
 
     # Add new assignments
     for group_id in request.group_ids:
@@ -2833,12 +3499,32 @@ async def admin_remove_user_from_group(
         )
 
     # Remove from LDAP (for active users)
+    ldap_client = LDAPClient()
     if user.status == ProfileStatus.ACTIVE.value and user_group.group:
-        ldap_client = LDAPClient()
-        ldap_client.remove_user_from_group(user.username, user_group.group.ldap_dn)
+        success, msg = ldap_client.remove_user_from_group(
+            user.username, user_group.group.ldap_dn
+        )
+        if not success:
+            logger.warning(
+                "Failed to remove %s from LDAP group: %s", user.username, msg
+            )
 
     group_name = user_group.group.name if user_group.group else "Unknown"
     await session.delete(user_group)
+    await session.flush()
+
+    # If this was the last group: delete from LDAP and set status to COMPLETE
+    # (user can no longer log in until admin re-assigns groups and re-activates)
+    result = await session.execute(
+        select(UserGroup).where(UserGroup.user_id == user_uuid)
+    )
+    remaining = result.scalars().all()
+    if not remaining and user.status == ProfileStatus.ACTIVE.value:
+        success, message = ldap_client.delete_user(user.username)
+        if not success:
+            logger.warning("Failed to delete LDAP user: %s", message)
+        user.status = ProfileStatus.COMPLETE.value
+
     await session.commit()
 
     logger.info("User %s removed from group %s", user.username, group_name)
@@ -2958,7 +3644,8 @@ async def admin_list_users_enhanced(
     await _require_admin(authorization, session)
 
     query = select(User).options(
-        selectinload(User.user_groups).selectinload(UserGroup.group)
+        selectinload(User.mfa_methods),
+        selectinload(User.user_groups).selectinload(UserGroup.group),
     )
 
     # Apply status filter
@@ -3019,7 +3706,7 @@ async def admin_list_users_enhanced(
             "status": u.status,
             "email_verified": u.email_verified,
             "phone_verified": u.phone_verified,
-            "mfa_method": u.mfa_method,
+            "mfa_method": ", ".join(m.upper() for m in _user_mfa_methods_summary(u)) or (u.mfa_method or ""),
             "created_at": u.created_at.isoformat() if u.created_at else "",
             "activated_at": u.activated_at.isoformat() if u.activated_at else None,
             "activated_by": u.activated_by,

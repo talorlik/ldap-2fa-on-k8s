@@ -430,6 +430,100 @@ const API = {
         });
     },
 
+    /**
+     * Request email change; sends verification link to the new address.
+     * After user verifies (click link), they must save the profile again.
+     * @param {string} newEmail - New email address
+     * @returns {Promise<Object>} Verification response
+     */
+    async requestEmailChange(newEmail) {
+        return this.authRequest('/profile/request-email-change', {
+            method: 'POST',
+            body: JSON.stringify({ new_email: newEmail.trim().toLowerCase() }),
+        });
+    },
+
+    /**
+     * Change password (authenticated user). Requires current password and new/confirm.
+     * @param {string} username - Username
+     * @param {Object} body - { current_password, new_password, confirm_password }
+     * @returns {Promise<Object>} { success, message }
+     */
+    async changePassword(username, body) {
+        return this.authRequest(
+            `/profile/${encodeURIComponent(username)}/change-password`,
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    current_password: body.current_password,
+                    new_password: body.new_password,
+                    confirm_password: body.confirm_password,
+                }),
+            }
+        );
+    },
+
+    /**
+     * Request phone change; sends verification code to the new number.
+     * After user verifies (enter code), they must save the profile again.
+     * @param {string} phoneCountryCode - Country code (e.g. +1)
+     * @param {string} phoneNumber - Phone number
+     * @returns {Promise<Object>} Verification response
+     */
+    async requestPhoneChange(phoneCountryCode, phoneNumber) {
+        return this.authRequest('/profile/request-phone-change', {
+            method: 'POST',
+            body: JSON.stringify({
+                phone_country_code: phoneCountryCode,
+                phone_number: phoneNumber,
+            }),
+        });
+    },
+
+    /**
+     * List enrolled 2FA methods for the current user (profile page).
+     * @param {string} username - Username
+     * @returns {Promise<Array<{id: string, method: string, phone_number?: string}>>}
+     */
+    async getProfileMfaMethods(username) {
+        return this.authRequest(
+            `/profile/${encodeURIComponent(username)}/mfa-methods`
+        );
+    },
+
+    /**
+     * Add a 2FA method from profile (requires login).
+     * For TOTP returns { otpauth_uri, secret }; for SMS returns { phone_number }.
+     * @param {string} username - Username
+     * @param {Object} body - { mfa_method: 'totp'|'sms', phone_number?: string }
+     * @returns {Promise<Object>}
+     */
+    async addProfileMfaMethod(username, body) {
+        return this.authRequest(
+            `/profile/${encodeURIComponent(username)}/mfa-methods`,
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    mfa_method: body.mfa_method,
+                    phone_number: body.phone_number || undefined,
+                }),
+            }
+        );
+    },
+
+    /**
+     * Remove a 2FA method. At least one must remain.
+     * @param {string} username - Username
+     * @param {string} method - 'totp' or 'sms'
+     * @returns {Promise<void>}
+     */
+    async removeProfileMfaMethod(username, method) {
+        return this.authRequest(
+            `/profile/${encodeURIComponent(username)}/mfa-methods/${encodeURIComponent(method)}`,
+            { method: 'DELETE' }
+        );
+    },
+
     // =========================================================================
     // Groups (Admin, Authenticated)
     // =========================================================================

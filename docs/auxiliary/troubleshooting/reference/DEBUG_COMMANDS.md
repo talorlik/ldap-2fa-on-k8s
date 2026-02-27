@@ -803,6 +803,149 @@ aws eks describe-capability \
   --query 'capability.{server_url:configuration.argoCd.serverUrl,status:status}'
 ```
 
+## OpenLDAP Data Queries
+
+Requires `LDAP_*` variables from the
+[OpenLDAP Debugging](#openldap-debugging) section above.
+
+### List All Users
+
+```bash
+kubectl exec -n "$LDAP_NS" "$LDAP_POD_0" -- ldapsearch -x -LLL \
+  -H ldap://localhost:389 \
+  -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+  -b "ou=users,${LDAP_BASE_DN}" "(objectClass=inetOrgPerson)" \
+  dn uid cn sn mail
+```
+
+### List All Groups
+
+```bash
+kubectl exec -n "$LDAP_NS" "$LDAP_POD_0" -- ldapsearch -x -LLL \
+  -H ldap://localhost:389 \
+  -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+  -b "ou=groups,${LDAP_BASE_DN}" "(|(objectClass=groupOfUniqueNames)(objectClass=groupOfNames))" \
+  dn cn description uniqueMember member
+```
+
+### List Members of a Specific Group
+
+```bash
+# admins group
+kubectl exec -n "$LDAP_NS" "$LDAP_POD_0" -- ldapsearch -x -LLL \
+  -H ldap://localhost:389 \
+  -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+  -b "cn=admins,ou=groups,${LDAP_BASE_DN}" \
+  uniqueMember member
+```
+
+### Look Up a Specific User
+
+```bash
+# Replace USERNAME with the actual username
+LOOKUP_USER=admin
+kubectl exec -n "$LDAP_NS" "$LDAP_POD_0" -- ldapsearch -x -LLL \
+  -H ldap://localhost:389 \
+  -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+  -b "ou=users,${LDAP_BASE_DN}" "(uid=${LOOKUP_USER})"
+```
+
+### Count Users and Groups
+
+```bash
+echo "Users:"
+kubectl exec -n "$LDAP_NS" "$LDAP_POD_0" -- ldapsearch -x \
+  -H ldap://localhost:389 \
+  -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+  -b "ou=users,${LDAP_BASE_DN}" "(objectClass=inetOrgPerson)" dn \
+  2>/dev/null | grep -c "^dn:"
+
+echo "Groups:"
+kubectl exec -n "$LDAP_NS" "$LDAP_POD_0" -- ldapsearch -x \
+  -H ldap://localhost:389 \
+  -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+  -b "ou=groups,${LDAP_BASE_DN}" "(|(objectClass=groupOfUniqueNames)(objectClass=groupOfNames))" dn \
+  2>/dev/null | grep -c "^dn:"
+```
+
+### Check Replication Across All Pods
+
+```bash
+for pod in $LDAP_PODS; do
+  echo "=== $pod ==="
+  echo "Users:"
+  kubectl exec -n "$LDAP_NS" "$pod" -- ldapsearch -x -LLL \
+    -H ldap://localhost:389 \
+    -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+    -b "ou=users,${LDAP_BASE_DN}" "(objectClass=inetOrgPerson)" dn
+  echo "Groups:"
+  kubectl exec -n "$LDAP_NS" "$pod" -- ldapsearch -x -LLL \
+    -H ldap://localhost:389 \
+    -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+    -b "ou=groups,${LDAP_BASE_DN}" "(|(objectClass=groupOfUniqueNames)(objectClass=groupOfNames))" dn
+done
+```
+
+## PostgreSQL Database
+
+Set variables (run once after connecting to the cluster):
+
+```bash
+export PG_NS=ldap-2fa
+export PG_POD=$(kubectl get pods -n "$PG_NS" -l app.kubernetes.io/name=postgresql -o jsonpath='{.items[0].metadata.name}')
+export PG_DB=ldap2fa
+export PG_USER=ldap2fa
+```
+
+### Pod & Resource Status
+
+```bash
+kubectl get pods -n "$PG_NS" -l app.kubernetes.io/name=postgresql
+kubectl get pvc -n "$PG_NS"
+kubectl get svc -n "$PG_NS"
+kubectl get secrets -n "$PG_NS" | grep postgresql
+```
+
+### Interactive psql Session
+
+```bash
+kubectl exec -it -n "$PG_NS" "$PG_POD" -- psql -U "$PG_USER" -d "$PG_DB"
+```
+
+### Query Tables
+
+```bash
+# List all tables
+kubectl exec -it -n "$PG_NS" "$PG_POD" -- psql -U "$PG_USER" -d "$PG_DB" -c "\dt"
+
+# Query all groups
+kubectl exec -it -n "$PG_NS" "$PG_POD" -- psql -U "$PG_USER" -d "$PG_DB" -c "SELECT * FROM groups;"
+
+# Query all users
+kubectl exec -it -n "$PG_NS" "$PG_POD" -- psql -U "$PG_USER" -d "$PG_DB" -c "SELECT * FROM users;"
+
+# Query user-group assignments
+kubectl exec -it -n "$PG_NS" "$PG_POD" -- psql -U "$PG_USER" -d "$PG_DB" -c "SELECT * FROM user_groups;"
+
+# Query verification tokens
+kubectl exec -it -n "$PG_NS" "$PG_POD" -- psql -U "$PG_USER" -d "$PG_DB" -c "SELECT * FROM verification_tokens;"
+
+# Count rows per table
+kubectl exec -it -n "$PG_NS" "$PG_POD" -- psql -U "$PG_USER" -d "$PG_DB" -c "
+SELECT 'users' AS table_name, COUNT(*) FROM users
+UNION ALL SELECT 'groups', COUNT(*) FROM groups
+UNION ALL SELECT 'user_groups', COUNT(*) FROM user_groups
+UNION ALL SELECT 'verification_tokens', COUNT(*) FROM verification_tokens;
+"
+```
+
+### Logs & Events
+
+```bash
+kubectl logs "$PG_POD" -n "$PG_NS" --tail=50
+kubectl describe pod "$PG_POD" -n "$PG_NS" | grep -A 20 "Events:"
+```
+
 ## Terraform State Inspection
 
 Run from the Terraform root where the admin seed job is managed (e.g.

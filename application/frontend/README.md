@@ -68,6 +68,25 @@ vanilla JavaScript.
 └─────────────────────────────────────────────────────────┘
 ```
 
+### Pages (Views)
+
+The UI is organized into five distinct pages that load at the appropriate time
+in the flow:
+
+| # | Page | When shown | DOM / notes |
+|---|------|------------|-------------|
+| 1 | **Login / Signup** (tabbed) | Logged out | `#auth-view`: auth header, `#auth-tabs` (Login / Sign Up), `#login-tab`, `#signup-tab`, `#reset-password-section` |
+| 2 | **2FA method selection / enrollment / authentication** | After login/start when MFA required | `#auth-view` → `#mfa-page`. Content varies: method choice, TOTP setup (QR/secret) if not enrolled, SMS send, then verification code |
+| 3 | **Profile** | Logged in, default | `#app-view` → `#profile-section` |
+| 4 | **Users** (admin only) | Logged in, admin menu | `#app-view` → `#admin-users-section` |
+| 5 | **Groups** (admin only) | Logged in, admin menu | `#app-view` → `#admin-groups-section` |
+
+- **Auth flow**: `#auth-view` is visible when logged out. Page 1 (login/signup) is
+  shown by default; after submitting credentials, page 2 (`#mfa-page`) is shown until
+  verification succeeds or the user clicks Back.
+- **App flow**: When logged in, `#app-view` is visible and one of pages 3–5 is shown
+  via the top-bar menu (Profile, User Management, Group Management).
+
 ### Routing Pattern
 
 The frontend uses a **single-domain routing pattern**:

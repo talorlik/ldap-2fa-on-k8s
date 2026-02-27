@@ -18,17 +18,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **2FA frontend blank page after login and menu pages**
-  - `showSection()` now adds the `active` class when showing profile,
-  admin-users, or admin-groups sections. Previously it only removed `hidden`,
-  so content stayed hidden because `.tab-content` uses `display: none` unless
-  `.active` is present. Logged-in users now see Profile and other menu content
-  correctly.
+  - Auth and app content are now separate views. `#auth-view` wraps login,
+  signup, and reset-password; `#app-view` wraps profile, user management, and
+  group management. When logged in, only `#app-view` is shown and
+  `hideAllSections()` / `showSection()` only toggle sections inside it, so
+  Profile and other menu pages display correctly.
 
 - **2FA frontend logout: tabs visible but forms hidden until refresh**
-  - `showLoggedOutState()` now removes the `hidden` class from the login tab
-  after showing it. Previously `hideAllSections()` added `hidden` to all
-  tab-content (including login), and only `active` was re-applied to the login
-  tab, so the login/signup forms remained hidden until refresh or tab switch.
+  - On logout the UI switches back to `#auth-view` and the login tab is
+  explicitly set active and visible. Tab handling is scoped to `#auth-view` so
+  Login/Sign Up no longer affect app sections.
+
+### Changed
+
+- **2FA frontend view structure** (`index.html`, `main.js`)
+  - Added `#auth-view` and `#app-view` wrappers. `showLoggedInState()` hides
+  auth-view and shows app-view; `showLoggedOutState()` does the reverse.
+  `setupTabs()` uses `#auth-view .tab-btn` and `#auth-view .tab-content` so
+  tab clicks only change auth content.
 
 ## [2026-02-26] - Frontend Form Post, QR Code Library, and Redis Required
 

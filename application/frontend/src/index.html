@@ -46,6 +46,8 @@
 
     <!-- Main Container -->
     <div id="main-container" class="container">
+        <!-- Auth view: login, signup, reset password (shown when logged out) -->
+        <div id="auth-view">
         <header id="auth-header">
             <h1>🔐 LDAP 2FA Authentication</h1>
             <p class="subtitle">Secure two-factor authentication for your LDAP account</p>
@@ -59,8 +61,7 @@
 
         <!-- Login Tab (username and password only; MFA step shown after) -->
         <section id="login-tab" class="tab-content active">
-            <form id="login-form" class="auth-form" method="post" action=""
-                  onsubmit="return false;">
+            <form id="login-form" class="auth-form" method="post" action="">
                 <div class="form-group">
                     <label for="login-username">Username</label>
                     <input type="text" id="login-username" name="username" required
@@ -87,75 +88,6 @@
                     <span class="btn-loading hidden">Signing in...</span>
                 </button>
             </form>
-
-            <!-- MFA step (shown after successful username/password) -->
-            <div id="mfa-step-panel" class="mfa-step-panel hidden">
-                <h3>Two-Factor Authentication</h3>
-                <p class="mfa-step-subtitle">Choose how to verify your identity</p>
-
-                <div class="form-group">
-                    <label>Verification method</label>
-                    <div class="mfa-method-selector" id="mfa-step-method-selector">
-                        <label class="radio-option" id="mfa-step-totp-option">
-                            <input type="radio" name="mfa_step_method" value="totp" checked>
-                            <span class="radio-label">
-                                <span class="radio-icon">📱</span>
-                                <span class="radio-text">
-                                    <strong>Authenticator App</strong>
-                                    <small id="mfa-step-totp-hint">Enter code from your app</small>
-                                </span>
-                            </span>
-                        </label>
-                        <label class="radio-option" id="mfa-step-sms-option">
-                            <input type="radio" name="mfa_step_method" value="sms">
-                            <span class="radio-label">
-                                <span class="radio-icon">💬</span>
-                                <span class="radio-text">
-                                    <strong>SMS</strong>
-                                    <small>Receive a code via text message</small>
-                                </span>
-                            </span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- TOTP setup (QR + secret) when not yet enrolled -->
-                <div id="mfa-step-totp-setup" class="mfa-step-totp-setup hidden">
-                    <h4>Set up Authenticator App</h4>
-                    <p>Scan this QR code with Google Authenticator or another app, or enter the secret manually.</p>
-                    <div id="mfa-step-totp-setup-error" class="form-hint error hidden" role="alert"></div>
-                    <div id="mfa-step-qr" class="qr-code"></div>
-                    <div class="manual-entry">
-                        <p>Or enter this secret manually:</p>
-                        <code id="mfa-step-secret"></code>
-                        <button type="button" id="mfa-step-copy-secret" class="btn btn-secondary btn-small">Copy Secret</button>
-                    </div>
-                </div>
-
-                <!-- SMS: send code button (user already entered password on first step) -->
-                <div id="mfa-step-sms-send" class="form-group hidden">
-                    <button type="button" id="mfa-step-send-sms-btn" class="btn btn-secondary">
-                        Send SMS code
-                    </button>
-                    <small id="mfa-step-sms-status" class="form-hint hidden"></small>
-                </div>
-
-                <!-- Verification code input (for both TOTP and SMS) -->
-                <div class="form-group">
-                    <label for="mfa-step-code">Verification code</label>
-                    <input type="text" id="mfa-step-code" name="verification_code"
-                           placeholder="Enter 6-digit code" maxlength="6" pattern="[0-9]{6}"
-                           autocomplete="one-time-code" inputmode="numeric">
-                </div>
-
-                <div class="mfa-step-actions">
-                    <button type="button" id="mfa-step-back-btn" class="btn btn-secondary">Back</button>
-                    <button type="button" id="mfa-step-verify-btn" class="btn btn-primary">
-                        <span class="btn-text">Verify</span>
-                        <span class="btn-loading hidden">Verifying...</span>
-                    </button>
-                </div>
-            </div>
 
             <!-- Forgot password panel (shown when user clicks "Forgot your password?") -->
             <div id="forgot-password-panel" class="forgot-password-panel hidden">
@@ -241,40 +173,7 @@
                     <label for="signup-phone">Phone Number</label>
                     <div class="phone-input-group">
                         <select id="signup-country-code" name="phone_country_code" required>
-                            <option value="+1">🇺🇸 +1</option>
-                            <option value="+44">🇬🇧 +44</option>
-                            <option value="+49">🇩🇪 +49</option>
-                            <option value="+33">🇫🇷 +33</option>
-                            <option value="+39">🇮🇹 +39</option>
-                            <option value="+34">🇪🇸 +34</option>
-                            <option value="+31">🇳🇱 +31</option>
-                            <option value="+32">🇧🇪 +32</option>
-                            <option value="+41">🇨🇭 +41</option>
-                            <option value="+43">🇦🇹 +43</option>
-                            <option value="+46">🇸🇪 +46</option>
-                            <option value="+47">🇳🇴 +47</option>
-                            <option value="+45">🇩🇰 +45</option>
-                            <option value="+358">🇫🇮 +358</option>
-                            <option value="+48">🇵🇱 +48</option>
-                            <option value="+351">🇵🇹 +351</option>
-                            <option value="+353">🇮🇪 +353</option>
-                            <option value="+972">🇮🇱 +972</option>
-                            <option value="+971">🇦🇪 +971</option>
-                            <option value="+966">🇸🇦 +966</option>
-                            <option value="+91">🇮🇳 +91</option>
-                            <option value="+86">🇨🇳 +86</option>
-                            <option value="+81">🇯🇵 +81</option>
-                            <option value="+82">🇰🇷 +82</option>
-                            <option value="+65">🇸🇬 +65</option>
-                            <option value="+61">🇦🇺 +61</option>
-                            <option value="+64">🇳🇿 +64</option>
-                            <option value="+55">🇧🇷 +55</option>
-                            <option value="+52">🇲🇽 +52</option>
-                            <option value="+54">🇦🇷 +54</option>
-                            <option value="+27">🇿🇦 +27</option>
-                            <option value="+234">🇳🇬 +234</option>
-                            <option value="+254">🇰🇪 +254</option>
-                            <option value="+20">🇪🇬 +20</option>
+                            <option value="">Country code</option>
                         </select>
                         <input type="tel" id="signup-phone" name="phone_number" required
                                placeholder="Phone number" autocomplete="tel-national"
@@ -356,68 +255,226 @@
             <div id="signup-result" class="result-container hidden"></div>
         </section>
 
-        <!-- Profile Section (shown when logged in) -->
-        <section id="profile-section" class="tab-content hidden">
+        <!-- Page 2: 2FA method selection / enrollment / authentication -->
+        <section id="mfa-page" class="mfa-step-panel hidden">
+            <h3>Two-Factor Authentication</h3>
+            <p class="mfa-step-subtitle">Choose how to verify your identity</p>
+
+            <form id="mfa-step-form" class="auth-form">
+            <div class="form-group">
+                <label>Verification method</label>
+                <div class="mfa-method-selector" id="mfa-step-method-selector">
+                    <label class="radio-option" id="mfa-step-totp-option">
+                        <input type="radio" name="mfa_step_method" value="totp" checked>
+                        <span class="radio-label">
+                            <span class="radio-icon">📱</span>
+                            <span class="radio-text">
+                                <strong>Authenticator App</strong>
+                                <small id="mfa-step-totp-hint">Enter code from your app</small>
+                            </span>
+                        </span>
+                    </label>
+                    <label class="radio-option" id="mfa-step-sms-option">
+                        <input type="radio" name="mfa_step_method" value="sms">
+                        <span class="radio-label">
+                            <span class="radio-icon">💬</span>
+                            <span class="radio-text">
+                                <strong>SMS</strong>
+                                <small>Receive a code via text message</small>
+                            </span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- TOTP setup (QR + secret) when not yet enrolled -->
+            <div id="mfa-step-totp-setup" class="mfa-step-totp-setup hidden">
+                <h4>Set up Authenticator App</h4>
+                <p>Scan this QR code with Google Authenticator or another app, or enter the secret manually.</p>
+                <div id="mfa-step-totp-setup-error" class="form-hint error hidden" role="alert"></div>
+                <div id="mfa-step-qr" class="qr-code"></div>
+                <div class="manual-entry">
+                    <p>Or enter this secret manually:</p>
+                    <code id="mfa-step-secret"></code>
+                    <button type="button" id="mfa-step-copy-secret" class="btn btn-secondary btn-small">Copy Secret</button>
+                </div>
+            </div>
+
+            <!-- SMS: send code button (user already entered password on first step) -->
+            <div id="mfa-step-sms-send" class="form-group hidden">
+                <button type="button" id="mfa-step-send-sms-btn" class="btn btn-secondary">
+                    Send SMS code
+                </button>
+                <small id="mfa-step-sms-status" class="form-hint hidden"></small>
+            </div>
+
+            <!-- Verification code input (for both TOTP and SMS) -->
+            <div class="form-group">
+                <label for="mfa-step-code">Verification code</label>
+                <input type="text" id="mfa-step-code" name="verification_code"
+                       placeholder="Enter 6-digit code" maxlength="6" pattern="[0-9]{6}"
+                       autocomplete="one-time-code" inputmode="numeric">
+            </div>
+
+            <div class="mfa-step-actions">
+                <button type="button" id="mfa-step-back-btn" class="btn btn-secondary">Back</button>
+                <button type="submit" id="mfa-step-verify-btn" class="btn btn-primary">
+                    <span class="btn-text">Verify</span>
+                    <span class="btn-loading hidden">Verifying...</span>
+                </button>
+            </div>
+            </form>
+        </section>
+        </div>
+        <!-- end auth-view -->
+
+        <!-- App view: profile, user management, group management (shown when logged in) -->
+        <div id="app-view" class="hidden">
+        <section id="profile-section" class="tab-content">
             <div class="section-header">
                 <h2>👤 My Profile</h2>
             </div>
+
+            <nav id="profile-tabs" class="tabs">
+                <button type="button" class="tab-btn active" data-tab="personal">Personal Details</button>
+                <button type="button" class="tab-btn" data-tab="security">Security</button>
+            </nav>
+
             <form id="profile-form" class="auth-form">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="profile-username" readonly class="readonly-input">
-                </div>
-
-                <div class="form-row">
+            <!-- Personal Details Tab -->
+            <div id="profile-personal-tab" class="profile-tab-content tab-content active">
                     <div class="form-group">
-                        <label for="profile-firstname">First Name</label>
-                        <input type="text" id="profile-firstname" name="first_name">
+                        <label>Username</label>
+                        <input type="text" id="profile-username" readonly class="readonly-input">
                     </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="profile-firstname">First Name</label>
+                            <input type="text" id="profile-firstname" name="first_name">
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-lastname">Last Name</label>
+                            <input type="text" id="profile-lastname" name="last_name">
+                        </div>
+                    </div>
+
                     <div class="form-group">
-                        <label for="profile-lastname">Last Name</label>
-                        <input type="text" id="profile-lastname" name="last_name">
+                        <label for="profile-email">Email</label>
+                        <input type="email" id="profile-email" name="email">
+                        <small id="profile-email-hint" class="form-hint"></small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profile-phone">Phone Number</label>
+                        <div class="phone-input-group">
+                            <select id="profile-country-code" name="phone_country_code">
+                                <option value="">Country code</option>
+                            </select>
+                            <input type="tel" id="profile-phone" name="phone_number">
+                        </div>
+                        <small id="profile-phone-hint" class="form-hint"></small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Account Status</label>
+                        <input type="text" id="profile-status" readonly class="readonly-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Groups <span class="form-hint">(read-only)</span></label>
+                        <div id="profile-groups" class="group-badges"></div>
+                    </div>
+
+                    <div id="profile-verification-block" class="profile-verification-block hidden">
+                        <h3 class="profile-verification-title">Verify your contact details</h3>
+                        <p class="form-hint">Complete verification to confirm your email or phone.</p>
+                        <div id="profile-verify-email-row" class="profile-verify-row hidden">
+                            <span class="profile-verify-label">Email</span>
+                            <button type="button" id="profile-resend-email-btn" class="btn btn-secondary btn-small">
+                                Resend verification email
+                            </button>
+                        </div>
+                        <div id="profile-verify-phone-row" class="profile-verify-row hidden">
+                            <span class="profile-verify-label">Phone</span>
+                            <input type="text" id="profile-phone-code" placeholder="Enter 6-digit code" maxlength="6"
+                                   pattern="[0-9]{6}" autocomplete="one-time-code">
+                            <button type="button" id="profile-verify-phone-btn" class="btn btn-primary btn-small">
+                                Verify
+                            </button>
+                            <button type="button" id="profile-resend-phone-btn" class="btn btn-secondary btn-small">
+                                Resend code
+                            </button>
+                        </div>
+                    </div>
+            </div>
+
+            <!-- Security Tab -->
+            <div id="profile-security-tab" class="profile-tab-content tab-content">
+                <div class="form-group" id="profile-password-section">
+                    <h3 class="profile-subsection-title">Change Password</h3>
+                    <div class="profile-password-checkbox-row">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="profile-change-password-checkbox" name="change_password">
+                            <span>I want to change my password</span>
+                        </label>
+                        <span class="profile-info-icon" id="profile-password-info-icon"
+                              title="Check the box above to change your password. Enter your current password and a new password, then click Save Changes."
+                              aria-label="Info">ⓘ</span>
+                    </div>
+                    <div class="profile-password-fields">
+                        <div class="form-group">
+                            <label for="profile-current-password">Current Password</label>
+                            <input type="password" id="profile-current-password" name="current_password"
+                                   autocomplete="current-password" placeholder="Enter current password">
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-new-password">New Password</label>
+                            <input type="password" id="profile-new-password" name="new_password"
+                                   autocomplete="new-password" placeholder="Enter new password (min 8 characters)">
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-confirm-password">Confirm New Password</label>
+                            <input type="password" id="profile-confirm-password" name="confirm_password"
+                                   autocomplete="new-password" placeholder="Confirm new password">
+                            <small id="profile-password-error" class="form-hint form-error hidden"></small>
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="profile-email">Email</label>
-                    <input type="email" id="profile-email" name="email">
-                    <small id="profile-email-hint" class="form-hint"></small>
-                </div>
-
-                <div class="form-group">
-                    <label for="profile-phone">Phone Number</label>
-                    <div class="phone-input-group">
-                        <select id="profile-country-code" name="phone_country_code">
-                            <option value="+1">🇺🇸 +1</option>
-                            <option value="+44">🇬🇧 +44</option>
-                            <option value="+49">🇩🇪 +49</option>
-                            <option value="+33">🇫🇷 +33</option>
-                            <option value="+91">🇮🇳 +91</option>
-                        </select>
-                        <input type="tel" id="profile-phone" name="phone_number">
+                <div class="form-group" id="profile-mfa-section">
+                    <h3 class="profile-subsection-title">Two-Factor Authentication</h3>
+                    <p class="form-hint">Manage your two-factor authentication methods. At least one must remain.</p>
+                    <div id="profile-mfa-methods-list" class="profile-mfa-methods-list"></div>
+                    <div id="profile-mfa-add-row" class="profile-mfa-add-row">
+                        <button type="button" id="profile-mfa-add-totp-btn" class="btn btn-secondary btn-small">
+                            Add Authenticator app
+                        </button>
+                        <button type="button" id="profile-mfa-add-sms-btn" class="btn btn-secondary btn-small hidden">
+                            Add SMS
+                        </button>
                     </div>
-                    <small id="profile-phone-hint" class="form-hint"></small>
+                    <div id="profile-mfa-totp-setup" class="profile-mfa-totp-setup hidden">
+                        <p class="form-hint">Scan the QR code with your authenticator app, or enter the secret manually.</p>
+                        <div id="profile-mfa-totp-qr" class="profile-mfa-totp-qr"></div>
+                        <div class="form-group">
+                            <label>Secret (manual entry)</label>
+                            <div class="totp-secret-row">
+                                <input type="text" id="profile-mfa-totp-secret" readonly class="readonly-input">
+                                <button type="button" id="profile-mfa-totp-copy-btn" class="btn btn-secondary btn-small">Copy</button>
+                            </div>
+                        </div>
+                        <button type="button" id="profile-mfa-totp-done-btn" class="btn btn-primary btn-small">Done</button>
+                    </div>
                 </div>
+            </div>
 
-                <div class="form-group">
-                    <label>MFA Method</label>
-                    <input type="text" id="profile-mfa" readonly class="readonly-input">
-                </div>
-
-                <div class="form-group">
-                    <label>Account Status</label>
-                    <input type="text" id="profile-status" readonly class="readonly-input">
-                </div>
-
-                <div class="form-group">
-                    <label>Groups</label>
-                    <div id="profile-groups" class="group-badges"></div>
-                </div>
-
+            <div class="profile-form-actions">
                 <button type="submit" class="btn btn-primary">
                     <span class="btn-text">Save Changes</span>
                     <span class="btn-loading hidden">Saving...</span>
                 </button>
+            </div>
             </form>
         </section>
 
@@ -506,6 +563,8 @@
             <div id="groups-loading" class="loading-spinner hidden">Loading...</div>
             <div id="groups-empty" class="empty-state hidden">No groups found</div>
         </section>
+        </div>
+        <!-- end app-view -->
 
         <!-- Status Messages -->
         <div id="status-message" class="status-message hidden"></div>
@@ -597,6 +656,7 @@
     </div>
 
     <script src="/js/api.js"></script>
+    <script src="/js/country-codes.js"></script>
     <script src="/js/main.js"></script>
 </body>
 </html>

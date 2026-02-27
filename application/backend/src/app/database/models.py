@@ -92,13 +92,20 @@ class User(Base):
         index=True,
     )
 
-    # MFA settings (set during enrollment at login, not during signup)
+    # MFA settings (legacy single-method; kept for migration; prefer user_mfa_methods)
     mfa_method: Mapped[Optional[str]] = mapped_column(
         String(10),
         nullable=True,
         default=None,
     )
     totp_secret: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Relationships to MFA methods (multiple methods per user)
+    mfa_methods: Mapped[list["UserMFAMethod"]] = relationship(
+        "UserMFAMethod",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -181,6 +188,59 @@ class User(Base):
         return False
 
 
+class UserMFAMethod(Base):
+    """Per-user MFA method (TOTP or SMS). A user can have multiple methods."""
+
+    __tablename__ = "user_mfa_methods"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    method: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+    )  # "totp" or "sms"
+
+    # For TOTP: secret stored here
+    totp_secret: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # For SMS: optional override; if null, use user's profile phone
+    phone_country_code: Mapped[Optional[str]] = mapped_column(
+        String(5),
+        nullable=True,
+    )
+    phone_number: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", back_populates="mfa_methods")
+
+    __table_args__ = (
+        Index("ix_user_mfa_methods_user_method", "user_id", "method", unique=True),
+    )
+
+    @property
+    def full_phone_number(self) -> str:
+        """Full phone for SMS; requires user to be loaded for profile fallback."""
+        if self.phone_country_code and self.phone_number:
+            return f"{self.phone_country_code}{self.phone_number}"
+        return ""
+
+
 class VerificationTokenType(str, Enum):
     """Types of verification tokens."""
 
@@ -227,6 +287,12 @@ class VerificationToken(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
+    )
+
+    # For email/phone change flows: new value to apply after verification (e.g. new email or "+1|5551234567")
+    target_value: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
     )
 
     # Relationships

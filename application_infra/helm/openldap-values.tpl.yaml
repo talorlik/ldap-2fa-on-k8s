@@ -95,6 +95,15 @@ customLdifFiles:
     description: Administrator group
     uniqueMember: cn=admin,${openldap_base_dn}
 
+    # Create users group (groupOfUniqueNames)
+    # Initial member is the LDAP admin DN (required by groupOfUniqueNames)
+    dn: cn=users,ou=groups,${openldap_base_dn}
+    objectClass: groupOfUniqueNames
+    objectClass: top
+    cn: users
+    description: Regular users group
+    uniqueMember: cn=admin,${openldap_base_dn}
+
 ltb-passwd:
   enabled: true
   image:

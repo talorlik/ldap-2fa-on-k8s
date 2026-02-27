@@ -34,6 +34,8 @@ const App = {
     sortState: { field: 'created_at', order: 'desc' },
     // Login MFA step state (after login/start)
     loginChallenge: null, // { challenge_token, totp_enrolled, sms_available }
+    // Pending profile verification (after request-phone-change; show enter-code row until verified)
+    pendingVerifyPhone: false,
 
     /**
      * Remove login credentials from the URL so they never appear in Referer or
@@ -66,9 +68,14 @@ const App = {
         this.setupVerification();
         this.setupTopBar();
         this.setupProfile();
+        this.setupProfileTabs();
+        this.setupProfileVerification();
+        this.setupProfileMfaSection();
         this.setupAdminUsers();
         this.setupAdminGroups();
         this.setupModals();
+
+        this.populateCountryCodeSelects();
 
         // Check for reset password link (must run before other URL checks)
         this.checkResetPasswordToken();
@@ -114,7 +121,7 @@ const App = {
     },
 
     /**
-     * Show logged in state with top bar
+     * Show logged in state with top bar and app view
      */
     showLoggedInState() {
         // Show top bar
@@ -126,11 +133,13 @@ const App = {
             document.getElementById('admin-menu-items').classList.remove('hidden');
         }
 
-        // Hide auth header and tabs
-        document.getElementById('auth-header').classList.add('hidden');
-        document.getElementById('auth-tabs').classList.add('hidden');
+        // Switch to app view: hide auth view, show app view
+        const authView = document.getElementById('auth-view');
+        const appView = document.getElementById('app-view');
+        if (authView) authView.classList.add('hidden');
+        if (appView) appView.classList.remove('hidden');
 
-        // Show profile by default
+        // Show profile section (only app-view sections are toggled)
         this.showSection('profile');
 
         // Adjust container for logged in state
@@ -145,12 +154,20 @@ const App = {
         document.getElementById('top-bar').classList.add('hidden');
         document.getElementById('admin-menu-items').classList.add('hidden');
 
-        // Show auth header and tabs
-        document.getElementById('auth-header').classList.remove('hidden');
-        document.getElementById('auth-tabs').classList.remove('hidden');
+        // Switch to auth view: show auth view, hide app view
+        const authView = document.getElementById('auth-view');
+        const appView = document.getElementById('app-view');
+        const mfaPage = document.getElementById('mfa-page');
+        if (appView) appView.classList.add('hidden');
+        if (authView) authView.classList.remove('hidden');
+        if (mfaPage) mfaPage.classList.add('hidden');
 
-        // Hide all sections, show login
-        this.hideAllSections();
+        // Show login tab and reset auth tab state
+        const authTabContents = document.querySelectorAll('#auth-view .tab-content');
+        authTabContents.forEach(el => {
+            el.classList.remove('active');
+            el.classList.add('hidden');
+        });
         const loginTab = document.getElementById('login-tab');
         if (loginTab) {
             loginTab.classList.add('active');
@@ -159,9 +176,9 @@ const App = {
 
         // Reset login view: show form, hide MFA step panel
         const loginForm = document.getElementById('login-form');
-        const mfaPanel = document.getElementById('mfa-step-panel');
+        const mfaPage = document.getElementById('mfa-page');
         if (loginForm) loginForm.classList.remove('hidden');
-        if (mfaPanel) mfaPanel.classList.add('hidden');
+        if (mfaPage) mfaPage.classList.add('hidden');
         this.loginChallenge = null;
 
         // Adjust container
@@ -208,10 +225,12 @@ const App = {
     },
 
     /**
-     * Hide all content sections
+     * Hide all app-view sections (profile, admin-users, admin-groups only)
      */
     hideAllSections() {
-        document.querySelectorAll('.tab-content').forEach(el => {
+        const appView = document.getElementById('app-view');
+        if (!appView) return;
+        appView.querySelectorAll('.tab-content').forEach(el => {
             el.classList.remove('active');
             el.classList.add('hidden');
         });
@@ -315,14 +334,15 @@ const App = {
         if (token && username) {
             try {
                 const response = await API.verifyEmail(username, token);
-                this.showStatus('Email verified successfully!', 'success');
+                this.showStatus('Email verified! You can now click Save again to confirm your profile.', 'success');
 
-                // Clear URL params
                 window.history.replaceState({}, document.title, window.location.pathname);
 
-                // If user was signing up, update verification status
                 if (this.currentUser && this.currentUser.username === username) {
                     this.updateVerificationStatus(response.profile_status);
+                }
+                if (this.session && this.session.username === username) {
+                    await this.loadProfile();
                 }
             } catch (error) {
                 this.showStatus(error.message, 'error');
@@ -368,7 +388,7 @@ const App = {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             loginForm.classList.add('hidden');
-            document.getElementById('mfa-step-panel').classList.add('hidden');
+            document.getElementById('mfa-page').classList.add('hidden');
             document.getElementById('login-result').classList.add('hidden');
             forgotPanel.classList.remove('hidden');
             resultContainer.classList.add('hidden');
@@ -474,11 +494,11 @@ const App = {
     },
 
     /**
-     * Setup tab navigation
+     * Setup tab navigation (auth view only: Login / Sign Up)
      */
     setupTabs() {
-        const tabButtons = document.querySelectorAll('.tab-btn');
-        const tabContents = document.querySelectorAll('.tab-content');
+        const tabButtons = document.querySelectorAll('#auth-view .tab-btn');
+        const tabContents = document.querySelectorAll('#auth-view .tab-content');
 
         tabButtons.forEach(button => {
             button.addEventListener('click', () => {
@@ -488,7 +508,7 @@ const App = {
                 tabButtons.forEach(btn => btn.classList.remove('active'));
                 button.classList.add('active');
 
-                // Update content visibility
+                // Update content visibility (auth-view tabs only)
                 tabContents.forEach(content => {
                     content.classList.remove('active');
                     content.classList.add('hidden');
@@ -551,15 +571,15 @@ const App = {
     },
 
     /**
-     * Show MFA step panel and update options based on loginChallenge
+     * Show 2FA page (method selection / enrollment / authentication)
      */
     showMfaStepPanel() {
-        const panel = document.getElementById('mfa-step-panel');
+        const mfaPage = document.getElementById('mfa-page');
         const totpOption = document.getElementById('mfa-step-totp-option');
         const smsOption = document.getElementById('mfa-step-sms-option');
         const totpHint = document.getElementById('mfa-step-totp-hint');
 
-        if (!this.loginChallenge) return;
+        if (!this.loginChallenge || !mfaPage) return;
 
         totpOption.classList.remove('disabled');
         totpOption.querySelector('input').disabled = false;
@@ -576,7 +596,14 @@ const App = {
         }
 
         this.updateMfaStepMethodVisibility();
-        panel.classList.remove('hidden');
+
+        // Switch to 2FA page: hide login/signup tabs and content, show mfa-page
+        document.getElementById('auth-tabs').classList.add('hidden');
+        document.querySelectorAll('#auth-view .tab-content').forEach(el => {
+            el.classList.remove('active');
+            el.classList.add('hidden');
+        });
+        mfaPage.classList.remove('hidden');
     },
 
     /**
@@ -641,10 +668,10 @@ const App = {
     },
 
     /**
-     * Setup MFA step panel (method selector, verify, back, copy secret, send SMS)
+     * Setup MFA page (method selector, verify, back, copy secret, send SMS)
      */
     setupMfaStepPanel() {
-        const panel = document.getElementById('mfa-step-panel');
+        const mfaPage = document.getElementById('mfa-page');
         const backBtn = document.getElementById('mfa-step-back-btn');
         const verifyBtn = document.getElementById('mfa-step-verify-btn');
         const codeInput = document.getElementById('mfa-step-code');
@@ -654,8 +681,21 @@ const App = {
 
         backBtn.addEventListener('click', () => {
             this.loginChallenge = null;
-            panel.classList.add('hidden');
-            document.getElementById('login-form').classList.remove('hidden');
+            if (mfaPage) mfaPage.classList.add('hidden');
+            document.getElementById('auth-tabs').classList.remove('hidden');
+            const loginTab = document.getElementById('login-tab');
+            if (loginTab) {
+                loginTab.classList.add('active');
+                loginTab.classList.remove('hidden');
+            }
+            document.querySelectorAll('#auth-view .tab-content').forEach(el => {
+                if (el.id !== 'login-tab') {
+                    el.classList.remove('active');
+                    el.classList.add('hidden');
+                }
+            });
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) loginForm.classList.remove('hidden');
             document.getElementById('mfa-step-secret').textContent = '';
             document.getElementById('mfa-step-qr').innerHTML = '';
             const setupErrorEl = document.getElementById('mfa-step-totp-setup-error');
@@ -687,48 +727,52 @@ const App = {
             }
         });
 
-        verifyBtn.addEventListener('click', async () => {
-            if (!this.loginChallenge) return;
-            const code = codeInput.value.trim();
-            if (!/^\d{6}$/.test(code)) {
-                this.showStatus('Please enter a valid 6-digit code', 'error');
-                return;
-            }
-            const method = document.querySelector('input[name="mfa_step_method"]:checked')?.value || 'totp';
-
-            verifyBtn.querySelector('.btn-text').classList.add('hidden');
-            verifyBtn.querySelector('.btn-loading').classList.remove('hidden');
-            verifyBtn.disabled = true;
-
-            try {
-                const response = await API.loginVerify(
-                    this.loginChallenge.challenge_token,
-                    method,
-                    code
-                );
-                if (response.token) {
-                    API.setToken(response.token);
-                    this.session = {
-                        username: response.username,
-                        isAdmin: response.is_admin,
-                        token: response.token,
-                    };
-                    this.loginChallenge = null;
-                    panel.classList.add('hidden');
-                    document.getElementById('login-form').classList.remove('hidden');
-                    document.getElementById('login-form').reset();
-                    codeInput.value = '';
-                    this.showStatus('Login successful!', 'success');
-                    this.showLoggedInState();
+        const mfaForm = document.getElementById('mfa-step-form');
+        if (mfaForm) {
+            mfaForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!this.loginChallenge) return;
+                const code = codeInput.value.trim();
+                if (!/^\d{6}$/.test(code)) {
+                    this.showStatus('Please enter a valid 6-digit code', 'error');
+                    return;
                 }
-            } catch (error) {
-                this.showStatus(error.message || 'Invalid code', 'error');
-            } finally {
-                verifyBtn.querySelector('.btn-text').classList.remove('hidden');
-                verifyBtn.querySelector('.btn-loading').classList.add('hidden');
-                verifyBtn.disabled = false;
-            }
-        });
+                const method = document.querySelector('input[name="mfa_step_method"]:checked')?.value || 'totp';
+
+                verifyBtn.querySelector('.btn-text').classList.add('hidden');
+                verifyBtn.querySelector('.btn-loading').classList.remove('hidden');
+                verifyBtn.disabled = true;
+
+                try {
+                    const response = await API.loginVerify(
+                        this.loginChallenge.challenge_token,
+                        method,
+                        code
+                    );
+                    if (response.token) {
+                        API.setToken(response.token);
+                        this.session = {
+                            username: response.username,
+                            isAdmin: response.is_admin,
+                            token: response.token,
+                        };
+                        this.loginChallenge = null;
+                        const mfaPageEl = document.getElementById('mfa-page');
+                        if (mfaPageEl) mfaPageEl.classList.add('hidden');
+                        document.getElementById('login-form').reset();
+                        codeInput.value = '';
+                        this.showStatus('Login successful!', 'success');
+                        this.showLoggedInState();
+                    }
+                } catch (error) {
+                    this.showStatus(error.message || 'Invalid code', 'error');
+                } finally {
+                    verifyBtn.querySelector('.btn-text').classList.remove('hidden');
+                    verifyBtn.querySelector('.btn-loading').classList.add('hidden');
+                    verifyBtn.disabled = false;
+                }
+            });
+        }
     },
 
     /**
@@ -974,11 +1018,184 @@ const App = {
     },
 
     /**
+     * Populate country code dropdowns from COUNTRY_CODES (country-codes.js).
+     * Ensures profile and signup phone selects show all countries with flags.
+     */
+    populateCountryCodeSelects() {
+        if (typeof window.COUNTRY_CODES === 'undefined' || !Array.isArray(window.COUNTRY_CODES)) {
+            return;
+        }
+        const list = window.COUNTRY_CODES.slice()
+            .filter((c) => c.dial_code && (c.flag != null && c.flag !== ''))
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        const addOptions = (selectEl) => {
+            if (!selectEl) return;
+            const placeholder = selectEl.querySelector('option[value=""]');
+            selectEl.innerHTML = '';
+            if (placeholder) {
+                selectEl.appendChild(placeholder);
+            } else {
+                const empty = document.createElement('option');
+                empty.value = '';
+                empty.textContent = 'Country code';
+                selectEl.appendChild(empty);
+            }
+            list.forEach((c) => {
+                const opt = document.createElement('option');
+                opt.value = c.dial_code;
+                opt.textContent = c.flag + ' ' + c.dial_code;
+                selectEl.appendChild(opt);
+            });
+        };
+        addOptions(document.getElementById('profile-country-code'));
+        addOptions(document.getElementById('signup-country-code'));
+
+        this.makeCountryCodeSearchable('profile-country-code');
+        this.makeCountryCodeSearchable('signup-country-code');
+    },
+
+    /**
+     * Convert a country code select into a searchable dropdown.
+     * Keeps the original select in DOM (hidden) for form submission.
+     */
+    makeCountryCodeSearchable(selectId) {
+        const select = document.getElementById(selectId);
+        if (!select || typeof window.COUNTRY_CODES === 'undefined') return;
+
+        const list = window.COUNTRY_CODES.slice()
+            .filter((c) => c.dial_code && (c.flag != null && c.flag !== ''))
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'country-code-search-wrapper';
+
+        const trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'country-code-trigger';
+        trigger.setAttribute('aria-haspopup', 'listbox');
+        trigger.setAttribute('aria-expanded', 'false');
+        const selectedOpt = select.options[select.selectedIndex];
+        trigger.textContent = selectedOpt ? selectedOpt.textContent : 'Country code';
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'country-code-dropdown';
+        dropdown.setAttribute('role', 'listbox');
+
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'country-code-search';
+        searchInput.placeholder = 'Search country or code...';
+        searchInput.setAttribute('autocomplete', 'off');
+
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'country-code-options';
+
+        list.forEach((c) => {
+            const item = document.createElement('div');
+            item.className = 'country-code-option';
+            item.setAttribute('role', 'option');
+            item.dataset.value = c.dial_code;
+            item.dataset.search = (c.name + ' ' + c.dial_code).toLowerCase();
+            item.textContent = c.flag + ' ' + c.dial_code + ' ' + c.name;
+            optionsContainer.appendChild(item);
+        });
+
+        dropdown.appendChild(searchInput);
+        dropdown.appendChild(optionsContainer);
+
+        select.parentNode.insertBefore(wrapper, select);
+        wrapper.appendChild(select);
+        wrapper.appendChild(trigger);
+        wrapper.appendChild(dropdown);
+
+        select.classList.add('country-code-select-hidden');
+
+        const updateTrigger = () => {
+            const opt = select.options[select.selectedIndex];
+            trigger.textContent = opt ? opt.textContent : 'Country code';
+        };
+
+        const closeDropdown = () => {
+            dropdown.classList.remove('open');
+            trigger.setAttribute('aria-expanded', 'false');
+            searchInput.value = '';
+            list.forEach((c, i) => {
+                optionsContainer.children[i].classList.remove('hidden');
+            });
+        };
+
+        const filterOptions = (q) => {
+            const lower = q.trim().toLowerCase();
+            Array.from(optionsContainer.children).forEach((el) => {
+                el.classList.toggle('hidden', lower && !el.dataset.search.includes(lower));
+            });
+        };
+
+        trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isOpen = dropdown.classList.toggle('open');
+            trigger.setAttribute('aria-expanded', isOpen);
+            if (isOpen) {
+                searchInput.focus();
+                filterOptions(searchInput.value);
+            }
+        });
+
+        searchInput.addEventListener('input', () => filterOptions(searchInput.value));
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeDropdown();
+                trigger.focus();
+            }
+        });
+
+        optionsContainer.addEventListener('click', (e) => {
+            const item = e.target.closest('.country-code-option');
+            if (!item || item.classList.contains('hidden')) return;
+            select.value = item.dataset.value;
+            updateTrigger();
+            closeDropdown();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (dropdown.classList.contains('open') && !wrapper.contains(e.target)) {
+                closeDropdown();
+            }
+        });
+
+        this.updateCountryCodeTrigger = this.updateCountryCodeTrigger || {};
+        this.updateCountryCodeTrigger[selectId] = updateTrigger;
+    },
+
+    /**
+     * Update the visible trigger text for a country code select (e.g. after loadProfile).
+     */
+    updateCountryCodeTriggerText(selectId) {
+        const fn = this.updateCountryCodeTrigger && this.updateCountryCodeTrigger[selectId];
+        if (typeof fn === 'function') fn();
+    },
+
+    /**
      * Setup profile functionality
      */
+    toggleProfilePasswordFields(enabled) {
+        const fields = document.querySelectorAll('.profile-password-fields input');
+        fields.forEach((el) => {
+            el.disabled = !enabled;
+        });
+    },
+
     setupProfile() {
         const form = document.getElementById('profile-form');
         if (!form) return;
+
+        const changePwdCheckbox = document.getElementById('profile-change-password-checkbox');
+        if (changePwdCheckbox) {
+            changePwdCheckbox.addEventListener('change', () => {
+                this.toggleProfilePasswordFields(changePwdCheckbox.checked);
+            });
+            this.toggleProfilePasswordFields(changePwdCheckbox.checked);
+        }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -986,35 +1203,155 @@ const App = {
             if (!this.session) return;
 
             const submitBtn = form.querySelector('button[type="submit"]');
+            const errorEl = document.getElementById('profile-password-error');
+            const changePwdCheckbox = document.getElementById('profile-change-password-checkbox');
+            const wantToChangePwd = changePwdCheckbox?.checked ?? false;
+            const currentPwd = document.getElementById('profile-current-password')?.value;
+            const newPwd = document.getElementById('profile-new-password')?.value;
+            const confirmPwd = document.getElementById('profile-confirm-password')?.value;
+
+            if (errorEl) {
+                errorEl.textContent = '';
+                errorEl.classList.add('hidden');
+            }
+
+            if (wantToChangePwd && (currentPwd || newPwd || confirmPwd)) {
+                if (!currentPwd?.trim()) {
+                    this.showStatus('Enter your current password to change it.', 'error');
+                    if (errorEl) {
+                        errorEl.textContent = 'Enter your current password.';
+                        errorEl.classList.remove('hidden');
+                        errorEl.classList.add('form-error');
+                    }
+                    return;
+                }
+                if (!newPwd?.trim()) {
+                    this.showStatus('Enter a new password.', 'error');
+                    if (errorEl) {
+                        errorEl.textContent = 'Enter a new password.';
+                        errorEl.classList.remove('hidden');
+                        errorEl.classList.add('form-error');
+                    }
+                    return;
+                }
+                if (newPwd.length < 8) {
+                    this.showStatus('New password must be at least 8 characters.', 'error');
+                    if (errorEl) {
+                        errorEl.textContent = 'New password must be at least 8 characters.';
+                        errorEl.classList.remove('hidden');
+                        errorEl.classList.add('form-error');
+                    }
+                    return;
+                }
+                if (newPwd !== confirmPwd) {
+                    this.showStatus('New password and confirmation do not match.', 'error');
+                    if (errorEl) {
+                        errorEl.textContent = 'New password and confirmation do not match.';
+                        errorEl.classList.remove('hidden');
+                        errorEl.classList.add('form-error');
+                    }
+                    return;
+                }
+            }
+
             submitBtn.classList.add('loading');
             submitBtn.disabled = true;
 
-            const updates = {};
-            const firstName = document.getElementById('profile-firstname').value.trim();
-            const lastName = document.getElementById('profile-lastname').value.trim();
             const email = document.getElementById('profile-email').value.trim();
             const phoneCountryCode = document.getElementById('profile-country-code').value;
             const phoneNumber = document.getElementById('profile-phone').value.trim();
 
-            if (firstName) updates.first_name = firstName;
-            if (lastName) updates.last_name = lastName;
-            if (email && !document.getElementById('profile-email').readOnly) {
+            try {
+                const profile = await API.getProfile(this.session.username);
+                const emailChanged = email && email.toLowerCase() !== (profile.email || '').toLowerCase();
+                const phoneChanged =
+                    (phoneCountryCode !== (profile.phone_country_code || '')) ||
+                    (phoneNumber !== (profile.phone_number || ''));
+
+                const needEmailVerify = emailChanged && profile.email_verified;
+                const needPhoneVerify = phoneChanged && profile.phone_verified;
+                if (needEmailVerify || needPhoneVerify) {
+                    if (needEmailVerify) {
+                        await API.requestEmailChange(email);
+                    }
+                    if (needPhoneVerify) {
+                        await API.requestPhoneChange(phoneCountryCode, phoneNumber);
+                        this.pendingVerifyPhone = true;
+                    }
+                    const parts = [];
+                    if (needEmailVerify) parts.push('email (click the link we sent)');
+                    if (needPhoneVerify) parts.push('phone (enter the code below)');
+                    this.showStatus(
+                        'Verification sent. Please verify your new ' + parts.join(' and ') + ', then click Save again.',
+                        'success',
+                    );
+                    await this.loadProfile();
+                    submitBtn.classList.remove('loading');
+                    submitBtn.disabled = false;
+                    return;
+                }
+
+                const updates = {};
+                const firstName = document.getElementById('profile-firstname').value.trim();
+                const lastName = document.getElementById('profile-lastname').value.trim();
+                if (firstName) updates.first_name = firstName;
+                if (lastName) updates.last_name = lastName;
                 updates.email = email;
-            }
-            if (!document.getElementById('profile-phone').readOnly) {
                 updates.phone_country_code = phoneCountryCode;
                 updates.phone_number = phoneNumber;
-            }
 
-            try {
+                if (wantToChangePwd && currentPwd && newPwd && confirmPwd) {
+                    updates.current_password = currentPwd;
+                    updates.new_password = newPwd;
+                    updates.confirm_password = confirmPwd;
+                }
+
                 await API.updateProfile(this.session.username, updates);
                 this.showStatus('Profile updated successfully', 'success');
+                if (wantToChangePwd && (currentPwd || newPwd || confirmPwd)) {
+                    document.getElementById('profile-current-password').value = '';
+                    document.getElementById('profile-new-password').value = '';
+                    document.getElementById('profile-confirm-password').value = '';
+                    const cb = document.getElementById('profile-change-password-checkbox');
+                    if (cb) cb.checked = false;
+                    this.toggleProfilePasswordFields(false);
+                }
+                await this.loadProfile();
             } catch (error) {
                 this.showStatus(error.message, 'error');
             } finally {
                 submitBtn.classList.remove('loading');
                 submitBtn.disabled = false;
             }
+        });
+    },
+
+    /**
+     * Setup profile tab navigation (Personal Details | Security).
+     */
+    setupProfileTabs() {
+        const container = document.getElementById('profile-section');
+        if (!container) return;
+
+        const tabButtons = container.querySelectorAll('#profile-tabs .tab-btn');
+        const tabContents = container.querySelectorAll('.profile-tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const targetTab = button.dataset.tab;
+
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                tabContents.forEach(content => {
+                    content.classList.remove('active');
+                    content.classList.add('hidden');
+                    if (content.id === `profile-${targetTab}-tab`) {
+                        content.classList.add('active');
+                        content.classList.remove('hidden');
+                    }
+                });
+            });
         });
     },
 
@@ -1031,37 +1368,47 @@ const App = {
             document.getElementById('profile-firstname').value = profile.first_name;
             document.getElementById('profile-lastname').value = profile.last_name;
             document.getElementById('profile-email').value = profile.email;
-            document.getElementById('profile-country-code').value = profile.phone_country_code;
+
+            const countrySelect = document.getElementById('profile-country-code');
+            const code = profile.phone_country_code || '';
+            countrySelect.value = code;
+            if (code && countrySelect.value !== code) {
+                const opt = document.createElement('option');
+                opt.value = code;
+                opt.textContent = code;
+                countrySelect.appendChild(opt);
+                countrySelect.value = code;
+            }
+            this.updateCountryCodeTriggerText('profile-country-code');
             document.getElementById('profile-phone').value = profile.phone_number;
-            document.getElementById('profile-mfa').value = profile.mfa_method.toUpperCase();
             document.getElementById('profile-status').value = profile.status.toUpperCase();
 
-            // Set read-only based on verification status
+            // 2FA methods list and add buttons
+            this.renderProfileMfaMethods(profile);
+
+            // Email and phone are always editable on profile; changing requires re-verification after save
             const emailInput = document.getElementById('profile-email');
             const phoneInput = document.getElementById('profile-phone');
             const countryCodeSelect = document.getElementById('profile-country-code');
-
-            if (profile.email_verified) {
-                emailInput.readOnly = true;
-                emailInput.classList.add('readonly-input');
-                document.getElementById('profile-email-hint').textContent = 'Email cannot be changed after verification';
-            } else {
-                emailInput.readOnly = false;
-                emailInput.classList.remove('readonly-input');
-                document.getElementById('profile-email-hint').textContent = '';
+            emailInput.readOnly = false;
+            emailInput.classList.remove('readonly-input');
+            phoneInput.readOnly = false;
+            phoneInput.classList.remove('readonly-input');
+            countryCodeSelect.disabled = false;
+            const wrapper = countryCodeSelect.closest('.country-code-search-wrapper');
+            if (wrapper) {
+                const trigger = wrapper.querySelector('.country-code-trigger');
+                if (trigger) trigger.disabled = false;
             }
+            document.getElementById('profile-email-hint').textContent =
+                'Changing email will require verification after saving.';
+            document.getElementById('profile-phone-hint').textContent =
+                'Changing phone will require verification after saving.';
 
-            if (profile.phone_verified) {
-                phoneInput.readOnly = true;
-                phoneInput.classList.add('readonly-input');
-                countryCodeSelect.disabled = true;
-                document.getElementById('profile-phone-hint').textContent = 'Phone cannot be changed after verification';
-            } else {
-                phoneInput.readOnly = false;
-                phoneInput.classList.remove('readonly-input');
-                countryCodeSelect.disabled = false;
-                document.getElementById('profile-phone-hint').textContent = '';
-            }
+            // Show or hide profile verification block (when logged in, email or phone unverified)
+            this.updateProfileVerificationBlock(profile);
+
+            // 2FA methods list is rendered in renderProfileMfaMethods(profile) above
 
             // Display groups
             const groupsContainer = document.getElementById('profile-groups');
@@ -1076,6 +1423,207 @@ const App = {
         } catch (error) {
             this.showStatus('Failed to load profile', 'error');
         }
+    },
+
+    /**
+     * Show or hide the profile verification block and wire buttons (when email or phone unverified).
+     */
+    updateProfileVerificationBlock(profile) {
+        const block = document.getElementById('profile-verification-block');
+        const emailRow = document.getElementById('profile-verify-email-row');
+        const phoneRow = document.getElementById('profile-verify-phone-row');
+        if (!block || !emailRow || !phoneRow) return;
+
+        const needEmail = !profile.email_verified;
+        const needPhone = !profile.phone_verified || this.pendingVerifyPhone;
+        if (needEmail || needPhone) {
+            block.classList.remove('hidden');
+            emailRow.classList.toggle('hidden', !needEmail);
+            phoneRow.classList.toggle('hidden', !needPhone);
+        } else {
+            block.classList.add('hidden');
+        }
+    },
+
+    /**
+     * Render the 2FA methods list and toggle Add TOTP / Add SMS visibility.
+     */
+    renderProfileMfaMethods(profile) {
+        const listEl = document.getElementById('profile-mfa-methods-list');
+        const addTotpBtn = document.getElementById('profile-mfa-add-totp-btn');
+        const addSmsBtn = document.getElementById('profile-mfa-add-sms-btn');
+        const totpSetupEl = document.getElementById('profile-mfa-totp-setup');
+        if (!listEl || !addTotpBtn || !addSmsBtn) return;
+
+        const methods = profile.mfa_methods || [];
+        const hasTotp = methods.some(m => m.method === 'totp');
+        const hasSms = methods.some(m => m.method === 'sms');
+        const canRemove = methods.length > 1;
+
+        listEl.innerHTML = '';
+        methods.forEach(m => {
+            const label = m.method === 'totp'
+                ? 'Authenticator app (TOTP)'
+                : `SMS${m.phone_number ? ` (${m.phone_number})` : ''}`;
+            const item = document.createElement('div');
+            item.className = 'profile-mfa-method-item';
+            item.innerHTML = `
+                <span class="profile-mfa-method-label">${escapeHtml(label)}</span>
+                <button type="button" class="btn btn-secondary btn-small profile-mfa-remove-btn"
+                    data-method="${escapeHtml(m.method)}" ${canRemove ? '' : 'disabled'}
+                    title="${canRemove ? 'Remove this method' : 'At least one method must remain'}">
+                    Remove
+                </button>
+            `;
+            listEl.appendChild(item);
+        });
+        if (methods.length === 0) {
+            listEl.innerHTML = '<p class="form-hint">No 2FA methods yet. Add one below.</p>';
+        }
+
+        addTotpBtn.classList.toggle('hidden', hasTotp);
+        addSmsBtn.classList.toggle('hidden', !this.smsEnabled || hasSms);
+        if (totpSetupEl) totpSetupEl.classList.add('hidden');
+    },
+
+    /**
+     * Setup profile 2FA section: Add TOTP, Add SMS, Remove, TOTP setup panel (Copy, Done).
+     */
+    setupProfileMfaSection() {
+        const addTotpBtn = document.getElementById('profile-mfa-add-totp-btn');
+        const addSmsBtn = document.getElementById('profile-mfa-add-sms-btn');
+        const listEl = document.getElementById('profile-mfa-methods-list');
+        const totpSetupEl = document.getElementById('profile-mfa-totp-setup');
+        const totpSecretInput = document.getElementById('profile-mfa-totp-secret');
+        const totpCopyBtn = document.getElementById('profile-mfa-totp-copy-btn');
+        const totpDoneBtn = document.getElementById('profile-mfa-totp-done-btn');
+        const totpQrEl = document.getElementById('profile-mfa-totp-qr');
+        if (!addTotpBtn || !addSmsBtn || !listEl) return;
+
+        addTotpBtn.addEventListener('click', async () => {
+            if (!this.session) return;
+            addTotpBtn.disabled = true;
+            try {
+                const res = await API.addProfileMfaMethod(this.session.username, { mfa_method: 'totp' });
+                totpSecretInput.value = res.secret || '';
+                totpQrEl.innerHTML = '';
+                if (typeof QRCode !== 'undefined' && res.otpauth_uri) {
+                    const canvas = document.createElement('canvas');
+                    totpQrEl.appendChild(canvas);
+                    await QRCode.toCanvas(canvas, res.otpauth_uri, { width: 180 });
+                }
+                if (totpSetupEl) totpSetupEl.classList.remove('hidden');
+                this.showStatus('Scan the QR code with your app, then click Done.', 'success');
+            } catch (e) {
+                this.showStatus(e.message || 'Failed to add Authenticator app', 'error');
+            } finally {
+                addTotpBtn.disabled = false;
+            }
+        });
+
+        addSmsBtn.addEventListener('click', async () => {
+            if (!this.session) return;
+            addSmsBtn.disabled = true;
+            try {
+                await API.addProfileMfaMethod(this.session.username, { mfa_method: 'sms' });
+                this.showStatus('SMS 2FA added. Codes will be sent to your profile phone.', 'success');
+                await this.loadProfile();
+            } catch (e) {
+                this.showStatus(e.message || 'Failed to add SMS', 'error');
+            } finally {
+                addSmsBtn.disabled = false;
+            }
+        });
+
+        listEl.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.profile-mfa-remove-btn');
+            if (!btn || btn.disabled || !this.session) return;
+            const method = btn.getAttribute('data-method');
+            if (!method) return;
+            btn.disabled = true;
+            try {
+                await API.removeProfileMfaMethod(this.session.username, method);
+                this.showStatus('2FA method removed.', 'success');
+                await this.loadProfile();
+            } catch (err) {
+                this.showStatus(err.message || 'Failed to remove method', 'error');
+                btn.disabled = false;
+            }
+        });
+
+        if (totpCopyBtn && totpSecretInput) {
+            totpCopyBtn.addEventListener('click', () => {
+                totpSecretInput.select();
+                document.execCommand('copy');
+                this.showStatus('Secret copied to clipboard', 'success');
+            });
+        }
+        if (totpDoneBtn && totpSetupEl) {
+            totpDoneBtn.addEventListener('click', () => {
+                totpSetupEl.classList.add('hidden');
+                totpQrEl.innerHTML = '';
+                totpSecretInput.value = '';
+                this.loadProfile();
+            });
+        }
+    },
+
+    /**
+     * Setup profile verification buttons (resend email, resend phone, verify phone code).
+     */
+    setupProfileVerification() {
+        const resendEmailBtn = document.getElementById('profile-resend-email-btn');
+        const resendPhoneBtn = document.getElementById('profile-resend-phone-btn');
+        const verifyPhoneBtn = document.getElementById('profile-verify-phone-btn');
+        const codeInput = document.getElementById('profile-phone-code');
+        if (!resendEmailBtn || !resendPhoneBtn || !verifyPhoneBtn || !codeInput) return;
+
+        resendEmailBtn.addEventListener('click', async () => {
+            if (!this.session) return;
+            resendEmailBtn.disabled = true;
+            try {
+                await API.resendVerification(this.session.username, 'email');
+                this.showStatus('Verification email sent', 'success');
+            } catch (e) {
+                this.showStatus(e.message || 'Failed to send', 'error');
+            } finally {
+                resendEmailBtn.disabled = false;
+            }
+        });
+
+        resendPhoneBtn.addEventListener('click', async () => {
+            if (!this.session) return;
+            resendPhoneBtn.disabled = true;
+            try {
+                await API.resendVerification(this.session.username, 'phone');
+                this.showStatus('Verification code sent', 'success');
+            } catch (e) {
+                this.showStatus(e.message || 'Failed to send', 'error');
+            } finally {
+                resendPhoneBtn.disabled = false;
+            }
+        });
+
+        verifyPhoneBtn.addEventListener('click', async () => {
+            if (!this.session) return;
+            const code = (codeInput.value || '').trim();
+            if (!code) {
+                this.showStatus('Enter the 6-digit code', 'error');
+                return;
+            }
+            verifyPhoneBtn.disabled = true;
+            try {
+                await API.verifyPhone(this.session.username, code);
+                this.pendingVerifyPhone = false;
+                this.showStatus('Phone verified! Click Save again to confirm your profile.', 'success');
+                codeInput.value = '';
+                await this.loadProfile();
+            } catch (e) {
+                this.showStatus(e.message || 'Invalid code', 'error');
+            } finally {
+                verifyPhoneBtn.disabled = false;
+            }
+        });
     },
 
     /**
@@ -1322,9 +1870,17 @@ const App = {
         });
 
         // Approve modal form
-        document.getElementById('approve-modal-form').addEventListener('submit', async (e) => {
+        const approveForm = document.getElementById('approve-modal-form');
+        approveForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             await this.approveUser();
+        });
+        // Enter key submits when focused on checkboxes (no text inputs in this form)
+        approveForm.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.type === 'checkbox') {
+                e.preventDefault();
+                approveForm.requestSubmit();
+            }
         });
     },
 

@@ -269,6 +269,207 @@ header .subtitle {
     flex: 1;
 }
 
+/* Searchable country code */
+.country-code-search-wrapper {
+    position: relative;
+    width: 120px;
+    flex-shrink: 0;
+}
+
+.country-code-select-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    clip: rect(0, 0, 0, 0);
+}
+
+.country-code-trigger {
+    position: relative;
+    width: 100%;
+    padding: 14px 32px 14px 12px;
+    font-size: 1rem;
+    color: #ffffff;
+    background: var(--input-background);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: left;
+    appearance: none;
+}
+
+.country-code-trigger:hover {
+    border-color: var(--text-secondary);
+}
+
+.country-code-trigger:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.country-code-trigger::after {
+    content: "▼";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.7rem;
+    pointer-events: none;
+}
+
+.country-code-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: var(--input-background);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: var(--shadow-md);
+    z-index: 100;
+    overflow: hidden;
+}
+
+.country-code-dropdown.open {
+    display: block;
+}
+
+.country-code-search {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background: var(--card-background);
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    box-sizing: border-box;
+}
+
+.country-code-search:focus {
+    outline: none;
+}
+
+.country-code-options {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.country-code-option {
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.country-code-option:hover {
+    background: var(--border-color);
+}
+
+.country-code-option.hidden {
+    display: none;
+}
+
+/* Profile verification block (when email or phone unverified) */
+.profile-verification-block {
+    margin-top: 24px;
+    padding: 20px;
+    background: var(--card-background);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.profile-verification-title {
+    margin: 0 0 8px 0;
+    font-size: 1.1rem;
+}
+
+.profile-verification-block .form-hint {
+    margin-bottom: 16px;
+}
+
+.profile-verify-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.profile-verify-row:last-child {
+    margin-bottom: 0;
+}
+
+.profile-verify-label {
+    font-weight: 600;
+    min-width: 60px;
+}
+
+.profile-verify-row input {
+    padding: 8px 12px;
+    font-size: 0.95rem;
+    width: 140px;
+}
+
+/* Profile 2FA methods section */
+.profile-mfa-methods-list {
+    margin-bottom: 12px;
+}
+
+.profile-mfa-method-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--background-color);
+    border-radius: 8px;
+}
+
+.profile-mfa-method-label {
+    font-weight: 500;
+}
+
+.profile-mfa-add-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.profile-mfa-totp-setup {
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--background-color);
+    border-radius: 8px;
+}
+
+.profile-mfa-totp-setup .form-hint {
+    margin-bottom: 12px;
+}
+
+.profile-mfa-totp-qr {
+    margin-bottom: 12px;
+}
+
+.profile-mfa-totp-qr canvas {
+    display: block;
+}
+
+.totp-secret-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.totp-secret-row input {
+    flex: 1;
+}
+
 /* Button styles */
 .btn {
     padding: 14px 24px;
@@ -593,6 +794,66 @@ header .subtitle {
     margin-top: 4px;
 }
 
+.form-hint.form-error {
+    color: var(--error-color, #dc3545);
+}
+
+.profile-subsection-title {
+    font-size: 1rem;
+    margin: 1rem 0 0.5rem;
+    color: var(--text-primary);
+}
+
+.profile-password-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.75rem 0 1rem;
+}
+
+.profile-password-checkbox-row .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.profile-password-checkbox-row .checkbox-label input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+}
+
+.profile-info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: var(--text-secondary, #6b7280);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: help;
+    flex-shrink: 0;
+}
+
+.profile-info-icon:hover {
+    background: var(--primary-color, #4f46e5);
+}
+
+.profile-password-fields input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.profile-form-actions {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+}
+
 /* SMS Section */
 .sms-section {
     text-align: center;
@@ -900,7 +1161,8 @@ footer p {
         flex-direction: column;
     }
 
-    .phone-input-group select {
+    .phone-input-group select,
+    .phone-input-group .country-code-search-wrapper {
         width: 100%;
     }
 

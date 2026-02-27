@@ -9,11 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **2FA frontend**: Blank page after login and blank menu pages (Profile, User
-  Management, Group Management) fixed by adding `active` in `showSection()`.
-  Logout now shows login/signup forms immediately by removing `hidden` from
-  the login tab in `showLoggedOutState()`. See
-  [application/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md).
+- **2FA frontend**: Blank page after login and blank menu pages fixed by
+  splitting the UI into `#auth-view` (login/signup/reset) and `#app-view`
+  (profile, user/group management). Only one view is shown at a time;
+  section toggling is scoped to app-view and tab clicks to auth-view.
+  Logout correctly shows the login form by switching back to auth-view.
+  See [application/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md).
 
 ## [2026-02-26] - Frontend Form Fix, OpenLDAP LDIF Mount, and Redis Enforcement
 

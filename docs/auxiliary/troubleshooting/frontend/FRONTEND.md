@@ -78,23 +78,32 @@ Profile, User Management, and Group Management show blank; after logout
 only the Login/Sign Up tabs are visible and forms appear only after
 refresh or switching tabs.
 
-**Root cause:** Visibility is controlled by both the `.active` class
-(which sets `display: block` on `.tab-content`) and the `.hidden` class
-(which sets `display: none !important`). The code was:
+**Root cause:** Auth (login/signup/reset) and app (profile/admin) content
+shared one container and one `hideAllSections()` that toggled every
+`.tab-content`. That mixed visibility state and left logged-in sections
+or the login form hidden at the wrong time.
 
-- **Logged-in sections:** `showSection()` removed `.hidden` but never
-  added `.active`, so sections stayed `display: none`.
-- **Logout:** `showLoggedOutState()` called `hideAllSections()` (adding
-  `.hidden` to all `.tab-content`, including the login tab), then added
-  `.active` to the login tab but did not remove `.hidden`, so the login
-  form stayed hidden.
+**Fix:** The UI is split into two views that are shown one at a time:
 
-**Fix (in `application/frontend/src/js/main.js`):**
+- **`#auth-view`** (in `index.html`): Wraps the auth header, auth tabs,
+  login tab, reset-password section, and signup tab. Shown when logged
+  out.
+- **`#app-view`** (in `index.html`): Wraps profile, admin-users, and
+  admin-groups sections. Has class `hidden` by default; shown when logged
+  in.
 
-- In `showSection()`, when showing profile/admin-users/admin-groups,
-  add `classList.add('active')` so the section becomes visible.
-- In `showLoggedOutState()`, after showing the login tab, call
-  `loginTab.classList.remove('hidden')` so the login form is visible.
+**JS changes (`main.js`):**
+
+- `showLoggedInState()`: Hides `#auth-view`, shows `#app-view`, then
+  calls `showSection('profile')`.
+- `showLoggedOutState()`: Hides `#app-view`, shows `#auth-view`, then
+  resets auth tab state and shows the login tab (active + not hidden).
+- `hideAllSections()`: Only toggles `.tab-content` inside `#app-view`
+  (profile, admin-users, admin-groups). No longer touches auth tabs.
+- `showSection()`: Still adds `.active` and removes `.hidden` on the
+  selected app section.
+- `setupTabs()`: Tab buttons and content are scoped to `#auth-view`
+  so Login/Sign Up only switch auth tab content, not app sections.
 
 ## Debugging
 

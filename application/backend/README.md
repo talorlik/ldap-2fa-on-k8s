@@ -120,6 +120,7 @@ system administration
 - **`api/routes.py`**: All API endpoint definitions and request handlers
 - **`config.py`**: Configuration management using Pydantic settings
 - **`database/`**: SQLAlchemy models and async database connection management
+- **`docs/SCHEMA.md`**: [PostgreSQL and Redis schema reference](docs/SCHEMA.md)
 - **`ldap/client.py`**: LDAP client for authentication and user/group management
 - **`mfa/totp.py`**: TOTP generation and verification logic
 - **`sms/client.py`**: AWS SNS integration for SMS delivery
