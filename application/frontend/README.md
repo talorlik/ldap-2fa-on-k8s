@@ -110,6 +110,7 @@ frontend/
     │   └── styles.css           # Complete styling (CSS variables, responsive)
     └── js/
         ├── api.js               # API client (REST endpoints, JWT handling)
+        ├── country-codes.js      # ISO 3166-1 country codes with dial codes
         └── main.js              # Application logic (state, forms, UI)
 └── helm/
     └── ldap-2fa-frontend/       # Helm chart for Kubernetes deployment
@@ -178,7 +179,8 @@ performance and smaller bundle size
   - First name and last name
   - Username (validated: letters, numbers, underscores, hyphens)
   - Email address
-  - Phone number with country code selector (30+ countries)
+  - Phone number with country code selector (from `country-codes.js`;
+    ISO 3166-1 territories with ITU dial codes)
   - Password (minimum 8 characters)
   - Password confirmation
   - MFA method selection (TOTP or SMS)
@@ -190,10 +192,17 @@ performance and smaller bundle size
 
 ### 3. Profile Management
 
-- **View Profile**: Display user information, groups, MFA method, account status
+- **View Profile**: Display user information, groups, MFA methods, account status
 - **Edit Profile**: Update name, email (if not verified), phone (if not verified)
+- **Email Change** (verified users): Request verification link to new email;
+  click link to apply change
+- **Phone Change** (verified users): Request SMS code to new number; enter code
+  to apply change
+- **Password Change**: Update password (current, new, confirm) from profile
 - **Read-Only Fields**: Username, MFA method, account status
-- **Verification Restrictions**: Email and phone become read-only after verification
+- **Verification Restrictions**: Email and phone become read-only after
+  verification; use request-email-change / request-phone-change to change
+- **Country Code Selector**: Phone inputs use `country-codes.js` (30+ countries)
 - **Group Display**: Visual badges showing user's group memberships
 
 ### 4. Admin Dashboard
@@ -480,7 +489,7 @@ with a separate backend:
   - Admin users section
   - Admin groups section
   - Modals (group, approve, members, confirm)
-- **Scripts**: Loads `api.js` and `main.js` at the bottom
+- **Scripts**: Loads `country-codes.js`, `api.js`, and `main.js` at the bottom
 
 #### `js/api.js`
 
@@ -651,6 +660,15 @@ password from reset link; then user is redirected to login
 
 - `API.getProfile(username)` - Get user profile
 - `API.updateProfile(username, updates)` - Update profile
+- `API.requestEmailChange(newEmail)` - Request email change; sends verification
+  link to new address
+- `API.requestPhoneChange(phoneCountryCode, phoneNumber)` - Request phone
+  change; sends SMS code to new number
+- `API.changePassword(username, currentPassword, newPassword, confirmPassword)`
+  - Change password (authenticated)
+- `API.getProfileMfaMethods(username)` - List enrolled 2FA methods
+- `API.addProfileMfaMethod(username, body)` - Add TOTP or SMS method
+- `API.removeProfileMfaMethod(username, method)` - Remove 2FA method
 
 #### Admin (requires admin JWT)
 

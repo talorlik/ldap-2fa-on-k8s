@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-02-28] - Profile Email/Phone Change, Password Change, and Schema Docs
+
+### Added
+
+- **2FA backend**: Profile email and phone change flows with verification.
+  `POST /api/profile/request-email-change` sends verification link to new
+  email; `POST /api/profile/request-phone-change` sends SMS code to new
+  number. After verification, `verify-email` / `verify-phone` apply the new
+  values. `POST /api/profile/{username}/change-password` for authenticated
+  password change.
+- **2FA backend**: `verification_tokens.target_value` column (auto-migrated)
+  for profile change flows (`eml_chg`, `phn_chg` token types).
+- **2FA backend**: [SCHEMA.md](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/databases/SCHEMA.md)
+  documents PostgreSQL and Redis schema.
+- **2FA frontend**: `country-codes.js` with ISO 3166-1 country codes and
+  dial codes for signup and profile phone inputs.
+
+### Changed
+
+- **2FA backend**: Profile response includes `mfa_methods` list; supports
+  multiple MFA methods per user. Profile update accepts password change
+  (`current_password`, `new_password`, `confirm_password`).
+- **2FA frontend**: Profile page supports email change (request link),
+  phone change (request code), and password change. Country code selector
+  populated from `COUNTRY_CODES`.
+- **OpenLDAP**: Additional LDIF bootstrap entries in Helm values.
+- **Documentation**: FRONTEND.md and DEBUG_COMMANDS.md updated. See
+  [application/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md).
+
 ## [2026-02-27] - Frontend Blank Page and Logout Display
 
 ### Fixed

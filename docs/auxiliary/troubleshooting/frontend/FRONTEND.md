@@ -71,7 +71,26 @@ JWT, QR code, SMS button, admin features, styles).
 - Verify file permissions in container.
 - Check browser console for 404 errors.
 
-### 7. Blank Page After Login / Menu Pages Blank / Logout Shows Only Tabs
+### 7. Profile Email/Phone Change or Password Change Failing
+
+**Symptoms:** Request email change or phone change returns error; password
+change fails.
+
+**Solutions:**
+
+- **Email change**: User must be logged in. Backend sends verification link
+  to new email; user clicks link (opens `#verify-email?token=...&username=...`).
+  After verification, save profile again.
+- **Phone change**: User must be logged in. Backend sends SMS code to new
+  number; user enters code in verification panel. After verification, save
+  profile again.
+- **Password change**: Requires `current_password`, `new_password`,
+  `confirm_password`. Current password must match LDAP/DB. New and confirm
+  must match.
+- Verify `APP_URL` is correct (used in verification links).
+- Check backend logs for SES/SNS delivery errors.
+
+### 8. Blank Page After Login / Menu Pages Blank / Logout Shows Only Tabs
 
 **Symptoms:** After successful 2FA login the main content area is empty;
 Profile, User Management, and Group Management show blank; after logout
@@ -104,6 +123,17 @@ or the login form hidden at the wrong time.
   selected app section.
 - `setupTabs()`: Tab buttons and content are scoped to `#auth-view`
   so Login/Sign Up only switch auth tab content, not app sections.
+
+### 9. Country Code Selector Empty or Missing
+
+**Symptoms:** Signup or profile phone field has no country code dropdown.
+
+**Solutions:**
+
+- Verify `country-codes.js` is loaded before `main.js` (check script order
+  in `index.html`).
+- Check `window.COUNTRY_CODES` is defined in browser console.
+- Ensure `/js/country-codes.js` is served by nginx (no 404).
 
 ## Debugging
 

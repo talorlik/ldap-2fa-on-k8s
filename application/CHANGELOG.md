@@ -13,6 +13,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
+## [2026-02-28] - Profile Email/Phone Change, Password Change, and Schema Docs
+
+### Added
+
+- **Profile email change**: `POST /api/profile/request-email-change` sends
+  verification link to new email. User clicks link; `verify-email` applies
+  new address. Uses `verification_tokens` with `token_type = 'eml_chg'` and
+  `target_value`.
+- **Profile phone change**: `POST /api/profile/request-phone-change` sends
+  SMS code to new number. User enters code; `verify-phone` applies new number.
+  Uses `verification_tokens` with `token_type = 'phn_chg'` and
+  `target_value` (country_code|number).
+- **Password change**: `POST /api/profile/{username}/change-password` for
+  authenticated users (body: `current_password`, `new_password`,
+  `confirm_password`). Updates LDAP and PostgreSQL.
+- **Backend schema docs**: [docs/auxiliary/application/databases/SCHEMA.md](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/databases/SCHEMA.md)
+  documents `verification_tokens`, `users`, Redis key layout.
+- **Frontend country codes**: `country-codes.js` provides ISO 3166-1 country
+  list with dial codes for signup and profile phone inputs.
+
+### Changed
+
+- **Profile response**: `mfa_methods` list added; supports multiple MFA
+  methods (totp, sms) per user. Legacy `mfa_method` retained.
+- **Profile update**: Accepts optional password change fields; validated
+  together (all three required when changing password).
+- **verify-email / verify-phone**: Handle both signup (`email`/`phone`) and
+  profile change (`eml_chg`/`phn_chg`) token types.
+- **Database migration**: `target_value` column added to `verification_tokens`
+  on startup if missing.
+- **Frontend profile**: Email change (request link), phone change (request
+  code), password change forms. Country code dropdown from `COUNTRY_CODES`.
+
 ## [2026-02-27] - Frontend Blank Page and Logout Display
 
 ### Fixed

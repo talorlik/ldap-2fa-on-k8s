@@ -120,7 +120,7 @@ system administration
 - **`api/routes.py`**: All API endpoint definitions and request handlers
 - **`config.py`**: Configuration management using Pydantic settings
 - **`database/`**: SQLAlchemy models and async database connection management
-- **`docs/SCHEMA.md`**: [PostgreSQL and Redis schema reference](docs/SCHEMA.md)
+- **Schema reference**: [PostgreSQL, OpenLDAP, and Redis schema](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/databases/SCHEMA.md)
 - **`ldap/client.py`**: LDAP client for authentication and user/group management
 - **`mfa/totp.py`**: TOTP generation and verification logic
 - **`sms/client.py`**: AWS SNS integration for SMS delivery
@@ -396,6 +396,16 @@ token and new password, updates LDAP and DB.
 
 - `GET /api/profile/{username}` - Get user profile
 - `PUT /api/profile/{username}` - Update user profile
+- `POST /api/profile/request-email-change` - Request email change; sends
+  verification link to new address (body: `new_email`)
+- `POST /api/profile/request-phone-change` - Request phone change; sends SMS
+  code to new number (body: `phone_country_code`, `phone_number`)
+- `POST /api/profile/{username}/change-password` - Change password
+  (authenticated; body: `current_password`, `new_password`, `confirm_password`)
+
+For verified email/phone changes: use request-email-change or
+request-phone-change, complete verification via verify-email or verify-phone,
+then save profile again.
 
 ### Admin Endpoints
 
