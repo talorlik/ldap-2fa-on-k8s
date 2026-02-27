@@ -1,4 +1,4 @@
-name: Backend Infra Destroying
+name: 01 - Backend Infra Provisioning
 
 on:
   workflow_dispatch:
@@ -19,30 +19,12 @@ on:
         options:
           - prod
           - dev
-      confirmation:
-        description: 'Type "yes" to confirm destruction (required)'
-        required: true
-        type: string
 
 jobs:
-  ConfirmDestruction:
-    runs-on: ubuntu-latest
-    permissions: {}
-    steps:
-      - name: Confirm destruction
-        run: |
-          if [ "${{ inputs.confirmation }}" != "yes" ]; then
-            echo "ERROR: Confirmation required. You must type 'yes' to proceed with destruction."
-            echo "Received: '${{ inputs.confirmation }}'"
-            exit 1
-          fi
-          echo "✓ Confirmation received. Proceeding with destruction..."
-
   SetRegion:
     runs-on: ubuntu-latest
-    needs:
-      - ConfirmDestruction
-    permissions: {}
+    permissions:
+      contents: read
     outputs:
       region_code: ${{ steps.set_region.outputs.region_code }}
     steps:
@@ -52,10 +34,9 @@ jobs:
           SELECTED_REGION="${{ inputs.region }}"
           echo "region_code=${SELECTED_REGION%%:*}" >> $GITHUB_OUTPUT
 
-  InfraDestroy:
+  InfraProvision:
     runs-on: ubuntu-latest
     needs:
-      - ConfirmDestruction
       - SetRegion
     permissions:
       contents: write
@@ -79,7 +60,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_STATE_ACCOUNT_ROLE_ARN }}
-          role-session-name: GitHubActions-BackendInfraDestroy
+          role-session-name: GitHubActions-BackendInfraProvision
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Create backend.hcl from placeholder
@@ -124,8 +105,64 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
-      - name: Terraform plan destroy
-        run: terraform plan -var-file="variables.tfvars" -destroy -out terraform.tfplan
+      - name: Terraform plan
+        run: terraform plan -var-file="variables.tfvars" -out terraform.tfplan
 
-      - name: Destroy backend infrastructure
-        run: terraform apply -auto-approve terraform.tfplan
+      - name: Provision backend infrastructure
+        id: provision_backend
+        run: |
+          terraform apply -auto-approve terraform.tfplan
+          ECR_REPOSITORY_NAME=$(terraform output -raw ecr_repository)
+          echo "ecr_repository_name=$ECR_REPOSITORY_NAME" >> $GITHUB_OUTPUT
+
+      - name: Save ECR repository name to GitHub repository variable
+        uses: actions/github-script@v7
+        env:
+          ECR_REPOSITORY_NAME: ${{ steps.provision_backend.outputs.ecr_repository_name }}
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          script: |
+            const ecrRepositoryName = process.env.ECR_REPOSITORY_NAME;
+            const repo = context.repo;
+
+            if (!ecrRepositoryName || ecrRepositoryName.trim() === '') {
+              throw new Error('ECR_REPOSITORY_NAME is not set or is empty');
+            }
+
+            console.log(`Saving ECR repository name: ${ecrRepositoryName}`);
+
+            try {
+              // Try to get existing ECR repository name variable
+              try {
+                await github.rest.actions.getRepoVariable({
+                  owner: repo.owner,
+                  repo: repo.repo,
+                  name: 'ECR_REPOSITORY_NAME'
+                });
+
+                // Update existing ECR repository name variable
+                await github.rest.actions.updateRepoVariable({
+                  owner: repo.owner,
+                  repo: repo.repo,
+                  name: 'ECR_REPOSITORY_NAME',
+                  value: ecrRepositoryName
+                });
+                console.log('Updated repository variable ECR_REPOSITORY_NAME');
+              } catch (error) {
+                if (error.status === 404) {
+                  // Variable doesn't exist, create it
+                  await github.rest.actions.createRepoVariable({
+                    owner: repo.owner,
+                    repo: repo.repo,
+                    name: 'ECR_REPOSITORY_NAME',
+                    value: ecrRepositoryName
+                  });
+                  console.log('Created repository variable ECR_REPOSITORY_NAME');
+                } else {
+                  throw error;
+                }
+              }
+            } catch (error) {
+              console.error('Error saving ECR repository name variable:', error.message);
+              throw error;
+            }

@@ -1,4 +1,4 @@
-name: Backend Build and Push
+name: 03 - Backend Build and Push
 
 # This workflow can run in parallel with frontend_build_push.yaml since they modify
 # different files (backend vs frontend values.yaml). The git operations include

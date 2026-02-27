@@ -1,4 +1,4 @@
-name: Application Provisioning
+name: 04 - Application Destroying
 
 # Required GitHub Repository Secrets:
 # - AWS_STATE_ACCOUNT_ROLE_ARN: IAM role ARN for backend state operations
@@ -7,12 +7,11 @@ name: Application Provisioning
 # - AWS_ASSUME_EXTERNAL_ID: ExternalId for cross-account role assumption security
 # - TF_VAR_POSTGRESQL_PASSWORD: PostgreSQL database password
 # - TF_VAR_REDIS_PASSWORD: Redis password for SMS OTP storage
-# - TF_VAR_OPENLDAP_ADMIN_PASSWORD: OpenLDAP admin password (for backend ldap-admin-secret)
+# - TF_VAR_OPENLDAP_ADMIN_PASSWORD: OpenLDAP admin password (for backend ldap-admin-secret and destroy)
 #
-# Optional (first admin user seed - when all are set, a one-time Job seeds the first admin):
+# Optional (if first admin seed was used, set these so Terraform can destroy admin-seed resources):
 # - ADMIN_SEED_USERNAME, ADMIN_SEED_EMAIL, ADMIN_SEED_FIRST_NAME, ADMIN_SEED_LAST_NAME
 # - ADMIN_SEED_PHONE_COUNTRY_CODE, ADMIN_SEED_PHONE_NUMBER
-# (Password for seed admin = same as TF_VAR_OPENLDAP_ADMIN_PASSWORD; do not log these values.)
 #
 # Note: GitHub workflows use repository secrets, while bash scripts use AWS Secrets Manager.
 # The secrets listed above must be configured in GitHub repository settings.
@@ -36,10 +35,29 @@ on:
         options:
           - prod
           - dev
+      confirmation:
+        description: 'Type "yes" to confirm destruction (required)'
+        required: true
+        type: string
 
 jobs:
+  ConfirmDestruction:
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Confirm destruction
+        run: |
+          if [ "${{ inputs.confirmation }}" != "yes" ]; then
+            echo "ERROR: Confirmation required. You must type 'yes' to proceed with destruction."
+            echo "Received: '${{ inputs.confirmation }}'"
+            exit 1
+          fi
+          echo "✓ Confirmation received. Proceeding with destruction..."
+
   SetRegion:
     runs-on: ubuntu-latest
+    needs:
+      - ConfirmDestruction
     permissions:
       contents: read
     outputs:
@@ -51,9 +69,10 @@ jobs:
           SELECTED_REGION="${{ inputs.region }}"
           echo "region_code=${SELECTED_REGION%%:*}" >> $GITHUB_OUTPUT
 
-  ApplicationProvision:
+  ApplicationDestroy:
     runs-on: ubuntu-latest
     needs:
+      - ConfirmDestruction
       - SetRegion
     permissions:
       contents: write
@@ -67,9 +86,9 @@ jobs:
       TF_VAR_postgresql_database_password: ${{ secrets.TF_VAR_POSTGRESQL_PASSWORD }}
       # Redis password for SMS OTP storage
       TF_VAR_redis_password: ${{ secrets.TF_VAR_REDIS_PASSWORD }}
-      # OpenLDAP admin password for backend LDAP bind (ldap-admin-secret)
+      # OpenLDAP admin password for backend LDAP bind (ldap-admin-secret) and for destroy
       TF_VAR_openldap_admin_password: ${{ secrets.TF_VAR_OPENLDAP_ADMIN_PASSWORD }}
-      # First admin seed (optional; when all set, one-time Job seeds first admin with same password as LDAP)
+      # First admin seed (optional; pass so Terraform can destroy admin-seed secret and Job if present)
       TF_VAR_admin_seed_username: ${{ secrets.ADMIN_SEED_USERNAME }}
       TF_VAR_admin_seed_email: ${{ secrets.ADMIN_SEED_EMAIL }}
       TF_VAR_admin_seed_first_name: ${{ secrets.ADMIN_SEED_FIRST_NAME }}
@@ -87,9 +106,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.14.0
-
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Export environment variables for set-k8s-env.sh
         run: |
@@ -113,13 +129,28 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_STATE_ACCOUNT_ROLE_ARN }}
-          role-session-name: GitHubActions-ApplicationProvision-State
+          role-session-name: GitHubActions-ApplicationDestroy-State
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create backend.hcl from placeholder
+        run: |
+          # Only create if it doesn't exist (matching setup-application.sh behavior)
+          if [ ! -f "backend.hcl" ]; then
+            cp tfstate-backend-values-template.hcl backend.hcl
+            sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
+            -e "s|<APPLICATION_PREFIX>|${{ vars.APPLICATION_PREFIX }}|g" \
+            -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
+            backend.hcl
+            echo "Created backend.hcl:"
+            cat backend.hcl
+          else
+            echo "backend.hcl already exists. Skipping creation."
+          fi
 
       - name: Create backend_infra backend.hcl from placeholder
         run: |
           # Create backend_infra/backend.hcl if it doesn't exist
-          # This is needed for application/providers.tf and application_infra/providers.tf to read backend_infra state configuration
+          # This is needed for application/providers.tf to read backend_infra state configuration
           if [ ! -f "../backend_infra/backend.hcl" ]; then
             cp ../backend_infra/tfstate-backend-values-template.hcl ../backend_infra/backend.hcl
             sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
@@ -135,7 +166,7 @@ jobs:
       - name: Create application_infra backend.hcl from placeholder
         run: |
           # Create application_infra/backend.hcl if it doesn't exist
-          # This is needed for terraform init in the Check ArgoCD capability status step
+          # This is needed for application/providers.tf to read application_infra state configuration
           if [ ! -f "../application_infra/backend.hcl" ]; then
             cp ../application_infra/tfstate-backend-values-template.hcl ../application_infra/backend.hcl
             sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
@@ -146,78 +177,6 @@ jobs:
             cat ../application_infra/backend.hcl
           else
             echo "../application_infra/backend.hcl already exists. Skipping creation."
-          fi
-
-      - name: Check ArgoCD capability status
-        id: check_argocd
-        working-directory: ./application_infra
-        run: |
-          WORKSPACE="${{ env.AWS_REGION }}-${{ inputs.environment }}"
-
-          # Ensure assume-github-role.sh is executable (needed for ArgoCD module external data source)
-          chmod +x ../scripts/assume-github-role.sh
-
-          # Initialize terraform if needed
-          if [ ! -d ".terraform" ]; then
-            echo "Initializing application_infra terraform for status check..."
-            if ! terraform init -backend-config="backend.hcl"; then
-              echo "::error::Failed to initialize application_infra terraform"
-              exit 1
-            fi
-          fi
-
-          # Select workspace
-          if ! terraform workspace select "$WORKSPACE"; then
-            echo "::error::Failed to select workspace $WORKSPACE in application_infra"
-            exit 1
-          fi
-
-          # Get ArgoCD capability status output
-          ARGOCD_STATUS=$(terraform output -raw argocd_capability_status 2>/dev/null)
-          EXIT_CODE=$?
-
-          # Fail if status output command failed
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::ArgoCD capability status not available (failed to retrieve from application_infra)"
-            echo "::error::Please ensure ArgoCD capability is deployed in application_infra before deploying applications."
-            exit 1
-          fi
-
-          # Trim whitespace and set output
-          ARGOCD_STATUS=$(echo "$ARGOCD_STATUS" | tr -d '[:space:]')
-          echo "status=$ARGOCD_STATUS" >> $GITHUB_OUTPUT
-
-          # Fail if status is empty or null
-          if [ -z "$ARGOCD_STATUS" ] || [ "$ARGOCD_STATUS" = "null" ]; then
-            echo "::error::ArgoCD capability status is not set or is null"
-            echo "::error::Please ensure ArgoCD capability is deployed and active in application_infra before deploying applications."
-            exit 1
-          fi
-
-          echo "ArgoCD capability status: $ARGOCD_STATUS"
-
-      - name: Validate ArgoCD status
-        run: |
-          if [ "${{ steps.check_argocd.outputs.status }}" != "ACTIVE" ]; then
-            echo "::error::ArgoCD capability status is '${{ steps.check_argocd.outputs.status }}', but expected 'ACTIVE'"
-            echo "::error::Please ensure ArgoCD capability is fully deployed and active before deploying applications."
-            exit 1
-          fi
-          echo "✅ ArgoCD capability is ACTIVE - proceeding with deployment"
-
-      - name: Create backend.hcl from placeholder
-        run: |
-          # Only create if it doesn't exist (matching setup-application.sh behavior)
-          if [ ! -f "backend.hcl" ]; then
-            cp tfstate-backend-values-template.hcl backend.hcl
-            sed -i -e "s|<BACKEND_BUCKET_NAME>|${{ vars.BACKEND_BUCKET_NAME }}|g" \
-            -e "s|<APPLICATION_PREFIX>|${{ vars.APPLICATION_PREFIX }}|g" \
-            -e "s|<AWS_REGION>|${{ env.AWS_REGION }}|g" \
-            backend.hcl
-            echo "Created backend.hcl:"
-            cat backend.hcl
-          else
-            echo "backend.hcl already exists. Skipping creation."
           fi
 
       - name: Terraform init
@@ -244,54 +203,52 @@ jobs:
 
       - name: Extract image tags from Helm values
         run: |
-          # Extract backend image tag (required - must not be 'latest' or empty)
+          # Extract backend image tag
+          # Note: For destroy operations, we use empty string as fallback (passes validation)
+          # since the resources being destroyed may not need valid tags
           BACKEND_VALUES_FILE="backend/helm/ldap-2fa-backend/values.yaml"
           if [ ! -f "$BACKEND_VALUES_FILE" ]; then
-            echo "::error::Backend Helm values file not found at $BACKEND_VALUES_FILE"
-            echo "::error::Run the 'Backend Build and Push' workflow first to build and push the backend image."
-            exit 1
+            echo "::warning::Backend Helm values file not found. Using empty string for destroy."
+            echo "TF_VAR_backend_image_tag=" >> $GITHUB_ENV
+          else
+            BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | sed 's/^"//' | sed "s/^'//" | sed 's/"$//' | sed "s/'$//" | tr -d '\r')
+            if [ -z "$BACKEND_IMAGE_TAG" ] || [ "$BACKEND_IMAGE_TAG" = "latest" ]; then
+              echo "::warning::Could not extract valid backend image tag (got: '${BACKEND_IMAGE_TAG:-empty}'). Using empty string for destroy."
+              echo "TF_VAR_backend_image_tag=" >> $GITHUB_ENV
+            else
+              echo "TF_VAR_backend_image_tag=$BACKEND_IMAGE_TAG" >> $GITHUB_ENV
+              echo "✅ Using backend image tag: $BACKEND_IMAGE_TAG"
+            fi
           fi
 
-          BACKEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$BACKEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | sed 's/^"//' | sed "s/^'//" | sed 's/"$//' | sed "s/'$//" | tr -d '\r')
-          if [ -z "$BACKEND_IMAGE_TAG" ] || [ "$BACKEND_IMAGE_TAG" = "latest" ]; then
-            echo "::error::Could not extract valid backend image tag from $BACKEND_VALUES_FILE"
-            echo "::error::Found tag: '${BACKEND_IMAGE_TAG:-<empty>}'"
-            echo "::error::Run the 'Backend Build and Push' workflow first. It will update values.yaml with the correct tag."
-            exit 1
-          fi
-          echo "TF_VAR_backend_image_tag=$BACKEND_IMAGE_TAG" >> $GITHUB_ENV
-          echo "✅ Using backend image tag: $BACKEND_IMAGE_TAG"
-
-          # Extract frontend image tag (required - must not be 'latest' or empty)
+          # Extract frontend image tag
           FRONTEND_VALUES_FILE="frontend/helm/ldap-2fa-frontend/values.yaml"
           if [ ! -f "$FRONTEND_VALUES_FILE" ]; then
-            echo "::error::Frontend Helm values file not found at $FRONTEND_VALUES_FILE"
-            echo "::error::Run the 'Frontend Build and Push' workflow first to build and push the frontend image."
-            exit 1
+            echo "::warning::Frontend Helm values file not found. Using empty string for destroy."
+            echo "TF_VAR_frontend_image_tag=" >> $GITHUB_ENV
+          else
+            FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | sed 's/^"//' | sed "s/^'//" | sed 's/"$//' | sed "s/'$//" | tr -d '\r')
+            if [ -z "$FRONTEND_IMAGE_TAG" ] || [ "$FRONTEND_IMAGE_TAG" = "latest" ]; then
+              echo "::warning::Could not extract valid frontend image tag (got: '${FRONTEND_IMAGE_TAG:-empty}'). Using empty string for destroy."
+              echo "TF_VAR_frontend_image_tag=" >> $GITHUB_ENV
+            else
+              echo "TF_VAR_frontend_image_tag=$FRONTEND_IMAGE_TAG" >> $GITHUB_ENV
+              echo "✅ Using frontend image tag: $FRONTEND_IMAGE_TAG"
+            fi
           fi
-
-          FRONTEND_IMAGE_TAG=$(grep -E '^[[:space:]]*tag:' "$FRONTEND_VALUES_FILE" | head -n 1 | sed -E 's/.*tag:[[:space:]]*//' | sed 's/^"//' | sed "s/^'//" | sed 's/"$//' | sed "s/'$//" | tr -d '\r')
-          if [ -z "$FRONTEND_IMAGE_TAG" ] || [ "$FRONTEND_IMAGE_TAG" = "latest" ]; then
-            echo "::error::Could not extract valid frontend image tag from $FRONTEND_VALUES_FILE"
-            echo "::error::Found tag: '${FRONTEND_IMAGE_TAG:-<empty>}'"
-            echo "::error::Run the 'Frontend Build and Push' workflow first. It will update values.yaml with the correct tag."
-            exit 1
-          fi
-          echo "TF_VAR_frontend_image_tag=$FRONTEND_IMAGE_TAG" >> $GITHUB_ENV
-          echo "✅ Using frontend image tag: $FRONTEND_IMAGE_TAG"
 
       - name: Configure AWS credentials (State Account for Terraform)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_STATE_ACCOUNT_ROLE_ARN }}
-          role-session-name: GitHubActions-ApplicationProvision-Terraform
+          role-session-name: GitHubActions-ApplicationDestroy-Terraform
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Ensure get-eks-token.sh is executable
         run: chmod +x ../scripts/get-eks-token.sh
 
-      - name: Terraform plan
-        run: terraform plan -var-file="variables.tfvars" -out terraform.tfplan
+      - name: Terraform plan destroy
+        run: terraform plan -var-file="variables.tfvars" -destroy -out terraform.tfplan
 
-      - name: Provision application
+      - name: Destroy application
         run: terraform apply -auto-approve terraform.tfplan

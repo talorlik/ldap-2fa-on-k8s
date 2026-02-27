@@ -1,4 +1,4 @@
-name: TF Backend State Destroying
+name: 00 - TF Backend State Destroying
 
 on:
   workflow_dispatch:
