@@ -31,6 +31,8 @@ HTML/JS/CSS frontend
 - **LDAP integration** for centralized user authentication
 - **Self-service user registration** with email/phone verification
 - **Admin dashboard** for user management, group CRUD, and approval workflows
+- **User profile management** with email change (verification link), phone change
+  (SMS code), and password change for authenticated users
 
 **Supporting Infrastructure:**
 

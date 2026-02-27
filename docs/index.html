@@ -198,7 +198,7 @@
                 <li><strong>LDAP integration</strong> for centralized user authentication</li>
                 <li><strong>Self-service user registration</strong> with email/phone verification and profile state management</li>
                 <li><strong>Admin dashboard</strong> for user management, group CRUD operations, and approval workflows</li>
-                <li><strong>User profile management</strong> with edit restrictions for verified fields</li>
+                <li><strong>User profile management</strong> with email change (verification link), phone change (SMS code), and password change for authenticated users</li>
                 <li><strong>Interactive API documentation</strong> via Swagger UI and ReDoc (always enabled)</li>
             </ul>
         </div>
@@ -1242,6 +1242,10 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <p>Redis (required) for SMS OTP and login challenges; verification steps</p>
             </div>
             <div class="doc-item">
+                <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application/databases/SCHEMA.md">Backend Schema Reference</a>
+                <p>PostgreSQL, OpenLDAP, and Redis schema (users, groups, verification_tokens, Redis keys)</p>
+            </div>
+            <div class="doc-item">
                 <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>
                 <p>Complete guide for managing secrets via GitHub and AWS Secrets Manager</p>
             </div>
@@ -1337,9 +1341,9 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             <p>Design docs, guides, and troubleshooting under <code>docs/auxiliary/</code>:</p>
             <ul>
                 <li><strong>Reference:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>, <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/reference/DEBUG_COMMANDS.md">Debug Commands</a> (copy-paste commands for OpenLDAP, ArgoCD, admin-seed, 2FA backend, EKS)</li>
-                <li><strong>Application:</strong> design (PRDs), deployment, guides (password flow, Redis, secret dependencies)</li>
+                <li><strong>Application:</strong> design (PRDs), deployment, guides (password flow, Redis, secret dependencies), schema (PostgreSQL, OpenLDAP, Redis)</li>
                 <li><strong>Application infrastructure:</strong> design (PRDs), guides (cross-account, OpenLDAP, security)</li>
-                <li><strong>Troubleshooting:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md">Troubleshooting Index</a></li>
+                <li><strong>Troubleshooting:</strong> <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/INDEX.md">Troubleshooting Index</a>, <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/troubleshooting/frontend/FRONTEND.md">Frontend Troubleshooting</a></li>
             </ul>
         </div>
         <h3 id="security-operations">Security & Operations</h3>
@@ -1401,7 +1405,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                 <li><strong>Forgot/Reset password:</strong> User requests a reset link by email; opening the link shows a set-new-password form; after submitting, they are redirected to login and sign in with the new password.</li>
                 <li>Authenticator app: one-time setup with QR code (or manual secret); on subsequent logins the user just enters the code. User can choose Authenticator or SMS on every login.</li>
                 <li>SMS: user requests a code on the MFA step; 6-digit OTP is sent via AWS SNS; user enters it in the same verification code field.</li>
-                <li>User profile management with edit restrictions for verified fields</li>
+                <li>User profile management with email change (verification link), phone change (SMS code), and password change</li>
                 <li>Admin dashboard for user management, group CRUD operations, and approval workflows (visible to LDAP admin group members only)</li>
                 <li><strong>First admin (optional):</strong> You can seed the first admin so they use the same username/password as the LDAP admin; set <code>ADMIN_SEED_*</code> secrets (see <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a>). The seeded admin does not have MFA pre-configured; they follow the same two-step login flow and set up Authenticator or use SMS like any other user.</li>
                 <li><strong>Interactive API Documentation</strong> (always enabled):

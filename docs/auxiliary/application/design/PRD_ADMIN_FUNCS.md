@@ -8,6 +8,7 @@ management features in the LDAP 2FA Authentication application.
 ## Table of Contents
 
 1. [User Profile Management](#1-user-profile-management)
+   - [1.3 Profile and Admin Flow Diagrams](#13-profile-and-admin-flow-diagrams)
 2. [SMS OTP Verification Requirements](#2-sms-otp-verification-requirements)
 3. [Admin Dashboard](#3-admin-dashboard)
 4. [Group Management](#4-group-management)
@@ -31,7 +32,7 @@ profile page.
 - Last Name
 - Email Address
 - Phone Number (with country code)
-- MFA Method
+- MFA Method(s) (list; user can have multiple methods: TOTP, SMS)
 - Account Status
 - Account Creation Date
 
@@ -42,18 +43,132 @@ profile page.
 | Username | No | Never editable |
 | First Name | Yes | Always |
 | Last Name | Yes | Always |
-| Email | Yes | Only before email is verified |
-| Phone Number | Yes | Only before phone is verified |
+| Email | Yes | Direct edit before verified; after verified, use request-email-change flow |
+| Phone Number | Yes | Direct edit before verified; after verified, use request-phone-change flow |
+| Password | Yes | Via change-password flow (current, new, confirm) |
 | MFA Method | No | Must re-enroll to change |
 
-### 1.2 Edit Restrictions
+### 1.2 Edit Restrictions and Change Flows
 
-- **Email Address**: Can only be modified if `email_verified = false`. Once verified,
-email becomes read-only to prevent account takeover.
-- **Phone Number**: Can only be modified if `phone_verified = false`. Once verified,
-phone becomes read-only.
-- Changing email or phone resets the respective verification status and triggers
-a new verification flow.
+- **Email Address**: Before verification, can be edited directly. After verification,
+  use `POST /api/profile/request-email-change` to request a change; backend sends
+  verification link to the new email; user clicks link and `verify-email` applies
+  the new address. Prevents account takeover.
+- **Phone Number**: Before verification, can be edited directly. After verification,
+  use `POST /api/profile/request-phone-change` to request a change; backend sends
+  SMS code to the new number; user enters code and `verify-phone` applies the new
+  number.
+- **Password**: Authenticated users change password via
+  `POST /api/profile/{username}/change-password` with `current_password`,
+  `new_password`, and `confirm_password`. Updates both LDAP and PostgreSQL.
+
+### 1.3 Profile and Admin Flow Diagrams
+
+#### Profile Email Change Flow
+
+```mermaid
+flowchart TD
+    A[User logged in, email verified] --> B[Enter new email in profile]
+    B --> C[POST /api/profile/request-email-change]
+    C --> D[Create eml_chg token with target_value]
+    D --> E[Send verification link to new email via SES]
+    E --> F[User clicks link]
+    F --> G[Opens #verify-email?token=...&username=...]
+    G --> H[POST /api/auth/verify-email]
+    H --> I{Token valid, type eml_chg?}
+    I -->|No| J[Error]
+    I -->|Yes| K[Apply target_value to user email]
+    K --> L[Save profile]
+```
+
+#### Profile Phone Change Flow
+
+```mermaid
+flowchart TD
+    A[User logged in, phone verified] --> B[Enter new phone in profile]
+    B --> C[POST /api/profile/request-phone-change]
+    C --> D[Create phn_chg token with target_value]
+    D --> E[Send 6-digit SMS code to new number via SNS]
+    E --> F[User enters code in verification panel]
+    F --> G[POST /api/auth/verify-phone]
+    G --> H{Token valid, type phn_chg?}
+    H -->|No| I[Error]
+    H -->|Yes| J[Apply target_value to user phone]
+    J --> K[Save profile]
+```
+
+#### Profile Password Change Flow
+
+```mermaid
+flowchart TD
+    A[User logged in] --> B[Enter current password]
+    B --> C[Enter new password + confirm]
+    C --> D[POST /api/profile/{username}/change-password]
+    D --> E{Current password correct?}
+    E -->|No| F[Error: invalid current password]
+    E -->|Yes| G{New and confirm match?}
+    G -->|No| H[Error: passwords do not match]
+    G -->|Yes| I[Update password in LDAP]
+    I --> J[Update password_hash in PostgreSQL]
+    J --> K[Success]
+```
+
+#### Admin User Revocation Flow
+
+```mermaid
+flowchart TD
+    A[Admin selects active user] --> B[Click Revoke]
+    B --> C[Confirmation dialog]
+    C --> D{User confirms?}
+    D -->|No| E[Cancel]
+    D -->|Yes| F[POST /api/admin/users/id/revoke]
+    F --> G[Remove user from all LDAP groups]
+    G --> H[Delete user from LDAP]
+    H --> I[Update status to REVOKED or delete from DB]
+    I --> J[Log revocation for audit]
+```
+
+#### Admin Group Management Flow
+
+```mermaid
+flowchart TD
+    subgraph Create
+        A1[Admin enters group name + description] --> A2[POST /api/admin/groups]
+        A2 --> A3[Create LDAP group]
+        A3 --> A4[Create PostgreSQL record]
+    end
+    subgraph Read
+        B1[GET /api/admin/groups] --> B2[List all groups]
+        B2 --> B3[GET /api/admin/groups/id]
+        B3 --> B4[View group details + members]
+    end
+    subgraph Update
+        C1[Admin edits name/description] --> C2[PUT /api/admin/groups/id]
+        C2 --> C3[Sync changes to LDAP]
+    end
+    subgraph Delete
+        D1[Admin clicks Delete] --> D2[Confirmation required]
+        D2 --> D3[DELETE /api/admin/groups/id]
+        D3 --> D4[Remove from LDAP]
+        D4 --> D5[Delete PostgreSQL record]
+    end
+```
+
+#### Admin User-Group Assignment Flow
+
+```mermaid
+flowchart TD
+    A[Admin selects user] --> B{Operation}
+    B -->|Assign| C[POST /api/admin/users/id/groups]
+    B -->|Replace| D[PUT /api/admin/users/id/groups]
+    B -->|Remove| E[DELETE /api/admin/users/id/groups/group_id]
+    C --> F[Add user to LDAP group(s)]
+    F --> G[Create user_groups records]
+    D --> H[Replace all memberships]
+    H --> F
+    E --> I[Remove from LDAP group]
+    I --> J[Delete user_groups record]
+```
 
 ## 2. SMS OTP Verification Requirements
 

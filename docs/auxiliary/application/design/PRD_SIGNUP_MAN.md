@@ -71,6 +71,90 @@ This PRD covers:
 - **COMPLETE** users: Cannot log in, see "awaiting admin approval" message
 - **ACTIVE** users: Can complete login flow
 
+### 1.5 Flow Diagrams
+
+#### User Signup Flow
+
+```mermaid
+flowchart TD
+    A[User fills signup form] --> B[POST /api/auth/signup]
+    B --> C[Create user in PostgreSQL]
+    C --> D[Send verification email via SES]
+    C --> E[Send SMS code via SNS]
+    D --> F[Status: PENDING]
+    E --> F
+    F --> G[User clicks email link]
+    G --> H[POST /api/auth/verify-email]
+    H --> I[email_verified = true]
+    F --> J[User enters SMS code]
+    J --> K[POST /api/auth/verify-phone]
+    K --> L[phone_verified = true]
+    I --> M{Both verified?}
+    L --> M
+    M -->|Yes| N[Status: COMPLETE]
+    N --> O[Await admin activation]
+```
+
+#### User Login Flow
+
+```mermaid
+flowchart TD
+    A[User enters username + password] --> B[POST /api/auth/login/start]
+    B --> C{Status ACTIVE?}
+    C -->|No PENDING| D[Error: verify email/phone]
+    C -->|No COMPLETE| E[Error: awaiting admin approval]
+    C -->|Yes| F[Returns challenge_token]
+    F --> G{MFA enrolled?}
+    G -->|No| H[Choose TOTP or SMS]
+    H --> I[TOTP: QR setup / SMS: send code]
+    I --> J[Enter verification code]
+    G -->|Yes| J
+    J --> K[POST /api/auth/login/verify]
+    K --> L[JWT issued]
+    L --> M[Logged in]
+    M --> N{Admin group?}
+    N -->|Yes| O[Admin dashboard access]
+    N -->|No| P[Standard user access]
+```
+
+#### Forgot/Reset Password Flow
+
+```mermaid
+flowchart TD
+    A[User clicks Forgot password] --> B[Enter email]
+    B --> C[POST /api/auth/forgot-password]
+    C --> D[Generic success response]
+    C --> E[If email exists: create token]
+    E --> F[Send reset link via SES]
+    F --> G[User clicks link in email]
+    G --> H[Opens reset form with token]
+    H --> I[Enter new password + confirm]
+    I --> J[POST /api/auth/reset-password]
+    J --> K{Token valid?}
+    K -->|No| L[Error: invalid or expired]
+    K -->|Yes| M[Update password in PostgreSQL + LDAP]
+    M --> N[Redirect to login]
+```
+
+#### Admin User Activation Flow
+
+```mermaid
+flowchart TD
+    A[Admin logs in with MFA] --> B[View Awaiting Approval list]
+    B --> C[Select user with status COMPLETE]
+    C --> D[Click Activate]
+    D --> E[Modal: select group(s)]
+    E --> F{At least one group?}
+    F -->|No| G[Activation fails]
+    F -->|Yes| H[Confirm]
+    H --> I[Create user in LDAP]
+    I --> J[Add user to LDAP group(s)]
+    J --> K[Update status to ACTIVE in PostgreSQL]
+    K --> L[Record activated_at, activated_by]
+    L --> M[Send welcome email]
+    M --> N[User can now log in]
+```
+
 ## 2. User Stories
 
 ### 2.1 New User Registration
