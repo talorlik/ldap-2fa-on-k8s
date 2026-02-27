@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-02-27] - Frontend Blank Page and Logout Display
+
+### Fixed
+
+- **2FA frontend**: Blank page after login and blank menu pages (Profile, User
+  Management, Group Management) fixed by adding `active` in `showSection()`.
+  Logout now shows login/signup forms immediately by removing `hidden` from
+  the login tab in `showLoggedOutState()`. See
+  [application/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md).
+
 ## [2026-02-26] - Frontend Form Fix, OpenLDAP LDIF Mount, and Redis Enforcement
 
 ### Changed

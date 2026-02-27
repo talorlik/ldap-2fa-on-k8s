@@ -151,7 +151,11 @@ const App = {
 
         // Hide all sections, show login
         this.hideAllSections();
-        document.getElementById('login-tab').classList.add('active');
+        const loginTab = document.getElementById('login-tab');
+        if (loginTab) {
+            loginTab.classList.add('active');
+            loginTab.classList.remove('hidden');
+        }
 
         // Reset login view: show form, hide MFA step panel
         const loginForm = document.getElementById('login-form');
@@ -174,17 +178,30 @@ const App = {
     showSection(section) {
         this.hideAllSections();
 
+        let sectionEl = null;
         switch (section) {
             case 'profile':
-                document.getElementById('profile-section').classList.remove('hidden');
+                sectionEl = document.getElementById('profile-section');
+                if (sectionEl) {
+                    sectionEl.classList.remove('hidden');
+                    sectionEl.classList.add('active');
+                }
                 this.loadProfile();
                 break;
             case 'admin-users':
-                document.getElementById('admin-users-section').classList.remove('hidden');
+                sectionEl = document.getElementById('admin-users-section');
+                if (sectionEl) {
+                    sectionEl.classList.remove('hidden');
+                    sectionEl.classList.add('active');
+                }
                 this.loadAdminUsers();
                 break;
             case 'admin-groups':
-                document.getElementById('admin-groups-section').classList.remove('hidden');
+                sectionEl = document.getElementById('admin-groups-section');
+                if (sectionEl) {
+                    sectionEl.classList.remove('hidden');
+                    sectionEl.classList.add('active');
+                }
                 this.loadAdminGroups();
                 break;
         }

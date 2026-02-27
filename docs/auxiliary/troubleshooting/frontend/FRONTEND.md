@@ -71,6 +71,31 @@ JWT, QR code, SMS button, admin features, styles).
 - Verify file permissions in container.
 - Check browser console for 404 errors.
 
+### 7. Blank Page After Login / Menu Pages Blank / Logout Shows Only Tabs
+
+**Symptoms:** After successful 2FA login the main content area is empty;
+Profile, User Management, and Group Management show blank; after logout
+only the Login/Sign Up tabs are visible and forms appear only after
+refresh or switching tabs.
+
+**Root cause:** Visibility is controlled by both the `.active` class
+(which sets `display: block` on `.tab-content`) and the `.hidden` class
+(which sets `display: none !important`). The code was:
+
+- **Logged-in sections:** `showSection()` removed `.hidden` but never
+  added `.active`, so sections stayed `display: none`.
+- **Logout:** `showLoggedOutState()` called `hideAllSections()` (adding
+  `.hidden` to all `.tab-content`, including the login tab), then added
+  `.active` to the login tab but did not remove `.hidden`, so the login
+  form stayed hidden.
+
+**Fix (in `application/frontend/src/js/main.js`):**
+
+- In `showSection()`, when showing profile/admin-users/admin-groups,
+  add `classList.add('active')` so the section becomes visible.
+- In `showLoggedOutState()`, after showing the login tab, call
+  `loginTab.classList.remove('hidden')` so the login form is visible.
+
 ## Debugging
 
 ### Enable debug logging

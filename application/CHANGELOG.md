@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
+## [2026-02-27] - Frontend Blank Page and Logout Display
+
+### Fixed
+
+- **2FA frontend blank page after login and menu pages**
+  - `showSection()` now adds the `active` class when showing profile,
+  admin-users, or admin-groups sections. Previously it only removed `hidden`,
+  so content stayed hidden because `.tab-content` uses `display: none` unless
+  `.active` is present. Logged-in users now see Profile and other menu content
+  correctly.
+
+- **2FA frontend logout: tabs visible but forms hidden until refresh**
+  - `showLoggedOutState()` now removes the `hidden` class from the login tab
+  after showing it. Previously `hideAllSections()` added `hidden` to all
+  tab-content (including login), and only `active` was re-applied to the login
+  tab, so the login/signup forms remained hidden until refresh or tab switch.
+
 ## [2026-02-26] - Frontend Form Post, QR Code Library, and Redis Required
 
 ### Fixed
