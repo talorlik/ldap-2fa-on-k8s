@@ -400,97 +400,103 @@ const App = {
             resultContainer.classList.add('hidden');
         });
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const email = form.querySelector('#forgot-password-email').value.trim();
-            if (!email) return;
+        // Form submission handled by handleForgotPasswordSubmit via onsubmit
+    },
 
-            submitBtn.classList.add('loading');
-            submitBtn.disabled = true;
-            resultContainer.classList.add('hidden');
+    async doForgotPasswordSubmit() {
+        const form = document.getElementById('forgot-password-form');
+        const resultContainer = document.getElementById('forgot-password-result');
+        if (!form || !resultContainer) return;
 
-            try {
-                await API.forgotPassword(email);
-                resultContainer.innerHTML = `
-                    <h3>✓ Check your email</h3>
-                    <p>If an account exists with this email, you will receive a password reset link shortly.</p>
-                `;
-                resultContainer.className = 'result-container success';
-                resultContainer.classList.remove('hidden');
-            } catch (error) {
-                resultContainer.innerHTML = `
-                    <h3>❌ Error</h3>
-                    <p>${escapeHtml(error.message)}</p>
-                `;
-                resultContainer.className = 'result-container error';
-                resultContainer.classList.remove('hidden');
-            } finally {
-                submitBtn.classList.remove('loading');
-                submitBtn.disabled = false;
-            }
-        });
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const email = form.querySelector('#forgot-password-email').value.trim();
+        if (!email) return;
+
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+        resultContainer.classList.add('hidden');
+
+        try {
+            await API.forgotPassword(email);
+            resultContainer.innerHTML = `
+                <h3>✓ Check your email</h3>
+                <p>If an account exists with this email, you will receive a password reset link shortly.</p>
+            `;
+            resultContainer.className = 'result-container success';
+            resultContainer.classList.remove('hidden');
+        } catch (error) {
+            resultContainer.innerHTML = `
+                <h3>❌ Error</h3>
+                <p>${escapeHtml(error.message)}</p>
+            `;
+            resultContainer.className = 'result-container error';
+            resultContainer.classList.remove('hidden');
+        } finally {
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+        }
     },
 
     /**
      * Setup reset password form (from email link)
      */
     setupResetPasswordForm() {
+        // Form submission handled by handleResetPasswordSubmit via onsubmit
+    },
+
+    async doResetPasswordSubmit() {
         const form = document.getElementById('reset-password-form');
         const resultContainer = document.getElementById('reset-password-result');
         if (!form) return;
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const token = document.getElementById('reset-password-token').value;
-            const username = document.getElementById('reset-password-username').value;
-            const newPassword = form.querySelector('#reset-new-password').value;
-            const confirmPassword = form.querySelector('#reset-confirm-password').value;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const token = document.getElementById('reset-password-token').value;
+        const username = document.getElementById('reset-password-username').value;
+        const newPassword = form.querySelector('#reset-new-password').value;
+        const confirmPassword = form.querySelector('#reset-confirm-password').value;
 
-            if (newPassword !== confirmPassword) {
-                resultContainer.innerHTML = '<h3>❌ Passwords do not match</h3>';
-                resultContainer.className = 'result-container error';
-                resultContainer.classList.remove('hidden');
-                return;
-            }
-            if (newPassword.length < 8) {
-                resultContainer.innerHTML = '<h3>❌ Password must be at least 8 characters</h3>';
-                resultContainer.className = 'result-container error';
-                resultContainer.classList.remove('hidden');
-                return;
-            }
+        if (newPassword !== confirmPassword) {
+            resultContainer.innerHTML = '<h3>❌ Passwords do not match</h3>';
+            resultContainer.className = 'result-container error';
+            resultContainer.classList.remove('hidden');
+            return;
+        }
+        if (newPassword.length < 8) {
+            resultContainer.innerHTML = '<h3>❌ Password must be at least 8 characters</h3>';
+            resultContainer.className = 'result-container error';
+            resultContainer.classList.remove('hidden');
+            return;
+        }
 
-            submitBtn.classList.add('loading');
-            submitBtn.disabled = true;
-            resultContainer.classList.add('hidden');
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+        resultContainer.classList.add('hidden');
 
-            try {
-                await API.resetPassword(token, username, newPassword, confirmPassword);
-                resultContainer.innerHTML = `
-                    <h3>✓ Password reset successfully</h3>
-                    <p>You can now log in with your new password.</p>
-                `;
-                resultContainer.className = 'result-container success';
-                resultContainer.classList.remove('hidden');
-                window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-                this.showStatus('Password reset successfully. You can now log in.', 'success');
-                setTimeout(() => {
-                    document.getElementById('reset-password-section').classList.add('hidden');
-                    this.showLoggedOutState();
-                }, 2000);
-            } catch (error) {
-                resultContainer.innerHTML = `
-                    <h3>❌ Reset failed</h3>
-                    <p>${escapeHtml(error.message)}</p>
-                `;
-                resultContainer.className = 'result-container error';
-                resultContainer.classList.remove('hidden');
-            } finally {
-                submitBtn.classList.remove('loading');
-                submitBtn.disabled = false;
-            }
-        });
+        try {
+            await API.resetPassword(token, username, newPassword, confirmPassword);
+            resultContainer.innerHTML = `
+                <h3>✓ Password reset successfully</h3>
+                <p>You can now log in with your new password.</p>
+            `;
+            resultContainer.className = 'result-container success';
+            resultContainer.classList.remove('hidden');
+            window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+            this.showStatus('Password reset successfully. You can now log in.', 'success');
+            setTimeout(() => {
+                document.getElementById('reset-password-section').classList.add('hidden');
+                this.showLoggedOutState();
+            }, 2000);
+        } catch (error) {
+            resultContainer.innerHTML = `
+                <h3>❌ Reset failed</h3>
+                <p>${escapeHtml(error.message)}</p>
+            `;
+            resultContainer.className = 'result-container error';
+            resultContainer.classList.remove('hidden');
+        } finally {
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+        }
     },
 
     /**
@@ -525,49 +531,52 @@ const App = {
     },
 
     /**
-     * Setup login form handling (username and password only; then MFA step)
+     * Setup login form (handled via onsubmit handler)
      */
     setupLoginForm() {
+        // Form submission handled by handleLoginFormSubmit via onsubmit
+    },
+
+    /**
+     * Login form submit logic (called from handleLoginFormSubmit)
+     */
+    async doLoginFormSubmit() {
         const form = document.getElementById('login-form');
         const resultContainer = document.getElementById('login-result');
         if (!form || !resultContainer) return;
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const username = form.querySelector('#login-username').value.trim();
+        const password = form.querySelector('#login-password').value;
+        const rememberMe = form.querySelector('#login-remember-me')?.checked ?? false;
 
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const username = form.querySelector('#login-username').value.trim();
-            const password = form.querySelector('#login-password').value;
-            const rememberMe = form.querySelector('#login-remember-me')?.checked ?? false;
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+        resultContainer.classList.add('hidden');
 
-            submitBtn.classList.add('loading');
-            submitBtn.disabled = true;
-            resultContainer.classList.add('hidden');
+        try {
+            const response = await API.loginStart(username, password, rememberMe);
 
-            try {
-                const response = await API.loginStart(username, password, rememberMe);
+            this.loginChallenge = {
+                challenge_token: response.challenge_token,
+                totp_enrolled: response.totp_enrolled,
+                sms_available: response.sms_available,
+            };
 
-                this.loginChallenge = {
-                    challenge_token: response.challenge_token,
-                    totp_enrolled: response.totp_enrolled,
-                    sms_available: response.sms_available,
-                };
-
-                form.classList.add('hidden');
-                this.showMfaStepPanel();
-            } catch (error) {
-                resultContainer.innerHTML = `
-                    <h3>❌ Login Failed</h3>
-                    <p>${escapeHtml(error.message)}</p>
-                `;
-                resultContainer.className = 'result-container error';
-                resultContainer.classList.remove('hidden');
-                this.showStatus(error.message, 'error');
-            } finally {
-                submitBtn.classList.remove('loading');
-                submitBtn.disabled = false;
-            }
-        });
+            form.classList.add('hidden');
+            this.showMfaStepPanel();
+        } catch (error) {
+            resultContainer.innerHTML = `
+                <h3>❌ Login Failed</h3>
+                <p>${escapeHtml(error.message)}</p>
+            `;
+            resultContainer.className = 'result-container error';
+            resultContainer.classList.remove('hidden');
+            this.showStatus(error.message, 'error');
+        } finally {
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+        }
     },
 
     /**
@@ -727,51 +736,53 @@ const App = {
             }
         });
 
-        const mfaForm = document.getElementById('mfa-step-form');
-        if (mfaForm) {
-            mfaForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!this.loginChallenge) return;
-                const code = codeInput.value.trim();
-                if (!/^\d{6}$/.test(code)) {
-                    this.showStatus('Please enter a valid 6-digit code', 'error');
-                    return;
-                }
-                const method = document.querySelector('input[name="mfa_step_method"]:checked')?.value || 'totp';
+        // MFA form submission handled by handleMfaStepFormSubmit via onsubmit
+    },
 
-                verifyBtn.querySelector('.btn-text').classList.add('hidden');
-                verifyBtn.querySelector('.btn-loading').classList.remove('hidden');
-                verifyBtn.disabled = true;
+    async doMfaStepFormSubmit() {
+        if (!this.loginChallenge) return;
+        const codeInput = document.getElementById('mfa-step-code');
+        const verifyBtn = document.getElementById('mfa-step-verify-btn');
+        if (!codeInput || !verifyBtn) return;
 
-                try {
-                    const response = await API.loginVerify(
-                        this.loginChallenge.challenge_token,
-                        method,
-                        code
-                    );
-                    if (response.token) {
-                        API.setToken(response.token);
-                        this.session = {
-                            username: response.username,
-                            isAdmin: response.is_admin,
-                            token: response.token,
-                        };
-                        this.loginChallenge = null;
-                        const mfaPageEl = document.getElementById('mfa-page');
-                        if (mfaPageEl) mfaPageEl.classList.add('hidden');
-                        document.getElementById('login-form').reset();
-                        codeInput.value = '';
-                        this.showStatus('Login successful!', 'success');
-                        this.showLoggedInState();
-                    }
-                } catch (error) {
-                    this.showStatus(error.message || 'Invalid code', 'error');
-                } finally {
-                    verifyBtn.querySelector('.btn-text').classList.remove('hidden');
-                    verifyBtn.querySelector('.btn-loading').classList.add('hidden');
-                    verifyBtn.disabled = false;
-                }
-            });
+        const code = codeInput.value.trim();
+        if (!/^\d{6}$/.test(code)) {
+            this.showStatus('Please enter a valid 6-digit code', 'error');
+            return;
+        }
+        const method = document.querySelector('input[name="mfa_step_method"]:checked')?.value || 'totp';
+
+        verifyBtn.querySelector('.btn-text').classList.add('hidden');
+        verifyBtn.querySelector('.btn-loading').classList.remove('hidden');
+        verifyBtn.disabled = true;
+
+        try {
+            const response = await API.loginVerify(
+                this.loginChallenge.challenge_token,
+                method,
+                code
+            );
+            if (response.token) {
+                API.setToken(response.token);
+                this.session = {
+                    username: response.username,
+                    isAdmin: response.is_admin,
+                    token: response.token,
+                };
+                this.loginChallenge = null;
+                const mfaPageEl = document.getElementById('mfa-page');
+                if (mfaPageEl) mfaPageEl.classList.add('hidden');
+                document.getElementById('login-form').reset();
+                codeInput.value = '';
+                this.showStatus('Login successful!', 'success');
+                this.showLoggedInState();
+            }
+        } catch (error) {
+            this.showStatus(error.message || 'Invalid code', 'error');
+        } finally {
+            verifyBtn.querySelector('.btn-text').classList.remove('hidden');
+            verifyBtn.querySelector('.btn-loading').classList.add('hidden');
+            verifyBtn.disabled = false;
         }
     },
 
@@ -779,77 +790,78 @@ const App = {
      * Setup signup form handling
      */
     setupSignupForm() {
+        // Form submission handled by handleSignupFormSubmit via onsubmit
+    },
+
+    async doSignupFormSubmit() {
         const form = document.getElementById('signup-form');
         const resultContainer = document.getElementById('signup-result');
         const verificationPanel = document.getElementById('verification-status');
         if (!form || !resultContainer) return;
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const password = form.querySelector('#signup-password').value;
+        const confirmPassword = form.querySelector('#signup-confirm-password').value;
 
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const password = form.querySelector('#signup-password').value;
-            const confirmPassword = form.querySelector('#signup-confirm-password').value;
+        // Validate passwords match
+        if (password !== confirmPassword) {
+            this.showStatus('Passwords do not match', 'error');
+            return;
+        }
 
-            // Validate passwords match
-            if (password !== confirmPassword) {
-                this.showStatus('Passwords do not match', 'error');
-                return;
-            }
+        const userData = {
+            username: form.querySelector('#signup-username').value.trim().toLowerCase(),
+            email: form.querySelector('#signup-email').value.trim().toLowerCase(),
+            firstName: form.querySelector('#signup-firstname').value.trim(),
+            lastName: form.querySelector('#signup-lastname').value.trim(),
+            phoneCountryCode: form.querySelector('#signup-country-code').value,
+            phoneNumber: form.querySelector('#signup-phone').value.trim(),
+            password: password,
+        };
 
-            const userData = {
-                username: form.querySelector('#signup-username').value.trim().toLowerCase(),
-                email: form.querySelector('#signup-email').value.trim().toLowerCase(),
-                firstName: form.querySelector('#signup-firstname').value.trim(),
-                lastName: form.querySelector('#signup-lastname').value.trim(),
-                phoneCountryCode: form.querySelector('#signup-country-code').value,
-                phoneNumber: form.querySelector('#signup-phone').value.trim(),
-                password: password,
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+        resultContainer.classList.add('hidden');
+        if (verificationPanel) verificationPanel.classList.add('hidden');
+
+        try {
+            const response = await API.signup(userData);
+
+            this.currentUser = {
+                username: userData.username,
+                email: userData.email,
             };
 
-            submitBtn.classList.add('loading');
-            submitBtn.disabled = true;
-            resultContainer.classList.add('hidden');
-            verificationPanel.classList.add('hidden');
+            // Show verification panel
+            form.classList.add('hidden');
+            if (verificationPanel) verificationPanel.classList.remove('hidden');
 
-            try {
-                const response = await API.signup(userData);
-
-                this.currentUser = {
-                    username: userData.username,
-                    email: userData.email,
-                };
-
-                // Show verification panel
-                form.classList.add('hidden');
-                verificationPanel.classList.remove('hidden');
-
-                // Update verification hints
-                if (response.email_verification_sent) {
-                    document.getElementById('email-verify-hint').textContent =
-                        `Check ${userData.email} for verification link`;
-                }
-                if (response.phone_verification_sent) {
-                    document.getElementById('phone-verify-hint').textContent =
-                        `Enter code sent to ${userData.phoneCountryCode}${userData.phoneNumber}`;
-                }
-
-                this.showStatus('Account created! Please verify your email and phone.', 'success');
-
-            } catch (error) {
-                resultContainer.innerHTML = `
-                    <h3>❌ Signup Failed</h3>
-                    <p>${escapeHtml(error.message)}</p>
-                `;
-                resultContainer.className = 'result-container error';
-                resultContainer.classList.remove('hidden');
-
-                this.showStatus(error.message, 'error');
-            } finally {
-                submitBtn.classList.remove('loading');
-                submitBtn.disabled = false;
+            // Update verification hints
+            if (response.email_verification_sent) {
+                const hint = document.getElementById('email-verify-hint');
+                if (hint) hint.textContent = `Check ${userData.email} for verification link`;
             }
-        });
+            if (response.phone_verification_sent) {
+                const hint = document.getElementById('phone-verify-hint');
+                if (hint) hint.textContent =
+                    `Enter code sent to ${userData.phoneCountryCode}${userData.phoneNumber}`;
+            }
+
+            this.showStatus('Account created! Please verify your email and phone.', 'success');
+
+        } catch (error) {
+            resultContainer.innerHTML = `
+                <h3>❌ Signup Failed</h3>
+                <p>${escapeHtml(error.message)}</p>
+            `;
+            resultContainer.className = 'result-container error';
+            resultContainer.classList.remove('hidden');
+
+            this.showStatus(error.message, 'error');
+        } finally {
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+        }
     },
 
     /**
@@ -1197,133 +1209,134 @@ const App = {
             this.toggleProfilePasswordFields(changePwdCheckbox.checked);
         }
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Form submission handled by handleProfileFormSubmit via onsubmit
+    },
 
-            if (!this.session) return;
+    async doProfileFormSubmit() {
+        const form = document.getElementById('profile-form');
+        if (!form || !this.session) return;
 
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const errorEl = document.getElementById('profile-password-error');
-            const changePwdCheckbox = document.getElementById('profile-change-password-checkbox');
-            const wantToChangePwd = changePwdCheckbox?.checked ?? false;
-            const currentPwd = document.getElementById('profile-current-password')?.value;
-            const newPwd = document.getElementById('profile-new-password')?.value;
-            const confirmPwd = document.getElementById('profile-confirm-password')?.value;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const errorEl = document.getElementById('profile-password-error');
+        const changePwdCheckbox = document.getElementById('profile-change-password-checkbox');
+        const wantToChangePwd = changePwdCheckbox?.checked ?? false;
+        const currentPwd = document.getElementById('profile-current-password')?.value;
+        const newPwd = document.getElementById('profile-new-password')?.value;
+        const confirmPwd = document.getElementById('profile-confirm-password')?.value;
 
-            if (errorEl) {
-                errorEl.textContent = '';
-                errorEl.classList.add('hidden');
+        if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.add('hidden');
+        }
+
+        if (wantToChangePwd && (currentPwd || newPwd || confirmPwd)) {
+            if (!currentPwd?.trim()) {
+                this.showStatus('Enter your current password to change it.', 'error');
+                if (errorEl) {
+                    errorEl.textContent = 'Enter your current password.';
+                    errorEl.classList.remove('hidden');
+                    errorEl.classList.add('form-error');
+                }
+                return;
             }
-
-            if (wantToChangePwd && (currentPwd || newPwd || confirmPwd)) {
-                if (!currentPwd?.trim()) {
-                    this.showStatus('Enter your current password to change it.', 'error');
-                    if (errorEl) {
-                        errorEl.textContent = 'Enter your current password.';
-                        errorEl.classList.remove('hidden');
-                        errorEl.classList.add('form-error');
-                    }
-                    return;
+            if (!newPwd?.trim()) {
+                this.showStatus('Enter a new password.', 'error');
+                if (errorEl) {
+                    errorEl.textContent = 'Enter a new password.';
+                    errorEl.classList.remove('hidden');
+                    errorEl.classList.add('form-error');
                 }
-                if (!newPwd?.trim()) {
-                    this.showStatus('Enter a new password.', 'error');
-                    if (errorEl) {
-                        errorEl.textContent = 'Enter a new password.';
-                        errorEl.classList.remove('hidden');
-                        errorEl.classList.add('form-error');
-                    }
-                    return;
-                }
-                if (newPwd.length < 8) {
-                    this.showStatus('New password must be at least 8 characters.', 'error');
-                    if (errorEl) {
-                        errorEl.textContent = 'New password must be at least 8 characters.';
-                        errorEl.classList.remove('hidden');
-                        errorEl.classList.add('form-error');
-                    }
-                    return;
-                }
-                if (newPwd !== confirmPwd) {
-                    this.showStatus('New password and confirmation do not match.', 'error');
-                    if (errorEl) {
-                        errorEl.textContent = 'New password and confirmation do not match.';
-                        errorEl.classList.remove('hidden');
-                        errorEl.classList.add('form-error');
-                    }
-                    return;
-                }
+                return;
             }
-
-            submitBtn.classList.add('loading');
-            submitBtn.disabled = true;
-
-            const email = document.getElementById('profile-email').value.trim();
-            const phoneCountryCode = document.getElementById('profile-country-code').value;
-            const phoneNumber = document.getElementById('profile-phone').value.trim();
-
-            try {
-                const profile = await API.getProfile(this.session.username);
-                const emailChanged = email && email.toLowerCase() !== (profile.email || '').toLowerCase();
-                const phoneChanged =
-                    (phoneCountryCode !== (profile.phone_country_code || '')) ||
-                    (phoneNumber !== (profile.phone_number || ''));
-
-                const needEmailVerify = emailChanged && profile.email_verified;
-                const needPhoneVerify = phoneChanged && profile.phone_verified;
-                if (needEmailVerify || needPhoneVerify) {
-                    if (needEmailVerify) {
-                        await API.requestEmailChange(email);
-                    }
-                    if (needPhoneVerify) {
-                        await API.requestPhoneChange(phoneCountryCode, phoneNumber);
-                        this.pendingVerifyPhone = true;
-                    }
-                    const parts = [];
-                    if (needEmailVerify) parts.push('email (click the link we sent)');
-                    if (needPhoneVerify) parts.push('phone (enter the code below)');
-                    this.showStatus(
-                        'Verification sent. Please verify your new ' + parts.join(' and ') + ', then click Save again.',
-                        'success',
-                    );
-                    await this.loadProfile();
-                    submitBtn.classList.remove('loading');
-                    submitBtn.disabled = false;
-                    return;
+            if (newPwd.length < 8) {
+                this.showStatus('New password must be at least 8 characters.', 'error');
+                if (errorEl) {
+                    errorEl.textContent = 'New password must be at least 8 characters.';
+                    errorEl.classList.remove('hidden');
+                    errorEl.classList.add('form-error');
                 }
-
-                const updates = {};
-                const firstName = document.getElementById('profile-firstname').value.trim();
-                const lastName = document.getElementById('profile-lastname').value.trim();
-                if (firstName) updates.first_name = firstName;
-                if (lastName) updates.last_name = lastName;
-                updates.email = email;
-                updates.phone_country_code = phoneCountryCode;
-                updates.phone_number = phoneNumber;
-
-                if (wantToChangePwd && currentPwd && newPwd && confirmPwd) {
-                    updates.current_password = currentPwd;
-                    updates.new_password = newPwd;
-                    updates.confirm_password = confirmPwd;
+                return;
+            }
+            if (newPwd !== confirmPwd) {
+                this.showStatus('New password and confirmation do not match.', 'error');
+                if (errorEl) {
+                    errorEl.textContent = 'New password and confirmation do not match.';
+                    errorEl.classList.remove('hidden');
+                    errorEl.classList.add('form-error');
                 }
+                return;
+            }
+        }
 
-                await API.updateProfile(this.session.username, updates);
-                this.showStatus('Profile updated successfully', 'success');
-                if (wantToChangePwd && (currentPwd || newPwd || confirmPwd)) {
-                    document.getElementById('profile-current-password').value = '';
-                    document.getElementById('profile-new-password').value = '';
-                    document.getElementById('profile-confirm-password').value = '';
-                    const cb = document.getElementById('profile-change-password-checkbox');
-                    if (cb) cb.checked = false;
-                    this.toggleProfilePasswordFields(false);
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+
+        const email = document.getElementById('profile-email').value.trim();
+        const phoneCountryCode = document.getElementById('profile-country-code').value;
+        const phoneNumber = document.getElementById('profile-phone').value.trim();
+
+        try {
+            const profile = await API.getProfile(this.session.username);
+            const emailChanged = email && email.toLowerCase() !== (profile.email || '').toLowerCase();
+            const phoneChanged =
+                (phoneCountryCode !== (profile.phone_country_code || '')) ||
+                (phoneNumber !== (profile.phone_number || ''));
+
+            const needEmailVerify = emailChanged && profile.email_verified;
+            const needPhoneVerify = phoneChanged && profile.phone_verified;
+            if (needEmailVerify || needPhoneVerify) {
+                if (needEmailVerify) {
+                    await API.requestEmailChange(email);
                 }
+                if (needPhoneVerify) {
+                    await API.requestPhoneChange(phoneCountryCode, phoneNumber);
+                    this.pendingVerifyPhone = true;
+                }
+                const parts = [];
+                if (needEmailVerify) parts.push('email (click the link we sent)');
+                if (needPhoneVerify) parts.push('phone (enter the code below)');
+                this.showStatus(
+                    'Verification sent. Please verify your new ' + parts.join(' and ') + ', then click Save again.',
+                    'success',
+                );
                 await this.loadProfile();
-            } catch (error) {
-                this.showStatus(error.message, 'error');
-            } finally {
                 submitBtn.classList.remove('loading');
                 submitBtn.disabled = false;
+                return;
             }
-        });
+
+            const updates = {};
+            const firstName = document.getElementById('profile-firstname').value.trim();
+            const lastName = document.getElementById('profile-lastname').value.trim();
+            if (firstName) updates.first_name = firstName;
+            if (lastName) updates.last_name = lastName;
+            updates.email = email;
+            updates.phone_country_code = phoneCountryCode;
+            updates.phone_number = phoneNumber;
+
+            if (wantToChangePwd && currentPwd && newPwd && confirmPwd) {
+                updates.current_password = currentPwd;
+                updates.new_password = newPwd;
+                updates.confirm_password = confirmPwd;
+            }
+
+            await API.updateProfile(this.session.username, updates);
+            this.showStatus('Profile updated successfully', 'success');
+            if (wantToChangePwd && (currentPwd || newPwd || confirmPwd)) {
+                document.getElementById('profile-current-password').value = '';
+                document.getElementById('profile-new-password').value = '';
+                document.getElementById('profile-confirm-password').value = '';
+                const cb = document.getElementById('profile-change-password-checkbox');
+                if (cb) cb.checked = false;
+                this.toggleProfilePasswordFields(false);
+            }
+            await this.loadProfile();
+        } catch (error) {
+            this.showStatus(error.message, 'error');
+        } finally {
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+        }
     },
 
     /**
@@ -1863,25 +1876,19 @@ const App = {
             }
         });
 
-        // Group modal form
-        document.getElementById('group-modal-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await this.saveGroup();
-        });
+        // Group modal form submission handled by handleGroupModalFormSubmit via onsubmit
 
-        // Approve modal form
+        // Approve modal form submission handled by handleApproveModalFormSubmit via onsubmit
         const approveForm = document.getElementById('approve-modal-form');
-        approveForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await this.approveUser();
-        });
-        // Enter key submits when focused on checkboxes (no text inputs in this form)
-        approveForm.addEventListener('keydown', (e) => {
+        if (approveForm) {
+            // Enter key submits when focused on checkboxes (no text inputs in this form)
+            approveForm.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && e.target.type === 'checkbox') {
                 e.preventDefault();
                 approveForm.requestSubmit();
             }
         });
+        }
     },
 
     /**
@@ -1922,6 +1929,13 @@ const App = {
         document.getElementById('modal-overlay').classList.remove('hidden');
         modal.classList.remove('hidden');
         nameInput.focus();
+    },
+
+    /**
+     * Group modal form submit (called from handleGroupModalFormSubmit)
+     */
+    async doGroupModalFormSubmit() {
+        await this.saveGroup();
     },
 
     /**
@@ -2035,6 +2049,13 @@ const App = {
     },
 
     /**
+     * Approve modal form submit (called from handleApproveModalFormSubmit)
+     */
+    async doApproveModalFormSubmit() {
+        await this.approveUser();
+    },
+
+    /**
      * Approve user (from modal)
      */
     async approveUser() {
@@ -2136,3 +2157,55 @@ const App = {
 
 // Export for use in console/testing
 window.App = App;
+
+// ---------------------------------------------------------------------------
+// Form submit handlers (called from onsubmit; no addEventListener)
+// ---------------------------------------------------------------------------
+
+function handleLoginFormSubmit(e) {
+    e.preventDefault();
+    App.doLoginFormSubmit().catch(() => {});
+    return false;
+}
+
+function handleForgotPasswordSubmit(e) {
+    e.preventDefault();
+    App.doForgotPasswordSubmit().catch(() => {});
+    return false;
+}
+
+function handleResetPasswordSubmit(e) {
+    e.preventDefault();
+    App.doResetPasswordSubmit().catch(() => {});
+    return false;
+}
+
+function handleSignupFormSubmit(e) {
+    e.preventDefault();
+    App.doSignupFormSubmit().catch(() => {});
+    return false;
+}
+
+function handleMfaStepFormSubmit(e) {
+    e.preventDefault();
+    App.doMfaStepFormSubmit().catch(() => {});
+    return false;
+}
+
+function handleProfileFormSubmit(e) {
+    e.preventDefault();
+    App.doProfileFormSubmit().catch(() => {});
+    return false;
+}
+
+function handleGroupModalFormSubmit(e) {
+    e.preventDefault();
+    App.doGroupModalFormSubmit().catch(() => {});
+    return false;
+}
+
+function handleApproveModalFormSubmit(e) {
+    e.preventDefault();
+    App.doApproveModalFormSubmit().catch(() => {});
+    return false;
+}

@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
+## [2026-03-01] - Frontend Form Submission Refactor
+
+### Changed
+
+- **2FA frontend form handling**: Replaced `addEventListener('submit', ...)` with
+  inline `onsubmit` handlers. All forms now use
+  `method="post" action="javascript:void(0);" onsubmit="return handleXxxSubmit(event);"`.
+  Global handler functions (e.g. `handleLoginFormSubmit`) call `App.doXxxSubmit()`
+  for async logic and return `false` to prevent native form POST. Affects:
+  login, forgot-password, reset-password, signup, MFA step, profile,
+  group-modal, and approve-modal forms.
+
 ## [2026-02-28] - Profile Email/Phone Change, Password Change, and Schema Docs
 
 ### Added

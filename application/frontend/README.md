@@ -502,10 +502,13 @@ with a separate backend:
 #### `js/main.js`
 
 - **Application State**: Global `App` object with state management
-- **Initialization**: `App.init()` sets up all event listeners
-- **Form Handlers**: Login, signup, enrollment, profile, admin forms; each
-  handler checks that required DOM elements exist before attaching listeners,
-  so form submission works correctly on all views and during init
+- **Initialization**: `App.init()` sets up non-form event listeners (tabs,
+  modals, buttons)
+- **Form Submission**: Forms use inline `onsubmit` handlers with named
+  functions (e.g. `handleLoginFormSubmit`). Each form has
+  `method="post" action="javascript:void(0);" onsubmit="return handleXxxSubmit(event);"`.
+  Global handlers call `App.doXxxSubmit()` for async logic and return `false`
+  to prevent native form POST.
 - **UI Management**: Show/hide sections, modals, status messages
 - **Session Management**: JWT token validation and session restoration
 - **XSS Protection**: `escapeHtml()` function for safe HTML rendering
@@ -566,13 +569,47 @@ with a separate backend:
 
     ```javascript
     setupNewSection() {
-        // Event listeners and logic
+        // Event listeners (non-form) and logic
     }
 
     // Call in App.init()
     async init() {
         // ...
         this.setupNewSection();
+    }
+    ```
+
+#### Adding a New Form
+
+Forms use inline `onsubmit` handlers (no `addEventListener` for submit):
+
+1. **Add HTML form** in `index.html`:
+
+    ```html
+    <form id="my-form" class="auth-form" method="post"
+          action="javascript:void(0);"
+          onsubmit="return handleMyFormSubmit(event);">
+        <!-- form fields -->
+        <button type="submit">Submit</button>
+    </form>
+    ```
+
+2. **Add global handler** at end of `main.js`:
+
+    ```javascript
+    function handleMyFormSubmit(e) {
+        e.preventDefault();
+        App.doMyFormSubmit().catch(() => {});
+        return false;
+    }
+    ```
+
+3. **Add `App.doMyFormSubmit()`** in `main.js`:
+
+    ```javascript
+    async doMyFormSubmit() {
+        const form = document.getElementById('my-form');
+        // ... validation, API call, UI updates
     }
     ```
 

@@ -1089,6 +1089,17 @@ workflow or `setup-backend.sh` script (required for build workflows)
 
 ## Recent Changes (December 2025 - March 2026)
 
+### Frontend Form Submission Refactor (Mar 1, 2026)
+
+- **Form Handling via Inline onsubmit**:
+  - Replaced `addEventListener('submit', ...)` with inline `onsubmit` handlers
+  - All forms use `method="post" action="javascript:void(0);"
+    onsubmit="return handleXxxSubmit(event);"` pattern
+  - Global handlers (e.g. `handleLoginFormSubmit`) call `App.doXxxSubmit()` for
+    async logic and return `false` to prevent native form POST
+  - Affects: login, forgot-password, reset-password, signup, MFA step, profile,
+    group-modal, approve-modal forms
+
 ### Profile Changes, Database Schema, and Mermaid Diagrams (Feb 28, 2026)
 
 - **Profile Email/Phone Change with Verification**:

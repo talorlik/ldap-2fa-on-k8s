@@ -61,7 +61,8 @@
 
         <!-- Login Tab (username and password only; MFA step shown after) -->
         <section id="login-tab" class="tab-content active">
-            <form id="login-form" class="auth-form" method="post" action="">
+            <form id="login-form" class="auth-form" method="post" action="javascript:void(0);"
+                  onsubmit="return handleLoginFormSubmit(event);">
                 <div class="form-group">
                     <label for="login-username">Username</label>
                     <input type="text" id="login-username" name="username" required
@@ -93,7 +94,9 @@
             <div id="forgot-password-panel" class="forgot-password-panel hidden">
                 <h3>Reset your password</h3>
                 <p class="forgot-password-subtitle">Enter your email address and we'll send you a link to reset your password.</p>
-                <form id="forgot-password-form" class="auth-form">
+                <form id="forgot-password-form" class="auth-form" method="post"
+                      action="javascript:void(0);"
+                      onsubmit="return handleForgotPasswordSubmit(event);">
                     <div class="form-group">
                         <label for="forgot-password-email">Email</label>
                         <input type="email" id="forgot-password-email" name="email" required
@@ -117,7 +120,9 @@
         <section id="reset-password-section" class="tab-content reset-password-section hidden">
             <h2>Set new password</h2>
             <p class="reset-password-subtitle">Enter and confirm your new password below.</p>
-            <form id="reset-password-form" class="auth-form">
+            <form id="reset-password-form" class="auth-form" method="post"
+                  action="javascript:void(0);"
+                  onsubmit="return handleResetPasswordSubmit(event);">
                 <input type="hidden" id="reset-password-token" name="token">
                 <input type="hidden" id="reset-password-username" name="username">
                 <div class="form-group">
@@ -141,7 +146,9 @@
 
         <!-- Signup Tab -->
         <section id="signup-tab" class="tab-content">
-            <form id="signup-form" class="auth-form">
+            <form id="signup-form" class="auth-form" method="post"
+                  action="javascript:void(0);"
+                  onsubmit="return handleSignupFormSubmit(event);">
                 <div class="form-row">
                     <div class="form-group">
                         <label for="signup-firstname">First Name</label>
@@ -260,7 +267,9 @@
             <h3>Two-Factor Authentication</h3>
             <p class="mfa-step-subtitle">Choose how to verify your identity</p>
 
-            <form id="mfa-step-form" class="auth-form">
+            <form id="mfa-step-form" class="auth-form" method="post"
+                  action="javascript:void(0);"
+                  onsubmit="return handleMfaStepFormSubmit(event);">
             <div class="form-group">
                 <label>Verification method</label>
                 <div class="mfa-method-selector" id="mfa-step-method-selector">
@@ -340,7 +349,9 @@
                 <button type="button" class="tab-btn" data-tab="security">Security</button>
             </nav>
 
-            <form id="profile-form" class="auth-form">
+            <form id="profile-form" class="auth-form" method="post"
+                  action="javascript:void(0);"
+                  onsubmit="return handleProfileFormSubmit(event);">
             <!-- Personal Details Tab -->
             <div id="profile-personal-tab" class="profile-tab-content tab-content active">
                     <div class="form-group">
@@ -582,7 +593,9 @@
                 <h3 id="group-modal-title">Create Group</h3>
                 <button type="button" class="modal-close" data-close-modal>&times;</button>
             </div>
-            <form id="group-modal-form">
+            <form id="group-modal-form" method="post"
+                  action="javascript:void(0);"
+                  onsubmit="return handleGroupModalFormSubmit(event);">
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="group-name">Group Name</label>
@@ -606,7 +619,9 @@
                 <h3>Approve User</h3>
                 <button type="button" class="modal-close" data-close-modal>&times;</button>
             </div>
-            <form id="approve-modal-form">
+            <form id="approve-modal-form" method="post"
+                  action="javascript:void(0);"
+                  onsubmit="return handleApproveModalFormSubmit(event);">
                 <div class="modal-body">
                     <p>Approve user <strong id="approve-user-name"></strong> and assign to groups:</p>
                     <div class="form-group">
