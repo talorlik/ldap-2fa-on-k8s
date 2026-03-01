@@ -85,7 +85,8 @@ exposing web UIs (phpLdapAdmin, LTB-passwd, and 2FA application)
 - **IngressClass/IngressClassParams**: Created by ALB module to configure EKS
 Auto Mode ALB behavior (scheme, IP address type, certificate ARN, group name)
 - **Network Policies**: Kubernetes NetworkPolicies for secure internal cluster
-communication with cross-namespace access for LDAP service
+communication with cross-namespace access for LDAP service (ports 389, 443,
+636, 8443)
 - **Container Image Management**: All third-party images (OpenLDAP, Redis,
 PostgreSQL, phpLDAPadmin, LTB Self-Service Password) are mirrored to ECR to
 eliminate Docker Hub rate limits and external dependencies. Images are pulled
@@ -96,13 +97,16 @@ from ECR during deployment
   - phpLDAPadmin: osixia/phpldapadmin:0.9.0 → ECR tag `phpldapadmin-0.9.0`
   - LTB Self-Service Password: ltbproject/self-service-password:5.2.3 → ECR tag
   `ltb-passwd-5.2.3`
-- **2FA Application**: Full-stack application with Python FastAPI backend and
+  - Busybox: busybox:1.36 → ECR tag `busybox-1.36` (used by OpenLDAP init
+  container)
+- **2FA Application**:
 static HTML/JS/CSS frontend, supporting TOTP and SMS MFA methods
 - **User Signup Management**: Self-service registration with email/phone
 verification and admin approval workflow
 - **PostgreSQL Database**: User registration data, verification tokens, and
 profile management
-- **Redis Cache**: SMS OTP code storage with automatic TTL expiration
+- **Redis Cache**: Required for SMS OTP code storage and login challenge
+storage with automatic TTL expiration (no in-memory fallback)
 - **ArgoCD**: AWS EKS managed ArgoCD service for GitOps deployments (optional)
 - **SNS Integration**: AWS SNS for SMS-based 2FA verification codes (optional)
 - **SES Integration**: AWS SES for email verification and notifications
@@ -214,15 +218,18 @@ ldap-2fa-on-k8s/
 │   └── README.md
 ├── docs/                        # GitHub Pages and auxiliary documentation
 │   ├── index.html
+│   ├── main.js                  # Dark/light theme toggle and dynamic functionality
 │   ├── dark-theme.css
 │   ├── light-theme.css
 │   ├── header_banner.png
 │   ├── favicon.ico
 │   └── auxiliary/               # Auxiliary documentation
-│       ├── application/         # Application docs (deployment, design, guides)
+│       ├── application/         # Application docs (deployment, design, guides, databases)
+│       │   └── databases/       # SCHEMA.md (PostgreSQL + Redis schema)
 │       ├── application_infra/   # Infra docs (design, guides)
 │       ├── reference/           # SECRETS_REQUIREMENTS.md
 │       └── troubleshooting/     # INDEX.md + categorized troubleshooting guides
+│           └── application_infra/  # CAPTURING_LOGS_BEFORE_ROLLBACK.md
 ├── tf_backend_state/            # Terraform state backend (S3) - Account A
 │   ├── main.tf
 │   ├── outputs.tf
@@ -235,6 +242,7 @@ ldap-2fa-on-k8s/
 │   └── README.md
 ├── scripts/                     # Shared scripts used across all layers
 │   ├── assume-github-role.sh    # AWS account role switching
+│   ├── capture-openldap-logs.sh # Capture OpenLDAP pod logs before rollback
 │   ├── get-eks-token.sh         # EKS token exec plugin for Terraform
 │   ├── mirror-images-to-ecr.sh  # Mirror Docker Hub images to ECR
 │   └── set-k8s-env.sh           # Kubernetes environment setup
@@ -756,6 +764,8 @@ secrets to Terraform variables to Kubernetes secrets
 enabling Redis and SMS 2FA
 - `docs/auxiliary/application/guides/SECRET_DEPENDENCIES.md` - Which components
 require which secrets (PostgreSQL, Redis, LDAP admin) and cross-namespace dependencies
+- `docs/auxiliary/application/databases/SCHEMA.md` - PostgreSQL tables (`users`,
+`verification_tokens`) and Redis key layout documentation
 - `docs/auxiliary/reference/SECRETS_REQUIREMENTS.md` - Comprehensive secrets
 management documentation
   - AWS Secrets Manager setup for local scripts (role ARNs, ExternalId, passwords)
@@ -784,8 +794,9 @@ management documentation
 `alb_ingress_class_params_name`, `alb_scheme`, `alb_ip_address_type`,
 `alb_load_balancer_name`
 - **StorageClass**: `storage_class_name`
-- **LDAP Connection**: `ldap_host`, `ldap_base_dn`, `ldap_admin_dn`,
-`ldap_admin_group_dn`, `ldap_user_search_base`, `ldap_group_search_base`
+- **LDAP Connection**: `ldap_host`, `ldap_headless_host`, `ldap_base_dn`,
+`ldap_admin_dn`, `ldap_admin_group_dn`, `ldap_user_search_base`,
+`ldap_group_search_base`
 - **Route53**: `route53_acm_cert_arn`, `route53_domain_name`, `route53_zone_id`,
 `route53_name_servers`
 - **Network Policies**: `network_policy_name`, `network_policy_namespace`,
@@ -877,6 +888,8 @@ to ALB
   - Exposed at `/api/*` path on `app.<domain>`
   - Uses IRSA for SNS, SES access (no hardcoded credentials)
   - Swagger UI always enabled at `/api/docs` for interactive API documentation
+  - Profile email/phone change with verification and password change support
+  - Multiple MFA methods per user (TOTP and SMS simultaneously)
   - Optimized Python code for better performance and logging efficiency
   - Helm chart includes: Deployment, Service, Ingress, ConfigMap, Secret,
   ServiceAccount
@@ -922,6 +935,7 @@ rate limits during pod startup
   - `phpldapadmin-0.9.0` for phpLDAPadmin (osixia/phpldapadmin:0.9.0)
   - `ltb-passwd-5.2.3` for LTB Self-Service Password
   (ltbproject/self-service-password:5.2.3)
+  - `busybox-1.36` for OpenLDAP init container (busybox:1.36)
 - **Automatic mirroring**: `setup-application-infra.sh` and GitHub Actions
 workflow automatically check and mirror images before Terraform deployment
 - **Idempotent operation**: Script only mirrors images that don't already exist
@@ -1073,9 +1087,117 @@ deployment)
 - `ECR_REPOSITORY_NAME` - Auto-generated by backend infrastructure provisioning
 workflow or `setup-backend.sh` script (required for build workflows)
 
-## Recent Changes (December 2025 - February 2026)
+## Recent Changes (December 2025 - March 2026)
 
-### ArgoCD Wait, OpenLDAP Pre-deploy, IAM Revert, Lock Release (Feb 24-26, 2026)
+### Profile Changes, Database Schema, and Mermaid Diagrams (Feb 28, 2026)
+
+- **Profile Email/Phone Change with Verification**:
+  - `POST /api/profile/request-email-change` sends verification link to new
+  email; after clicking link, `verify-email` applies the new address
+  - `POST /api/profile/request-phone-change` sends SMS code to new number;
+  `verify-phone` applies the new number after code entry
+  - Uses `verification_tokens` with new token types (`eml_chg`, `phn_chg`) and
+  new `target_value` column (auto-migrated on startup)
+
+- **Authenticated Password Change**:
+  - `POST /api/profile/{username}/change-password` for logged-in users
+  - Body: `current_password`, `new_password`, `confirm_password`
+  - Updates both LDAP and PostgreSQL `password_hash`
+
+- **Multiple MFA Methods Per User**:
+  - Profile response now includes `mfa_methods` list (supports both TOTP and SMS
+  simultaneously); legacy `mfa_method` field retained for backward compatibility
+
+- **Database Schema Documentation**:
+  - New `docs/auxiliary/application/databases/SCHEMA.md` documents PostgreSQL
+  tables (`users`, `verification_tokens`) and Redis key layout
+
+- **Frontend Country Codes**:
+  - New `application/frontend/src/js/country-codes.js` with ISO 3166-1 country
+  codes and dial codes for signup and profile phone inputs
+
+- **Mermaid Diagrams for PRDs**:
+  - Added Mermaid flowcharts to PRD_ADMIN_FUNCS.md (admin user/group management
+  flows) and PRD_SIGNUP_MAN.md (user signup and verification flows)
+
+### GitHub Workflow Renaming and Frontend View-Split Fix (Feb 27, 2026)
+
+- **GitHub Workflows Renamed with Numbered Prefixes**:
+  - All workflows renamed with `00-` through `04-` prefixes for ordered display
+  in GitHub Actions UI
+  - Renamed files:
+    - `tfstate_infra_*.yaml` → `00-tfstate_infra_*.yaml`
+    - `backend_infra_*.yaml` → `01-backend_infra_*.yaml`
+    - `application_infra_*.yaml` → `02-application_infra_*.yaml`
+    - `backend_build_push.yaml` → `03-backend_build_push.yaml`
+    - `frontend_build_push.yaml` → `03-frontend_build_push.yaml`
+    - `application_*.yaml` → `04-application_*.yaml`
+  - All documentation updated with new workflow names
+
+- **Documentation Links Updated to Readable URLs**:
+  - All documentation links across the repository now point to the readable
+  GitHub blob view (`/blob/main/...`) instead of raw content
+
+- **GitHub Pages SEO and Theme Improvements**:
+  - Added `docs/main.js` for dark/light theme toggle and dynamic functionality
+  - Enhanced dark-theme.css and light-theme.css with additional styling
+  - HTML best practices and SEO metadata added to `docs/index.html`
+
+- **Frontend Blank Page and Logout Fix**:
+  - Fixed blank page after login and blank menu pages by splitting UI into
+  `#auth-view` (login/signup/reset) and `#app-view` (profile, user/group
+  management)
+  - Only one view shown at a time; section toggling scoped to app-view and tab
+  clicks scoped to auth-view
+  - Logout correctly shows login form by switching back to auth-view
+
+### OpenLDAP Mount Fix, Redis Enforcement, and Frontend Form Fix (Feb 26, 2026)
+
+- **OpenLDAP Chart: Custom LDIF Bootstrap Mount Fix**:
+  - Resolved mount directory issue so osixia cleanup of configuration files
+  works correctly during startup
+  - Custom LDIF volume is now mounted read-only at `/tmp/custom-ldif-files`;
+  the container entrypoint copies files into the bootstrap directory before
+  running `/container/tool/run`
+  - Avoids conflicts with osixia's startup cleanup that previously failed when
+  the bootstrap directory was a direct volume mount
+  - Chart version bumped to 5.0.2
+
+- **OpenLDAP Headless Host Output**:
+  - New `ldap_headless_host` output from OpenLDAP module and root (e.g.
+  `openldap-stack-ha-headless.ldap.svc.cluster.local`)
+  - Used by admin-seed job to connect to OpenLDAP replicas by pod hostname,
+  fixing "invalid server address" when using ClusterIP for replica connections
+
+- **Redis Required for All Challenge Storage**:
+  - Login flow now stores all challenges in Redis only (no in-memory fallback)
+  - Endpoints return 503 "Storage unavailable" when Redis is down
+  - Affects: login start, TOTP setup, login verify, SMS send/verify
+
+- **Frontend Form Submission Fix**:
+  - Added null checks in `main.js` before attaching form and UI handlers so
+  forms post correctly when DOM elements are not yet present
+  - QRCode.js CDN version set to `1.4.4` for reliable QR display during TOTP
+  enrollment
+
+- **Log Capture Before Rollback Guide**:
+  - New troubleshooting guide `docs/auxiliary/troubleshooting/application_infra/CAPTURING_LOGS_BEFORE_ROLLBACK.md`
+  - New script `scripts/capture-openldap-logs.sh` for dumping pod logs and
+  describe output before atomic rollback removes failed pods
+  - Guide explains setting `openldap_helm_atomic = false` for debugging
+
+- **Busybox Image from ECR**:
+  - OpenLDAP chart init container (`copy-custom-ldif`) supports
+  `customLdifInitImage` variable so busybox can be mirrored to ECR
+  - `scripts/mirror-images-to-ecr.sh` now also mirrors `busybox:1.36` as tag
+  `busybox-1.36`
+  - New variable `openldap_busybox_image_tag` (default `busybox-1.36`)
+
+- **Network Policy LDAP Port 389**:
+  - Plain LDAP port 389 added to `namespace-secure-communication` network policy
+  (ingress and egress) so internal LDAP traffic is allowed
+
+### ArgoCD Wait, OpenLDAP Pre-deploy, IAM Revert, Lock Release (Feb 24-25, 2026)
 
 - **ArgoCD Module: Single Sleep for Capability Readiness**:
   - Consolidated two sequential `time_sleep` resources into one
@@ -2185,6 +2307,9 @@ workflow or `setup-backend.sh` script (required for build workflows)
   - `GET /api/profile/status/{username}` - Get profile status
   - `GET /api/profile/{username}` - Get user profile
   - `PUT /api/profile/{username}` - Update user profile
+  - `POST /api/profile/request-email-change` - Request email change
+  - `POST /api/profile/request-phone-change` - Request phone change
+  - `POST /api/profile/{username}/change-password` - Change password
   - Admin endpoints for user and group management
 - **Product Requirements Document**: Comprehensive PRD_SIGNUP_MAN.md documenting
 signup system, user stories, and API specifications
