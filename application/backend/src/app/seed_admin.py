@@ -5,6 +5,10 @@ Uses the same username and password as the LDAP admin. Creates the LDAP user
 (if missing), ensures they are in the admins group, and upserts the PostgreSQL
 profile with email/phone pre-verified and status ACTIVE.
 
+No MFA method is pre-entered. The admin selects their initial method(s) when
+logging in for the first time (TOTP and/or SMS). They may enroll multiple
+methods and choose which to use at each login.
+
 When LDAP_REPLICA_COUNT > 0, the seed job connects to each StatefulSet pod
 directly (using pod DNS names derived from LDAP_HOST) to ensure the admin user
 and directory structure exist on every replica. This is necessary because
@@ -26,7 +30,9 @@ import bcrypt
 
 from app.config import Settings, get_settings
 from app.database import init_db, close_db
-from app.database.models import User, ProfileStatus, Group, UserGroup
+from sqlalchemy import delete
+
+from app.database.models import User, UserMFAMethod, ProfileStatus, Group, UserGroup
 from app.ldap.client import LDAPClient
 
 # Log only high-level messages; never log secrets or PII
@@ -267,7 +273,8 @@ async def _upsert_db_admin(
             if user.status == ProfileStatus.ACTIVE.value:
                 logger.info("Admin user already active, skipping profile update")
             else:
-                # Update to ACTIVE and verified; do not set MFA (admin uses same login/MFA flow)
+                # Clear any existing MFA so admin can select method(s) at next login
+                await session.execute(delete(UserMFAMethod).where(UserMFAMethod.user_id == user.id))
                 user.email_verified = True
                 user.phone_verified = True
                 user.status = ProfileStatus.ACTIVE.value
@@ -283,6 +290,7 @@ async def _upsert_db_admin(
                 user.phone_number = phone_number
                 session.add(user)
         else:
+            # New admin: no MFA method set; they will choose at first login
             user = User(
                 username=username,
                 email=email.lower(),

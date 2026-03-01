@@ -13,6 +13,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
+## [2026-03-01] - 2FA Flow: First-Login Choice, SMS Enrollment, Multiple Methods
+
+### Added
+
+- **Backend: `sms_enrolled` in login/start response**
+  - `POST /api/auth/login/start` now returns `sms_enrolled` alongside
+    `totp_enrolled` and `sms_available` so the frontend can show appropriate
+    hints for first-time vs. enrolled SMS users.
+
+- **Backend: SMS enrollment at first login**
+  - Users with a verified phone can enroll SMS at first login (no prior MFA
+    required). Successful SMS verify creates `UserMFAMethod(sms)` if not present.
+
+### Changed
+
+- **Backend: `sms_available` based on verified phone**
+  - SMS option is available when `phone_verified`, `phone_country_code`, and
+    `phone_number` are set (no prior SMS enrollment required). Replaces previous
+    `_user_has_sms` requirement.
+
+- **Backend: send-code accepts first-time SMS**
+  - `POST /api/auth/sms/send-code` with `challenge_token` now allows users without
+    prior SMS enrollment when phone is verified. Error message updated to
+    "Phone must be verified to use SMS".
+
+- **Seed: No MFA method pre-entered**
+  - Admin seed does not set any MFA method. Admin selects TOTP and/or SMS at
+    first login. When updating existing admin (non-ACTIVE to ACTIVE), clears
+    `user_mfa_methods` so they can re-select at next login.
+
+- **Frontend: SMS hint by enrollment status**
+  - When `sms_enrolled`: "Enter code sent to your phone". When not enrolled:
+    "Set up SMS (one-time)".
+
+### Documentation
+
+- Updated PRD_2FA_APP, application/README, backend/README, frontend/README,
+  REDIS_ENABLEMENT_SUMMARY, PRD_ADMIN_FUNCS, SECRET_DEPENDENCIES,
+  SECRETS_REQUIREMENTS to describe the 2FA flow: first-login choice, profile
+  enrollment of additional methods, consecutive-login method selection, and
+  SMS availability based on verified phone.
+
 ## [2026-03-01] - Code Review: Security Hardening, Admin Auth Migration, and Fixes
 
 ### Fixed

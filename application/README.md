@@ -243,10 +243,10 @@ selection → MFA verification)
 | `GET` | `/api/app-config` | Application-level state: `{ isActive, mode }`. Frontend uses on load to enable/disable login form. User state is separate (enforced on auth endpoints). |
 | `GET` | `/api/mfa/methods` | List available MFA methods |
 | `GET` | `/api/mfa/status/{username}` | Get user's MFA enrollment status |
-| `POST` | `/api/auth/login/start` | Step 1: Validate username/password (optional `remember_me`); returns challenge token and MFA options (totp_enrolled, sms_available) |
+| `POST` | `/api/auth/login/start` | Step 1: Validate username/password (optional `remember_me`); returns challenge token and MFA options (totp_enrolled, sms_available, sms_enrolled) |
 | `POST` | `/api/auth/login/totp-setup` | Generate TOTP secret for first-time Authenticator setup (requires challenge token) |
 | `POST` | `/api/auth/login/verify` | Step 2: Verify MFA code (TOTP or SMS) and return JWT (longer-lived if remember_me was set) |
-| `POST` | `/api/auth/sms/send-code` | Send SMS code (use challenge_token from login/start, or username+password) |
+| `POST` | `/api/auth/sms/send-code` | Send SMS code (challenge_token or username+password); requires verified phone |
 | `POST` | `/api/auth/forgot-password` | Request password reset link by email (body: `email`) |
 | `POST` | `/api/auth/reset-password` | Set new password with token from email link (body: `token`, `username`, `new_password`, `confirm_password`) |
 | `POST` | `/api/auth/enroll` | Re-enroll or change MFA method (active users only) |
@@ -669,9 +669,10 @@ cd application
   - Self-service user registration
   - Email verification (click link in email)
   - Phone verification (enter 6-digit SMS code)
-  - Two-step login: enter username and password, then on the MFA screen choose
-  Authenticator app or SMS and enter the 6-digit code (TOTP setup with QR code
-  happens on first use when choosing Authenticator)
+  - Two-step login: username/password, then choose TOTP or SMS and enter code.
+  First login: TOTP shows QR for authenticator app; SMS sends code to verified
+  phone (enrollment completes on verify). Consecutive logins: choose any enrolled
+  method. Profile page: enroll additional methods.
   - User profile management
   - Admin dashboard (visible to LDAP admin group members only):
     - User list with filtering and sorting

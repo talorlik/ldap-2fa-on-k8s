@@ -223,10 +223,15 @@ class LoginStartRequest(BaseModel):
 
 
 class LoginStartResponse(BaseModel):
-    """Response after successful username/password; MFA required."""
+    """Response after successful username/password; MFA required.
+
+    User may have multiple methods enrolled; they choose which to use at each login.
+    sms_available: can enroll or use SMS when phone is verified.
+    """
     challenge_token: str = Field(..., description="Token for MFA step")
     totp_enrolled: bool = Field(..., description="Whether user has Authenticator app set up")
-    sms_available: bool = Field(..., description="Whether SMS option is available")
+    sms_available: bool = Field(..., description="SMS available (verified phone); can enroll or use")
+    sms_enrolled: bool = Field(..., description="Whether user has SMS as enrolled method")
 
 
 class LoginTotpSetupResponse(BaseModel):
@@ -586,9 +591,11 @@ def _user_has_sms(user: User) -> bool:
 
 
 def _user_has_totp(user: User) -> bool:
-    """Whether user has TOTP as an enrolled method."""
+    """Whether user has TOTP as an enrolled method (with a verifiable secret)."""
     if user.mfa_methods:
-        return any(m.method == "totp" for m in user.mfa_methods)
+        return any(
+            m.method == "totp" and m.totp_secret for m in user.mfa_methods
+        )
     return bool(user.totp_secret)
 
 
@@ -1497,7 +1504,8 @@ async def login_start(
     _: None = Depends(_require_app_active),
 ) -> LoginStartResponse:
     """
-    Step 1: Validate username and password. Returns a challenge token and MFA options.
+    Step 1: Validate username and password. Returns a challenge token and which
+    MFA methods are available (user may have multiple; they choose one per login).
     """
     user = await _get_user_with_mfa(session, request.username)
 
@@ -1537,12 +1545,14 @@ async def login_start(
 
     settings = get_settings()
     totp_enrolled = _user_has_totp(user)
+    # SMS available when phone is verified (enroll or use); no prior enrollment required
     sms_available = bool(
         settings.enable_sms_2fa
-        and _user_has_sms(user)
+        and user.phone_verified
         and user.phone_country_code
         and user.phone_number
     )
+    sms_enrolled = _user_has_sms(user)
 
     challenge_token = secrets.token_urlsafe(32)
     if not store_login_challenge(
@@ -1560,6 +1570,7 @@ async def login_start(
         challenge_token=challenge_token,
         totp_enrolled=totp_enrolled,
         sms_available=sms_available,
+        sms_enrolled=sms_enrolled,
     )
 
 
@@ -1678,6 +1689,17 @@ async def login_verify(
                 detail="Invalid verification code",
             )
         otp_client.delete_code(username)
+        # Enroll SMS if not yet enrolled (first-time SMS login)
+        if not _user_has_sms(user):
+            session.add(
+                UserMFAMethod(
+                    user_id=user.id,
+                    method="sms",
+                    phone_country_code=user.phone_country_code,
+                    phone_number=user.phone_number,
+                )
+            )
+            await session.commit()
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid mfa_method")
 
@@ -1867,17 +1889,12 @@ async def send_sms_code(
         user = await _get_user_by_id_with_mfa(session, uuid.UUID(challenge["user_id"]))
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        if not (user.phone_country_code and user.phone_number):
+        if not (user.phone_verified and user.phone_country_code and user.phone_number):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No phone number on file for SMS.",
+                detail="Phone must be verified to use SMS.",
             )
-        if not _user_has_sms(user):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User not enrolled for SMS MFA",
-            )
-        # User already passed step 1 (username + password); challenge is sufficient
+        # User already passed step 1; can enroll or use SMS when phone is verified
     elif request.username and request.password:
         user = await _get_user_with_mfa(session, request.username)
         if not user:

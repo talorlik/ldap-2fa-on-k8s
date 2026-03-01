@@ -288,7 +288,7 @@ const API = {
      * @param {string} username - Username
      * @param {string} password - Password
      * @param {boolean} rememberMe - Optional; use longer-lived session
-     * @returns {Promise<Object>} { challenge_token, totp_enrolled, sms_available }
+     * @returns {Promise<Object>} { challenge_token, totp_enrolled, sms_available, sms_enrolled }
      */
     async loginStart(username, password, rememberMe = false) {
         return this.request('/auth/login/start', {

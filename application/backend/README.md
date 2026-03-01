@@ -360,16 +360,16 @@ The API is organized into several endpoint groups:
 
 ### Authentication Endpoints (two-step login)
 
-- `POST /api/auth/login/start` - Step 1: validate username/password; optional body
-field `remember_me` for longer-lived JWT; returns challenge token and MFA options
-(`totp_enrolled`, `sms_available`)
+- `POST /api/auth/login/start` - Step 1: validate username/password; optional
+`remember_me`; returns challenge token and MFA options (`totp_enrolled`,
+`sms_available`, `sms_enrolled`). User may have multiple methods; chooses at login.
 - `POST /api/auth/login/totp-setup` - Generate TOTP secret for first-time Authenticator
 setup (body: `challenge_token`)
 - `POST /api/auth/login/verify` - Step 2: verify MFA code (body: `challenge_token`,
 `mfa_method`, `verification_code`); returns JWT (expiry uses `JWT_REFRESH_EXPIRY_DAYS`
 if remember_me was set)
-- `POST /api/auth/sms/send-code` - Send SMS code (body: `challenge_token` from
-login/start, or `username`+`password`)
+- `POST /api/auth/sms/send-code` - Send SMS code (body: `challenge_token` or
+`username`+`password`); requires verified phone (enroll or use)
 - `POST /api/auth/forgot-password` - Request password reset link by email
 (body: `email`); generic response for security
 - `POST /api/auth/reset-password` - Set new password with token from email link

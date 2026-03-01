@@ -14,6 +14,16 @@ The application supports **two MFA methods**:
 
 **Repository**: [https://github.com/talorlik/ldap-2fa-on-k8s](https://github.com/talorlik/ldap-2fa-on-k8s)
 
+### 2FA Flow
+
+- **First login**: User chooses TOTP or SMS. TOTP (not enrolled): QR code and secret
+  for authenticator app. SMS: code sent to verified phone (enrollment completes
+  on verify). No MFA method is pre-entered by the seed; admin chooses at first login.
+- **Profile**: User can enroll additional methods (TOTP or SMS) after logging in.
+- **Consecutive logins**: User chooses which enrolled method to use (TOTP or SMS).
+- **SMS prerequisite**: Phone must be verified; SMS available when phone is verified
+  (no prior SMS enrollment required for first-time use).
+
 ## Functional Requirements
 
 ### REQ-1: Application Architecture
@@ -65,10 +75,10 @@ All endpoints must be served under the `/api` prefix (no path rewriting).
 | `GET` | `/api/app-config` | Application-level state only: `{ isActive, mode }`. `isActive` is true when APP_ACTIVE and DB, Redis, LDAP are reachable. Frontend uses on load to enable/disable login form. User active/disabled is separate (profile status). |
 | `GET` | `/api/mfa/methods` | List available MFA methods (TOTP, SMS if enabled) |
 | `GET` | `/api/mfa/status/{username}` | Get user's MFA enrollment status |
-| `POST` | `/api/auth/login/start` | Step 1: Validate username/password; optional `remember_me` for longer-lived JWT; returns challenge_token, totp_enrolled, sms_available |
+| `POST` | `/api/auth/login/start` | Step 1: Validate username/password; optional `remember_me`; returns challenge_token, totp_enrolled, sms_available, sms_enrolled |
 | `POST` | `/api/auth/login/totp-setup` | Generate TOTP secret for first-time Authenticator setup (body: challenge_token) |
 | `POST` | `/api/auth/login/verify` | Step 2: Verify MFA code (TOTP or SMS) and return JWT (expiry extended if remember_me was set) |
-| `POST` | `/api/auth/sms/send-code` | Send SMS code (body: challenge_token from login/start, or username+password) |
+| `POST` | `/api/auth/sms/send-code` | Send SMS code (challenge_token or username+password); requires verified phone (enroll or use) |
 | `POST` | `/api/auth/forgot-password` | Request password reset link by email (body: email); generic response for security |
 | `POST` | `/api/auth/reset-password` | Set new password with token from email link (body: token, username, new_password, confirm_password) |
 | `POST` | `/api/auth/enroll` | Re-enroll or change MFA method (active users only) |
@@ -143,9 +153,15 @@ When `remember_me` is true, the JWT returned after login/verify uses a longer ex
 {
   "challenge_token": "string",
   "totp_enrolled": true,
-  "sms_available": true
+  "sms_available": true,
+  "sms_enrolled": true
 }
 ```
+
+- `totp_enrolled`: Whether user has Authenticator app set up
+- `sms_available`: Whether SMS option is available (verified phone; can enroll
+  or use)
+- `sms_enrolled`: Whether user has SMS as an enrolled method
 
 #### Login Verify Request (Step 2)
 
@@ -236,11 +252,11 @@ Response is always a generic success message (no email enumeration).
 
 | ID | Requirement |
 | ---- | ------------- |
-| FE-01 | Display two-step login: (1) username/password only; (2) MFA screen with Authenticator app or SMS choice and single verification code field; TOTP setup (QR) when user chooses Authenticator and is not yet enrolled |
+| FE-01 | Display two-step login: (1) username/password; (2) MFA screen with Authenticator app or SMS choice and verification code; TOTP setup (QR) when not enrolled; SMS enrollment when phone verified; user may choose any enrolled method on consecutive logins |
 | FE-02 | Display login flow: step 1 username/password → step 2 MFA method + verification code → success/failure |
 | FE-03 | Render QR code from backend-provided `otpauth://` URI (TOTP) |
 | FE-04 | Handle and display error messages from backend |
-| FE-05 | Allow user to select MFA method (TOTP or SMS) during enrollment |
+| FE-05 | Allow user to select MFA method (TOTP or SMS) during first-time enrollment; support multiple methods; user chooses which to use at each login |
 | FE-06 | Show/hide SMS option based on backend configuration |
 
 ### SMS-Specific Frontend Requirements

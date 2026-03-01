@@ -503,8 +503,9 @@ TTL-based expiration
 #### Admin seed (first admin user for 2FA app)
 
 Used to seed the first admin user so they can log into the 2FA application with
-the **same username and password** as the LDAP admin. Values are **never** hard-coded
-or logged; they are passed via secrets only.
+the **same username and password** as the LDAP admin. No MFA method is pre-entered;
+the admin selects TOTP and/or SMS when logging in for the first time. Values are
+**never** hard-coded or logged; they are passed via secrets only.
 
 - **Secret Location:**
   - AWS Secrets Manager: `tf-vars` secret, keys below (or a separate `admin-seed`

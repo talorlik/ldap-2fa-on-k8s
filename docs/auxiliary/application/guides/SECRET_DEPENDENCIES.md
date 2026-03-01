@@ -168,7 +168,7 @@ will fail to:
 Terraform).
 - The one-time `admin-seed-job` reads this secret and `ldap-admin-secret` to create
 the LDAP user, add them to the admins group, and upsert the PostgreSQL user with
-email/phone pre-verified.
+email/phone pre-verified. No MFA method is set; the admin chooses at first login.
 - Secret keys: `ADMIN_SEED_USERNAME`, `ADMIN_SEED_EMAIL`, `ADMIN_SEED_FIRST_NAME`,
 `ADMIN_SEED_LAST_NAME`, `ADMIN_SEED_PHONE_COUNTRY_CODE`, `ADMIN_SEED_PHONE_NUMBER`.
 - Created by Terraform in the backend namespace when admin seed variables are provided

@@ -129,7 +129,8 @@ kubectl exec -n 2fa-app -l app.kubernetes.io/name=ldap-2fa-backend -- env | grep
       -d '{"username": "testuser", "password": "password", "remember_me": false}'
     ```
 
-    Response includes `challenge_token`, `totp_enrolled`, `sms_available`.
+    Response includes `challenge_token`, `totp_enrolled`, `sms_available`,
+    `sms_enrolled`.
     Optional `remember_me: true` requests a longer-lived JWT after step 2.
 
 2. **Request SMS code (with challenge token from step 1):**

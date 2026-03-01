@@ -174,22 +174,24 @@ flowchart TD
 
 ### 2.1 Phone Verification Requirement
 
-Users can only use SMS OTP as their MFA method if their phone number has been verified.
+Users can only use or enroll SMS OTP if their phone number has been verified.
 
 **Behavior:**
 
-- MFA method selection occurs during login enrollment, not during signup
+- MFA method selection occurs at first login (enrollment) or on consecutive logins
 - Phone verification is completed during signup (before MFA enrollment)
-- SMS OTP option is disabled/hidden for users with unverified phone numbers
-- Login attempts with SMS MFA and unverified phone display error:
-"Phone verification required for SMS authentication"
+- SMS option available when `phone_verified = true` (can enroll or use; no prior
+  SMS enrollment required for first-time)
+- SMS option disabled/hidden for users with unverified phone numbers
+- Login attempts with SMS and unverified phone: "Phone must be verified to use SMS"
 
 ### 2.2 Implementation Rules
 
 - During MFA enrollment: SMS option only available if `phone_verified = true`
-- During login: If `mfa_method = 'sms'` and `phone_verified = false`,
-reject with appropriate error
+- During login: If `mfa_method = 'sms'` and `phone_verified = false`, reject
+  with appropriate error
 - UI should grey out or hide SMS option for unverified users
+- First-time SMS: send code to verified phone; enroll on successful verify
 
 ## 3. Admin Dashboard
 

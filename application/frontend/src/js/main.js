@@ -41,7 +41,7 @@ const App = {
     users: [], // Cache of users for admin
     sortState: { field: 'created_at', order: 'desc' },
     // Login MFA step state (after login/start)
-    loginChallenge: null, // { challenge_token, totp_enrolled, sms_available }
+    loginChallenge: null, // { challenge_token, totp_enrolled, sms_available, sms_enrolled }
     // Pending profile verification (after request-phone-change; show enter-code row until verified)
     pendingVerifyPhone: false,
     // Application-level only: GET /api/app-config (isActive, mode). Drives login/signup button.
@@ -611,6 +611,7 @@ const App = {
                 challenge_token: response.challenge_token,
                 totp_enrolled: response.totp_enrolled,
                 sms_available: response.sms_available,
+                sms_enrolled: response.sms_enrolled ?? false,
             };
 
             form.classList.add('hidden');
@@ -631,13 +632,15 @@ const App = {
     },
 
     /**
-     * Show 2FA page (method selection / enrollment / authentication)
+     * Show 2FA page (method selection / enrollment / authentication).
+     * User may have multiple methods enrolled; they choose which to use this login.
      */
     showMfaStepPanel() {
         const mfaPage = document.getElementById('mfa-page');
         const totpOption = document.getElementById('mfa-step-totp-option');
         const smsOption = document.getElementById('mfa-step-sms-option');
         const totpHint = document.getElementById('mfa-step-totp-hint');
+        const smsHint = document.getElementById('mfa-step-sms-hint');
 
         if (!this.loginChallenge || !mfaPage) return;
 
@@ -650,9 +653,15 @@ const App = {
         if (this.loginChallenge.sms_available) {
             smsOption.classList.remove('disabled');
             smsOption.querySelector('input').disabled = false;
+            if (smsHint) {
+                smsHint.textContent = this.loginChallenge.sms_enrolled
+                    ? 'Enter code sent to your phone'
+                    : 'Set up SMS (one-time)';
+            }
         } else {
             smsOption.classList.add('disabled');
             smsOption.querySelector('input').disabled = true;
+            // Hint left as-is (e.g. "SMS not available" from updateSmsOptions if disabled)
         }
 
         this.updateMfaStepMethodVisibility();

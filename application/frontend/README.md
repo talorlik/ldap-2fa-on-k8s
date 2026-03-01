@@ -76,7 +76,7 @@ in the flow:
 | # | Page | When shown | DOM / notes |
 | --- | ------ | ------------ | ------------- |
 | 1 | **Login / Signup** (tabbed) | Logged out | `#auth-view`: auth header, `#auth-tabs` (Login / Sign Up), `#login-tab`, `#signup-tab`, `#reset-password-section` |
-| 2 | **2FA method selection / enrollment / authentication** | After login/start when MFA required | `#auth-view` → `#mfa-page`. Content varies: method choice, TOTP setup (QR/secret) if not enrolled, SMS send, then verification code |
+| 2 | **2FA method selection / enrollment / authentication** | After login/start when MFA required | `#auth-view` → `#mfa-page`. Method choice (TOTP or SMS); TOTP setup (QR/secret) if not enrolled; SMS send if phone verified; verification code. User chooses enrolled method each login. |
 | 3 | **Profile** | Logged in, default | `#app-view` → `#profile-section` |
 | 4 | **Users** (admin only) | Logged in, admin menu | `#app-view` → `#admin-users-section` |
 | 5 | **Groups** (admin only) | Logged in, admin menu | `#app-view` → `#admin-groups-section` |
@@ -684,8 +684,8 @@ The frontend communicates with the backend via REST API:
 #### Authentication (two-step login)
 
 - `API.loginStart(username, password, rememberMe)` - Step 1: validate credentials;
-optional `rememberMe` for longer-lived session; returns `challenge_token`,
-`totp_enrolled`, `sms_available`
+optional `rememberMe`; returns `challenge_token`, `totp_enrolled`, `sms_available`,
+`sms_enrolled`
 - `API.loginTotpSetup(challengeToken)` - Get TOTP QR/secret for first-time
 Authenticator setup
 - `API.loginVerify(challengeToken, mfaMethod, verificationCode)` - Step 2: verify
