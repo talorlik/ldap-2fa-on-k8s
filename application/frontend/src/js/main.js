@@ -2159,53 +2159,53 @@ const App = {
 window.App = App;
 
 // ---------------------------------------------------------------------------
-// Form submit handlers (called from onsubmit; no addEventListener)
+// Form submit handlers (called from onsubmit; must be on window for inline handlers)
 // ---------------------------------------------------------------------------
 
-function handleLoginFormSubmit(e) {
+window.handleLoginFormSubmit = function (e) {
     e.preventDefault();
     App.doLoginFormSubmit().catch(() => {});
     return false;
-}
+};
 
-function handleForgotPasswordSubmit(e) {
+window.handleForgotPasswordSubmit = function (e) {
     e.preventDefault();
     App.doForgotPasswordSubmit().catch(() => {});
     return false;
-}
+};
 
-function handleResetPasswordSubmit(e) {
+window.handleResetPasswordSubmit = function (e) {
     e.preventDefault();
     App.doResetPasswordSubmit().catch(() => {});
     return false;
-}
+};
 
-function handleSignupFormSubmit(e) {
+window.handleSignupFormSubmit = function (e) {
     e.preventDefault();
     App.doSignupFormSubmit().catch(() => {});
     return false;
-}
+};
 
-function handleMfaStepFormSubmit(e) {
+window.handleMfaStepFormSubmit = function (e) {
     e.preventDefault();
     App.doMfaStepFormSubmit().catch(() => {});
     return false;
-}
+};
 
-function handleProfileFormSubmit(e) {
+window.handleProfileFormSubmit = function (e) {
     e.preventDefault();
     App.doProfileFormSubmit().catch(() => {});
     return false;
-}
+};
 
-function handleGroupModalFormSubmit(e) {
+window.handleGroupModalFormSubmit = function (e) {
     e.preventDefault();
     App.doGroupModalFormSubmit().catch(() => {});
     return false;
-}
+};
 
-function handleApproveModalFormSubmit(e) {
+window.handleApproveModalFormSubmit = function (e) {
     e.preventDefault();
     App.doApproveModalFormSubmit().catch(() => {});
     return false;
-}
+};
