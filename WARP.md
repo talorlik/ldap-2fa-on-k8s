@@ -57,7 +57,7 @@ Mode) using Terraform. The infrastructure is deployed on AWS using a
 
 ## Project Directory Structure
 
-```
+```bash
 ldap-2fa-on-k8s/
 ├── .github/workflows/           # 00- through 04- prefixed workflows
 ├── application_infra/           # Phase 3: OpenLDAP, ALB, ArgoCD, StorageClass
