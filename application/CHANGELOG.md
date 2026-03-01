@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2026-03-01] - 2FA Flow: First-Login Choice, SMS Enrollment, Multiple Methods
 
+### Fixed
+
+- **Application Terraform: IRSA role ARN for backend ServiceAccount**
+  - Backend Helm parameter `serviceAccountIAM.roleArn` was never set when
+  deploying via ArgoCD, so the ServiceAccount had no `eks.amazonaws.com/role-arn`
+  annotation and SMS (SNS) calls failed with "SMS service error!" (no credentials).
+  - `application/main.tf` now adds `serviceAccountIAM.roleArn` to the backend
+  ArgoCD Application helm parameters: SNS role when `enable_sms_2fa` is true,
+  SES role when only `enable_email_verification` is true. After `terraform apply`
+  and an ArgoCD sync, the backend pod receives AWS credentials via IRSA.
+
 ### Added
 
 - **Backend: `sms_enrolled` in login/start response**

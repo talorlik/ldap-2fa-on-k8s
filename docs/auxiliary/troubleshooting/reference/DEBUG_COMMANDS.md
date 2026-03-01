@@ -619,6 +619,122 @@ REDIS_PASSWORD=$(kubectl get secret redis-secret -n redis -o jsonpath='{.data.re
 kubectl exec -n redis "$REDIS_POD" -- redis-cli -a "$REDIS_PASSWORD" KEYS "sms_otp:*"
 ```
 
+### SMS / SNS (send-code and "SMS service error!")
+
+Runbook for "Failed to send SMS: SMS service error!" or send-code failures. The
+API returns a generic message; the real exception is in backend logs
+(BotoCoreError: credentials, network, or endpoint). **Run the variable block
+once, then run steps 1–7 in order.** Each block is copy-paste as-is.
+
+#### Step 0: Set variables (run once)
+
+```bash
+export FA_NS="${FA_NS:-2fa-app}"
+export BACKEND_POD=$(kubectl get pod -n "$FA_NS" -l app.kubernetes.io/name=ldap-2fa-backend -o jsonpath='{.items[0].metadata.name}')
+export AWS_REGION="${AWS_REGION:-us-east-1}"
+export EKS_CLUSTER_NAME="${EKS_CLUSTER_NAME:-$(kubectl config current-context | sed 's/.*\///')}"
+export VPC_ID=$(aws eks describe-cluster --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION" --query 'cluster.resourcesVpcConfig.vpcId' --output text)
+export SNS_ROLE_ARN=$(kubectl get sa ldap-2fa-backend -n "$FA_NS" -o json 2>/dev/null | jq -r '.metadata.annotations["eks.amazonaws.com/role-arn"] // empty')
+```
+
+#### Step 1: Backend logs (actual error type and message)
+
+Trigger "Send SMS code" in the UI, then run:
+
+```bash
+kubectl logs -n "$FA_NS" "$BACKEND_POD" --tail=100
+kubectl logs -n "$FA_NS" "$BACKEND_POD" --tail=200 | grep -i -E 'sms|sns|boto|credentials|endpoint'
+```
+
+#### Step 2: Backend SMS configuration (env)
+
+```bash
+kubectl exec -n "$FA_NS" "$BACKEND_POD" -- env | grep -E '^ENABLE_SMS_2FA|^AWS_REGION|^SMS_|^SNS_'
+```
+
+#### Step 3: IRSA – service account and IAM role annotation
+
+```bash
+kubectl get deployment ldap-2fa-backend -n "$FA_NS" -o jsonpath='{.spec.template.spec.serviceAccountName}'
+echo ""
+kubectl get sa ldap-2fa-backend -n "$FA_NS" -o yaml
+```
+
+#### Step 4: AWS credentials inside the pod (IRSA)
+
+```bash
+kubectl exec -n "$FA_NS" "$BACKEND_POD" -- env | grep -E '^AWS_' || true
+```
+
+#### Step 5: VPC endpoints for SNS
+
+```bash
+aws ec2 describe-vpc-endpoints \
+  --filters "Name=vpc-id,Values=$VPC_ID" "Name=service-name,Values=com.amazonaws.$AWS_REGION.sns" \
+  --region "$AWS_REGION" \
+  --query 'VpcEndpoints[*].{Service:ServiceName,State:State}' --output table
+```
+
+#### Step 6: IAM role permissions (SNS publish)
+
+Uses `SNS_ROLE_ARN` from Step 0. If empty, the backend ServiceAccount has no
+IRSA annotation (see "If SNS_ROLE_ARN is empty" below).
+
+```bash
+if [ -z "$SNS_ROLE_ARN" ]; then echo "SNS_ROLE_ARN empty - check SA annotation (Step 3)"; else
+  aws iam list-attached-role-policies --role-name "$(echo "$SNS_ROLE_ARN" | sed 's/.*\///')"
+  aws iam list-role-policies --role-name "$(echo "$SNS_ROLE_ARN" | sed 's/.*\///')"
+fi
+```
+
+**Where the role ARN is set (official flow):**
+
+The `eks.amazonaws.com/role-arn` annotation must be on the backend
+ServiceAccount so the pod receives AWS credentials (IRSA). In this repo it is
+set as follows:
+
+- **ArgoCD + application Terraform:** The application layer
+  (`application/main.tf`) passes `serviceAccountIAM.roleArn` into the backend
+  Helm chart via the ArgoCD Application helm parameters. When `enable_sms_2fa`
+  is true, Terraform sets it to `module.sns[0].iam_role_arn`; when only
+  `enable_email_verification` is true, it uses `module.ses[0].iam_role_arn`.
+  After `terraform apply` and an ArgoCD sync, the backend ServiceAccount gets
+  the annotation.
+- **Helm chart:** The backend chart
+  (`application/backend/helm/ldap-2fa-backend/templates/serviceaccount.yaml`)
+  renders the annotation only when `Values.serviceAccountIAM.roleArn` is
+  non-empty.
+
+**If SNS_ROLE_ARN is still empty:**
+
+1. **ArgoCD deployment:** Ensure application Terraform has been applied with
+   `enable_sms_2fa = true`, then sync the backend ArgoCD Application so the
+   updated Helm parameter is applied and the ServiceAccount is recreated with
+   the annotation.
+
+    ```bash
+    cd application && terraform apply -target=module.argocd_app_backend
+    # Then in ArgoCD UI or CLI: sync the backend Application
+    argocd app sync <backend-app-name> --prune
+    ```
+
+2. **Manual Helm:** Set the role ARN when installing/upgrading the backend:
+
+    ```bash
+    SNS_ROLE_ARN=$(cd application && terraform output -raw sns_iam_role_arn)
+    helm upgrade ldap-2fa-backend application/backend/helm/ldap-2fa-backend \
+      --namespace "$FA_NS" --reuse-values \
+      --set serviceAccountIAM.roleArn="$SNS_ROLE_ARN"
+    ```
+
+#### Step 7: Optional – test SNS from your machine (same region)
+
+Uses your local AWS credentials, not pod IRSA.
+
+```bash
+aws sns publish --phone-number "+1234567890" --message "Test" --region "$AWS_REGION"
+```
+
 ## EKS Cluster-Level Logs & Events
 
 Set cluster and region (run once; or use values from ArgoCD section):

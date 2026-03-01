@@ -220,10 +220,10 @@ ingress:
         - path: /api
           pathType: Prefix
 
-# Service account with IRSA annotation
-serviceAccount:
-  annotations:
-    eks.amazonaws.com/role-arn: "${SES_ROLE_ARN}"  # Use SES role (includes SNS if enabled)
+# IRSA: IAM role ARN for the backend ServiceAccount (SNS for SMS, SES for email)
+# When SMS 2FA is enabled use SNS_ROLE_ARN; when only email use SES_ROLE_ARN
+serviceAccountIAM:
+  roleArn: "${SNS_ROLE_ARN}"
 
 # LDAP configuration (adjust based on your LDAP setup)
 ldap:

@@ -29,10 +29,29 @@ backend infrastructure (VPC, EKS cluster, IRSA, VPC endpoints, SNS/SES).
    - Verify IAM role trust policy references correct OIDC provider.
    - Check pod logs for AWS SDK errors.
 
-6. **SNS SMS Failing**
-   - Verify SNS endpoint is enabled (`enable_sns_endpoint = true`).
-   - Check IAM role has SNS publish permissions.
-   - Verify service account annotation is correct.
+6. **SNS SMS Failing ("SMS service error!" or "Failed to send SMS")**
+   - **Backend logs:** Check backend pod logs for the real exception. The API
+     returns a generic message; the log line includes the exception type and
+     message (e.g. `NoCredentialsError`, `EndpointConnectionError`).
+   - **Credentials (BotoCoreError):** If you see `NoCredentialsError` or
+     similar, IRSA is not providing credentials. The backend ServiceAccount
+     must have the `eks.amazonaws.com/role-arn` annotation. When using ArgoCD
+     and application Terraform, this is set automatically: `application/main.tf`
+     passes `serviceAccountIAM.roleArn` (SNS role when `enable_sms_2fa` is
+     true) into the backend Helm chart via the ArgoCD Application. After
+     `terraform apply` and an ArgoCD sync, the annotation is present. If
+     missing, run apply and sync (see DEBUG_COMMANDS.md "If SNS_ROLE_ARN is
+     empty").
+   - **Network / VPC endpoint:** If you see `EndpointConnectionError` or
+     connection timeouts, the pod cannot reach SNS. Verify SNS VPC endpoint
+     is enabled (`enable_sns_endpoint = true`) and that the endpoint is in
+     the same VPC/subnets as the backend. Ensure security groups allow
+     outbound HTTPS to the SNS endpoint.
+   - **IAM:** Confirm the IRSA role has a policy allowing
+     `sns:Publish` (and `sns:SetSMSAttributes` if using sender ID) on the
+     intended resources (e.g. `"*"` or the SNS topic ARN).
+   - **Config:** Ensure `ENABLE_SMS_2FA=true` and `AWS_REGION` match the
+     region where SNS is used.
 
 ## Useful Commands
 

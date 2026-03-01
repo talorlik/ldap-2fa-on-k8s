@@ -275,12 +275,14 @@ const App = {
     },
 
     /**
-     * Hide all app-view sections (profile, admin-users, admin-groups only)
+     * Hide all app-view sections (profile, admin-users, admin-groups only).
+     * Only targets top-level sections, not inner .tab-content (e.g. Personal Details /
+     * Security tabs inside profile), so the default profile tab stays visible when shown.
      */
     hideAllSections() {
         const appView = document.getElementById('app-view');
         if (!appView) return;
-        appView.querySelectorAll('.tab-content').forEach(el => {
+        appView.querySelectorAll(':scope > section.tab-content').forEach(el => {
             el.classList.remove('active');
             el.classList.add('hidden');
         });

@@ -142,7 +142,14 @@ class SMSClient:
                 return False, f"Failed to send SMS: {error_message}", None
 
         except BotoCoreError as e:
-            logger.error("BotoCoreError sending SMS: %s", e)
+            error_type = type(e).__name__
+            logger.error(
+                "BotoCoreError sending SMS: %s - %s (check AWS credentials, "
+                "IRSA, VPC endpoint for SNS, and network connectivity)",
+                error_type,
+                e,
+                exc_info=True,
+            )
             return False, "SMS service error", None
 
         except Exception as e:

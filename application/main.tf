@@ -57,13 +57,27 @@ locals {
     }
   ] : []
 
-  # Backend Helm parameters: ALB (ingress) plus Redis host when Redis is enabled.
+  # Backend Helm parameters: ALB (ingress), Redis host when enabled, and IRSA role for SNS/SES.
   # Redis host must match the Bitnami chart service name (release-name-master).
+  # serviceAccountIAM.roleArn is required for SMS (SNS) and email (SES); the backend ServiceAccount
+  # gets eks.amazonaws.com/role-arn so the pod receives AWS credentials (IRSA).
   argocd_helm_parameters_backend = concat(
     local.argocd_helm_alb_parameters_backend,
     var.enable_redis ? [{
       name         = "redis.host"
       value        = module.redis[0].redis_host
+      force_string = true
+    }] : [],
+    # SNS role for SMS 2FA (pod needs this for sns:Publish). When only email is used, pass SES role instead.
+    var.enable_sms_2fa ? [{
+      name         = "serviceAccountIAM.roleArn"
+      value        = module.sns[0].iam_role_arn
+      force_string = true
+    }] : [],
+    # SES role when email verification is enabled and SMS is not (otherwise SNS role above is used).
+    var.enable_email_verification && !var.enable_sms_2fa ? [{
+      name         = "serviceAccountIAM.roleArn"
+      value        = module.ses[0].iam_role_arn
       force_string = true
     }] : []
   )
@@ -597,9 +611,10 @@ module "argocd_app_backend" {
     # Terraform will handle count=0 gracefully
     kubernetes_secret.redis_secret_backend_namespace,
     # Modules ensure PostgreSQL and Redis are deployed first
-    # These are safe to reference even with count (Terraform handles it)
     module.postgresql,
     module.redis,
+    module.ses,
+    module.sns,
   ]
 }
 
