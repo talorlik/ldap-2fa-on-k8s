@@ -13,6 +13,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
+## [2026-03-01] - Code Review: Security Hardening, Admin Auth Migration, and Fixes
+
+### Fixed
+
+- **Backend: `admin_reject_user` endpoint always returned 422**
+  - Endpoint was using `AdminActivateRequest` model (which requires `group_ids`
+  with `min_length=1`), so every reject call failed Pydantic validation.
+  Created dedicated `AdminRejectRequest` model without `group_ids`.
+  - Endpoint now supports JWT `Authorization: Bearer` header (primary) with
+  legacy username/password fallback for backward compatibility.
+
+- **Backend: `admin_list_users` passed credentials in query parameters**
+  - Migrated from `admin_username`/`admin_password` query params to JWT
+  `Authorization: Bearer` auth via `_require_admin()` helper.
+  - Eliminates credentials in URLs (visible in logs, browser history, proxies).
+
+- **Backend: `admin_login` bypassed `_require_app_active` check**
+  - Added explicit `Depends(_require_app_active)` to function signature so the
+  application-active check runs before authentication.
+
+- **Backend: LDAP `update_user` produced stale `cn` when only first or last name
+  changed**
+  - `update_user()` now fetches the current complementary name from LDAP via
+  `get_user_attribute()` and rebuilds `cn` correctly when only `first_name` or
+  only `last_name` is provided.
+
+- **Backend: Redis `health_check` returned inconsistent keys**
+  - All three return paths (success, error, disabled) now include consistent
+  keys: `enabled`, `connected`, `status`, `redis_version`, `error`.
+
+- **Backend: Redis `get_otp_client()` used `@lru_cache` preventing reconnection**
+  - Replaced `@lru_cache` with module-level `_otp_client` variable that
+  creates a new `RedisOTPClient` when the cached instance is disconnected.
+  Enables automatic reconnection after transient Redis failures.
+
+- **Frontend: `rejectUser` was a no-op stub**
+  - Replaced stub with actual `API.adminRejectUser()` call with proper error
+  handling and status feedback.
+
+### Changed
+
+- **Backend: LDAP filter injection prevention**
+  - Added `ldap3.utils.conv.escape_filter_chars()` to all LDAP search filters
+  in `user_exists()`, `get_user_attribute()`, `get_user_groups()`, and
+  `get_admin_emails()` to prevent LDAP filter injection from user-controlled
+  input.
+  - Existing `escape_rdn()` usage in `_get_user_dn()` was already present;
+  documented for completeness.
+
+- **Backend: `VerificationTokenType` enum updated**
+  - Added `EMAIL_CHANGE = "eml_chg"`, `PHONE_CHANGE = "phn_chg"`, and
+  `PASSWORD_RESET = "pwd_rst"` to the `VerificationTokenType` enum in
+  `database/models.py` so all token types used by the application are
+  represented in the enum definition.
+
+- **Frontend: `adminListUsers` migrated to JWT auth**
+  - Changed from passing credentials in URL query parameters to using
+  `API.authRequest()` with JWT Bearer token. No body payload needed.
+
+- **Frontend: `adminRejectUser` migrated to JWT auth**
+  - Changed from passing credentials in request body to using
+  `API.authRequest()` with DELETE method and no body.
+
 ## [2026-03-01] - App Active State, App Config Endpoint, and Logged-in State Docs
 
 ### Added

@@ -6,7 +6,6 @@ behave the same. In-memory storage is not used.
 
 import json
 import logging
-from functools import lru_cache
 from typing import Optional
 
 import redis
@@ -280,21 +279,27 @@ class RedisOTPClient:
             if self._client and self._client.ping():
                 info = self._client.info("server")
                 return {
-                    "enabled": True,
+                    "enabled": self.is_enabled,
                     "connected": True,
                     "status": "healthy",
                     "redis_version": info.get("redis_version", "unknown"),
+                    "error": None,
                 }
         except redis.RedisError as e:
             return {
+                "enabled": self.is_enabled,
                 "connected": False,
                 "status": "unhealthy",
+                "redis_version": None,
                 "error": str(e),
             }
 
         return {
+            "enabled": self.is_enabled,
             "connected": False,
             "status": "disconnected",
+            "redis_version": None,
+            "error": None,
         }
 
 
@@ -323,7 +328,12 @@ def delete_login_challenge(challenge_token: str) -> bool:
     return client.delete_login_challenge(challenge_token)
 
 
-@lru_cache
+_otp_client: Optional[RedisOTPClient] = None
+
+
 def get_otp_client() -> RedisOTPClient:
-    """Get cached Redis OTP client instance."""
-    return RedisOTPClient()
+    """Get Redis OTP client instance, reconnecting if needed."""
+    global _otp_client
+    if _otp_client is None or not _otp_client._connected:
+        _otp_client = RedisOTPClient()
+    return _otp_client

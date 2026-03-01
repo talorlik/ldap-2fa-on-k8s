@@ -6,6 +6,7 @@ from typing import Optional
 import ldap3
 from ldap3 import ALL, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE, Connection, Server
 from ldap3.core.exceptions import LDAPException
+from ldap3.utils.conv import escape_filter_chars
 from ldap3.utils.dn import escape_rdn
 
 from app.config import Settings, get_settings
@@ -52,7 +53,7 @@ class LDAPClient:
 
     def _get_user_dn(self, username: str) -> str:
         """Construct the user DN from username."""
-        return f"uid={username},{self._get_user_search_base()}"
+        return f"uid={escape_rdn(username)},{self._get_user_search_base()}"
 
     def _get_group_search_base(self) -> str:
         """Get the full group search base DN."""
@@ -173,7 +174,8 @@ class LDAPClient:
         try:
             conn = self._get_admin_connection()
 
-            search_filter = self.settings.ldap_user_search_filter.format(username)
+            safe_username = escape_filter_chars(username)
+            search_filter = self.settings.ldap_user_search_filter.format(safe_username)
             conn.search(
                 search_base=self._get_user_search_base(),
                 search_filter=search_filter,
@@ -203,7 +205,8 @@ class LDAPClient:
         try:
             conn = self._get_admin_connection()
 
-            search_filter = self.settings.ldap_user_search_filter.format(username)
+            safe_username = escape_filter_chars(username)
+            search_filter = self.settings.ldap_user_search_filter.format(safe_username)
             conn.search(
                 search_base=self._get_user_search_base(),
                 search_filter=search_filter,
@@ -340,9 +343,13 @@ class LDAPClient:
                 modifications["givenName"] = [(MODIFY_REPLACE, [first_name])]
                 modifications["sn"] = [(MODIFY_REPLACE, [last_name])]
             elif first_name is not None:
+                current_sn = self.get_user_attribute(username, "sn") or ""
                 modifications["givenName"] = [(MODIFY_REPLACE, [first_name])]
+                modifications["cn"] = [(MODIFY_REPLACE, [f"{first_name} {current_sn}"])]
             elif last_name is not None:
+                current_given = self.get_user_attribute(username, "givenName") or ""
                 modifications["sn"] = [(MODIFY_REPLACE, [last_name])]
+                modifications["cn"] = [(MODIFY_REPLACE, [f"{current_given} {last_name}"])]
 
             if email is not None:
                 modifications["mail"] = [(MODIFY_REPLACE, [email])]
@@ -874,7 +881,9 @@ class LDAPClient:
 
             # Search for groups containing this user
             # Check both member (DN) and memberUid (username)
-            search_filter = f"(|(member={user_dn})(memberUid={username})(uniqueMember={user_dn}))"
+            safe_dn = escape_filter_chars(user_dn)
+            safe_uid = escape_filter_chars(username)
+            search_filter = f"(|(member={safe_dn})(memberUid={safe_uid})(uniqueMember={safe_dn}))"
             conn.search(
                 search_base=self._get_group_search_base(),
                 search_filter=search_filter,
@@ -954,7 +963,7 @@ class LDAPClient:
             # Fetch email for each memberUid
             for uid in member_uids:
                 try:
-                    search_filter = self.settings.ldap_user_search_filter.format(uid)
+                    search_filter = self.settings.ldap_user_search_filter.format(escape_filter_chars(uid))
                     conn.search(
                         search_base=self._get_user_search_base(),
                         search_filter=search_filter,

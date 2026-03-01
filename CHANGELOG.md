@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-03-01] - Code Review: Security Hardening, Admin Auth Migration, and Fixes
+
+### Fixed
+
+- **2FA backend**: `admin_reject_user` endpoint always returned 422 (wrong
+  request model). Created dedicated `AdminRejectRequest` model; endpoint now
+  supports JWT auth with legacy fallback.
+- **2FA backend**: `admin_list_users` migrated from query-param credentials to
+  JWT Bearer auth (credentials no longer in URL).
+- **2FA backend**: `admin_login` now enforces `_require_app_active` check.
+- **2FA backend**: LDAP `update_user` no longer produces stale `cn` when only
+  first or last name changes.
+- **2FA backend**: Redis `health_check` now returns consistent keys across all
+  code paths; `get_otp_client()` replaced `@lru_cache` with reconnection-capable
+  caching.
+- **2FA frontend**: `rejectUser` was a stub; now calls `API.adminRejectUser()`.
+
+### Changed
+
+- **2FA backend**: LDAP search filter injection prevention via
+  `escape_filter_chars()` in all search methods.
+- **2FA backend**: `VerificationTokenType` enum includes `EMAIL_CHANGE`,
+  `PHONE_CHANGE`, and `PASSWORD_RESET`.
+- **2FA frontend**: `adminListUsers` and `adminRejectUser` migrated to JWT auth.
+- See [application/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application/CHANGELOG.md)
+  for details.
+
 ## [2026-02-28] - Profile Email/Phone Change, Password Change, and Schema Docs
 
 ### Added

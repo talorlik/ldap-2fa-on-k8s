@@ -411,9 +411,15 @@ then save profile again.
 
 ### Admin Endpoints
 
+All admin endpoints require JWT authentication via `Authorization: Bearer <token>`
+header. The authenticated user must be a member of the LDAP admin group.
+
 - `POST /api/admin/users/{user_id}/activate` - Activate user account
-- `DELETE /api/admin/users/{user_id}` - Reject/delete user
-- `GET /api/admin/users` - List all users
+  (body: `group_ids` list, min 1)
+- `DELETE /api/admin/users/{user_id}` - Reject/delete user (no body required;
+  supports JWT auth with legacy username/password fallback)
+- `GET /api/admin/users` - List all users (JWT auth; query params: `status`,
+  `search`, `group_id`, `page`, `per_page`)
 - `POST /api/admin/groups` - Create group
 - `GET /api/admin/groups` - List all groups
 - `PUT /api/admin/groups/{group_id}` - Update group
@@ -710,4 +716,5 @@ ingress level.
 7. **Rate Limiting**: Consider implementing rate limiting for authentication endpoints.
 8. **Input Validation**: All user inputs are validated using Pydantic models.
 9. **SQL Injection**: Prevented by using SQLAlchemy ORM with parameterized queries.
-10. **LDAP Injection**: Prevented by using ldap3 library's built-in escaping.
+10. **LDAP Injection**: Prevented by `escape_filter_chars()` on all search
+filters and `escape_rdn()` on DN construction. Both from the `ldap3` library.

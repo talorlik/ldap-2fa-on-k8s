@@ -228,9 +228,7 @@ const App = {
 
         // Reset login view: show form, hide MFA step panel
         const loginForm = document.getElementById('login-form');
-        const mfaPage = document.getElementById('mfa-page');
         if (loginForm) loginForm.classList.remove('hidden');
-        if (mfaPage) mfaPage.classList.add('hidden');
         this.loginChallenge = null;
 
         // Adjust container
@@ -2139,8 +2137,9 @@ const App = {
      */
     async rejectUser(userId) {
         try {
-            // Note: This uses legacy auth - would need JWT-based version
-            this.showStatus('Please use legacy admin panel to reject users for now.', 'warning');
+            await API.adminRejectUser(userId);
+            this.showStatus('User rejected successfully', 'success');
+            this.loadAdminUsers();
         } catch (error) {
             this.showStatus(error.message, 'error');
         }

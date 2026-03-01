@@ -81,7 +81,7 @@ Stores email/phone verification tokens (signup and profile change flows).
 | ------ | ---- | -------- | ----------- |
 | id | UUID | NO | Primary key |
 | user_id | UUID | NO | FK to users.id |
-| token_type | VARCHAR(10) | NO | `email`, `phone`, `eml_chg`, `phn_chg`, `password_reset` |
+| token_type | VARCHAR(10) | NO | `email`, `phone`, `eml_chg`, `phn_chg`, `pwd_rst` |
 | token | VARCHAR(255) | NO | UUID (email/eml_chg) or 6-digit code (phone/phn_chg) |
 | expires_at | TIMESTAMPTZ | NO | Expiration time |
 | used | BOOLEAN | NO | Whether token was consumed |

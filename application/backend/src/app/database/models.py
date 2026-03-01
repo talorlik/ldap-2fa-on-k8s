@@ -246,6 +246,9 @@ class VerificationTokenType(str, Enum):
 
     EMAIL = "email"
     PHONE = "phone"
+    EMAIL_CHANGE = "eml_chg"
+    PHONE_CHANGE = "phn_chg"
+    PASSWORD_RESET = "pwd_rst"
 
 
 class VerificationToken(Base):

@@ -724,7 +724,9 @@ password from reset link; then user is redirected to login
 
 #### Admin (requires admin JWT)
 
-- `API.adminListUsersEnhanced(params)` - List users with filters
+- `API.adminListUsers(params)` - List users with filters (JWT auth; no
+  credentials in URL)
+- `API.adminRejectUser(userId)` - Reject/delete user (JWT auth; DELETE, no body)
 - `API.revokeUser(userId)` - Revoke user access
 - `API.listGroups(params)` - List groups
 - `API.createGroup(name, description)` - Create group

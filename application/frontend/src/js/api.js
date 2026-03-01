@@ -407,18 +407,16 @@ const API = {
     },
 
     /**
-     * List users (admin only)
-     * @param {string} adminUsername - Admin username
-     * @param {string} adminPassword - Admin password
+     * List users (admin only, uses JWT authentication)
      * @param {string} statusFilter - Optional status filter
      * @returns {Promise<Object>} User list response
      */
-    async adminListUsers(adminUsername, adminPassword, statusFilter = null) {
-        let url = `/admin/users?admin_username=${encodeURIComponent(adminUsername)}&admin_password=${encodeURIComponent(adminPassword)}`;
+    async adminListUsers(statusFilter = null) {
+        let url = '/admin/users';
         if (statusFilter) {
-            url += `&status_filter=${encodeURIComponent(statusFilter)}`;
+            url += `?status_filter=${encodeURIComponent(statusFilter)}`;
         }
-        return this.request(url);
+        return this.authRequest(url);
     },
 
     /**
@@ -437,19 +435,13 @@ const API = {
     },
 
     /**
-     * Reject/delete a user (admin only)
+     * Reject/delete a user (admin only, uses JWT authentication)
      * @param {string} userId - User ID to reject
-     * @param {string} adminUsername - Admin username
-     * @param {string} adminPassword - Admin password
      * @returns {Promise<Object>} Rejection response
      */
-    async adminRejectUser(userId, adminUsername, adminPassword) {
-        return this.request(`/admin/users/${encodeURIComponent(userId)}/reject`, {
+    async adminRejectUser(userId) {
+        return this.authRequest(`/admin/users/${encodeURIComponent(userId)}/reject`, {
             method: 'POST',
-            body: JSON.stringify({
-                admin_username: adminUsername,
-                admin_password: adminPassword,
-            }),
         });
     },
 

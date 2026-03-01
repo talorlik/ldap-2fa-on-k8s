@@ -294,6 +294,12 @@ class AdminActivateRequest(BaseModel):
     group_ids: list[str] = Field(..., min_length=1, description="List of group IDs to assign during activation (at least one required)")
 
 
+class AdminRejectRequest(BaseModel):
+    """Admin user rejection request (supports both JWT and legacy auth)."""
+    admin_username: Optional[str] = Field(None, description="Admin username (legacy auth, optional if JWT provided)")
+    admin_password: Optional[str] = Field(None, description="Admin password (legacy auth, optional if JWT provided)")
+
+
 class AdminActivateResponse(BaseModel):
     """Admin activation response."""
     success: bool = Field(..., description="Whether activation was successful")
@@ -1963,10 +1969,11 @@ async def send_sms_code(
 async def admin_login(
     request: LoginRequest,
     session: AsyncSession = Depends(get_async_session),
+    _: None = Depends(_require_app_active),
 ) -> LoginResponse:
     """Admin login - same as regular login but verifies admin status."""
-    # Use regular login flow
-    response = await login(request, session)
+    # Use regular login flow; pass None for app-active dep (already checked above)
+    response = await login(request, session, None)
 
     if not response.is_admin:
         raise HTTPException(
@@ -1983,26 +1990,12 @@ async def admin_login(
     responses={401: {"description": "Invalid credentials"}, 403: {"description": "Not admin"}},
 )
 async def admin_list_users(
-    admin_username: str,
-    admin_password: str,
     status_filter: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
     session: AsyncSession = Depends(get_async_session),
 ) -> AdminUserListResponse:
-    """List users (admin only)."""
-    # Verify admin credentials
-    ldap_client = LDAPClient()
-    auth_success, _ = ldap_client.authenticate(admin_username, admin_password)
-    if not auth_success:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin credentials",
-        )
-
-    if not ldap_client.is_admin(admin_username):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required",
-        )
+    """List users (admin only, JWT authentication)."""
+    await _require_admin(authorization, session)
 
     # Build query
     query = select(User).options(selectinload(User.mfa_methods))
@@ -2222,26 +2215,49 @@ async def admin_activate_user(
 )
 async def admin_reject_user(
     user_id: str,
-    request: AdminActivateRequest,
+    request: Optional[AdminRejectRequest] = None,
+    authorization: Optional[str] = Header(None),
     session: AsyncSession = Depends(get_async_session),
 ) -> AdminActivateResponse:
-    """Reject and delete a user."""
-    # Verify admin credentials
-    ldap_client = LDAPClient()
-    auth_success, _ = ldap_client.authenticate(
-        request.admin_username, request.admin_password
-    )
-    if not auth_success:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin credentials",
-        )
+    """Reject and delete a user (supports JWT and legacy auth)."""
+    # Use JWT authentication if token provided, otherwise fall back to legacy admin credentials
+    admin_username = None
 
-    if not ldap_client.is_admin(request.admin_username):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required",
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            current = await _get_current_user(authorization, session)
+            if not current["is_admin"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin privileges required",
+                )
+            admin_username = current["username"]
+        except HTTPException as e:
+            if not request or not request.admin_username or not request.admin_password:
+                raise e
+
+    # Fall back to legacy admin credentials if JWT not provided or failed
+    if not admin_username:
+        if not request or not request.admin_username or not request.admin_password:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required. Provide JWT token or admin credentials.",
+            )
+        ldap_client = LDAPClient()
+        auth_success, _ = ldap_client.authenticate(
+            request.admin_username, request.admin_password
         )
+        if not auth_success:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid admin credentials",
+            )
+        if not ldap_client.is_admin(request.admin_username):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin privileges required",
+            )
+        admin_username = request.admin_username
 
     # Get user
     try:
@@ -2265,7 +2281,7 @@ async def admin_reject_user(
     await session.delete(user)
     await session.commit()
 
-    logger.info("User %s rejected/deleted by %s", username, request.admin_username)
+    logger.info("User %s rejected/deleted by %s", username, admin_username)
 
     return AdminActivateResponse(
         success=True,
