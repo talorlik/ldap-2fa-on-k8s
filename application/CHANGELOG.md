@@ -13,6 +13,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
+## [2026-03-01] - App Active State, App Config Endpoint, and Logged-in State Docs
+
+### Added
+
+- **Backend: GET /api/app-config** - Returns application-level state only:
+  `{ isActive, mode }`. `isActive` is the single computed result of the
+  application-active check (APP_ACTIVE config + DB + Redis + LDAP reachable).
+  Frontend fetches this on load to enable/disable the login and signup form and
+  to show a banner when the application is disabled. User-level state
+  (disabled/revoked) is not in app-config; it is enforced on authenticated
+  endpoints.
+- **Backend: APP_ACTIVE config** - Optional env/config input to the
+  application-active check. When `false`, the app returns 503 on auth
+  endpoints; when `true` (default), app is active only if DB, Redis and LDAP
+  are reachable. One application-active mechanism: one computed result
+  (exposed as `isActive`), one optional override (APP_ACTIVE).
+- **Backend: _check_app_active(session)** - Single source of truth for
+  application active; used by `_require_app_active` (auth endpoints) and by
+  GET /api/app-config. Auth endpoints (login/start, login/verify, legacy
+  login) also check DB, Redis and LDAP and return 503 when unreachable.
+- **Frontend: app config on init** - `fetchAppConfig()` and `applyAppConfigUI()`
+  run during init. When `isActive` is false, a banner is shown and the login
+  and signup submit buttons are disabled. On fetch failure, the frontend
+  assumes active so the backend can return 503 if the service is down.
+- **Frontend: app-config banner** - `#app-config-banner` and `.app-config-banner`
+  CSS for the "Application is currently disabled" message.
+
+### Changed
+
+- **Documentation: two "active" concepts** - Application active (appConfig.isActive
+  from GET /api/app-config) vs user active (ProfileStatus; enforced by backend;
+  no separate frontend flag). Logged-in state is documented: JWT in localStorage
+  (API.tokenKey), in-memory App.session, restore in checkSession(), clear in
+  showLoggedOutState(). Backend and frontend READMEs and code comments updated.
+
 ## [2026-03-01] - Frontend Form Submission Refactor
 
 ### Changed

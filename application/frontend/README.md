@@ -74,16 +74,16 @@ The UI is organized into five distinct pages that load at the appropriate time
 in the flow:
 
 | # | Page | When shown | DOM / notes |
-|---|------|------------|-------------|
+| --- | ------ | ------------ | ------------- |
 | 1 | **Login / Signup** (tabbed) | Logged out | `#auth-view`: auth header, `#auth-tabs` (Login / Sign Up), `#login-tab`, `#signup-tab`, `#reset-password-section` |
 | 2 | **2FA method selection / enrollment / authentication** | After login/start when MFA required | `#auth-view` → `#mfa-page`. Content varies: method choice, TOTP setup (QR/secret) if not enrolled, SMS send, then verification code |
 | 3 | **Profile** | Logged in, default | `#app-view` → `#profile-section` |
 | 4 | **Users** (admin only) | Logged in, admin menu | `#app-view` → `#admin-users-section` |
 | 5 | **Groups** (admin only) | Logged in, admin menu | `#app-view` → `#admin-groups-section` |
 
-- **Auth flow**: `#auth-view` is visible when logged out. Page 1 (login/signup) is
-  shown by default; after submitting credentials, page 2 (`#mfa-page`) is shown until
-  verification succeeds or the user clicks Back.
+- **Auth flow**: `#auth-view` is visible when logged out. Page 1 (login/signup)
+  is shown by default; after submitting credentials, page 2 (`#mfa-page`) is
+  shown until verification succeeds or the user clicks Back.
 - **App flow**: When logged in, `#app-view` is visible and one of pages 3–5 is shown
   via the top-bar menu (Profile, User Management, Group Management).
 
@@ -482,6 +482,8 @@ with a separate backend:
 - **Sections**:
   - Top navigation bar (logged-in state)
   - Auth header and tabs (logged-out state)
+  - App-config banner (#app-config-banner), shown when GET /api/app-config
+    returns isActive false
   - Login form
   - Signup form with verification panel
   - Enrollment form
@@ -494,14 +496,28 @@ with a separate backend:
 #### `js/api.js`
 
 - **API Client**: Centralized API communication
-- **JWT Handling**: Token storage in localStorage
+- **JWT Handling**: Token storage in localStorage (key: `API.tokenKey`)
 - **Error Handling**: Custom `APIError` class with status code handling
-- **Methods**: All backend API endpoints wrapped in methods
+- **Methods**: All backend API endpoints wrapped (e.g. `getAppConfig()`,
+  `loginStart()`, `loginVerify()`); see backend API docs for full list
 - **Authentication**: Automatic Bearer token injection for authenticated requests
 
 #### `js/main.js`
 
 - **Application State**: Global `App` object with state management
+- **Two "active" concepts (no duplication)**:
+  - **Application**: `appConfig.isActive` from `GET /api/app-config` (can the service
+    accept logins?). Used only to enable/disable the login and signup buttons.
+  - **User**: No separate flag in the frontend; backend enforces user status
+    (e.g. ProfileStatus ACTIVE/REVOKED). 401/403 on API calls or failed session
+    restore indicate user-level state.
+- **Logged-in state**: Persisted in `localStorage` under `API.tokenKey` (JWT).
+  In-memory copy: `App.session` = `{ username, isAdmin, token }`. On load,
+  `checkSession()` reads the token, decodes the payload (exp, username, is_admin),
+  and if not expired sets `App.session` and calls `showLoggedInState()`. On
+  logout, `showLoggedOutState()` clears `App.session` and `API.clearToken()`.
+  Authenticated API calls use `API.authRequest()`, which sends
+  `Authorization: Bearer <token>` from `API.getToken()`.
 - **Initialization**: `App.init()` sets up non-form event listeners (tabs,
   modals, buttons)
 - **Form Submission**: Forms use inline `onsubmit` handlers with named
@@ -510,7 +526,6 @@ with a separate backend:
   Global handlers call `App.doXxxSubmit()` for async logic and return `false`
   to prevent native form POST.
 - **UI Management**: Show/hide sections, modals, status messages
-- **Session Management**: JWT token validation and session restoration
 - **XSS Protection**: `escapeHtml()` function for safe HTML rendering
 
 #### `css/styles.css`

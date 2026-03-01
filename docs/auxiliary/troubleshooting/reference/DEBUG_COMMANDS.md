@@ -496,6 +496,9 @@ kubectl exec -n "$FA_NS" "$BACKEND_POD" -- python3 -c \
 
 The backend requires Redis for login challenges and SMS OTP storage. If Redis is
 unavailable, login/start and SMS endpoints return 503 "Storage unavailable."
+Auth endpoints can also return 503 when the application is disabled
+(APP_ACTIVE=false) or when DB or LDAP is unreachable; the frontend uses
+GET /api/app-config to read isActive and enable/disable the login form.
 
 #### Step-by-step: Ensure Redis is up and reachable from the backend
 

@@ -13,7 +13,7 @@ from typing import Optional
 import bcrypt
 import jwt
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
-from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from sqlalchemy import select, or_, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -67,6 +67,13 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="Health status")
     service: str = Field(..., description="Service name")
     sms_enabled: bool = Field(..., description="Whether SMS 2FA is enabled")
+
+
+class AppConfigResponse(BaseModel):
+    """Application-level config only. User-level state (e.g. disabled/revoked) is separate."""
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+    is_active: bool = Field(..., description="Application can serve auth (deps healthy)", serialization_alias="isActive")
+    mode: str = Field(default="full", description="full or limited")
 
 
 class SignupRequest(BaseModel):
@@ -717,6 +724,35 @@ async def _require_admin(
     return current
 
 
+async def _check_app_active(session: AsyncSession) -> bool:
+    """Single source of truth for application active: True iff app can serve auth.
+
+    Inputs: APP_ACTIVE (config override), DB, Redis (when enabled), LDAP. There is
+    only one application-active mechanism; its result is used to gate auth (503)
+    and exposed as isActive in GET /api/app-config. User active/disabled is
+    separate (ProfileStatus, enforced on authenticated endpoints).
+    """
+    settings = get_settings()
+    if not settings.app_active:
+        return False
+    try:
+        await session.execute(text("SELECT 1"))
+    except Exception:
+        logger.warning("App active check: database unreachable")
+        return False
+    if settings.redis_enabled and not get_otp_client().is_connected:
+        logger.warning("App active check: Redis unreachable")
+        return False
+    try:
+        ldap_client = LDAPClient()
+        conn = ldap_client._get_admin_connection()
+        conn.unbind()
+    except Exception:
+        logger.warning("App active check: LDAP unreachable")
+        return False
+    return True
+
+
 async def _require_app_active(
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
@@ -730,32 +766,7 @@ async def _require_app_active(
 
     No manual toggle needed: when DB, Redis or LDAP is down, auth endpoints return 503.
     """
-    settings = get_settings()
-    if not settings.app_active:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Application is currently disabled. Please try again later.",
-        )
-    try:
-        await session.execute(text("SELECT 1"))
-    except Exception:
-        logger.warning("App active check: database unreachable")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Application is currently disabled. Please try again later.",
-        )
-    if settings.redis_enabled and not get_otp_client().is_connected:
-        logger.warning("App active check: Redis unreachable")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Application is currently disabled. Please try again later.",
-        )
-    try:
-        ldap_client = LDAPClient()
-        conn = ldap_client._get_admin_connection()
-        conn.unbind()
-    except Exception:
-        logger.warning("App active check: LDAP unreachable")
+    if not await _check_app_active(session):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Application is currently disabled. Please try again later.",
@@ -802,6 +813,23 @@ async def health_check() -> HealthResponse:
         status="healthy",
         service=settings.app_name,
         sms_enabled=settings.enable_sms_2fa,
+    )
+
+
+@router.get("/app-config", response_model=AppConfigResponse)
+async def get_app_config(
+    session: AsyncSession = Depends(get_async_session),
+) -> AppConfigResponse:
+    """Return application-level state only (isActive, mode). User-level state (e.g.
+    disabled/revoked) is not here; it is enforced on authenticated endpoints (profile
+    status) and in the JWT/session. Frontend uses this on load to enable/disable the
+    login form. is_active is True only when DB, Redis and LDAP are reachable and
+    APP_ACTIVE is true.
+    """
+    is_active = await _check_app_active(session)
+    return AppConfigResponse(
+        is_active=is_active,
+        mode="full" if is_active else "limited",
     )
 
 

@@ -125,7 +125,8 @@ system administration
 - **`mfa/totp.py`**: TOTP generation and verification logic
 - **`sms/client.py`**: AWS SNS integration for SMS delivery
 - **`email/client.py`**: AWS SES integration for email delivery
-- **`redis/client.py`**: Redis client for OTP and login challenge storage (shared across replicas)
+- **`redis/client.py`**: Redis client for OTP and login challenge storage
+(shared across replicas)
 
 ## Installation
 
@@ -346,7 +347,7 @@ with only a password (no full URL in the secret).
 | Variable | Default | Description |
 | ---------- | --------- | ------------- |
 | `APP_NAME` | `LDAP 2FA Backend API` | Application name |
-| `APP_ACTIVE` | `true` | When `false`, auth endpoints always return 503 (manual override). When `true` (default), **active is set automatically**: the app is considered active only if PostgreSQL, LDAP (admin bind), and (when `REDIS_ENABLED`) Redis are reachable; otherwise login returns 503. No manual toggle needed for dependency-based behaviour. |
+| `APP_ACTIVE` | `true` | Config input to the single application-active check: when `false`, app is disabled (503). When `true`, app is active only if DB, Redis and LDAP are reachable. The result is exposed as `isActive` in GET /api/app-config (one mechanism: one computed result). User active/disabled is separate (profile status). |
 | `DEBUG` | `false` | Enable debug mode |
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
 | `JWT_EXPIRY_MINUTES` | `60` | JWT token expiration time (default session) |
@@ -422,9 +423,14 @@ then save profile again.
 - `DELETE /api/admin/users/{user_id}/groups/{group_id}` - Remove user from group
 - `DELETE /api/admin/users/{user_id}/revoke` - Revoke user access
 
-### Health Check
+### Health and App Config
 
 - `GET /api/healthz` - Health check endpoint for Kubernetes
+- `GET /api/app-config` - Returns application-level state only:
+`{ isActive, mode }`. `isActive` is true when DB, Redis and LDAP are reachable
+and `APP_ACTIVE` is true. User-level state (e.g. disabled/revoked) is not in
+app-config; it is enforced on authenticated endpoints. Frontend uses this on
+load to enable or disable the login/signup form.
 
 For detailed API documentation, visit `/api/docs` when the server is running.
 

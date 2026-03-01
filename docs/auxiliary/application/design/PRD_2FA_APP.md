@@ -62,6 +62,7 @@ All endpoints must be served under the `/api` prefix (no path rewriting).
 | Method | Endpoint | Description |
 | -------- | ---------- | ------------- |
 | `GET` | `/api/healthz` | Liveness/readiness probe (includes SMS status) |
+| `GET` | `/api/app-config` | Application-level state only: `{ isActive, mode }`. `isActive` is true when APP_ACTIVE and DB, Redis, LDAP are reachable. Frontend uses on load to enable/disable login form. User active/disabled is separate (profile status). |
 | `GET` | `/api/mfa/methods` | List available MFA methods (TOTP, SMS if enabled) |
 | `GET` | `/api/mfa/status/{username}` | Get user's MFA enrollment status |
 | `POST` | `/api/auth/login/start` | Step 1: Validate username/password; optional `remember_me` for longer-lived JWT; returns challenge_token, totp_enrolled, sms_available |

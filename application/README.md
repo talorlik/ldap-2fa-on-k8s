@@ -240,6 +240,7 @@ selection → MFA verification)
 | Method | Endpoint | Description |
 | -------- | ---------- | ------------- |
 | `GET` | `/api/healthz` | Liveness/readiness probe |
+| `GET` | `/api/app-config` | Application-level state: `{ isActive, mode }`. Frontend uses on load to enable/disable login form. User state is separate (enforced on auth endpoints). |
 | `GET` | `/api/mfa/methods` | List available MFA methods |
 | `GET` | `/api/mfa/status/{username}` | Get user's MFA enrollment status |
 | `POST` | `/api/auth/login/start` | Step 1: Validate username/password (optional `remember_me`); returns challenge token and MFA options (totp_enrolled, sms_available) |
@@ -290,6 +291,8 @@ port 8080)
 - **Security**: Non-root container execution reduces attack surface
 - **Features**:
   - Modern, responsive UI
+  - Fetches GET /api/app-config on load (isActive, mode) to enable/disable login
+  and signup form and show a banner when the application is disabled
   - Self-service signup form with validation
   - Email/phone verification status panel
   - Two-step login: Login and Sign Up tabs only; after username/password, MFA step

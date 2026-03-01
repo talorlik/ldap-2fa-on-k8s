@@ -35,6 +35,10 @@ function statusToMessage(status) {
     return map[status];
 }
 
+/**
+ * Logged-in state: JWT stored in localStorage under tokenKey; in-memory session
+ * (username, isAdmin) is in App.session (main.js). Restore on load via checkSession().
+ */
 const API = {
     /**
      * Base API path
@@ -42,7 +46,7 @@ const API = {
     basePath: '/api',
 
     /**
-     * JWT token storage key
+     * localStorage key for JWT (logged-in state persistence)
      */
     tokenKey: 'ldap2fa_token',
 
@@ -150,6 +154,14 @@ const API = {
      */
     async healthCheck() {
         return this.request('/healthz');
+    },
+
+    /**
+     * Get application-level config (isActive, mode). User state is separate (session).
+     * @returns {Promise<Object>} { isActive, mode }
+     */
+    async getAppConfig() {
+        return this.request('/app-config');
     },
 
     /**

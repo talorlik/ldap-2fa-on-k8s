@@ -226,7 +226,9 @@ admin user
 - **Symptom:** Login and MFA endpoints return 503 "Storage unavailable"
 - **Error:** `NOAUTH Authentication required` or Redis connection errors
 - **Impact:** All login flows fail (login/start and verify require Redis); SMS OTP
-  also fails when SMS 2FA is enabled
+  also fails when SMS 2FA is enabled. The backend also returns 503 when
+  APP_ACTIVE is false or when DB or LDAP is unreachable; GET /api/app-config
+  exposes isActive so the frontend can show a disabled state.
 
 ### Missing secrets in PostgreSQL/Redis namespaces
 

@@ -53,6 +53,11 @@
             <p class="subtitle">Secure two-factor authentication for your LDAP account</p>
         </header>
 
+        <!-- Shown when backend reports app disabled (isActive: false) -->
+        <div id="app-config-banner" class="app-config-banner hidden" role="alert">
+            Application is currently disabled. Please try again later.
+        </div>
+
         <!-- Tab Navigation (pre-login) -->
         <nav id="auth-tabs" class="tabs">
             <button class="tab-btn active" data-tab="login">Login</button>

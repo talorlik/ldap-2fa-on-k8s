@@ -30,6 +30,7 @@ LDAP 2FA Frontend has been deployed!
 
 3. The frontend communicates with the backend via relative URLs:
    - /api/healthz - Health check
+   - /api/app-config - Application state (isActive, mode); used on load to enable/disable login form
    - /api/auth/login/start - Step 1 login (optional remember_me)
    - /api/auth/login/totp-setup - TOTP setup when not enrolled
    - /api/auth/login/verify - Step 2 MFA verification

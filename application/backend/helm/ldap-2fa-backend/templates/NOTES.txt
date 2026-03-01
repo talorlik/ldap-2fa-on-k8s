@@ -24,6 +24,7 @@ LDAP 2FA Backend API has been deployed!
 
 2. API Endpoints (two-step login):
    - Health Check:     GET  /api/healthz
+   - App config:       GET  /api/app-config        (isActive, mode; frontend uses on load)
    - Login step 1:     POST /api/auth/login/start   (username, password, optional remember_me)
    - TOTP setup:       POST /api/auth/login/totp-setup (challenge_token, when not enrolled)
    - Login step 2:     POST /api/auth/login/verify (challenge_token, mfa_method, verification_code)

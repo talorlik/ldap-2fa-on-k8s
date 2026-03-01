@@ -23,12 +23,20 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+/**
+ * Two distinct "active" concepts (no duplication):
+ * - Application: appConfig.isActive from GET /api/app-config (can the service accept logins?).
+ * - User: enforced by backend (ProfileStatus ACTIVE/REVOKED); frontend has no separate
+ *   user-active flag; 401/403 from API or session restore failure indicate user state.
+ */
 const App = {
     // State
     smsEnabled: false,
     userMfaMethod: null,
     currentUser: null, // Store current signup user for verification
-    session: null, // Store logged in session { username, isAdmin, token }
+    /** Logged-in user state: { username, isAdmin, token }. Persisted via localStorage
+     *  (API.tokenKey); restored in checkSession(), cleared in showLoggedOutState(). */
+    session: null,
     groups: [], // Cache of groups for admin
     users: [], // Cache of users for admin
     sortState: { field: 'created_at', order: 'desc' },
@@ -36,6 +44,8 @@ const App = {
     loginChallenge: null, // { challenge_token, totp_enrolled, sms_available }
     // Pending profile verification (after request-phone-change; show enter-code row until verified)
     pendingVerifyPhone: false,
+    // Application-level only: GET /api/app-config (isActive, mode). Drives login/signup button.
+    appConfig: null,
 
     /**
      * Remove login credentials from the URL so they never appear in Referer or
@@ -83,6 +93,10 @@ const App = {
         // Check if SMS is enabled
         await this.checkMfaMethods();
 
+        // Fetch app config (isActive) so we can enable/disable login UI
+        await this.fetchAppConfig();
+        this.applyAppConfigUI();
+
         // Check for email verification token in URL
         this.checkEmailVerificationToken();
 
@@ -91,7 +105,45 @@ const App = {
     },
 
     /**
-     * Check for existing session from stored token
+     * Fetch app config from backend (isActive, mode). On failure assume active so
+     * backend can return 503 if really down.
+     */
+    async fetchAppConfig() {
+        try {
+            this.appConfig = await API.getAppConfig();
+        } catch (_) {
+            this.appConfig = { isActive: true, mode: 'full' };
+        }
+    },
+
+    /**
+     * Apply app config to UI: show banner and disable login/signup when isActive false.
+     */
+    applyAppConfigUI() {
+        const banner = document.getElementById('app-config-banner');
+        const loginSubmit = document.querySelector('#login-form button[type="submit"]');
+        const signupSubmit = document.querySelector('#signup-form button[type="submit"]');
+        const active = this.appConfig && (this.appConfig.isActive ?? this.appConfig.is_active) !== false;
+        if (banner) {
+            if (active) {
+                banner.classList.add('hidden');
+            } else {
+                banner.classList.remove('hidden');
+            }
+        }
+        if (loginSubmit) {
+            loginSubmit.disabled = !active;
+        }
+        if (signupSubmit) {
+            signupSubmit.disabled = !active;
+        }
+    },
+
+    /**
+     * Restore logged-in state from persisted JWT. Token is in localStorage (API.tokenKey);
+     * we decode payload to get username/is_admin and set App.session, then show app view.
+     * Expired tokens are cleared. User-level disabled/revoked is enforced by the backend
+     * (401/403 on subsequent API calls).
      */
     checkSession() {
         const token = API.getToken();
