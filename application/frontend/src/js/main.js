@@ -566,13 +566,14 @@ const App = {
             form.classList.add('hidden');
             this.showMfaStepPanel();
         } catch (error) {
+            const message = (error && error.message) || 'Login failed. Please try again.';
             resultContainer.innerHTML = `
                 <h3>❌ Login Failed</h3>
-                <p>${escapeHtml(error.message)}</p>
+                <p>${escapeHtml(message)}</p>
             `;
             resultContainer.className = 'result-container error';
             resultContainer.classList.remove('hidden');
-            this.showStatus(error.message, 'error');
+            this.showStatus(message, 'error');
         } finally {
             submitBtn.classList.remove('loading');
             submitBtn.disabled = false;

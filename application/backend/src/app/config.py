@@ -119,6 +119,7 @@ class Settings(BaseSettings):
 
     # Application Configuration
     app_name: str = os.getenv("APP_NAME", "LDAP 2FA Backend API")
+    app_active: bool = os.getenv("APP_ACTIVE", "true").lower() in ("true", "1", "yes")
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
 

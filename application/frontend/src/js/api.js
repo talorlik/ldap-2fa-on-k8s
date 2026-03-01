@@ -3,6 +3,38 @@
  * Uses relative URLs to work with single-domain routing pattern
  */
 
+/**
+ * Turn FastAPI detail (string or list of validation errors) into a single message.
+ * @param {string|Array<{msg?: string}>|undefined} detail
+ * @returns {string|undefined}
+ */
+function formatErrorDetail(detail) {
+    if (detail == null) return undefined;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail) && detail.length > 0) {
+        const first = detail[0];
+        return (first && typeof first.msg === 'string') ? first.msg : String(first);
+    }
+    return undefined;
+}
+
+/**
+ * User-friendly message for HTTP status when body has no detail.
+ * @param {number} status
+ * @returns {string|undefined}
+ */
+function statusToMessage(status) {
+    const map = {
+        503: 'Service temporarily unavailable. Please try again later.',
+        502: 'Server is temporarily unavailable. Please try again.',
+        504: 'Request timed out. Please try again.',
+        500: 'An internal error occurred. Please try again later.',
+        403: 'Access denied.',
+        401: 'Invalid credentials or session expired.',
+    };
+    return map[status];
+}
+
 const API = {
     /**
      * Base API path
@@ -75,23 +107,28 @@ const API = {
 
         try {
             const response = await fetch(url, mergedOptions);
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new APIError(
-                    data.detail || 'An error occurred',
-                    response.status,
-                    data
-                );
+            const text = await response.text();
+            let data = null;
+            try {
+                data = text ? JSON.parse(text) : null;
+            } catch (_) {
+                /* response was not JSON (e.g. HTML error page) */
             }
 
-            return data;
+            if (!response.ok) {
+                const message = formatErrorDetail(data?.detail) ||
+                    statusToMessage(response.status) ||
+                    'An error occurred';
+                throw new APIError(message, response.status, data);
+            }
+
+            return data ?? {};
         } catch (error) {
             if (error instanceof APIError) {
                 throw error;
             }
 
-            // Network or other errors
+            // Network or other errors (e.g. CORS, parse failure)
             throw new APIError(
                 error.message || 'Network error. Please check your connection.',
                 0,

@@ -346,6 +346,7 @@ with only a password (no full URL in the secret).
 | Variable | Default | Description |
 | ---------- | --------- | ------------- |
 | `APP_NAME` | `LDAP 2FA Backend API` | Application name |
+| `APP_ACTIVE` | `true` | When `false`, auth endpoints always return 503 (manual override). When `true` (default), **active is set automatically**: the app is considered active only if PostgreSQL, LDAP (admin bind), and (when `REDIS_ENABLED`) Redis are reachable; otherwise login returns 503. No manual toggle needed for dependency-based behaviour. |
 | `DEBUG` | `false` | Enable debug mode |
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
 | `JWT_EXPIRY_MINUTES` | `60` | JWT token expiration time (default session) |

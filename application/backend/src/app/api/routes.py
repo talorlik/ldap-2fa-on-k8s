@@ -14,7 +14,7 @@ import bcrypt
 import jwt
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, or_, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -717,6 +717,51 @@ async def _require_admin(
     return current
 
 
+async def _require_app_active(
+    session: AsyncSession = Depends(get_async_session),
+) -> None:
+    """Raise 503 if the application is disabled or dependencies are unhealthy.
+
+    Active is determined automatically by:
+    - APP_ACTIVE env (default true): when false, always 503.
+    - DB reachable: quick SELECT 1 check.
+    - Redis reachable when REDIS_ENABLED: required for login challenge storage.
+    - LDAP reachable: admin bind check (required for authentication).
+
+    No manual toggle needed: when DB, Redis or LDAP is down, auth endpoints return 503.
+    """
+    settings = get_settings()
+    if not settings.app_active:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Application is currently disabled. Please try again later.",
+        )
+    try:
+        await session.execute(text("SELECT 1"))
+    except Exception:
+        logger.warning("App active check: database unreachable")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Application is currently disabled. Please try again later.",
+        )
+    if settings.redis_enabled and not get_otp_client().is_connected:
+        logger.warning("App active check: Redis unreachable")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Application is currently disabled. Please try again later.",
+        )
+    try:
+        ldap_client = LDAPClient()
+        conn = ldap_client._get_admin_connection()
+        conn.unbind()
+    except Exception:
+        logger.warning("App active check: LDAP unreachable")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Application is currently disabled. Please try again later.",
+        )
+
+
 async def _send_admin_notification(user: User) -> None:
     """Send notification email to admins about new user signup."""
     try:
@@ -1409,11 +1454,13 @@ async def enroll(
     responses={
         401: {"description": "Invalid credentials"},
         403: {"description": "Profile incomplete or not activated"},
+        503: {"description": "Application disabled or storage unavailable"},
     },
 )
 async def login_start(
     request: LoginStartRequest,
     session: AsyncSession = Depends(get_async_session),
+    _: None = Depends(_require_app_active),
 ) -> LoginStartResponse:
     """
     Step 1: Validate username and password. Returns a challenge token and MFA options.
@@ -1537,11 +1584,15 @@ async def login_totp_setup(
 @router.post(
     "/auth/login/verify",
     response_model=LoginResponse,
-    responses={401: {"description": "Invalid or expired challenge or verification code"}},
+    responses={
+        401: {"description": "Invalid or expired challenge or verification code"},
+        503: {"description": "Application disabled or storage unavailable"},
+    },
 )
 async def login_verify(
     request: LoginVerifyRequest,
     session: AsyncSession = Depends(get_async_session),
+    _: None = Depends(_require_app_active),
 ) -> LoginResponse:
     """
     Step 2: Verify MFA code and return JWT. Consumes the challenge token.
@@ -1632,11 +1683,13 @@ async def login_verify(
     responses={
         401: {"description": "Invalid credentials"},
         403: {"description": "Profile incomplete or not activated"},
+        503: {"description": "Application disabled or storage unavailable"},
     },
 )
 async def login(
     request: LoginRequest,
     session: AsyncSession = Depends(get_async_session),
+    _: None = Depends(_require_app_active),
 ) -> LoginResponse:
     """
     Authenticate user with username, password, and verification code (legacy one-step).
