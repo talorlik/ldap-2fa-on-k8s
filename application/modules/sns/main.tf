@@ -42,7 +42,7 @@ data "external" "sender_id_arn" {
       exit 0
     fi
 
-    ENV_LOWER=$(echo "${var.env}" | tr '[:upper:]' '[:lower:]')
+    ENV_LOWER="$(echo "${var.env}" | tr '[:upper:]' '[:lower:]')"
     if [ "$ENV_LOWER" = "prod" ]; then
       ACCOUNT_TYPE="prod"
     else
@@ -57,7 +57,7 @@ data "external" "sender_id_arn" {
     if [ ! -x "$SCRIPT_PATH" ]; then
       ERR="assume_script_not_found"
     else
-      TMP=$(mktemp 2>/dev/null || echo "/tmp/sender_id_assume_$$")
+      TMP="$(mktemp 2>/dev/null || echo "/tmp/sender_id_assume_$$")"
       set +e
       source "$SCRIPT_PATH" "$ACCOUNT_TYPE" >"$TMP" 2>&1
       SCRIPT_RC=$?
@@ -67,15 +67,21 @@ data "external" "sender_id_arn" {
       if [ -n "$SCRIPT_ERROR_CHECK" ] && echo "$SCRIPT_ERROR_CHECK" | grep -q 'SCRIPT_ERROR=true'; then
         SCRIPT_ERROR_MSG_CHECK=$(env | grep '^SCRIPT_ERROR_MSG=' || echo "")
         MSG=$(echo "$SCRIPT_ERROR_MSG_CHECK" | sed 's/^SCRIPT_ERROR_MSG=//' || echo "")
-        [ -z "$MSG" ] && MSG=$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)
+        if [ -z "$MSG" ]; then
+          MSG="$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)"
+        fi
         ERR="failed_to_assume_role:$${MSG}"
       else
         AWS_AKID_CHECK=$(env | grep '^AWS_ACCESS_KEY_ID=' || echo "")
         AWS_SAK_CHECK=$(env | grep '^AWS_SECRET_ACCESS_KEY=' || echo "")
         AWS_ST_CHECK=$(env | grep '^AWS_SESSION_TOKEN=' || echo "")
         if [ -z "$AWS_AKID_CHECK" ] || [ -z "$AWS_SAK_CHECK" ] || [ -z "$AWS_ST_CHECK" ]; then
-          MSG=$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)
-          ERR="failed_to_assume_role_exit_$${SCRIPT_RC}:$${MSG}"
+          MSG="$(head -c 400 "$TMP" 2>/dev/null | tr -d '\n\r' || true)"
+          if [ -n "$MSG" ]; then
+            ERR="failed_to_assume_role_exit_$${SCRIPT_RC}:$${MSG}"
+          else
+            ERR="failed_to_assume_role_exit_$${SCRIPT_RC}_no_output"
+          fi
         fi
       fi
       rm -f "$TMP" 2>/dev/null || true
@@ -83,7 +89,7 @@ data "external" "sender_id_arn" {
 
     if [ -z "$ERR" ]; then
       ARN=$(aws pinpoint-sms-voice-v2 describe-sender-ids \
-        --sender-ids "SenderId=${SENDER_ID},IsoCountryCode=${COUNTRY_CODE}" \
+        --sender-ids "SenderId=$SENDER_ID,IsoCountryCode=$COUNTRY_CODE" \
         --region "$REGION" \
         --no-paginate \
         --query 'SenderIds[0].SenderIdArn' \
@@ -95,7 +101,11 @@ data "external" "sender_id_arn" {
       fi
     fi
 
-    jq -n --arg arn "$ARN" --arg found "$FOUND" --arg err "$ERR" '{arn:$arn,found:$found,error:$err}'
+    jq -n \
+      --arg arn "$ARN" \
+      --arg found "$FOUND" \
+      --arg error "$ERR" \
+      '{arn:$arn,found:$found,error:$error}'
     exit 0
   EOT
   ]
