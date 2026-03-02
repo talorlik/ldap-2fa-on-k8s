@@ -78,12 +78,12 @@ variable "openldap_admin_password" {
 
 variable "openldap_secret_name" {
   description = <<-EOT
-    Name of the Kubernetes secret containing OpenLDAP admin password in the ldap namespace. 
-    The backend will read the password from this secret to ensure consistency with OpenLDAP deployment. 
-    If this secret exists, its password will be used instead of openldap_admin_password variable. 
+    Name of the Kubernetes secret containing OpenLDAP admin password in the ldap namespace.
+    The backend will read the password from this secret to ensure consistency with OpenLDAP deployment.
+    If this secret exists, its password will be used instead of openldap_admin_password variable.
     If empty, falls back to openldap_admin_password variable.
-    
-    Note: Cross-namespace secret reading works because Terraform uses the Kubernetes API (not pod-to-pod 
+
+    Note: Cross-namespace secret reading works because Terraform uses the Kubernetes API (not pod-to-pod
     communication), and the provider authenticates with cluster-admin permissions via EKS cluster auth.
   EOT
   type        = string

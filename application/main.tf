@@ -260,11 +260,11 @@ module "sns" {
   service_account_namespace = var.argocd_app_backend_namespace
   service_account_name      = "ldap-2fa-backend"
 
-  configure_sms_preferences  = var.configure_sms_preferences
-  sms_sender_id              = var.sms_sender_id
-  sms_sender_country_code    = var.sms_sender_country_code
-  sms_type                   = var.sms_type
-  sms_monthly_spend_limit    = var.sms_monthly_spend_limit
+  configure_sms_preferences = var.configure_sms_preferences
+  sms_sender_id             = var.sms_sender_id
+  sms_sender_country_code   = var.sms_sender_country_code
+  sms_type                  = var.sms_type
+  sms_monthly_spend_limit   = var.sms_monthly_spend_limit
 
   tags = local.tags
 }

@@ -37,9 +37,9 @@ enable_sms_2fa = true
 
 # SNS configuration (direct SMS - no topic)
 sns_iam_role_name         = "2fa-sns-publisher"
-configure_sms_preferences  = false
+configure_sms_preferences = false
 sms_sender_id             = "TALORLIKAWS"
-sms_sender_country_code   = "IL"  # ISO 3166-1 alpha-2; must match sender ID registration
+sms_sender_country_code   = "IL" # ISO 3166-1 alpha-2; must match sender ID registration
 sms_type                  = "Transactional"
 sms_monthly_spend_limit   = 100
 

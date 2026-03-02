@@ -1,9 +1,15 @@
 #!/usr/bin/env sh
 # Fetches the ARN of an SMS Sender ID from AWS End User Messaging (Pinpoint SMS Voice V2).
-# Used by Terraform external data source to validate sender ID exists and get its ARN.
+# For manual testing only. Terraform uses inline bash with assume-github-role.sh (see
+# modules/sns/main.tf) to fetch credentials from env or Secrets Manager.
+#
 # Input (JSON on stdin): {"sender_id":"TALO2FA","country_code":"IL","region":"us-east-1"}
 # Output (JSON on stdout): {"arn":"arn:aws:sms-voice:...","found":"true"} or {"arn":"","found":"false"}
 # Note: external data source requires all values to be strings.
+#
+# Manual use (requires jq, aws; uses current AWS credentials):
+#   echo '{"sender_id":"TALORLIKAWS","country_code":"IL","region":"us-east-1"}' | ./get-sender-id-arn.sh
+# For cross-account: from repo root, source scripts/assume-github-role.sh prod first.
 
 set -e
 QUERY=$(cat)
