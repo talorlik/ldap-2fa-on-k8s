@@ -260,6 +260,7 @@
                             <tr><td>Route53 Hosted Zone</td><td>✓</td><td></td></tr>
                             <tr><td>Route53 DNS records (incl. ACM validation CNAMEs)</td><td>✓</td><td></td></tr>
                             <tr><td>ACM Certificate (requested, validated, stored)</td><td></td><td>✓ (each dev/prod)</td></tr>
+                            <tr><td>SMS Sender ID (when using SMS 2FA)</td><td></td><td>✓ (each dev/prod)</td></tr>
                             <tr><td>EKS, VPC, ALB, ECR, application resources</td><td></td><td>✓</td></tr>
                         </tbody>
                     </table>
@@ -269,6 +270,7 @@
                 <li><strong>AWS SSO/OIDC</strong> configured (see <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/README.md#github-repository-configuration">GitHub Repository Configuration</a>)</li>
                 <li><strong>Domain and DNS (Account A)</strong>: Route53 hosted zone for your domain must exist in the State Account. All DNS records (including ACM validation CNAMEs) are created here.</li>
                 <li><strong>ACM certificates (Account B)</strong>: Request a public ACM certificate in each Deployment Account. Validation uses CNAME records in Account A's Route53. Certificate must be in <code>ISSUED</code> status and in the same region as the EKS cluster. See <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation">Public ACM Certificate Setup and DNS Validation</a> for step-by-step AWS CLI commands.</li>
+                <li><strong>SMS (Account B, when using SMS 2FA)</strong>: (1) <strong>SMS Sandbox</strong>: New SNS accounts are in the SMS sandbox. Add and verify destination phone numbers in SNS Console &gt; Text messaging (SMS) &gt; Sandbox destination phone numbers, or request <strong>Exit SMS Sandbox</strong> for production. See <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/SMS_SANDBOX.md">SMS Sandbox</a>. (2) <strong>Sender ID</strong>: Request an SMS Sender ID in AWS End User Messaging per deployment account and share with SNS. See <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/SMS_SENDER_ID_SETUP.md">SMS Sender ID Setup</a>.</li>
                 <li><strong>GitHub Secrets and Variables</strong> configured (see <a href="https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/reference/SECRETS_REQUIREMENTS.md">Secrets Requirements</a> for complete details):
                     <ul>
                         <li><strong>Required Secrets:</strong>
@@ -557,9 +559,9 @@ echo "Redis Host: ${REDIS_HOST}:${REDIS_PORT}"
 SES_SENDER_EMAIL=$(terraform output -raw ses_sender_email)
 echo "SES Sender: ${SES_SENDER_EMAIL}"
 
-# Get SNS topic ARN (if SMS 2FA is enabled)
-SNS_TOPIC_ARN=$(terraform output -raw sns_topic_arn 2>/dev/null || echo "")
-echo "SNS Topic ARN: ${SNS_TOPIC_ARN}"</code></pre>
+# Get SMS sender ID (if SMS 2FA is enabled)
+SMS_SENDER_ID=$(terraform output -raw sms_sender_id 2>/dev/null || echo "2FA")
+echo "SMS Sender ID: ${SMS_SENDER_ID}"</code></pre>
                 <p><strong>5.3: Create Namespace</strong></p>
                 <pre><code>kubectl create namespace 2fa-app</code></pre>
                 <p><strong>5.4: Deploy Backend Application</strong></p>
@@ -608,11 +610,11 @@ email:
   senderEmail: "${SES_SENDER_EMAIL}"
   appUrl: "https://${HOSTNAME}"
 
-# SMS configuration (if enabled)
+# SMS configuration (if enabled; direct SMS - no topic)
 sms:
   enabled: true  # Set to false if SMS 2FA is not enabled
   awsRegion: "${REGION}"
-  snsTopicArn: "${SNS_TOPIC_ARN}"
+  senderId: "${SMS_SENDER_ID}"
 
 # Redis configuration (if SMS is enabled)
 redis:

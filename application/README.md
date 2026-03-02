@@ -144,7 +144,7 @@ including topic creation, IRSA configuration, and SMS preferences.
 **Features:**
 
 - IRSA (IAM Roles for Service Accounts) for backend service account
-- SNS topic creation
+- SNS IAM role for direct SMS
 - SMS preferences configuration
 - Configurable monthly spend limits
 
@@ -477,7 +477,6 @@ accidental state conflicts or overwrites.
 #### SNS Variables
 
 - `enable_sms_2fa`: Enable SMS 2FA resources (default: `false`)
-- `sns_topic_name`: SNS topic name component
 - `sns_iam_role_name`: IAM role name for SNS access
 - `sms_monthly_spend_limit`: Monthly SMS budget
 
@@ -629,7 +628,7 @@ The application provides the following outputs:
 - PostgreSQL: `postgresql_host`, `postgresql_connection_url`, `postgresql_database`
 - Redis: `redis_host`, `redis_port`, `redis_namespace`, `redis_password_secret_name`
 - SES: `ses_sender_email`, `ses_iam_role_arn`, `ses_verification_status`
-- SNS: `sns_topic_arn`, `sns_topic_name`, `sns_iam_role_arn`
+- SNS: `sns_iam_role_arn`, `sms_sender_id`, `sms_sender_id_arn`
 - ArgoCD Applications: `argocd_backend_app_name`, `argocd_frontend_app_name`
 - ALB (from application_infra state): `alb_load_balancer_name`, `alb_ingress_class_name`
 (for manual Helm or scripting; ArgoCD apps receive these via Helm parameters automatically)
@@ -731,9 +730,8 @@ kubectl exec -it -n redis redis-master-0 -- redis-cli -a $REDIS_PASSWORD KEYS "*
 # Check SES identity status
 aws ses get-identity-verification-attributes --identities ${domain_name}
 
-# Check SNS topic
-aws sns list-topics
-aws sns get-topic-attributes --topic-arn <topic-arn>
+# Verify SNS access (direct SMS - no topic)
+aws sns get-sms-attributes
 
 # Check ArgoCD applications
 kubectl get application -n argocd

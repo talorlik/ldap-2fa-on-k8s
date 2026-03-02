@@ -35,12 +35,11 @@ ses_sender_domain         = "talorlik.com"
 # Enable SMS-based 2FA using AWS SNS
 enable_sms_2fa = true
 
-# SNS configuration
-sns_topic_name            = "2fa-sms"
-sns_display_name          = "TALO LDAP 2FA Verification"
+# SNS configuration (direct SMS - no topic)
 sns_iam_role_name         = "2fa-sns-publisher"
-configure_sms_preferences = false
-sms_sender_id             = "TALO2FA"
+configure_sms_preferences  = false
+sms_sender_id             = "TALORLIKAWS"
+sms_sender_country_code   = "IL"  # ISO 3166-1 alpha-2; must match sender ID registration
 sms_type                  = "Transactional"
 sms_monthly_spend_limit   = 100
 

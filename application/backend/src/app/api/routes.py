@@ -1931,7 +1931,7 @@ async def send_sms_code(
     sms_client = _get_sms_client()
     code = _generate_verification_code(settings.sms_code_length)
 
-    success, message, _ = sms_client.send_verification_code(
+    success, message, message_id = sms_client.send_verification_code(
         user.full_phone_number, code
     )
 
@@ -1961,7 +1961,11 @@ async def send_sms_code(
             detail="Failed to store verification code. Please try again.",
         )
 
-    logger.info("SMS code sent to user %s", user.username)
+    logger.info(
+        "SMS code sent to user %s (MessageId: %s)",
+        user.username,
+        message_id or "(none)",
+    )
 
     return SMSSendCodeResponse(
         success=True,

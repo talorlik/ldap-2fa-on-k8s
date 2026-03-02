@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > (OpenLDAP, ALB, Route53, ArgoCD Capability) are documented in
 > [application_infra/CHANGELOG](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/application_infra/CHANGELOG.md).
 
+## [Unreleased]
+
+### Changed
+
+- **SNS: Direct SMS only (no topic)** - The application uses Direct SMS
+  (`sns:Publish` with `PhoneNumber`) for one-off verification codes. SNS topics
+  are for broadcasting to multiple subscribers and are not needed. Removed: SNS
+  topic, topic policy, subscribe/unsubscribe methods, `SNS_TOPIC_ARN` config.
+  IAM policy simplified to direct publish and opt-out check. Terraform variables
+  `sns_topic_name`, `sns_display_name` removed.
+
 ## [2026-03-01] - 2FA Flow: First-Login Choice, SMS Enrollment, Multiple Methods
 
 ### Fixed

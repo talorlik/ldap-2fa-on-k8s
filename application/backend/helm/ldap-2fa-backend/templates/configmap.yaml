@@ -43,7 +43,6 @@ data:
   # SMS/SNS Configuration
   ENABLE_SMS_2FA: {{ .Values.sms.enabled | quote }}
   AWS_REGION: {{ .Values.sms.awsRegion | quote }}
-  SNS_TOPIC_ARN: {{ .Values.sms.snsTopicArn | quote }}
   SMS_SENDER_ID: {{ .Values.sms.senderId | quote }}
   SMS_TYPE: {{ .Values.sms.smsType | quote }}
   SMS_CODE_LENGTH: {{ .Values.sms.codeLength | quote }}

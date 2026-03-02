@@ -126,7 +126,7 @@ For full investigation and fixes, see [LDAP and Admin-Seed](https://github.com/t
 
 ## SMS 2FA Not Working
 
-- Verify SNS topic: `aws sns list-topics`
+- Verify SNS access: `aws sns get-sms-attributes`
 - Check IAM role permissions and VPC endpoints for SNS and STS.
 - Check backend logs for SNS errors; verify phone number format (E.164).
 

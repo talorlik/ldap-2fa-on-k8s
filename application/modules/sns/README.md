@@ -5,16 +5,14 @@ of the 2FA application.
 
 ## Features
 
-- **SNS Topic**: Central topic for SMS notifications
+- **Direct SMS**: Sends SMS directly to phone numbers (no SNS topic required)
 - **IAM Role (IRSA)**: Enables EKS pods to publish to SNS using service account
-- **Direct SMS Support**: Allows publishing SMS directly to phone numbers
-- **Subscription Management**: Supports subscribing/unsubscribing phone numbers
 
 ## Architecture
 
 ```text
 ┌─────────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Backend Pod        │────▶│  SNS Topic       │────▶│  SMS Gateway    │
+│  Backend Pod        │────▶│  SNS (Direct SMS)│────▶│  SMS Gateway    │
 │  (with IRSA)        │     │  (2FA Messages)  │     │                 │
 └─────────────────────┘     └──────────────────┘     └─────────────────┘
         │                            │
@@ -37,8 +35,6 @@ module "sns" {
   prefix       = var.prefix
   cluster_name = local.cluster_name
 
-  sns_topic_name            = "2fa-sms"
-  sns_display_name          = "2FA Verification"
   service_account_namespace = "2fa-app"
   service_account_name      = "ldap-2fa-backend"
 
@@ -69,7 +65,12 @@ The IAM role is configured for IAM Roles for Service Accounts (IRSA). To use it:
 
 ### 1. Direct SMS (Recommended for Verification Codes)
 
-Send directly to a phone number without subscription:
+Send directly to a phone number. No SNS topic or subscription required.
+
+- [Publish (API)](https://docs.aws.amazon.com/sns/latest/api/API_Publish.html):
+  use `PhoneNumber` (E.164), `Message`, and optional `MessageAttributes`.
+- [Publishing to a mobile phone](https://docs.aws.amazon.com/sns/latest/dg/sms_publish-to-phone.html):
+  SMS limits (140 chars per segment, 1600 per request).
 
 ```python
 import boto3
@@ -82,27 +83,12 @@ sns.publish(
         'AWS.SNS.SMS.SMSType': {
             'DataType': 'String',
             'StringValue': 'Transactional'
+        },
+        'AWS.SNS.SMS.SenderID': {
+            'DataType': 'String',
+            'StringValue': 'MyApp'
         }
     }
-)
-```
-
-### 2. Topic-based SMS (For Notifications)
-
-Subscribe phone numbers to the topic:
-
-```python
-# Subscribe
-sns.subscribe(
-    TopicArn='arn:aws:sns:region:account:topic',
-    Protocol='sms',
-    Endpoint='+1234567890'
-)
-
-# Publish to topic (all subscribers receive)
-sns.publish(
-    TopicArn='arn:aws:sns:region:account:topic',
-    Message='Notification message'
 )
 ```
 
@@ -128,13 +114,12 @@ All phone numbers must be in E.164 format:
 | region | AWS region | `string` | n/a | yes |
 | prefix | Prefix for resource names | `string` | n/a | yes |
 | cluster_name | Name of the EKS cluster | `string` | n/a | yes |
-| sns_topic_name | Name component for the SNS topic | `string` | `"2fa-sms"` | no |
-| sns_display_name | Display name for the SNS topic | `string` | `"2FA Verification"` | no |
 | iam_role_name | Name component for the IAM role | `string` | `"2fa-sns-publisher"` | no |
 | service_account_namespace | Kubernetes namespace for the service account | `string` | `"2fa-app"` | no |
 | service_account_name | Name of the Kubernetes service account | `string` | `"ldap-2fa-backend"` | no |
 | configure_sms_preferences | Whether to configure account-level SMS preferences | `bool` | `false` | no |
 | sms_sender_id | Default sender ID for SMS (max 11 alphanumeric) | `string` | `"2FA"` | no |
+| sms_sender_country_code | ISO 3166-1 alpha-2 country code for sender ID (enables ARN lookup) | `string` | `""` | no |
 | sms_type | Default SMS type: Promotional or Transactional | `string` | `"Transactional"` | no |
 | sms_monthly_spend_limit | Monthly spend limit for SMS in USD | `number` | `10` | no |
 | tags | Tags to apply to resources | `map(string)` | `{}` | no |
@@ -143,11 +128,18 @@ All phone numbers must be in E.164 format:
 
 | Output | Description |
 | -------- | ------------- |
-| `sns_topic_arn` | ARN of the SNS topic |
-| `sns_topic_name` | Name of the SNS topic |
 | `iam_role_arn` | ARN of the IAM role for IRSA |
 | `iam_role_name` | Name of the IAM role |
 | `service_account_annotation` | Annotation map for Kubernetes service account |
+| `sms_sender_id_arn` | ARN of Sender ID from AWS End User Messaging (when country code set) |
+
+## Prerequisites
+
+When using SMS 2FA with a branded sender ID, you must request the sender ID in AWS End
+User Messaging (Configurations > Sender ID > Request originator) per deployment
+account and share it with Amazon SNS. Set `sms_sender_country_code` to the ISO
+country code used during registration. See
+[SMS Sender ID Setup](../../../docs/auxiliary/application_infra/guides/SMS_SENDER_ID_SETUP.md).
 
 ## Cost Considerations
 

@@ -52,7 +52,6 @@ class Settings(BaseSettings):
     # SMS/SNS Configuration
     enable_sms_2fa: bool = os.getenv("ENABLE_SMS_2FA", "false").lower() == "true"
     aws_region: str = os.getenv("AWS_REGION", "us-east-1")
-    sns_topic_arn: str = os.getenv("SNS_TOPIC_ARN", "")
     sms_sender_id: str = os.getenv("SMS_SENDER_ID", "2FA")
     sms_type: str = os.getenv("SMS_TYPE", "Transactional")
     sms_code_length: int = int(os.getenv("SMS_CODE_LENGTH", "6"))

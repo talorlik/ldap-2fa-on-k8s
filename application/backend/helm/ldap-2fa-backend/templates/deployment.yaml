@@ -206,11 +206,6 @@ spec:
                 configMapKeyRef:
                   name: {{ include "ldap-2fa-backend.fullname" . }}-config
                   key: AWS_REGION
-            - name: SNS_TOPIC_ARN
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "ldap-2fa-backend.fullname" . }}-config
-                  key: SNS_TOPIC_ARN
             - name: SMS_SENDER_ID
               valueFrom:
                 configMapKeyRef:

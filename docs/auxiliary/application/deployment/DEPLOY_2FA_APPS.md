@@ -184,9 +184,9 @@ echo "Redis Host: ${REDIS_HOST}:${REDIS_PORT}"
 SES_SENDER_EMAIL=$(terraform output -raw ses_sender_email)
 echo "SES Sender: ${SES_SENDER_EMAIL}"
 
-# Get SNS topic ARN (if SMS 2FA is enabled)
-SNS_TOPIC_ARN=$(terraform output -raw sns_topic_arn 2>/dev/null || echo "")
-echo "SNS Topic ARN: ${SNS_TOPIC_ARN}"
+# Get SMS sender ID (must match AWS End User Messaging registration)
+SMS_SENDER_ID=$(terraform output -raw sms_sender_id 2>/dev/null || echo "2FA")
+echo "SMS Sender ID: ${SMS_SENDER_ID}"
 ```
 
 ## Step 3: Create Namespace
@@ -246,11 +246,11 @@ email:
   senderEmail: "${SES_SENDER_EMAIL}"
   appUrl: "https://${HOSTNAME}"
 
-# SMS configuration (if enabled)
+# SMS configuration (if enabled; uses direct SMS - no topic)
 sms:
   enabled: true  # Set to false if SMS 2FA is not enabled
   awsRegion: "${REGION}"
-  snsTopicArn: "${SNS_TOPIC_ARN}"
+  senderId: "${SMS_SENDER_ID}"  # Must match Terraform sms_sender_id / AWS registration
 
 # Redis configuration (if SMS is enabled)
 redis:

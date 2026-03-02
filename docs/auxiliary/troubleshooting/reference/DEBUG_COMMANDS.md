@@ -1,4 +1,4 @@
-# Debugging Commands for ArgoCD and OpenLDAP Deployments
+# Debugging Commands
 
 This document contains commands used to debug the deployment of ArgoCD,
 OpenLDAP, the admin-seed-job, and the 2FA application on EKS. Commands are
@@ -687,6 +687,13 @@ if [ -z "$SNS_ROLE_ARN" ]; then echo "SNS_ROLE_ARN empty - check SA annotation (
 fi
 ```
 
+To inspect the actual policy document and verify SNS publish permissions:
+
+```bash
+SNS_POLICY_NAME=$(aws iam list-role-policies --role-name "$(echo "$SNS_ROLE_ARN" | sed 's/.*\///') " --query 'PolicyNames[0]' --output text)
+aws iam get-role-policy --role-name "$(echo "$SNS_ROLE_ARN" | sed 's/.*\///')" --policy-name "$SNS_POLICY_NAME"
+```
+
 **Where the role ARN is set (official flow):**
 
 The `eks.amazonaws.com/role-arn` annotation must be on the backend
@@ -734,6 +741,43 @@ Uses your local AWS credentials, not pod IRSA.
 ```bash
 aws sns publish --phone-number "+1234567890" --message "Test" --region "$AWS_REGION"
 ```
+
+#### When the API returns 200 / "Verification code sent" but no SMS is received
+
+The backend reports success when AWS SNS **accepts** the publish request (returns a
+MessageId). SNS does not wait for delivery to the handset; delivery can fail
+later without the app being notified. Check the following.
+
+1. **Confirm the phone number**  
+   The UI shows a masked number (e.g. `*********0014`). Ensure this is the
+   correct device and that the full number in the database (profile
+   `phone_country_code` + `phone_number`) is correct and in E.164 format
+   (e.g. `+1234567890`).
+
+2. **AWS SNS SMS sandbox**
+   New AWS accounts (or accounts that have not requested production SMS) are in
+   **SMS sandbox**. In sandbox, SNS only delivers to **verified destination
+   phone numbers**. Add and verify the number in AWS Console: SNS → Text
+   messaging (SMS) → Sandbox destination phone numbers. Until the number is
+   verified, SNS may accept the publish (200) but not deliver the SMS. For full
+   details and how to exit sandbox, see
+   [SMS Sandbox](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/SMS_SANDBOX.md).
+
+3. **Carrier and device**  
+   Some carriers filter or block SMS from short codes or certain senders;
+   check for blocks, spam filters, or "unknown sender" folders. Confirm the
+   device has signal and can receive other SMS.
+
+4. **Backend logs and CloudWatch**  
+   After triggering "Send SMS", check backend logs for the SNS MessageId (e.g.
+   `SMS sent successfully. MessageId: ...`). If present, the backend did call
+   SNS successfully. Use that MessageId in AWS CloudWatch (SNS metrics and
+   logs, if delivery status logging is enabled) to see delivery status.
+
+5. **Spending and opt-out**  
+   If the account has an SNS monthly spend limit and it is reached, delivery
+   may be restricted. Also verify the number is not on the SNS opt-out list
+   (the app can call opt-in for the user if needed).
 
 ## EKS Cluster-Level Logs & Events
 

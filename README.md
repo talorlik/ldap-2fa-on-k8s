@@ -82,6 +82,15 @@ Configuration](#github-repository-configuration))
   Certificate must be in `ISSUED` status and in the same region as the EKS
   cluster. See [Public ACM Certificate Setup and DNS Validation](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/CROSS_ACCOUNT_ACCESS.md#public-acm-certificate-setup-and-dns-validation)
   for step-by-step AWS CLI commands.
+- **SMS (Account B, when using SMS 2FA)**:
+  - **SMS Sandbox**: New SNS accounts are in the SMS sandbox. You can only send
+    SMS to **verified** destination phone numbers (add and verify them in SNS
+    Console > Text messaging (SMS) > Sandbox destination phone numbers), or
+    request **Exit SMS Sandbox** for production (any number). See
+    [SMS Sandbox](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/SMS_SANDBOX.md).
+  - **Sender ID**: Request an SMS Sender ID (Request originator) in AWS End User
+    Messaging per deployment account and share it with SNS. See
+    [SMS Sender ID Setup](https://github.com/talorlik/ldap-2fa-on-k8s/blob/main/docs/auxiliary/application_infra/guides/SMS_SENDER_ID_SETUP.md).
 - **Docker (for Local Deployment)**: Docker must be installed and running for
   ECR image mirroring. The `scripts/mirror-images-to-ecr.sh` script requires Docker
   to pull images from Docker Hub and push them to ECR. This step is automatically

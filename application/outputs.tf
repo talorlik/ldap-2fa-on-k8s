@@ -57,16 +57,6 @@ output "ses_verification_status" {
 }
 
 ##################### SNS SMS 2FA ##########################
-output "sns_topic_arn" {
-  description = "ARN of the SNS topic for SMS 2FA"
-  value       = var.enable_sms_2fa ? module.sns[0].sns_topic_arn : null
-}
-
-output "sns_topic_name" {
-  description = "Name of the SNS topic"
-  value       = var.enable_sms_2fa ? module.sns[0].sns_topic_name : null
-}
-
 output "sns_iam_role_arn" {
   description = "ARN of the IAM role for SNS publishing (for IRSA)"
   value       = var.enable_sms_2fa ? module.sns[0].iam_role_arn : null
@@ -75,6 +65,16 @@ output "sns_iam_role_arn" {
 output "sns_service_account_annotation" {
   description = "Annotation to add to Kubernetes service account for IRSA"
   value       = var.enable_sms_2fa ? module.sns[0].service_account_annotation : null
+}
+
+output "sms_sender_id" {
+  description = "SMS sender ID (must match AWS End User Messaging registration; for manual Helm)"
+  value       = var.enable_sms_2fa ? var.sms_sender_id : null
+}
+
+output "sms_sender_id_arn" {
+  description = "ARN of the Sender ID from AWS End User Messaging (when SMS 2FA enabled and country code set)"
+  value       = var.enable_sms_2fa ? module.sns[0].sms_sender_id_arn : null
 }
 
 ##################### 2FA Application ##########################

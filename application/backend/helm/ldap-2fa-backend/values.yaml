@@ -244,8 +244,6 @@ sms:
   enabled: true
   # AWS region for SNS
   awsRegion: "us-east-1"
-  # SNS topic ARN (optional - for subscriptions/notifications)
-  snsTopicArn: ""
   # SMS sender ID (max 11 alphanumeric chars, may not work in all countries)
   senderId: "2FA"
   # SMS type: Transactional (higher priority) or Promotional

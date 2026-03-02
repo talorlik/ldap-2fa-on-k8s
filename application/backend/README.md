@@ -311,14 +311,16 @@ with only a password (no full URL in the secret).
 | `TOTP_INTERVAL` | `30` | Time interval in seconds |
 | `TOTP_ALGORITHM` | `SHA1` | Hash algorithm (SHA1, SHA256, SHA512) |
 
-### SMS Configuration
+### SMS Configuration (Direct SMS via SNS)
+
+Uses [direct SMS](https://docs.aws.amazon.com/sns/latest/dg/sms_publish-to-phone.html)
+(sns:Publish with PhoneNumber; no topic).
 
 | Variable | Default | Description |
 | ---------- | --------- | ------------- |
 | `ENABLE_SMS_2FA` | `false` | Enable SMS-based 2FA |
 | `AWS_REGION` | `us-east-1` | AWS region for SNS |
-| `SNS_TOPIC_ARN` | `` | SNS topic ARN (optional) |
-| `SMS_SENDER_ID` | `2FA` | SMS sender ID |
+| `SMS_SENDER_ID` | `2FA` | SMS sender ID (1-11 alphanumeric; see AWS End User Messaging) |
 | `SMS_CODE_LENGTH` | `6` | Length of SMS verification code |
 | `SMS_CODE_EXPIRY_SECONDS` | `300` | SMS code expiration time (5 minutes) |
 

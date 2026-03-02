@@ -1,4 +1,11 @@
-"""SMS client for sending verification codes via AWS SNS."""
+"""SMS client for sending verification codes via AWS SNS.
+
+Uses Direct SMS: sns.publish(PhoneNumber=..., Message=..., MessageAttributes=...).
+No SNS topic is required. See:
+- Publish API: https://docs.aws.amazon.com/sns/latest/api/API_Publish.html
+- SMS to phone: https://docs.aws.amazon.com/sns/latest/dg/sms_publish-to-phone.html
+- Message attributes (SMSType, SenderID): https://docs.aws.amazon.com/sns/latest/dg/sns-message-attributes.html
+"""
 
 import logging
 import random
@@ -92,19 +99,24 @@ class SMSClient:
         if not is_valid:
             return False, error, None
 
-        # Format message
+        # Format message (AWS SNS: max 140 chars per segment, 1600 per Publish)
         message = self.settings.sms_message_template.format(code=code)
+        if len(message) > 1600:
+            return False, "SMS message exceeds maximum length (1600 characters)", None
+        if len(message) > 140:
+            logger.info(
+                "SMS message length %d exceeds 140 chars; SNS will send as multiple segments",
+                len(message),
+            )
 
         try:
-            # Set message attributes
+            # Reserved SMS message attributes per AWS (DataType String, StringValue)
             message_attributes = {
                 "AWS.SNS.SMS.SMSType": {
                     "DataType": "String",
                     "StringValue": self.settings.sms_type,
                 }
             }
-
-            # Add sender ID if provided or configured
             effective_sender_id = sender_id or self.settings.sms_sender_id
             if effective_sender_id:
                 message_attributes["AWS.SNS.SMS.SenderID"] = {
@@ -112,7 +124,7 @@ class SMSClient:
                     "StringValue": effective_sender_id,
                 }
 
-            # Send SMS directly to phone number
+            # Direct SMS: PhoneNumber (E.164), Message, MessageAttributes (no TopicArn)
             response = self.sns_client.publish(
                 PhoneNumber=phone_number,
                 Message=message,
@@ -155,77 +167,6 @@ class SMSClient:
         except Exception as e:
             logger.error("Unexpected error sending SMS: %s", e)
             return False, "Failed to send verification code", None
-
-    def subscribe_phone_number(
-        self,
-        phone_number: str,
-        topic_arn: Optional[str] = None,
-    ) -> tuple[bool, str, Optional[str]]:
-        """
-        Subscribe a phone number to the SNS topic.
-
-        Args:
-            phone_number: Phone number to subscribe (E.164 format)
-            topic_arn: Optional topic ARN override
-
-        Returns:
-            Tuple of (success, message, subscription_arn)
-        """
-        # Validate phone number
-        is_valid, error = self.validate_phone_number(phone_number)
-        if not is_valid:
-            return False, error, None
-
-        effective_topic_arn = topic_arn or self.settings.sns_topic_arn
-        if not effective_topic_arn:
-            return False, "SNS topic not configured", None
-
-        try:
-            response = self.sns_client.subscribe(
-                TopicArn=effective_topic_arn,
-                Protocol="sms",
-                Endpoint=phone_number,
-                ReturnSubscriptionArn=True,
-            )
-
-            subscription_arn = response.get("SubscriptionArn")
-            logger.info("Phone number subscribed with ARN: %s", subscription_arn)
-
-            return True, "Phone number subscribed successfully", subscription_arn
-
-        except ClientError as e:
-            error_code = e.response.get("Error", {}).get("Code", "Unknown")
-            error_message = e.response.get("Error", {}).get("Message", str(e))
-            logger.error("SNS subscribe error: %s - %s", error_code, error_message)
-            return False, f"Failed to subscribe: {error_message}", None
-
-        except Exception as e:
-            logger.error("Unexpected error subscribing phone: %s", e)
-            return False, "Failed to subscribe phone number", None
-
-    def unsubscribe(self, subscription_arn: str) -> tuple[bool, str]:
-        """
-        Unsubscribe from the SNS topic.
-
-        Args:
-            subscription_arn: Subscription ARN to unsubscribe
-
-        Returns:
-            Tuple of (success, message)
-        """
-        try:
-            self.sns_client.unsubscribe(SubscriptionArn=subscription_arn)
-            logger.info("Unsubscribed: %s", subscription_arn)
-            return True, "Unsubscribed successfully"
-
-        except ClientError as e:
-            error_message = e.response.get("Error", {}).get("Message", str(e))
-            logger.error("SNS unsubscribe error: %s", error_message)
-            return False, f"Failed to unsubscribe: {error_message}"
-
-        except Exception as e:
-            logger.error("Unexpected error unsubscribing: %s", e)
-            return False, "Failed to unsubscribe"
 
     def check_opt_out_status(self, phone_number: str) -> tuple[bool, bool]:
         """

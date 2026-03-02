@@ -59,7 +59,6 @@ The application supports **two MFA methods**:
 | SMS-02 | Generate random 6-digit verification codes |
 | SMS-03 | Send verification codes via AWS SNS |
 | SMS-04 | Implement code expiration (default: 5 minutes) |
-| SMS-05 | Support phone number subscription to SNS topic (optional) |
 | SMS-06 | Handle SMS delivery failures gracefully |
 | SMS-07 | Check and handle phone number opt-out status |
 
@@ -227,7 +226,6 @@ Response is always a generic success message (no email enumeration).
 | ------------- | -------- | ------------- |
 | `ENABLE_SMS_2FA` | Environment/ConfigMap | Enable/disable SMS MFA method |
 | `AWS_REGION` | Environment/ConfigMap | AWS region for SNS |
-| `SNS_TOPIC_ARN` | Environment/ConfigMap | SNS topic ARN (optional, for subscriptions) |
 | `SMS_SENDER_ID` | Environment/ConfigMap | SMS sender ID (max 11 chars) |
 | `SMS_TYPE` | Environment/ConfigMap | `Transactional` or `Promotional` |
 | `SMS_CODE_LENGTH` | Environment/ConfigMap | Verification code length (default: 6) |
@@ -372,13 +370,12 @@ alb.ingress.kubernetes.io/ssl-redirect: "${app_alb_ssl_redirect}"
 
 ### SMS Infrastructure Requirements (AWS SNS)
 
-#### SNS Topic
+#### Direct SMS (No Topic)
 
-| Requirement |
-| ------------- |
-| Create SNS topic for SMS notifications |
-| Configure topic policy to allow IAM role to publish |
-| Set display name for SMS sender identification |
+The application uses Direct SMS (`sns:Publish` with `PhoneNumber`). No SNS topic is
+required; topics are for broadcasting to multiple subscribers. See [Publishing to a
+mobile phone](https://docs.aws.amazon.com/sns/latest/dg/sms_publish-to-phone.html)
+and [Publish API](https://docs.aws.amazon.com/sns/latest/api/API_Publish.html).
 
 #### IAM Role for IRSA (IAM Roles for Service Accounts)
 
@@ -397,24 +394,7 @@ alb.ingress.kubernetes.io/ssl-redirect: "${app_alb_ssl_redirect}"
     {
       "Effect": "Allow",
       "Action": ["sns:Publish"],
-      "Resource": "<SNS_TOPIC_ARN>"
-    },
-    {
-      "Effect": "Allow",
-      "Action": ["sns:Publish"],
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": { "sns:Protocol": "sms" }
-      }
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "sns:Subscribe",
-        "sns:Unsubscribe",
-        "sns:ListSubscriptionsByTopic"
-      ],
-      "Resource": "<SNS_TOPIC_ARN>"
+      "Resource": "*"
     },
     {
       "Effect": "Allow",
@@ -453,10 +433,8 @@ The SNS Terraform module (`application/modules/sns/`) creates:
 
 | Resource | Description |
 | ---------- | ------------- |
-| `aws_sns_topic` | SNS topic for SMS |
-| `aws_sns_topic_policy` | Topic policy for IAM role access |
 | `aws_iam_role` | IAM role for IRSA |
-| `aws_iam_role_policy` | SNS publish/subscribe permissions |
+| `aws_iam_role_policy` | SNS direct SMS publish, opt-out check permissions |
 | `aws_sns_sms_preferences` | Account-level SMS settings (optional) |
 
 #### Module Inputs
@@ -464,8 +442,6 @@ The SNS Terraform module (`application/modules/sns/`) creates:
 | Variable | Description | Default |
 | ---------- | ------------- | --------- |
 | `enable_sms_2fa` | Enable SMS 2FA resources | `false` |
-| `sns_topic_name` | SNS topic name component | `2fa-sms` |
-| `sns_display_name` | SMS sender display name | `2FA Verification` |
 | `service_account_namespace` | K8s namespace | `2fa-app` |
 | `service_account_name` | K8s service account | `ldap-2fa-backend` |
 | `sms_sender_id` | SMS sender ID | `2FA` |
@@ -476,7 +452,6 @@ The SNS Terraform module (`application/modules/sns/`) creates:
 
 | Output | Description |
 | -------- | ------------- |
-| `sns_topic_arn` | SNS topic ARN |
 | `iam_role_arn` | IAM role ARN for IRSA |
 | `service_account_annotation` | Annotation for K8s service account |
 

@@ -13,6 +13,7 @@ This document describes the cross-account access requirements between the
 | Route53 DNS records (including ACM validation CNAMEs) | ✓ | |
 | ACM Certificate (requested, validated, stored) | | ✓ (each dev/prod) |
 | EKS, VPC, ALB, ECR, application resources | | ✓ |
+| SMS Sender ID (when using SMS 2FA) | | ✓ (each dev/prod) |
 
 **Account A** holds shared, centrally managed resources: state storage, secrets
 (for local scripts: role ARNs, passwords, ExternalId), and DNS. **Account B**
@@ -592,6 +593,29 @@ After setting up certificates, verify:
   - Check: Lock icon shows "Secure"
   - Verify: Certificate details show Amazon as issuer
   - Verify: No security warnings
+
+## SMS Sender ID Setup (When Using SMS 2FA)
+
+When using SMS-based 2FA, each deployment account must have an SMS Sender ID
+(Request originator) configured in AWS End User Messaging. This allows SNS to
+send SMS with a branded originator instead of generic identifiers.
+
+**Setup location**: AWS End User Messaging SMS console > Configurations > Sender
+ID > Request originator.
+
+For complete step-by-step instructions, see
+[SMS Sender ID Setup](SMS_SENDER_ID_SETUP.md).
+
+**Pre-deployment checklist:**
+
+- [ ] **SMS Sandbox**: Either add and verify destination phone numbers in SNS
+  (Sandbox destination phone numbers), or request Exit SMS Sandbox for production.
+  See [SMS Sandbox](SMS_SANDBOX.md).
+- [ ] Sender ID requested in each deployment account (dev, prod)
+- [ ] Resource policy allows Amazon SNS to use the sender ID
+- [ ] Sender ID status is active/approved
+- [ ] `sms_sender_id` in Terraform matches the registered sender ID
+- [ ] `sms_sender_country_code` matches the country used during registration
 
 ## Troubleshooting
 

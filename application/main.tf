@@ -68,12 +68,19 @@ locals {
       value        = module.redis[0].redis_host
       force_string = true
     }] : [],
-    # SNS role for SMS 2FA (pod needs this for sns:Publish). When only email is used, pass SES role instead.
-    var.enable_sms_2fa ? [{
-      name         = "serviceAccountIAM.roleArn"
-      value        = module.sns[0].iam_role_arn
-      force_string = true
-    }] : [],
+    # SNS role and sender ID for SMS 2FA. When only email is used, pass SES role instead.
+    var.enable_sms_2fa ? [
+      {
+        name         = "serviceAccountIAM.roleArn"
+        value        = module.sns[0].iam_role_arn
+        force_string = true
+      },
+      {
+        name         = "sms.senderId"
+        value        = var.sms_sender_id
+        force_string = true
+      }
+    ] : [],
     # SES role when email verification is enabled and SMS is not (otherwise SNS role above is used).
     var.enable_email_verification && !var.enable_sms_2fa ? [{
       name         = "serviceAccountIAM.roleArn"
@@ -249,16 +256,15 @@ module "sns" {
   prefix       = var.prefix
   cluster_name = local.cluster_name
 
-  sns_topic_name            = var.sns_topic_name
-  sns_display_name          = var.sns_display_name
   iam_role_name             = var.sns_iam_role_name
   service_account_namespace = var.argocd_app_backend_namespace
   service_account_name      = "ldap-2fa-backend"
 
-  configure_sms_preferences = var.configure_sms_preferences
-  sms_sender_id             = var.sms_sender_id
-  sms_type                  = var.sms_type
-  sms_monthly_spend_limit   = var.sms_monthly_spend_limit
+  configure_sms_preferences  = var.configure_sms_preferences
+  sms_sender_id              = var.sms_sender_id
+  sms_sender_country_code    = var.sms_sender_country_code
+  sms_type                   = var.sms_type
+  sms_monthly_spend_limit    = var.sms_monthly_spend_limit
 
   tags = local.tags
 }

@@ -49,7 +49,7 @@ backend infrastructure (VPC, EKS cluster, IRSA, VPC endpoints, SNS/SES).
      outbound HTTPS to the SNS endpoint.
    - **IAM:** Confirm the IRSA role has a policy allowing
      `sns:Publish` (and `sns:SetSMSAttributes` if using sender ID) on the
-     intended resources (e.g. `"*"` or the SNS topic ARN).
+     intended resources (e.g. `"*"` for direct SMS).
    - **Config:** Ensure `ENABLE_SMS_2FA=true` and `AWS_REGION` match the
      region where SNS is used.
 

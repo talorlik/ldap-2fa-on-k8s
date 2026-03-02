@@ -288,16 +288,6 @@ variable "enable_sms_2fa" {
   default     = false
 }
 
-variable "sns_topic_name" {
-  description = "Name component for the SNS topic"
-  type        = string
-}
-
-variable "sns_display_name" {
-  description = "Display name for the SNS topic (appears in SMS sender)"
-  type        = string
-}
-
 variable "sns_iam_role_name" {
   description = "Name component for the SNS IAM role"
   type        = string
@@ -312,6 +302,12 @@ variable "configure_sms_preferences" {
 variable "sms_sender_id" {
   description = "Default sender ID for SMS messages (max 11 alphanumeric characters)"
   type        = string
+}
+
+variable "sms_sender_country_code" {
+  description = "ISO 3166-1 alpha-2 country code for the sender ID (e.g., IL, DE, GB). Required for Terraform to fetch the Sender ID ARN from AWS End User Messaging. Must match the country used when requesting the sender ID. Leave empty to skip ARN lookup."
+  type        = string
+  default     = ""
 }
 
 variable "sms_type" {
