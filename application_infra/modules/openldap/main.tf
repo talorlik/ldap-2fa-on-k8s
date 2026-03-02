@@ -17,11 +17,11 @@ locals {
   openldap_values = templatefile(
     local.values_template_path,
     {
-      storage_class_name     = var.storage_class_name
-      openldap_ldap_domain   = var.openldap_ldap_domain
-      openldap_base_dn       = local.computed_base_dn
-      openldap_secret_name   = var.openldap_secret_name
-      app_name               = var.app_name
+      storage_class_name   = var.storage_class_name
+      openldap_ldap_domain = var.openldap_ldap_domain
+      openldap_base_dn     = local.computed_base_dn
+      openldap_secret_name = var.openldap_secret_name
+      app_name             = var.app_name
       # ECR image configuration
       ecr_registry           = var.ecr_registry
       ecr_repository         = var.ecr_repository
@@ -79,8 +79,8 @@ resource "kubernetes_secret" "openldap_passwords" {
   }
 
   data = {
-    "LDAP_ADMIN_PASSWORD"   = var.openldap_admin_password
-    "LDAP_CONFIG_PASSWORD"  = var.openldap_config_password
+    "LDAP_ADMIN_PASSWORD"  = var.openldap_admin_password
+    "LDAP_CONFIG_PASSWORD" = var.openldap_config_password
   }
 
   type = "Opaque"
