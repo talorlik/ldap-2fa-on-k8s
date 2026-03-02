@@ -98,12 +98,11 @@ Configuration](#github-repository-configuration))
 - **jq (for Local Deployment)**: The `jq` command-line tool is required for
   JSON parsing in the image mirroring script (with fallback to sed for
   compatibility).
-- **ECR Image Tags**: Images are mirrored to ECR with standardized tags:
-  - `openldap-1.5.0` (corresponds to `osixia/openldap:1.5.0`) - mirrored by infrastructure
-  - `redis-latest` (corresponds to `bitnami/redis:8.4.0-debian-12-r6`) - mirrored
-  by application
-  - `postgresql-latest` (corresponds to `bitnami/postgresql:18.1.0-debian-12-r4`)
-  mirrored by application
+- **ECR Image Tags**: Images are mirrored to ECR with standardized tags via
+  `scripts/mirror-images-to-ecr.sh` (run by setup-application-infra.sh):
+  - `openldap-1.5.0` (from `osixia/openldap:1.5.0`)
+  - `redis-latest` (from `bitnami/redis:latest`)
+  - `postgresql-latest` (from `bitnami/postgresql:latest`)
 
 ## Project Structure
 
@@ -143,23 +142,14 @@ ldap-2fa-on-k8s/
 │   │   └── route53_record/          # Route53 DNS records
 │   ├── backend.hcl
 │   ├── CHANGELOG.md
-│   ├── CROSS_ACCOUNT_ACCESS.md
 │   ├── destroy-application-infra.sh
 │   ├── main.tf
 │   ├── monitor-deployments.sh   # Application-infra deployment monitoring
 │   ├── OPENLDAP_CHANGELOG.md
-│   ├── OPENLDAP_README.md
-│   ├── OSIXIA_OPENLDAP_REQUIREMENTS.md
 │   ├── outputs.tf
-│   ├── PRD_ALB.md
-│   ├── PRD_ArgoCD.md
-│   ├── PRD_DOMAIN.md
-│   ├── PRD_OPENLDAP.md
 │   ├── providers.tf
 │   ├── README.md
-│   ├── SECURITY_IMPROVEMENTS.md
 │   ├── setup-application-infra.sh
-│   ├── SILENT_MODE_EXPLANATION.md
 │   ├── tfstate-backend-values-template.hcl
 │   ├── variables.tf
 │   └── variables.tfvars
@@ -206,25 +196,28 @@ ldap-2fa-on-k8s/
 │   │   └── sns/                     # AWS SNS for SMS
 │   ├── backend.hcl
 │   ├── CHANGELOG.md
-│   ├── DEPLOY_2FA_APPS.md
-│   ├── LDAP_ADMIN_SEED_TROUBLESHOOTING.md
-│   ├── PASSWORD_FLOW.md
-│   ├── REDIS_ENABLEMENT_SUMMARY.md
-│   ├── SECRET_DEPENDENCIES.md
 │   ├── destroy-application.sh
 │   ├── main.tf
+│   ├── monitor-deployments.sh   # Application deployment monitoring
 │   ├── outputs.tf
-│   ├── PRD_2FA_APP.md
-│   ├── PRD_ADMIN_FUNCS.md
-│   ├── PRD_SIGNUP_MAN.md
-│   ├── PRD_SMS_MAN.md
 │   ├── providers.tf
 │   ├── README.md
-│   ├── monitor-deployments.sh   # Application deployment monitoring
 │   ├── setup-application.sh
 │   ├── tfstate-backend-values-template.hcl
 │   ├── variables.tf
 │   └── variables.tfvars
+├── docs/                           # Documentation website and auxiliary docs
+│   ├── auxiliary/                  # Guides, PRDs, troubleshooting
+│   │   ├── application/            # Application guides and design PRDs
+│   │   ├── application_infra/      # Application infra guides and design PRDs
+│   │   ├── reference/              # SECRETS_REQUIREMENTS.md and reference docs
+│   │   └── troubleshooting/       # Troubleshooting guides
+│   ├── dark-theme.css
+│   ├── favicon.ico
+│   ├── header_banner.png
+│   ├── index.html
+│   ├── light-theme.css
+│   └── main.js
 ├── backend_infra/                  # Core AWS infrastructure (VPC, EKS, VPC endpoints, IRSA) - Account B
 │   ├── modules/
 │   │   ├── ebs/                    # EBS StorageClass and PVC
@@ -269,7 +262,6 @@ ldap-2fa-on-k8s/
 ├── repomix_instructions.md
 ├── repomix_output.md
 ├── repomix.config.json
-├── SECRETS_REQUIREMENTS.md         # Secrets management documentation (AWS Secrets Manager & GitHub Secrets)
 └── WARP.md
 ```
 

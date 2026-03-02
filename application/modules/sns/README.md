@@ -135,8 +135,8 @@ All phone numbers must be in E.164 format:
 
 ## Prerequisites
 
-When using SMS 2FA with a branded sender ID, you must request the sender ID in AWS End
-User Messaging (Configurations > Sender ID > Request originator) per deployment
+When using SMS 2FA with a branded sender ID, you must request the sender ID in
+AWS End User Messaging (Configurations > Sender ID > Request originator) per deployment
 account and share it with Amazon SNS. Set `sms_sender_country_code` to the ISO
 country code used during registration. See
 [SMS Sender ID Setup](../../../docs/auxiliary/application_infra/guides/SMS_SENDER_ID_SETUP.md).

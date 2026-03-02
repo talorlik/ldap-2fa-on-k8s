@@ -723,25 +723,19 @@ defaults to `app_name`)
 - `argocd_vpce_ids`: List of VPC endpoint IDs for private access (optional)
 - `enable_ecr_access`: Whether to enable ECR access in ArgoCD IAM policy
 
-- `ses_route53_zone_id`: Optional Route53 zone ID for automatic DNS records
+#### ECR Image Tag Variables (OpenLDAP)
 
-#### ECR Image Tag Variables
-
-These variables specify the image tags for container images stored in ECR. The
-images are automatically mirrored from Docker Hub to ECR by the
-`scripts/mirror-images-to-ecr.sh` script before Terraform operations.
+These variables specify the image tags for OpenLDAP stack images stored in ECR.
+The images are automatically mirrored from Docker Hub to ECR by the
+`scripts/mirror-images-to-ecr.sh` script (run by setup-application-infra.sh).
 
 - `openldap_image_tag`: OpenLDAP image tag in ECR (default: `"openldap-1.5.0"`)
-  - Corresponds to `osixia/openldap:1.5.0` from Docker Hub
-  - Tag created by `scripts/mirror-images-to-ecr.sh`
-- `postgresql_image_tag`: PostgreSQL image tag in ECR (default: `"postgresql-latest"`)
-  - Corresponds to `bitnami/postgresql:18.1.0-debian-12-r4` from Docker Hub
-  - Tag created by `scripts/mirror-images-to-ecr.sh`
-  - Uses 'latest' tag instead of SHA digests for simplified image management
-- `redis_image_tag`: Redis image tag in ECR (default: `"redis-latest"`)
-  - Corresponds to `bitnami/redis:8.4.0-debian-12-r6` from Docker Hub
-  - Tag created by `scripts/mirror-images-to-ecr.sh`
-  - Uses 'latest' tag instead of SHA digests for simplified image management
+  - From `osixia/openldap:1.5.0`
+- `phpldapadmin_image_tag`: PhpLdapAdmin image tag (default: `"phpldapadmin-0.9.0"`)
+  - From `osixia/phpldapadmin:0.9.0`
+- `ltb_passwd_image_tag`: LTB-passwd image tag (default: `"ltb-passwd-5.2.3"`)
+  - From `tiredofit/self-service-password:5.2.3`
+- `openldap_busybox_image_tag`: Busybox init container tag (default: `"busybox-1.36"`)
 
 > [!NOTE]
 >
@@ -991,9 +985,12 @@ Hub availability or rate limits.
 
 **Images Mirrored:**
 
-- `bitnami/redis:8.4.0-debian-12-r6` → `redis-latest`
-- `bitnami/postgresql:18.1.0-debian-12-r4` → `postgresql-latest`
+- `bitnami/redis:latest` → `redis-latest`
+- `bitnami/postgresql:latest` → `postgresql-latest`
 - `osixia/openldap:1.5.0` → `openldap-1.5.0`
+- `osixia/phpldapadmin:0.9.0` → `phpldapadmin-0.9.0`
+- `tiredofit/self-service-password:5.2.3` → `ltb-passwd-5.2.3`
+- `busybox:1.36` → `busybox-1.36`
 
 **How It Works:**
 
@@ -1141,8 +1138,8 @@ cross-account role assumption security
 - **Mirror Docker images to ECR** (runs `scripts/mirror-images-to-ecr.sh` before
   Terraform operations):
   - Checks if images exist in ECR before mirroring (skips if already present)
-  - Pulls images from Docker Hub: `bitnami/redis:8.4.0-debian-12-r6`,
-    `bitnami/postgresql:18.1.0-debian-12-r4`, `osixia/openldap:1.5.0`
+  - Pulls images from Docker Hub: `bitnami/redis:latest`,
+    `bitnami/postgresql:latest`, `osixia/openldap:1.5.0`, and OpenLDAP stack
   - Pushes images to ECR with tags: `openldap-1.5.0`
   - Uses State Account credentials to fetch ECR URL from backend_infra state
   - Assumes Deployment Account role for ECR operations (with ExternalId)

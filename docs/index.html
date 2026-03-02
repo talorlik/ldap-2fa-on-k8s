@@ -205,7 +205,7 @@
         <h3 id="supporting-infrastructure">Supporting Infrastructure</h3>
         <div class="card">
             <ul>
-                <li><strong>PostgreSQL</strong> (Bitnami Helm chart, OCI registry) for user registration data and email verification token storage with persistent EBS-backed storage</li>
+                <li><strong>PostgreSQL</strong> (Bitnami Helm chart, ECR images) for user registration data and email verification token storage with persistent EBS-backed storage</li>
                 <li><strong>Redis</strong> (Bitnami Helm chart) for SMS OTP code and login challenge storage with TTL-based automatic expiration and shared state across replicas (required; no in-memory fallback)</li>
                 <li><strong>AWS SES</strong> for email verification and notifications with IRSA-based access (no hardcoded credentials)</li>
                 <li><strong>AWS SNS</strong> for SMS-based 2FA verification (optional, requires SNS VPC endpoint enabled in backend infrastructure)</li>
@@ -497,71 +497,39 @@ cd ../frontend
 docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:ldap-2fa-frontend-$(git rev-parse --short HEAD) .
 docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:ldap-2fa-frontend-$(git rev-parse --short HEAD)</code></pre>
                 <p><strong>5.2: Gather Required Configuration Values</strong></p>
-                <p>Get the required values from Terraform outputs:</p>
-                <pre><code>cd application
-
-# Get IngressClass name
-INGRESS_CLASS=$(terraform output -raw alb_ingress_class_name)
-echo "IngressClass: ${INGRESS_CLASS}"
-
-# Get ALB load balancer name (from variables.tfvars or compute it)
-# Format: ${prefix}-${region}-${alb_load_balancer_name}-${env}
-PREFIX="talo-tf"
-REGION="us-east-1"
-ALB_LB_NAME="alb"
-ENV="prod"
-ALB_NAME="${PREFIX}-${REGION}-${ALB_LB_NAME}-${ENV}"
-# Truncate to 32 chars if needed
-ALB_NAME=$(echo "${ALB_NAME}" | cut -c1-32)
-echo "ALB Name: ${ALB_NAME}"
-
-# Get hostname
-HOSTNAME="app.talorlik.com"  # From variables.tfvars: twofa_app_host
-echo "Hostname: ${HOSTNAME}"
-
-# Get ECR repository URL
+                <p>Get the required values from Terraform outputs. <strong>Note:</strong> <code>ecr_url</code> comes from <code>backend_infra</code>; <code>route53_domain_name</code> comes from <code>application_infra</code>; most other values from <code>application</code>.</p>
+                <pre><code># ECR URL (from backend_infra)
+cd backend_infra
 ECR_URL=$(terraform output -raw ecr_url 2>/dev/null || echo "")
 if [ -z "$ECR_URL" ]; then
-  echo "ECR URL not found in Terraform outputs."
-  echo "Make sure backend_infra has been deployed and outputs ecr_url."
+  echo "ECR URL not found. Make sure backend_infra has been deployed."
   exit 1
 fi
-echo "ECR URL: ${ECR_URL}"
 
-# Get image tags (from GitHub Actions or latest commit)
+# Domain name (from application_infra)
+cd ../application_infra
+DOMAIN_NAME=$(terraform output -raw route53_domain_name)
+
+# All other values (from application)
+cd ../application
+INGRESS_CLASS=$(terraform output -raw alb_ingress_class_name)
+ALB_NAME=$(terraform output -raw alb_load_balancer_name 2>/dev/null || echo "")
+HOSTNAME="app.${DOMAIN_NAME}"
+echo "ECR URL: ${ECR_URL}"
+echo "Domain: ${DOMAIN_NAME}"
+echo "IngressClass: ${INGRESS_CLASS}"
+echo "ALB Name: ${ALB_NAME}"
+echo "Hostname: ${HOSTNAME}"
+
 BACKEND_TAG="ldap-2fa-backend-$(git rev-parse --short HEAD)"  # Or use tag from GitHub Actions
 FRONTEND_TAG="ldap-2fa-frontend-$(git rev-parse --short HEAD)"  # Or use tag from GitHub Actions
-echo "Backend Tag: ${BACKEND_TAG}"
-echo "Frontend Tag: ${FRONTEND_TAG}"
-
-# Get SES IAM Role ARN (for IRSA)
 SES_ROLE_ARN=$(terraform output -raw ses_iam_role_arn 2>/dev/null || echo "")
-echo "SES Role ARN: ${SES_ROLE_ARN}"
-
-# Get SNS IAM Role ARN (for IRSA, if SMS 2FA is enabled)
 SNS_ROLE_ARN=$(terraform output -raw sns_iam_role_arn 2>/dev/null || echo "")
-echo "SNS Role ARN: ${SNS_ROLE_ARN}"
-
-# Get domain name
-DOMAIN_NAME=$(terraform output -raw route53_domain_name)
-echo "Domain: ${DOMAIN_NAME}"
-
-# Get PostgreSQL connection info
 POSTGRES_HOST=$(terraform output -raw postgresql_host)
-echo "PostgreSQL Host: ${POSTGRES_HOST}"
-
-# Get Redis connection info
 REDIS_HOST=$(terraform output -raw redis_host)
 REDIS_PORT=$(terraform output -raw redis_port)
-echo "Redis Host: ${REDIS_HOST}:${REDIS_PORT}"
-
-# Get SES sender email
 SES_SENDER_EMAIL=$(terraform output -raw ses_sender_email)
-echo "SES Sender: ${SES_SENDER_EMAIL}"
-
-# Get SMS sender ID (if SMS 2FA is enabled)
-SMS_SENDER_ID=$(terraform output -raw sms_sender_id 2>/dev/null || echo "2FA")
-echo "SMS Sender ID: ${SMS_SENDER_ID}"</code></pre>
+SMS_SENDER_ID=$(terraform output -raw sms_sender_id 2>/dev/null || echo "2FA")</code></pre>
                 <p><strong>5.3: Create Namespace</strong></p>
                 <pre><code>kubectl create namespace 2fa-app</code></pre>
                 <p><strong>5.4: Deploy Backend Application</strong></p>

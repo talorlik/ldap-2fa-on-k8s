@@ -52,12 +52,11 @@ data "aws_route53_zone" "this" {
 # ACM Certificate must be in the deployment account (not state account)
 # EKS Auto Mode ALB controller cannot access cross-account certificates
 # The certificate must exist in the same account where the ALB is created
-# Certificate is issued from Private CA in State Account but stored in Deployment Account
-# Each deployment account (development, production) has its own certificate
+# Public ACM certificate requested in Deployment Account, validated via DNS
+# records in State Account Route53. Each deployment account has its own certificate.
 data "aws_acm_certificate" "this" {
   # Use default provider (deployment account) instead of state_account
   # EKS Auto Mode ALB controller requires certificate in the same account
-  # Certificate is issued from Private CA in State Account but stored here
   domain      = var.domain_name
   most_recent = true
   statuses    = ["ISSUED"]

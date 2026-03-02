@@ -47,7 +47,7 @@ provider "aws" {
   }
 }
 
-# Provider alias for state account (where Route53 hosted zone and Private CA reside)
+# Provider alias for state account (where Route53 hosted zone resides)
 provider "aws" {
   alias  = "state_account"
   region = var.region
@@ -55,7 +55,7 @@ provider "aws" {
   # Assume role in state account if role ARN is provided
   # This allows querying Route53 hosted zones from the state account
   # while deploying resources to the deployment account
-  # Note: ACM certificates are in deployment accounts (issued from Private CA in State Account)
+  # Note: ACM certificates are in deployment accounts (public ACM requested per account)
   # Note: ExternalId is not used for state account role assumption (by design)
   dynamic "assume_role" {
     for_each = var.state_account_role_arn != null ? [1] : []
