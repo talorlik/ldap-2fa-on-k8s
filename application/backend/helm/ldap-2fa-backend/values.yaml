@@ -11,7 +11,7 @@ image:
   repository: "944880695150.dkr.ecr.us-east-1.amazonaws.com/talo-tf-us-east-1-docker-images-prod"
   pullPolicy: IfNotPresent
   # Image tag - should be set via CI/CD (defaults to Chart appVersion)
-  tag: "ldap-2fa-backend-b10cb8249b05a2de2a63f1ab73a36c04e916e6da-22574484969"
+  tag: "ldap-2fa-backend-0d51fcf440bd5c239da0c87a66b9660b157a0a1e-22582752980"
 
 # Secrets for pulling images from private registry
 imagePullSecrets: []
