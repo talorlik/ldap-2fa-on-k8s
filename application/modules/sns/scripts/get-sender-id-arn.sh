@@ -12,7 +12,7 @@ COUNTRY_CODE=$(echo "$QUERY" | jq -r '.country_code // empty')
 REGION=$(echo "$QUERY" | jq -r '.region // "us-east-1"')
 
 if [ -z "$SENDER_ID" ] || [ -z "$COUNTRY_CODE" ]; then
-  echo '{"arn":"","found":"false"}'
+  jq -n '{arn: "", found: "false"}'
   exit 0
 fi
 
@@ -24,7 +24,7 @@ ARN=$(aws pinpoint-sms-voice-v2 describe-sender-ids \
   --output text 2>/dev/null || true)
 
 if [ -z "$ARN" ] || [ "$ARN" = "None" ]; then
-  echo '{"arn":"","found":"false"}'
+  jq -n '{arn: "", found: "false"}'
 else
-  echo "{\"arn\":\"${ARN}\",\"found\":\"true\"}"
+  jq -n --arg arn "$ARN" '{arn: $arn, found: "true"}'
 fi
