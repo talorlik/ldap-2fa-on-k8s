@@ -89,6 +89,9 @@ resource "aws_iam_role_policy" "sns_publish" {
         ]
         Resource = aws_sns_topic.sms.arn
       },
+      # Direct SMS (PhoneNumber=...) - IAM resource is the phone number; sns:Protocol
+      # is not set in the request context for Publish(PhoneNumber=...), so we allow
+      # Publish on "*" without condition. Topic publish remains restricted above.
       {
         Sid    = "AllowDirectSMSPublish"
         Effect = "Allow"
@@ -96,11 +99,6 @@ resource "aws_iam_role_policy" "sns_publish" {
           "sns:Publish"
         ]
         Resource = "*"
-        Condition = {
-          StringEquals = {
-            "sns:Protocol" = "sms"
-          }
-        }
       },
       {
         Sid    = "AllowSNSSubscribe"
