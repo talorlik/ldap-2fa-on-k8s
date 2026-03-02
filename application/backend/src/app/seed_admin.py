@@ -280,7 +280,7 @@ async def _upsert_db_admin(
                 user.status = ProfileStatus.ACTIVE.value
                 user.password_hash = password_hash
                 user.totp_secret = None
-                user.mfa_method = ""
+                user.mfa_method = None
                 user.activated_at = datetime.now(timezone.utc)
                 user.activated_by = "seed"
                 user.first_name = first_name
@@ -303,7 +303,7 @@ async def _upsert_db_admin(
                 phone_verified=True,
                 status=ProfileStatus.ACTIVE.value,
                 totp_secret=None,
-                mfa_method="",
+                mfa_method=None,
                 activated_at=datetime.now(timezone.utc),
                 activated_by="seed",
             )
