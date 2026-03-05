@@ -1,0 +1,503 @@
+digraph "LDAP 2FA on EKS - Unified Architecture" {
+	graph [bb="0,0,1974.2,1958.7",
+		bgcolor=white,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=14,
+		label="LDAP 2FA on EKS - Unified Architecture",
+		lheight=0.21,
+		lp="987.12,11.5",
+		lwidth=3.36,
+		nodesep=0.8,
+		pad=0.5,
+		rankdir=TB,
+		ranksep=1.2,
+		splines=ortho
+	];
+	node [fixedsize=true,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		height=1.4,
+		imagescale=true,
+		label="\N",
+		labelloc=b,
+		shape=box,
+		style=rounded,
+		width=1.4
+	];
+	edge [color="#7B8894"];
+	subgraph "cluster_Account A (State)" {
+		graph [bb="1430,907.2,1721,1950.7",
+			bgcolor="#FFEBEE",
+			fontname="Sans-Serif",
+			fontsize=12,
+			label="Account A (State)",
+			labeljust=l,
+			lheight=0.18,
+			lp="1484.1,1940.3",
+			lwidth=1.28,
+			pencolor="#AEB6BE",
+			penwidth=2,
+			rankdir=LR,
+			shape=box,
+			style=filled
+		];
+		subgraph "cluster_DNS / TLS" {
+			graph [bb="1438,915.2,1554,1404.2",
+				bgcolor="#E3F2FD",
+				fontname="Sans-Serif",
+				fontsize=12,
+				label="DNS / TLS",
+				labeljust=l,
+				lheight=0.18,
+				lp="1474.9,1393.8",
+				lwidth=0.80,
+				pencolor="#AEB6BE",
+				rankdir=LR,
+				shape=box,
+				style=filled
+			];
+			"6aa48abda9254610b64bb0f43155fffb"	[height=1.9,
+				image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/network/route-53-hosted-zone.png",
+				label="Hosted Zone",
+				pos="1496,1307.1",
+				shape=none];
+			"842e999972e741e38e3e7f306b0611b4"	[height=2.3,
+				image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/network/route-53.png",
+				label="Route53
+A/ALIAS records",
+				pos="1496,1006",
+				shape=none];
+			"6aa48abda9254610b64bb0f43155fffb" -> "842e999972e741e38e3e7f306b0611b4"	[dir=forward,
+				fontcolor="#2D3436",
+				fontname="Sans-Serif",
+				fontsize=13,
+				pos="e,1496,1088.8 1496,1238.7 1496,1238.7 1496,1100.3 1496,1100.3"];
+		}
+		subgraph "cluster_State & Secrets" {
+			graph [bb="1438,1719.6,1713,1921.9",
+				bgcolor="#FFF8E1",
+				fontname="Sans-Serif",
+				fontsize=12,
+				label="State & Secrets",
+				labeljust=l,
+				lheight=0.18,
+				lp="1487.2,1911.5",
+				lwidth=1.15,
+				pencolor="#AEB6BE",
+				rankdir=LR,
+				shape=box,
+				style=filled
+			];
+			a70669c3252745aab3b09fc196675677	[height=2.3,
+				image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/storage/simple-storage-service-s3.png",
+				label="Terraform State
+(S3)",
+				pos="1655,1810.4",
+				shape=none];
+			"51ec1feacf294e94adccc8ee1ab6eb24"	[height=1.9,
+				image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/security/secrets-manager.png",
+				label="Secrets Manager",
+				pos="1496,1810.4",
+				shape=none];
+		}
+		e1ed7b537b5d41359e1d687c6f4d2cbb	[height=2.3,
+			image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/security/identity-and-access-management-iam-role.png",
+			label="IAM Role
+(GitHub OIDC)",
+			pos="1496,1545.3",
+			shape=none];
+		"51ec1feacf294e94adccc8ee1ab6eb24" -> e1ed7b537b5d41359e1d687c6f4d2cbb	[dir=forward,
+			fontcolor="#2D3436",
+			fontname="Sans-Serif",
+			fontsize=13,
+			pos="e,1496,1627.9 1496,1742.1 1496,1742.1 1496,1639.5 1496,1639.5"];
+		e1ed7b537b5d41359e1d687c6f4d2cbb -> "6aa48abda9254610b64bb0f43155fffb"	[dir=forward,
+			fontcolor="#2D3436",
+			fontname="Sans-Serif",
+			fontsize=13,
+			pos="e,1496,1375.3 1496,1462.6 1496,1462.6 1496,1386.9 1496,1386.9"];
+		e1ed7b537b5d41359e1d687c6f4d2cbb -> a70669c3252745aab3b09fc196675677	[dir=forward,
+			fontcolor="#2D3436",
+			fontname="Sans-Serif",
+			fontsize=13,
+			pos="e,1604.8,1732 1521.2,1628 1521.2,1677.9 1521.2,1732 1521.2,1732 1521.2,1732 1593.3,1732 1593.3,1732"];
+	}
+	subgraph "cluster_Account B (Deployment)" {
+		graph [bb="8,31,1422,1160.7",
+			bgcolor="#E8F5E9",
+			fontname="Sans-Serif",
+			fontsize=12,
+			label="Account B (Deployment)",
+			labeljust=l,
+			lheight=0.18,
+			lp="80.875,1150.3",
+			lwidth=1.80,
+			pencolor="#AEB6BE",
+			penwidth=2,
+			rankdir=LR,
+			shape=box,
+			style=filled
+		];
+		subgraph cluster_VPC {
+			graph [bb="16,39,802,1131.9",
+				bgcolor="#E0F7FA",
+				fontname="Sans-Serif",
+				fontsize=12,
+				label=VPC,
+				labeljust=l,
+				lheight=0.18,
+				lp="36.75,1121.5",
+				lwidth=0.35,
+				pencolor="#AEB6BE",
+				rankdir=LR,
+				shape=box,
+				style=filled
+			];
+			subgraph "cluster_Public Subnets" {
+				graph [bb="45,613.2,320,1103.2",
+					bgcolor="#E8EAF6",
+					fontname="Sans-Serif",
+					fontsize=12,
+					label="Public Subnets",
+					labeljust=l,
+					lheight=0.18,
+					lp="93.5,1092.8",
+					lwidth=1.12,
+					pencolor="#AEB6BE",
+					rankdir=LR,
+					shape=box,
+					style=filled
+				];
+				"85419777867843edaf0c06a90ddee3e7"	[height=1.9,
+					image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/network/internet-gateway.png",
+					label=IGW,
+					pos="103,1006",
+					shape=none];
+				cada7cca208d4df0b901c2cfef133595	[height=2.7,
+					image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/network/elb-application-load-balancer.png",
+					label="ALB
+(HTTPS 443)
+host/path routing",
+					pos="262,718.4",
+					shape=none];
+				"85419777867843edaf0c06a90ddee3e7" -> cada7cca208d4df0b901c2cfef133595	[dir=forward,
+					fontcolor="#2D3436",
+					fontname="Sans-Serif",
+					fontsize=13,
+					pos="e,211.69,718 103,937.75 103,852.58 103,718 103,718 103,718 200.18,718 200.18,718"];
+				ba63e353bc63477d801825d1d8156fd0	[height=1.9,
+					image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/network/nat-gateway.png",
+					label=NAT,
+					pos="262,1006",
+					shape=none];
+			}
+			subgraph "cluster_Private Subnets" {
+				graph [bb="328,47,794,858.7",
+					bgcolor="#E8F5E9",
+					fontname="Sans-Serif",
+					fontsize=12,
+					label="Private Subnets",
+					labeljust=l,
+					lheight=0.18,
+					lp="378.38,848.33",
+					lwidth=1.18,
+					pencolor="#AEB6BE",
+					rankdir=LR,
+					shape=box,
+					style=filled
+				];
+				subgraph "cluster_EKS Auto Mode" {
+					graph [bb="336,55,786,829.95",
+						bgcolor="#F3E5F5",
+						fontname="Sans-Serif",
+						fontsize=12,
+						label="EKS Auto Mode",
+						labeljust=l,
+						lheight=0.18,
+						lp="386.38,819.58",
+						lwidth=1.18,
+						pencolor="#AEB6BE",
+						rankdir=LR,
+						shape=box,
+						style=filled
+					];
+					subgraph "cluster_OpenLDAP Stack
+(internal only)" {
+						graph [bb="344,63,778,278.1",
+							bgcolor="#E5F5FD",
+							fontname="Sans-Serif",
+							fontsize=12,
+							label="OpenLDAP Stack
+(internal only)",
+							labeljust=l,
+							lheight=0.35,
+							lp="399.25,261.35",
+							lwidth=1.31,
+							pencolor="#AEB6BE",
+							rankdir=LR,
+							shape=box,
+							style=rounded
+						];
+						"54812ae254d0426d9cd05310436328e6"	[height=2.3,
+							image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/compute/ec2-instance.png",
+							label="OpenLDAP
+(ClusterIP)",
+							pos="720,153.8",
+							shape=none];
+						"474df25856e945d3812045ab527f8311"	[height=1.9,
+							image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/compute/ec2-instance.png",
+							label=phpLDAPadmin,
+							pos="561,153.8",
+							shape=none];
+						"8cb2cfb9cd47449a8a5ba3c0c818ed09"	[height=1.9,
+							image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/compute/ec2-instance.png",
+							label="LTB-passwd",
+							pos="402,153.8",
+							shape=none];
+					}
+					subgraph "cluster_2FA App" {
+						graph [bb="503,348.1,778,550.45",
+							bgcolor="#E5F5FD",
+							fontname="Sans-Serif",
+							fontsize=12,
+							label="2FA App",
+							labeljust=l,
+							lheight=0.18,
+							lp="533.5,540.08",
+							lwidth=0.62,
+							pencolor="#AEB6BE",
+							rankdir=LR,
+							shape=box,
+							style=rounded
+						];
+						"21d98e27f0f5485c82420350d4066f8f"	[height=2.3,
+							image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/compute/ec2-instance.png",
+							label="Frontend
+(path /)",
+							pos="561,438.9",
+							shape=none];
+						ee1f55bdc2234f6a87d5d9ad04f0c768	[height=2.3,
+							image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/compute/ec2-instance.png",
+							label="Backend
+(path /api)",
+							pos="720,438.9",
+							shape=none];
+					}
+					bc189028630b482a8ba8cd1dcfe52752	[height=1.9,
+						image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/compute/elastic-kubernetes-service.png",
+						label="EKS Cluster",
+						pos="565,718.4",
+						shape=none];
+					ee1f55bdc2234f6a87d5d9ad04f0c768 -> "54812ae254d0426d9cd05310436328e6"	[dir=forward,
+						fontcolor="#2D3436",
+						fontname="Sans-Serif",
+						fontsize=13,
+						label="LDAP
+(internal)",
+						lp="746.62,299.6",
+						pos="e,720,236.57 720,356.44 720,356.44 720,248.08 720,248.08"];
+					b5f54400d03d4baa92efd5a41247febb	[height=2.3,
+						image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/compute/ec2-instance.png",
+						label="ArgoCD
+(GitOps)",
+						pos="724,718.4",
+						shape=none];
+					b5f54400d03d4baa92efd5a41247febb -> "21d98e27f0f5485c82420350d4066f8f"	[dir=forward,
+						fontcolor="#2D3436",
+						fontname="Sans-Serif",
+						fontsize=13,
+						pos="e,579.13,521.62 673.74,643 631.9,643 579.13,643 579.13,643 579.13,643 579.13,533.13 579.13,533.13"];
+					b5f54400d03d4baa92efd5a41247febb -> ee1f55bdc2234f6a87d5d9ad04f0c768	[dir=forward,
+						fontcolor="#2D3436",
+						fontname="Sans-Serif",
+						fontsize=13,
+						pos="e,738.13,521.41 738.13,635.68 738.13,635.68 738.13,532.93 738.13,532.93"];
+				}
+			}
+			ba63e353bc63477d801825d1d8156fd0 -> bc189028630b482a8ba8cd1dcfe52752	[dir=forward,
+				fontcolor="#2D3436",
+				fontname="Sans-Serif",
+				fontsize=13,
+				pos="e,534.76,786.56 312.35,1006 391.16,1006 534.76,1006 534.76,1006 534.76,1006 534.76,798.07 534.76,798.07"];
+			cada7cca208d4df0b901c2cfef133595 -> "474df25856e945d3812045ab527f8311"	[dir=forward,
+				fontcolor="#2D3436",
+				fontname="Sans-Serif",
+				fontsize=13,
+				label="phpldapadmin.<domain>",
+				lp="379.12,438.9",
+				pos="e,510.65,154 312.36,627 377.16,627 481.5,627 481.5,627 481.5,627 481.5,154 481.5,154 481.5,154 499.14,154 499.14,154"];
+			cada7cca208d4df0b901c2cfef133595 -> "8cb2cfb9cd47449a8a5ba3c0c818ed09"	[dir=forward,
+				fontcolor="#2D3436",
+				fontname="Sans-Serif",
+				fontsize=13,
+				label="passwd.<domain>",
+				lp="136,438.9",
+				pos="e,402,222.17 312.15,624 352.32,624 402,624 402,624 402,624 402,233.68 402,233.68"];
+			cada7cca208d4df0b901c2cfef133595 -> "21d98e27f0f5485c82420350d4066f8f"	[dir=forward,
+				fontcolor="#2D3436",
+				fontname="Sans-Serif",
+				fontsize=13,
+				label="app.<domain>/",
+				lp="425.25,571.45",
+				pos="e,546.87,521.61 312.27,630 394.05,630 546.87,630 546.87,630 546.87,630 546.87,533.12 546.87,533.12"];
+			cada7cca208d4df0b901c2cfef133595 -> ee1f55bdc2234f6a87d5d9ad04f0c768	[dir=forward,
+				fontcolor="#2D3436",
+				fontname="Sans-Serif",
+				fontsize=13,
+				label="app.<domain>/api/*",
+				lp="624.75,571.45",
+				pos="e,705.87,521.5 312.05,633 428.14,633 705.87,633 705.87,633 705.87,633 705.87,533.01 705.87,533.01"];
+		}
+		subgraph "cluster_Data & Messaging" {
+			graph [bb="821,63,1414,265.35",
+				bgcolor="#FFF3E0",
+				fontname="Sans-Serif",
+				fontsize=12,
+				label="Data & Messaging",
+				labeljust=l,
+				lheight=0.18,
+				lp="878.12,254.98",
+				lwidth=1.36,
+				pencolor="#AEB6BE",
+				rankdir=LR,
+				shape=box,
+				style=filled
+			];
+			"8f29ed6a1aff4c32ad314a3433ed80d8"	[height=1.9,
+				image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/database/rds-postgresql-instance.png",
+				label=PostgreSQL,
+				pos="1197,153.8",
+				shape=none];
+			"7689d8a1d5494a68aa126c5def319d54"	[height=1.9,
+				image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/database/elasticache-for-redis.png",
+				label=Redis,
+				pos="1356,153.8",
+				shape=none];
+			"79df8d661d494ff6a6b18c22dc4a3de7"	[height=2.3,
+				image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/integration/simple-notification-service-sns.png",
+				label="SNS
+(SMS)",
+				pos="879,153.8",
+				shape=none];
+			d891701e05ce4fc2b792ef70223ef6a0	[height=2.3,
+				image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/engagement/simple-email-service-ses.png",
+				label="SES
+(Email)",
+				pos="1038,153.8",
+				shape=none];
+		}
+		b140f797f14a4baebd1f1629ede5f453	[height=2.3,
+			image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/security/certificate-manager.png",
+			label="ACM Certificate
+(HTTPS)",
+			pos="860,1006",
+			shape=none];
+		b140f797f14a4baebd1f1629ede5f453 -> cada7cca208d4df0b901c2cfef133595	[dir=forward,
+			fontcolor="#2D3436",
+			fontname="Sans-Serif",
+			fontsize=13,
+			pos="e,311.93,812 819.1,923.45 819.1,870.64 819.1,812 819.1,812 819.1,812 323.44,812 323.44,812"];
+		"74cbfa52c63a47119fea0797bb1cf702"	[height=1.9,
+			image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/compute/ec2-container-registry.png",
+			label=ECR,
+			pos="1019,1006",
+			shape=none];
+		"74cbfa52c63a47119fea0797bb1cf702" -> bc189028630b482a8ba8cd1dcfe52752	[dir=forward,
+			fontcolor="#2D3436",
+			fontname="Sans-Serif",
+			fontsize=13,
+			pos="e,595.24,786.63 978.1,937.67 978.1,879.4 978.1,805 978.1,805 978.1,805 595.24,805 595.24,805 595.24,805 595.24,798.15 595.24,798.15"];
+		ee1f55bdc2234f6a87d5d9ad04f0c768 -> "8f29ed6a1aff4c32ad314a3433ed80d8"	[dir=forward,
+			fontcolor="#2D3436",
+			fontname="Sans-Serif",
+			fontsize=13,
+			pos="e,1197,222.15 770.15,455 892.61,455 1197,455 1197,455 1197,455 1197,233.66 1197,233.66"];
+		ee1f55bdc2234f6a87d5d9ad04f0c768 -> "7689d8a1d5494a68aa126c5def319d54"	[dir=forward,
+			fontcolor="#2D3436",
+			fontname="Sans-Serif",
+			fontsize=13,
+			pos="e,1346.5,222.04 770.21,489 918.88,489 1346.5,489 1346.5,489 1346.5,489 1346.5,233.55 1346.5,233.55"];
+		ee1f55bdc2234f6a87d5d9ad04f0c768 -> "79df8d661d494ff6a6b18c22dc4a3de7"	[dir=forward,
+			fontcolor="#2D3436",
+			fontname="Sans-Serif",
+			fontsize=13,
+			pos="e,869.5,236.39 770.2,389 813.63,389 869.5,389 869.5,389 869.5,389 869.5,247.91 869.5,247.91"];
+		ee1f55bdc2234f6a87d5d9ad04f0c768 -> d891701e05ce4fc2b792ef70223ef6a0	[dir=forward,
+			fontcolor="#2D3436",
+			fontname="Sans-Serif",
+			fontsize=13,
+			pos="e,1028.5,236.46 770.25,422 857.67,422 1028.5,422 1028.5,422 1028.5,422 1028.5,247.97 1028.5,247.97"];
+	}
+	"8443a2668db644608573893d88815320"	[height=1.9,
+		image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/general/user.png",
+		label=Users,
+		pos="1779,1307.1",
+		shape=none];
+	"8443a2668db644608573893d88815320" -> "842e999972e741e38e3e7f306b0611b4"	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		label=HTTPS,
+		lp="1801.1,1182.2",
+		pos="e,1546.3,1006 1779,1238.7 1779,1149.9 1779,1006 1779,1006 1779,1006 1557.8,1006 1557.8,1006"];
+	df8abd6fd1d44d219d22fb8b236bdbbb	[height=2.3,
+		image="/Users/talo/www/hiring-assessment-candidate-146-talorlik-90hm4i9kr5/docs/architecture-diagrams/venv/lib/python3.13/site-packages/\
+resources/aws/general/client.png",
+		label="GitHub Actions
+(OIDC)",
+		pos="1337,1810.4",
+		shape=none];
+	df8abd6fd1d44d219d22fb8b236bdbbb -> e1ed7b537b5d41359e1d687c6f4d2cbb	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		label=OIDC,
+		lp="1353.5,1677.8",
+		pos="e,1470.8,1628 1387.2,1737 1425.2,1737 1470.8,1737 1470.8,1737 1470.8,1737 1470.8,1639.5 1470.8,1639.5"];
+	"842e999972e741e38e3e7f306b0611b4" -> cada7cca208d4df0b901c2cfef133595	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		label="A/ALIAS",
+		lp="1498.5,873.45",
+		pos="e,312.29,808 1496,923.46 1496,869.13 1496,808 1496,808 1496,808 323.8,808 323.8,808"];
+	a70669c3252745aab3b09fc196675677 -> bc189028630b482a8ba8cd1dcfe52752	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		label=state,
+		lp="1959.6,1307.1",
+		pos="e,575.08,786.53 1655,1727.8 1655,1613 1655,1419 1655,1419 1655,1419 575.08,1419 575.08,1419 575.08,1419 575.08,798.05 575.08,798.05"];
+	e1ed7b537b5d41359e1d687c6f4d2cbb -> bc189028630b482a8ba8cd1dcfe52752	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		label="assume-role
++ ExternalId",
+		lp="1293.8,1182.2",
+		pos="e,554.92,786.75 1445.7,1545 1250.7,1545 554.92,1545 554.92,1545 554.92,1545 554.92,798.26 554.92,798.26"];
+}

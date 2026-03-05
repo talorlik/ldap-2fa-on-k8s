@@ -1003,6 +1003,9 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
     <!-- Architecture -->
     <section id="architecture">
         <h2>Architecture</h2>
+        <figure class="architecture-diagram-wrapper" aria-label="LDAP 2FA architecture diagram">
+            <img src="architecture-diagrams/diagrams/ldap_2fa_unified.png" alt="LDAP 2FA unified architecture diagram" class="architecture-diagram">
+        </figure>
         <h3 id="multi-account-architecture">Multi-Account Architecture</h3>
         <div class="card">
             <p>This project uses a <strong>multi-account architecture</strong> for enhanced security. See the Prerequisites table above for a quick reference of what resides in each account.</p>
@@ -1353,7 +1356,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
             <p><strong>URL:</strong> <code>https://app.&lt;your-domain&gt;</code> (e.g., <code>https://app.example.com</code>)</p>
             <p>The full-stack 2FA application provides:</p>
             <ul>
-                <li><strong>Sign Up Flow:</strong> 
+                <li><strong>Sign Up Flow:</strong>
                     <ul>
                         <li>User signs up → status set to <strong>PENDING</strong> (email and phone verification sent)</li>
                         <li>User verifies email → <code>email_verified = true</code></li>
@@ -1363,7 +1366,7 @@ terraform apply -auto-approve terraform.tfplan</code></pre>
                     </ul>
                     <strong>Note:</strong> MFA method selection does not occur during signup. Users cannot log in while in PENDING or COMPLETE states.
                 </li>
-                <li><strong>Login Flow (ACTIVE users only):</strong> 
+                <li><strong>Login Flow (ACTIVE users only):</strong>
                     <ul>
                         <li>Step 1 – username and password only (with optional "Remember me" for longer-lived session and "Forgot your password?" link)</li>
                         <li>Step 2 – MFA screen where the user chooses Authenticator app or SMS and enters the 6-digit code (from the app or sent via SMS)</li>
