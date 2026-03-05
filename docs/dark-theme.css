@@ -74,6 +74,7 @@ body {
     text-decoration: none;
     padding: 0;
     margin-right: 20px;
+    white-space: nowrap;
 }
 
 .nav-menu {
@@ -98,6 +99,7 @@ body {
     font-size: 14px;
     transition: color 0.2s;
     border-bottom: 2px solid transparent;
+    white-space: nowrap;
 }
 
 .nav-menu a:hover {
@@ -301,6 +303,44 @@ section h5 {
 .card h4 {
     margin-top: 0;
     color: var(--primary-color);
+}
+
+.ask-docs-card {
+    margin-bottom: 24px;
+}
+
+.ask-docs-inline {
+    margin-top: 0.75em;
+    margin-bottom: 0;
+}
+
+.ask-docs-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.15em;
+    font-weight: 600;
+    padding: 4px 0;
+}
+
+.ask-docs-link:hover {
+    text-decoration: none;
+    color: var(--primary-hover);
+}
+
+.ask-docs-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.ask-docs-icon svg {
+    width: 24px;
+    height: 24px;
+    color: var(--primary-color);
+}
+
+.ask-docs-link:hover .ask-docs-icon svg {
+    color: var(--primary-hover);
 }
 
 /* Lists */
